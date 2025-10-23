@@ -8,6 +8,7 @@
 
 import SwiftUI
 import CoreData
+import OSLog
 
 // MARK: - RecipeItem Model
 
@@ -39,6 +40,8 @@ struct RecipeGenerationView: View {
     @State private var manualIngredients: [RecipeItem] = []
     @State private var manualSteps: [RecipeItem] = []
     @FocusState private var focusedField: FocusField?
+
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeGenerationView")
 
     enum FocusField {
         case ingredient
@@ -165,34 +168,62 @@ struct RecipeGenerationView: View {
             let imageHeight = UIScreen.main.bounds.height * 0.5
 
             ZStack(alignment: .top) {
-                // Placeholder gradient (purple like recipe detail view)
-                LinearGradient(
-                    colors: [
-                        ThemeColors.primaryPurple,
-                        ThemeColors.lightPurple
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .frame(width: geometry.size.width, height: imageHeight)
+                // Show generated image if available, otherwise show placeholder gradient
+                if let image = viewModel.preparedImage {
+                    // Display generated image
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geometry.size.width, height: imageHeight)
+                        .clipped()
 
-                // Dark gradient overlay
-                RecipeImageGradient.textOverlay
+                    // Dark gradient overlay for text readability
+                    RecipeImageGradient.textOverlay
+                        .frame(width: geometry.size.width, height: imageHeight)
+                } else {
+                    // Placeholder gradient (purple like recipe detail view)
+                    LinearGradient(
+                        colors: [
+                            ThemeColors.primaryPurple,
+                            ThemeColors.lightPurple
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
                     .frame(width: geometry.size.width, height: imageHeight)
 
-                // Centered spatial.capture icon when recipe is generated
+                    // Dark gradient overlay
+                    RecipeImageGradient.textOverlay
+                        .frame(width: geometry.size.width, height: imageHeight)
+                }
+
+                // Photo generation button or loading indicator
                 if !viewModel.recipeName.isEmpty {
-                    Button(action: {
-                        Task {
-                            await generatePhoto()
-                        }
-                    }) {
-                        Image(systemName: "spatial.capture")
-                            .font(.system(size: 64, weight: .light))
-                            .foregroundStyle(.white.opacity(0.8))
+                    if viewModel.isGeneratingPhoto {
+                        // Show loading indicator while generating
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(1.5)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if viewModel.preparedImage == nil {
+                        // Show photo generation button if no image yet
+                        Button(action: {
+                            Task {
+                                await generatePhoto()
+                            }
+                        }) {
+                            VStack(spacing: 12) {
+                                Image(systemName: "spatial.capture")
+                                    .font(.system(size: 64, weight: .light))
+                                    .foregroundStyle(.white.opacity(0.8))
+                                Text("Fotoğraf Oluştur")
+                                    .font(.system(size: 17, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.8))
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
         }
@@ -372,22 +403,40 @@ struct RecipeGenerationView: View {
     // MARK: - Save Recipe
 
     private func saveRecipe() async {
+        logger.info("💾 [VIEW] saveRecipe() called")
+
         // If user has manually created a recipe, build markdown content
         if !manualIngredients.isEmpty || !manualSteps.isEmpty {
             buildManualRecipeContent()
         }
 
-        // Call persistence coordinator to save recipe
-        await viewModel.persistenceCoordinator.saveRecipe(imageURL: nil, imageData: nil)
+        // CRITICAL: Load image data from generated URL if present (before saving)
+        if viewModel.generatedPhotoURL != nil {
+            logger.info("🖼️ [VIEW] Photo URL present - loading image data before save...")
+            await viewModel.loadImageFromGeneratedURL()
+            logger.info("✅ [VIEW] Image data loaded - proceeding with save")
+        } else {
+            logger.debug("ℹ️ [VIEW] No generated photo URL - saving without image")
+        }
+
+        // Call ViewModel saveRecipe which passes image data to persistence coordinator
+        logger.info("💾 [VIEW] Calling viewModel.saveRecipe()...")
+        viewModel.saveRecipe()
+
+        // Wait a moment for async save to complete
+        try? await Task.sleep(for: .milliseconds(100))
 
         // Check if save was successful by checking coordinator's confirmation state
         if viewModel.persistenceCoordinator.showingSaveConfirmation {
+            logger.info("✅ [VIEW] Save confirmed - showing success state")
             isSaved = true
             showingSaveConfirmation = true
 
             // Hide confirmation after 2 seconds
             try? await Task.sleep(for: .seconds(2))
             showingSaveConfirmation = false
+        } else {
+            logger.warning("⚠️ [VIEW] Save confirmation not shown")
         }
     }
 
@@ -416,8 +465,34 @@ struct RecipeGenerationView: View {
     // MARK: - Photo Generation
 
     private func generatePhoto() async {
+        logger.info("🎬 [VIEW] Photo generation button tapped")
+        logger.debug("📋 [VIEW] ViewModel state before generation:")
+        logger.debug("  - recipeName: '\(viewModel.recipeName)'")
+        logger.debug("  - isGeneratingPhoto: \(viewModel.isGeneratingPhoto)")
+        logger.debug("  - generatedPhotoURL: \(viewModel.generatedPhotoURL ?? "nil")")
+        logger.debug("  - preparedImage: \(viewModel.preparedImage != nil ? "present" : "nil")")
+
+        logger.info("🎬 [VIEW] Calling viewModel.generateRecipePhoto()...")
         // Call photo coordinator to generate AI image
         await viewModel.generateRecipePhoto()
+
+        logger.info("✅ [VIEW] viewModel.generateRecipePhoto() returned")
+        logger.debug("📋 [VIEW] ViewModel state after generation:")
+        logger.debug("  - isGeneratingPhoto: \(viewModel.isGeneratingPhoto)")
+        logger.debug("  - generatedPhotoURL: \(viewModel.generatedPhotoURL ?? "nil")")
+        logger.debug("  - preparedImage: \(viewModel.preparedImage != nil ? "present" : "nil")")
+
+        // After generation completes, load the image from the generated URL
+        if viewModel.generatedPhotoURL != nil {
+            logger.info("🖼️ [VIEW] generatedPhotoURL is present - calling loadImageFromGeneratedURL()")
+            await viewModel.loadImageFromGeneratedURL()
+            logger.info("✅ [VIEW] loadImageFromGeneratedURL() completed")
+            logger.debug("  - preparedImage after load: \(viewModel.preparedImage != nil ? "present" : "nil")")
+        } else {
+            logger.warning("⚠️ [VIEW] generatedPhotoURL is nil - skipping image load")
+        }
+
+        logger.info("🏁 [VIEW] generatePhoto() completed")
     }
 }
 

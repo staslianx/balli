@@ -369,10 +369,43 @@ const generateRecipePhotoFlow = genkit_instance_1.ai.defineFlow({
         // Check if response contains media
         if (response.media?.url) {
             console.log(`✅ [PHOTO] Generated ${input.qualityLevel} quality photo for ${input.recipeName} in ${generationTime}s`);
+            let imageUrl = response.media.url;
+            console.log(`🔍 [PHOTO] Original image URL format: ${imageUrl.substring(0, 100)}...`);
+            // iOS expects data: URLs for base64 images
+            // Convert Genkit response to data URL format if needed
+            if (!imageUrl.startsWith('data:')) {
+                // If it's a gs:// or https:// URL, we need to download and convert to base64
+                if (imageUrl.startsWith('gs://') || imageUrl.startsWith('https://')) {
+                    console.log(`📥 [PHOTO] Downloading image from URL to convert to base64...`);
+                    try {
+                        // Download the image
+                        const fetch = (await Promise.resolve().then(() => __importStar(require('node-fetch')))).default;
+                        const imageResponse = await fetch(imageUrl);
+                        if (!imageResponse.ok) {
+                            throw new Error(`Failed to download image: ${imageResponse.statusText}`);
+                        }
+                        // Convert to base64
+                        const arrayBuffer = await imageResponse.arrayBuffer();
+                        const base64Data = Buffer.from(arrayBuffer).toString('base64');
+                        imageUrl = `data:image/jpeg;base64,${base64Data}`;
+                        console.log(`✅ [PHOTO] Converted to base64 data URL (${base64Data.length} chars)`);
+                    }
+                    catch (downloadError) {
+                        console.error(`❌ [PHOTO] Failed to download and convert image:`, downloadError);
+                        throw new Error(`Failed to process generated image: ${downloadError}`);
+                    }
+                }
+                else {
+                    // Assume it's raw base64 without prefix
+                    console.log(`🔧 [PHOTO] Adding data: prefix to raw base64`);
+                    imageUrl = `data:image/jpeg;base64,${imageUrl}`;
+                }
+            }
+            console.log(`✅ [PHOTO] Final image URL format: ${imageUrl.substring(0, 50)}...`);
             // Build enhanced prompt description for transparency
             const enhancedPromptDesc = `Ultra-high quality professional food photography of ${input.recipeName} using Canon EOS R5, ${input.aspectRatio} aspect ratio, with ${aspectRatioConfig.description.toLowerCase()}`;
             return {
-                imageUrl: response.media.url,
+                imageUrl: imageUrl,
                 prompt: enhancedPromptDesc,
                 generationTime: `${generationTime}s`,
                 metadata: {

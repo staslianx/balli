@@ -45,9 +45,20 @@ public final class RecipeFormState: ObservableObject {
     // MARK: - Computed Properties
 
     /// Check if recipe has sufficient data for operations
+    /// Supports both modern markdown format and legacy array format
     public var hasRecipeData: Bool {
-        return !recipeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-               !ingredients.allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } &&
+        // Must have recipe name
+        guard !recipeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return false
+        }
+
+        // NEW FORMAT: Check if markdown content exists (modern streaming recipes)
+        if !recipeContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return true
+        }
+
+        // LEGACY FORMAT: Check if arrays have content (older recipes)
+        return !ingredients.allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } &&
                !directions.allSatisfy { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     }
 

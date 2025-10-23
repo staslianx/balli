@@ -7,10 +7,13 @@
 //
 
 import SwiftUI
+import CoreData
+import OSLog
 
 /// Full-screen recipe detail with hero image and interactive elements
 struct RecipeDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.managedObjectContext) private var viewContext
 
     let recipeData: RecipeDetailData
 
@@ -18,6 +21,10 @@ struct RecipeDetailView: View {
     @State private var showingShareSheet = false
     @State private var showingNutritionalValues = false
     @State private var showingNoteDetail = false
+    @State private var isGeneratingPhoto = false
+    @State private var generatedImageData: Data?
+
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeDetailView")
 
     var body: some View {
         ZStack {
@@ -111,7 +118,15 @@ struct RecipeDetailView: View {
             let imageHeight = UIScreen.main.bounds.height * 0.5
 
             ZStack(alignment: .top) {
-                if let imageData = recipeData.imageData,
+                // Show generated image if available, otherwise show existing or placeholder
+                if let generatedData = generatedImageData,
+                   let uiImage = UIImage(data: generatedData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geometry.size.width, height: imageHeight)
+                        .clipped()
+                } else if let imageData = recipeData.imageData,
                    let uiImage = UIImage(data: imageData) {
                     Image(uiImage: uiImage)
                         .resizable()
@@ -138,6 +153,35 @@ struct RecipeDetailView: View {
                 // Dark gradient overlay for text readability
                 RecipeImageGradient.textOverlay
                     .frame(width: geometry.size.width, height: imageHeight)
+
+                // Photo generation button or loading indicator (only if no image exists)
+                if recipeData.imageData == nil && recipeData.imageURL == nil && generatedImageData == nil {
+                    if isGeneratingPhoto {
+                        // Show loading indicator while generating
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(1.5)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        // Show photo generation button
+                        Button(action: {
+                            Task {
+                                await generatePhoto()
+                            }
+                        }) {
+                            VStack(spacing: 12) {
+                                Image(systemName: "spatial.capture")
+                                    .font(.system(size: 64, weight: .light))
+                                    .foregroundStyle(.white.opacity(0.8))
+                                Text("Fotoğraf Oluştur")
+                                    .font(.system(size: 17, weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.8))
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
             }
         }
         .frame(height: UIScreen.main.bounds.height * 0.5)
@@ -325,6 +369,75 @@ struct RecipeDetailView: View {
     private func handleShopping() {
         // TODO: Add recipe ingredients to shopping list
         print("Add to shopping list: \(recipeData.recipeName)")
+    }
+
+    // MARK: - Photo Generation
+
+    private func generatePhoto() async {
+        logger.info("🎬 [DETAIL] Photo generation button tapped for recipe: \(recipeData.recipeName)")
+
+        isGeneratingPhoto = true
+
+        do {
+            logger.info("🌐 [DETAIL] Calling photo generation service...")
+
+            // Extract ingredients and directions from recipe
+            let ingredients = recipeData.recipe.ingredientsArray
+            let directions = recipeData.recipe.instructionsArray
+
+            logger.debug("📋 [DETAIL] Recipe data:")
+            logger.debug("  - Name: \(recipeData.recipeName)")
+            logger.debug("  - Ingredients: \(ingredients.count)")
+            logger.debug("  - Directions: \(directions.count)")
+
+            // Call photo generation service
+            let photoService = RecipePhotoGenerationService.shared
+            let imageURL = try await photoService.generateRecipePhoto(
+                recipeName: recipeData.recipeName,
+                ingredients: ingredients,
+                directions: directions,
+                mealType: "Genel",
+                styleType: "Klasik"
+            )
+
+            logger.info("✅ [DETAIL] Received imageURL from service")
+            logger.debug("🔍 [DETAIL] imageURL prefix: \(imageURL.prefix(60))...")
+
+            // Convert base64 to Data
+            if imageURL.hasPrefix("data:image") {
+                logger.info("🖼️ [DETAIL] Converting base64 to image data...")
+                let base64String = imageURL.replacingOccurrences(of: "data:image/jpeg;base64,", with: "")
+                    .replacingOccurrences(of: "data:image/png;base64,", with: "")
+
+                if let imageData = Data(base64Encoded: base64String) {
+                    logger.info("✅ [DETAIL] Successfully converted to image data (\(imageData.count) bytes)")
+                    generatedImageData = imageData
+
+                    // Save to Core Data
+                    logger.info("💾 [DETAIL] Saving image to Core Data...")
+                    await MainActor.run {
+                        recipeData.recipe.imageData = imageData
+                        recipeData.recipe.lastModified = Date()
+
+                        do {
+                            try viewContext.save()
+                            logger.info("✅ [DETAIL] Image saved to recipe successfully")
+                        } catch {
+                            logger.error("❌ [DETAIL] Failed to save image to Core Data: \(error.localizedDescription)")
+                        }
+                    }
+                } else {
+                    logger.error("❌ [DETAIL] Failed to decode base64 string")
+                }
+            }
+
+            isGeneratingPhoto = false
+            logger.info("🏁 [DETAIL] Photo generation completed")
+
+        } catch {
+            logger.error("❌ [DETAIL] Photo generation failed: \(error.localizedDescription)")
+            isGeneratingPhoto = false
+        }
     }
 }
 

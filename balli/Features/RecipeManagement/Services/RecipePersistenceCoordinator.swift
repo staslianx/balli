@@ -9,10 +9,12 @@
 
 import SwiftUI
 import CoreData
+import OSLog
 
 /// Coordinates recipe persistence with validation and image management
 @MainActor
 public final class RecipePersistenceCoordinator: ObservableObject {
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipePersistence")
     // MARK: - UI State
     @Published public var showingSaveConfirmation = false
     @Published public var showingValidationError = false
@@ -44,6 +46,11 @@ public final class RecipePersistenceCoordinator: ObservableObject {
 
     /// Save recipe (create new or update existing)
     public func saveRecipe(imageURL: String?, imageData: Data?) async {
+        logger.info("💾 [PERSIST] saveRecipe() called for '\(self.formState.recipeName)'")
+        logger.debug("📋 [PERSIST] Image parameters:")
+        logger.debug("  - imageURL: \(imageURL != nil ? "present" : "nil")")
+        logger.debug("  - imageData: \(imageData != nil ? "\(imageData!.count) bytes" : "nil")")
+
         // Validate nutrition values
         let validationResult = dataManager.validateNutritionValues(
             carbohydrates: formState.carbohydrates,
@@ -53,8 +60,10 @@ public final class RecipePersistenceCoordinator: ObservableObject {
 
         switch validationResult {
         case .success:
+            logger.info("✅ [PERSIST] Nutrition validation passed")
             break
         case .failure(let message):
+            logger.error("❌ [PERSIST] Nutrition validation failed: \(message)")
             validationErrorMessage = message
             showingValidationError = true
             return
@@ -62,8 +71,10 @@ public final class RecipePersistenceCoordinator: ObservableObject {
 
         // Save or update
         if let existingRecipe = existingRecipe {
+            logger.info("🔄 [PERSIST] Updating existing recipe")
             updateExistingRecipe(existingRecipe, imageURL: imageURL, imageData: imageData)
         } else {
+            logger.info("✨ [PERSIST] Creating new recipe")
             createNewRecipe(imageURL: imageURL, imageData: imageData)
         }
     }
@@ -115,6 +126,10 @@ public final class RecipePersistenceCoordinator: ObservableObject {
     }
 
     private func createNewRecipe(imageURL: String?, imageData: Data?) {
+        logger.info("📝 [PERSIST] Building RecipeSaveData...")
+        logger.debug("  - Recipe name: '\(self.formState.recipeName)'")
+        logger.debug("  - imageData: \(imageData != nil ? "\(imageData!.count) bytes" : "nil")")
+
         let saveData = RecipeSaveData(
             recipeName: formState.recipeName,
             prepTime: formState.prepTime,
@@ -135,18 +150,27 @@ public final class RecipePersistenceCoordinator: ObservableObject {
         )
 
         do {
+            logger.info("💾 [PERSIST] Calling dataManager.saveRecipe()...")
             try dataManager.saveRecipe(data: saveData)
+            logger.info("✅ [PERSIST] Recipe saved successfully to Core Data")
             showingSaveConfirmation = true
 
             // Upload image in background if needed
             if let imageData = imageData, imageURL == nil {
+                logger.info("📤 [PERSIST] Starting background image upload to Firebase Storage")
                 Task {
                     if let savedRecipe = try? viewContext.fetch(Recipe.fetchRequest()).first(where: { $0.name == formState.recipeName }) {
+                        logger.info("✅ [PERSIST] Found saved recipe in Core Data - uploading image")
                         await imageService.uploadImageToStorageInBackground(imageData: imageData, recipe: savedRecipe)
+                    } else {
+                        logger.error("❌ [PERSIST] Could not find saved recipe for image upload")
                     }
                 }
+            } else {
+                logger.debug("ℹ️ [PERSIST] Skipping background upload (imageData: \(imageData != nil), imageURL: \(imageURL != nil))")
             }
         } catch {
+            logger.error("❌ [PERSIST] Save failed: \(error.localizedDescription)")
             ErrorHandler.shared.handle(error)
             validationErrorMessage = "Save failed: \(error.localizedDescription)"
             showingValidationError = true

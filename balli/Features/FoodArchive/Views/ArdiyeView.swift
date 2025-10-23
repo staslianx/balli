@@ -301,14 +301,25 @@ struct ArdiyeView: View {
         .onReceive(
             NotificationCenter.default.publisher(for: NSNotification.Name.NSManagedObjectContextDidSave),
             perform: { notification in
-                logger.info("🔔 ARDIYE: NSManagedObjectContextDidSave notification received")
+                logger.info("🔔 [ARDIYE] NSManagedObjectContextDidSave notification received")
 
-                // Log what was updated
+                // Log what was updated/inserted
                 if let userInfo = notification.userInfo {
+                    if let inserted = userInfo[NSInsertedObjectsKey] as? Set<NSManagedObject> {
+                        logger.info("  - Inserted objects: \(inserted.count)")
+                        for obj in inserted {
+                            if let recipe = obj as? Recipe {
+                                logger.info("    • Recipe inserted: '\(recipe.name)' - imageData: \(recipe.imageData != nil ? "\(recipe.imageData!.count) bytes" : "nil")")
+                            }
+                        }
+                    }
+
                     if let updated = userInfo[NSUpdatedObjectsKey] as? Set<NSManagedObject> {
                         logger.info("  - Updated objects: \(updated.count)")
                         for obj in updated {
-                            if let foodItem = obj as? FoodItem {
+                            if let recipe = obj as? Recipe {
+                                logger.info("    • Recipe updated: '\(recipe.name)' - imageData: \(recipe.imageData != nil ? "\(recipe.imageData!.count) bytes" : "nil")")
+                            } else if let foodItem = obj as? FoodItem {
                                 logger.info("    • FoodItem: \(foodItem.name) - \(foodItem.servingSize)g")
                             }
                         }
@@ -316,7 +327,9 @@ struct ArdiyeView: View {
                 }
 
                 // Refresh cached items when Core Data is saved (e.g., from detail view)
+                logger.info("🔄 [ARDIYE] Calling updateCachedItems() to refresh display")
                 updateCachedItems()
+                logger.info("✅ [ARDIYE] updateCachedItems() completed")
             }
         )
         .sheet(isPresented: $showingShoppingList) {
@@ -524,6 +537,7 @@ struct ArdiyeView: View {
     @ViewBuilder
     private func recipePhoto(for recipe: Recipe) -> some View {
         if let imageData = recipe.imageData, let uiImage = UIImage(data: imageData) {
+            let _ = logger.debug("🖼️ [ARDIYE] Displaying photo for recipe '\(recipe.name)' (\(imageData.count) bytes)")
             Image(uiImage: uiImage)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
@@ -532,6 +546,7 @@ struct ArdiyeView: View {
                     RoundedRectangle(cornerRadius: 32, style: .continuous)
                 )
         } else {
+            let _ = logger.debug("📷 [ARDIYE] No photo for recipe '\(recipe.name)' - showing placeholder")
             // Placeholder for recipes without photos
             ZStack {
                 Color.secondary.opacity(0.1)

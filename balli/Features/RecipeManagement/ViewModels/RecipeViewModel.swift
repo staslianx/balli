@@ -517,33 +517,44 @@ public class RecipeViewModel: ObservableObject {
     /// Loads image data from a URL and updates the recipe image
     /// Handles both base64 data URLs and HTTP/HTTPS URLs
     public func loadImageFromGeneratedURL() async {
+        logger.info("🖼️ [LOAD-IMAGE] loadImageFromGeneratedURL() called")
+        logger.debug("📋 [LOAD-IMAGE] generatedPhotoURL: \(self.generatedPhotoURL != nil ? "present (\(self.generatedPhotoURL!.prefix(60))...)" : "nil")")
+
         guard let imageURL = generatedPhotoURL else {
-            logger.warning("Cannot load image: missing URL")
+            logger.warning("⚠️ [LOAD-IMAGE] Cannot load image: missing URL")
             return
         }
 
         // Handle base64 data URLs differently from HTTP URLs
         if imageURL.hasPrefix("data:") {
             // Extract base64 data from data URL
-            logger.info("Loading image from base64 data URL")
+            logger.info("📦 [LOAD-IMAGE] Loading image from base64 data URL")
 
             // Data URL format: data:image/jpeg;base64,/9j/4AAQ...
             guard let commaIndex = imageURL.firstIndex(of: ",") else {
-                logger.error("Invalid data URL format: missing comma")
+                logger.error("❌ [LOAD-IMAGE] Invalid data URL format: missing comma")
                 return
             }
 
             let base64String = String(imageURL[imageURL.index(after: commaIndex)...])
+            logger.debug("🔍 [LOAD-IMAGE] Extracted base64 string length: \(base64String.count) characters")
+
             guard let imageData = Data(base64Encoded: base64String) else {
-                logger.error("Failed to decode base64 image data")
+                logger.error("❌ [LOAD-IMAGE] Failed to decode base64 image data")
                 return
             }
 
+            logger.info("✅ [LOAD-IMAGE] Successfully decoded base64 to Data (\(imageData.count) bytes)")
+
             await MainActor.run {
+                logger.info("💾 [LOAD-IMAGE] Setting _recipeImageData = imageData (\(imageData.count) bytes)")
                 _recipeImageData = imageData
                 _recipeImageURL = imageURL
+                logger.info("✅ [LOAD-IMAGE] _recipeImageData has been set")
             }
-            logger.info("✅ Successfully loaded image from base64 data (\(imageData.count) bytes)")
+            // CRITICAL: Trigger async image preparation to update preparedImage
+            prepareImageAsync(from: imageData)
+            logger.info("✅ [LOAD-IMAGE] Successfully loaded image from base64 data (\(imageData.count) bytes)")
 
         } else {
             // Handle HTTP/HTTPS URLs with URLSession
@@ -558,6 +569,8 @@ public class RecipeViewModel: ObservableObject {
                     _recipeImageData = data
                     _recipeImageURL = imageURL
                 }
+                // CRITICAL: Trigger async image preparation to update preparedImage
+                prepareImageAsync(from: data)
                 logger.info("✅ Successfully loaded generated recipe image from network")
             } catch {
                 logger.error("❌ Failed to load generated image from URL: \(error.localizedDescription)")
@@ -569,8 +582,15 @@ public class RecipeViewModel: ObservableObject {
     // MARK: - Save Recipe
 
     public func saveRecipe() {
+        logger.info("💾 [SAVE] saveRecipe() called")
+        logger.debug("📋 [SAVE] Image state:")
+        logger.debug("  - _recipeImageURL: \(self._recipeImageURL != nil ? "present" : "nil")")
+        logger.debug("  - _recipeImageData: \(self._recipeImageData != nil ? "\(self._recipeImageData!.count) bytes" : "nil")")
+        logger.debug("  - preparedImage: \(self.preparedImage != nil ? "present" : "nil")")
+
         Task {
             await persistenceCoordinator.saveRecipe(imageURL: _recipeImageURL, imageData: _recipeImageData)
+            logger.info("✅ [SAVE] persistenceCoordinator.saveRecipe() completed")
         }
     }
 
