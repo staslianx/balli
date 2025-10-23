@@ -107,6 +107,7 @@ struct HosgeldinView: View {
                         }
                         .accessibilityLabel("Günlük Kayıtlar")
                         .accessibilityHint("Sesle kaydedilen öğünleri gör")
+                        .buttonStyle(.plain)
                     }
 
                     ToolbarItem(placement: .topBarTrailing) {
@@ -117,6 +118,7 @@ struct HosgeldinView: View {
                                 .font(.system(size: 18, weight: .medium, design: .rounded))
                                 .foregroundColor(.primary)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
             }
