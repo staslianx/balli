@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import CoreData
 import Combine
 import OSLog
 
@@ -43,7 +44,8 @@ final class HosgeldinViewModel: ObservableObject {
     init(
         healthKitService: HealthKitServiceProtocol,
         dexcomService: DexcomService,
-        healthKitPermissions: HealthKitPermissionManager
+        healthKitPermissions: HealthKitPermissionManager,
+        viewContext: NSManagedObjectContext? = nil
     ) {
         self.dexcomService = dexcomService
 
@@ -51,7 +53,8 @@ final class HosgeldinViewModel: ObservableObject {
         self.glucoseChartViewModel = GlucoseChartViewModel(
             healthKitService: healthKitService,
             dexcomService: dexcomService,
-            healthKitPermissions: healthKitPermissions
+            healthKitPermissions: healthKitPermissions,
+            viewContext: viewContext
         )
 
         self.activityMetricsViewModel = ActivityMetricsViewModel(

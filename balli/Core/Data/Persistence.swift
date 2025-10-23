@@ -213,7 +213,8 @@ extension PersistenceController {
     #if DEBUG
     private func generatePreviewData() throws {
         let context = viewContext
-        
+
+        // Create food items first
         let favoriteItems = [
             ("Elma", "Apple", 95.0, 25.0, 4.0, 0.5, true),
             ("Beyaz Peynir", "White Cheese", 280.0, 2.0, 0.0, 18.0, true),
@@ -221,7 +222,9 @@ extension PersistenceController {
             ("Yoğurt", "Yogurt", 60.0, 5.0, 0.0, 4.0, true),
             ("Bal", "Honey", 304.0, 82.0, 0.0, 0.3, true)
         ]
-        
+
+        var createdFoodItems: [FoodItem] = []
+
         for (nameTr, nameEn, calories, carbs, fiber, protein, isFavorite) in favoriteItems {
             let item = FoodItem(context: context)
             item.name = nameTr
@@ -242,8 +245,57 @@ extension PersistenceController {
             item.overallConfidence = Double.random(in: 80...95)
             item.source = "manual"
             item.isVerified = true
+
+            createdFoodItems.append(item)
         }
-        
+
+        // Create mock meal entries at specific times today
+        // Chart shows 6am-6am (24 hours), so place meals within that window
+        // Only meal type, carbs, and timestamp are logged
+        let calendar = Calendar.current
+        let now = Date()
+
+        // Get today at 6am (chart start time)
+        var components = calendar.dateComponents([.year, .month, .day], from: now)
+        components.hour = 6
+        components.minute = 0
+        components.second = 0
+
+        guard let today6am = calendar.date(from: components) else {
+            try context.save()
+            return
+        }
+
+        // Create meals at specific times relative to 6am start
+        let mealData: [(hoursAfter6am: Double, mealType: String, carbs: Double)] = [
+            (3.0, "breakfast", 45.0),   // 9:00 AM (6am + 3 hours) - Breakfast - 45g carbs
+            (3.5, "breakfast", 12.0),   // 9:30 AM - Coffee/snack - 12g carbs
+            (6.5, "snack", 25.0),       // 12:30 PM - Snack - 25g carbs
+            (8.0, "lunch", 38.0)        // 2:00 PM (6am + 8 hours) - Lunch - 38g carbs
+        ]
+
+        for (hoursAfter6am, mealType, carbs) in mealData {
+            let meal = MealEntry(context: context)
+            meal.id = UUID()
+            meal.timestamp = today6am.addingTimeInterval(hoursAfter6am * 3600)
+            meal.mealType = mealType
+
+            // Only carbs are tracked
+            meal.consumedCarbs = carbs
+
+            // Set defaults for other fields
+            meal.quantity = 1.0
+            meal.unit = "serving"
+            meal.portionGrams = 0.0
+            meal.consumedProtein = 0.0
+            meal.consumedFat = 0.0
+            meal.consumedCalories = 0.0
+            meal.consumedFiber = 0.0
+            meal.glucoseBefore = 0.0
+            meal.glucoseAfter = 0.0
+            meal.insulinUnits = 0.0
+        }
+
         try context.save()
     }
     #endif

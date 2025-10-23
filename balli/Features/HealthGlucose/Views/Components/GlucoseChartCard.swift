@@ -12,7 +12,7 @@ struct GlucoseChartCard: View {
     @ObservedObject var viewModel: GlucoseChartViewModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xSmall) {
+        VStack(alignment: .leading, spacing: 0) {
             // PERFORMANCE FIX: Show chart even while loading if we have data
             // This prevents the chart from disappearing during background refreshes
             if !viewModel.glucoseData.isEmpty {
@@ -35,7 +35,7 @@ struct GlucoseChartCard: View {
                 emptyStateView
             }
         }
-        .frame(height: ResponsiveDesign.Components.chartHeight + ResponsiveDesign.Spacing.xSmall + 40)
+        .frame(height: ResponsiveDesign.Components.chartHeight + 40)
         .clipped()
         .padding(.horizontal)
     }
@@ -93,31 +93,55 @@ struct GlucoseChartCard: View {
 
             Chart {
                 ForEach(viewModel.glucoseData) { reading in
-                    // Line mark only - no data points
+                    // Area mark with purple gradient
+                    AreaMark(
+                        x: .value("Zaman", reading.time),
+                        yStart: .value("Baseline", 70),
+                        yEnd: .value("Değer", reading.value)
+                    )
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [
+                                AppTheme.primaryPurple.opacity(0.3),
+                                AppTheme.primaryPurple.opacity(0.05)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .interpolationMethod(.catmullRom)
+
+                    // Line mark on top of area
                     LineMark(
                         x: .value("Zaman", reading.time),
                         y: .value("Değer", reading.value)
                     )
                     .foregroundStyle(AppTheme.primaryPurple)
-                    .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                    .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
                     .interpolationMethod(.catmullRom)
                 }
 
-                // Average line
+                // Meal log markers - vertical lines in international orange
+                ForEach(viewModel.mealLogs, id: \.id) { meal in
+                    RuleMark(x: .value("Öğün", meal.timestamp))
+                        .foregroundStyle(Color(red: 1.0, green: 0.31, blue: 0.0)) // International Orange
+                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .annotation(position: .top, alignment: .center) {
+                            Image(systemName: meal.mealTypeEnum?.icon ?? "fork.knife")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(Color(red: 1.0, green: 0.31, blue: 0.0))
+                                .padding(4)
+                                .background(.ultraThinMaterial, in: Circle())
+                        }
+                }
+
+                // Average line - simple horizontal line without badge
                 RuleMark(y: .value("Ortalama", average))
-                    .foregroundStyle(.purple)
-                    .lineStyle(StrokeStyle(lineWidth: 2, dash: [8, 4]))
-                    .annotation(position: .top, alignment: .trailing) {
-                        Text("Ort: \(String(format: "%.0f", average))")
-                            .font(.caption2)
-                            .foregroundStyle(.purple)
-                            .padding(4)
-                            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 4))
-                    }
+                    .foregroundStyle(AppTheme.primaryPurple.opacity(0.6))
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [8, 4]))
             }
             .chartXScale(domain: timeRange.start...timeRange.end)
-            .chartYScale(domain: 70...300)
-            .clipped()
+            .chartYScale(domain: 60...310)
             .chartXAxis {
                 AxisMarks(values: .stride(by: .hour, count: 3)) { value in
                     AxisGridLine()
@@ -130,12 +154,16 @@ struct GlucoseChartCard: View {
                 }
             }
             .chartYAxis {
-                AxisMarks(position: .trailing) { _ in
+                AxisMarks(position: .trailing, values: [70, 100, 150, 200, 250, 300]) { value in
+                    AxisGridLine()
+                        .foregroundStyle(Color.gray.opacity(0.15))
                     AxisValueLabel()
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .font(.system(size: 11, weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
                 }
             }
             .frame(height: ResponsiveDesign.Components.chartHeight)
+            .padding(.vertical, 8)
         } else {
             Text("Grafik hatası")
                 .foregroundStyle(.secondary)

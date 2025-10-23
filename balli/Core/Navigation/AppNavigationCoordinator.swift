@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreData
 import Combine
 
 // MARK: - Navigation Destination
@@ -241,7 +242,8 @@ final class AppNavigationCoordinator: ObservableObject {
 // MARK: - Navigation Modifier
 struct NavigationHandler: ViewModifier {
     @ObservedObject private var navigationManager = AppNavigationCoordinator.shared
-    
+    @Environment(\.managedObjectContext) private var viewContext
+
     func body(content: Content) -> some View {
         content
             .navigationDestination(for: NavigationDestination.self) { destination in
@@ -254,12 +256,12 @@ struct NavigationHandler: ViewModifier {
                 alertView(for: alert)
             }
     }
-    
+
     @ViewBuilder
     private func destinationView(for destination: NavigationDestination) -> some View {
         switch destination {
         case .home:
-            HosgeldinView()
+            HosgeldinView(viewContext: viewContext)
         case .foodDetail(let id):
             // FoodDetailView(foodId: id)
             Text("Food Detail: \(id)")

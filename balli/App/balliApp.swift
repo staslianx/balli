@@ -75,6 +75,13 @@ struct balliApp: App {
         // Force light mode (synchronous, no blocking)
         applyLightMode()
 
+        #if DEBUG
+        // Generate mock meal data for simulator/debug builds
+        Task {
+            await generateDebugMealData()
+        }
+        #endif
+
         // CRITICAL FIX: Defer app configuration to background priority
         // This prevents blocking keyboard appearance on cold start
         Task.detached(priority: .background) {
@@ -228,4 +235,79 @@ struct balliApp: App {
             window.overrideUserInterfaceStyle = .light
         }
     }
+
+    #if DEBUG
+    /// Generate mock meal data for debugging in simulator
+    private func generateDebugMealData() async {
+        let context = persistenceController.viewContext
+
+        // Check if we already have meal entries (don't duplicate)
+        let fetchRequest = MealEntry.fetchRequest()
+        fetchRequest.fetchLimit = 1
+
+        do {
+            let existingMeals = try context.fetch(fetchRequest)
+            if !existingMeals.isEmpty {
+                logger.debug("Mock meal data already exists, skipping generation")
+                return
+            }
+        } catch {
+            logger.error("Failed to check for existing meals: \(error.localizedDescription)")
+            return
+        }
+
+        // Create mock meal entries at specific times today
+        // Chart shows 6am-6am (24 hours), so place meals within that window
+        let calendar = Calendar.current
+        let now = Date()
+
+        // Get today at 6am (chart start time)
+        var components = calendar.dateComponents([.year, .month, .day], from: now)
+        components.hour = 6
+        components.minute = 0
+        components.second = 0
+
+        guard let today6am = calendar.date(from: components) else {
+            logger.error("Failed to calculate 6am time")
+            return
+        }
+
+        // Create meals at specific times relative to 6am start
+        let mealData: [(hoursAfter6am: Double, mealType: String, carbs: Double)] = [
+            (3.0, "breakfast", 45.0),   // 9:00 AM - Breakfast - 45g carbs
+            (3.5, "breakfast", 12.0),   // 9:30 AM - Coffee/snack - 12g carbs
+            (6.5, "snack", 25.0),       // 12:30 PM - Snack - 25g carbs
+            (8.0, "lunch", 38.0)        // 2:00 PM - Lunch - 38g carbs
+        ]
+
+        for (hoursAfter6am, mealType, carbs) in mealData {
+            let meal = MealEntry(context: context)
+            meal.id = UUID()
+            meal.timestamp = today6am.addingTimeInterval(hoursAfter6am * 3600)
+            meal.mealType = mealType
+
+            // Only carbs are tracked
+            meal.consumedCarbs = carbs
+
+            // Set defaults for other fields
+            meal.quantity = 1.0
+            meal.unit = "serving"
+            meal.portionGrams = 0.0
+            meal.consumedProtein = 0.0
+            meal.consumedFat = 0.0
+            meal.consumedCalories = 0.0
+            meal.consumedFiber = 0.0
+            meal.glucoseBefore = 0.0
+            meal.glucoseAfter = 0.0
+            meal.insulinUnits = 0.0
+        }
+
+        do {
+            try context.save()
+            logger.info("✅ Generated mock meal data for debugging")
+        } catch {
+            logger.error("Failed to save mock meal data: \(error.localizedDescription)")
+        }
+    }
+    #endif
 }

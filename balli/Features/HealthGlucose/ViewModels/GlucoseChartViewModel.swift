@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import HealthKit
+import CoreData
 import OSLog
 
 @MainActor
@@ -15,6 +16,7 @@ final class GlucoseChartViewModel: ObservableObject {
     // MARK: - Published State
 
     @Published var glucoseData: [GlucoseDataPoint] = []
+    @Published var mealLogs: [MealEntry] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var dataSource: String? // "Dexcom" or "HealthKit"
@@ -24,6 +26,7 @@ final class GlucoseChartViewModel: ObservableObject {
     private let healthKitService: HealthKitServiceProtocol
     private let dexcomService: DexcomService
     private let healthKitPermissions: HealthKitPermissionManager
+    private let viewContext: NSManagedObjectContext?
     private let logger = AppLoggers.Health.glucose
 
     // MARK: - Debouncing
@@ -37,11 +40,13 @@ final class GlucoseChartViewModel: ObservableObject {
     init(
         healthKitService: HealthKitServiceProtocol,
         dexcomService: DexcomService,
-        healthKitPermissions: HealthKitPermissionManager
+        healthKitPermissions: HealthKitPermissionManager,
+        viewContext: NSManagedObjectContext? = nil
     ) {
         self.healthKitService = healthKitService
         self.dexcomService = dexcomService
         self.healthKitPermissions = healthKitPermissions
+        self.viewContext = viewContext
     }
 
     // MARK: - Public Methods
@@ -91,7 +96,30 @@ final class GlucoseChartViewModel: ObservableObject {
 
             // Fall back to HealthKit
             await loadFromHealthKit(timeRange: timeRange)
+
+            // Load meal logs for the time range
+            loadMealLogs(timeRange: timeRange)
+
             isLoading = false
+        }
+    }
+
+    /// Load meal logs from Core Data for the given time range
+    private func loadMealLogs(timeRange: (start: Date, end: Date)) {
+        guard let context = viewContext else {
+            logger.debug("No view context available for loading meal logs")
+            return
+        }
+
+        do {
+            let fetchRequest = MealEntry.mealsInRange(from: timeRange.start, to: timeRange.end)
+            let meals = try context.fetch(fetchRequest)
+
+            self.mealLogs = meals
+            logger.info("Loaded \(meals.count) meal logs for time range")
+        } catch {
+            logger.error("Failed to fetch meal logs: \(error.localizedDescription)")
+            self.mealLogs = []
         }
     }
 

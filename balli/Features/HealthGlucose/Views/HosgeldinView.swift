@@ -24,7 +24,7 @@ struct HosgeldinView: View {
 
     // MARK: - Initialization
 
-    init() {
+    init(viewContext: NSManagedObjectContext) {
         // Initialize ViewModel with shared dependencies
         // Note: healthKitService comes from DependencyContainer (singleton)
         let dependencies = DependencyContainer.shared
@@ -33,7 +33,8 @@ struct HosgeldinView: View {
         _viewModel = StateObject(wrappedValue: HosgeldinViewModel(
             healthKitService: dependencies.healthKitService,
             dexcomService: dexcomService,
-            healthKitPermissions: HealthKitPermissionManager.shared
+            healthKitPermissions: HealthKitPermissionManager.shared,
+            viewContext: viewContext
         ))
     }
 
@@ -218,7 +219,7 @@ struct HosgeldinView: View {
 // MARK: - Preview
 
 #Preview {
-    HosgeldinView()
+    HosgeldinView(viewContext: PersistenceController.preview.container.viewContext)
         .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
         .environmentObject(HealthKitPermissionManager.shared)
 }

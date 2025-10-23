@@ -97,7 +97,7 @@ struct ContentView: View {
             // Main balli Tab
             Tab("Bugün", systemImage: calendarIcon, value: 1) {
                 NavigationStack {
-                    HosgeldinView()
+                    HosgeldinView(viewContext: viewContext)
                         .environment(\.selectedTab, $selectedTab)
                 }
             }
