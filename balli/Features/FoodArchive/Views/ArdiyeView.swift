@@ -527,10 +527,7 @@ struct ArdiyeView: View {
         }
         .frame(height: 140)
         .background(Color(.systemBackground))
-        .glassEffect(
-            .regular.interactive(),
-            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
-        )
+        .balliColoredGlass(cornerRadius: 32)
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
         .contentShape(Rectangle())
     }
