@@ -526,15 +526,7 @@ struct ArdiyeView: View {
             }
         }
         .frame(height: 140)
-        .background(
-            RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(ThemeColors.primaryPurple.opacity(0.15))
-        )
-        .glassEffect(
-            .regular.interactive(),
-            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .recipeGlass(tint: .warm, cornerRadius: 32)
         .contentShape(Rectangle())
     }
     @ViewBuilder
