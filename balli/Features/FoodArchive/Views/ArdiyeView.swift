@@ -526,8 +526,28 @@ struct ArdiyeView: View {
             }
         }
         .frame(height: 140)
-        .background(Color(.systemBackground))
-        .balliColoredGlass(cornerRadius: 32)
+        .background(
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .fill(Color(.systemBackground))
+        )
+        .glassEffect(
+            .regular.interactive(),
+            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 32, style: .continuous)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [
+                            ThemeColors.primaryPurple.opacity(0.3),
+                            ThemeColors.primaryPurple.opacity(0.1)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+        )
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
         .contentShape(Rectangle())
     }
