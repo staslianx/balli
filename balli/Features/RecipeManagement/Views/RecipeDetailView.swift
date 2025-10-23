@@ -23,6 +23,14 @@ struct RecipeDetailView: View {
     @State private var showingNoteDetail = false
     @State private var isGeneratingPhoto = false
     @State private var generatedImageData: Data?
+    @State private var showingMoreMenu = false
+
+    // Inline editing state
+    @State private var isEditing = false
+    @State private var editedName: String = ""
+    @State private var editedIngredients: [String] = []
+    @State private var editedInstructions: [String] = []
+    @State private var editedNotes: String = ""
 
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeDetailView")
 
@@ -106,8 +114,14 @@ struct RecipeDetailView: View {
                 title: recipeData.storyTitle ?? "balli'nin notu",
                 note: recipeData.storyDescription ?? ""
             )
-            .presentationDetents([.fraction(0.5)])
+            .presentationDetents([.fraction(0.6)])
             .presentationDragIndicator(.visible)
+        }
+        .confirmationDialog("", isPresented: $showingMoreMenu, titleVisibility: .hidden) {
+            Button("Düzenle") {
+                startEditing()
+            }
+            Button("İptal", role: .cancel) { }
         }
     }
 
@@ -204,23 +218,45 @@ struct RecipeDetailView: View {
     private var navigationOverlay: some View {
         VStack {
             HStack {
-                // Back button
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
+                // Left button: Back (read mode) or İptal (edit mode)
+                if isEditing {
+                    Button(action: cancelEditing) {
+                        Text("İptal")
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .foregroundColor(.primary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                    }
+                    .recipeGlass(tint: .warm, cornerRadius: 22)
+                } else {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .foregroundColor(.primary)
+                    }
+                    .recipeCircularGlass(size: 44, tint: .warm)
                 }
-                .recipeCircularGlass(size: 44, tint: .warm)
 
                 Spacer()
 
-                // More menu button
-                Button(action: handleMoreMenu) {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
+                // Right button: More menu (read mode) or Kaydet (edit mode)
+                if isEditing {
+                    Button(action: saveChanges) {
+                        Text("Kaydet")
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .foregroundColor(.primary)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                    }
+                    .recipeGlass(tint: .warm, cornerRadius: 22)
+                } else {
+                    Button(action: handleMoreMenu) {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .foregroundColor(.primary)
+                    }
+                    .recipeCircularGlass(size: 44, tint: .warm)
                 }
-                .recipeCircularGlass(size: 44, tint: .warm)
             }
             .padding(.horizontal, 20)
             .padding(.top, 60) // Account for status bar
@@ -240,11 +276,19 @@ struct RecipeDetailView: View {
                     .foregroundColor(.white.opacity(0.95))
             }
 
-            // Recipe title
-            Text(recipeData.recipeName)
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundColor(.white)
-                .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+            // Recipe title - conditionally editable
+            if isEditing {
+                TextField("", text: $editedName, axis: .vertical)
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .textFieldStyle(.plain)
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+            } else {
+                Text(recipeData.recipeName)
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -276,27 +320,88 @@ struct RecipeDetailView: View {
 
     private var recipeContentSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Use stored markdown content if available, otherwise build from arrays
-            let markdownContent = recipeData.recipe.recipeContent ?? buildMarkdownContent()
-
-            if !markdownContent.isEmpty {
-                MarkdownText(
-                    content: markdownContent,
-                    fontSize: 20,  // Increased from 17 to 20
-                    enableSelection: true,
-                    sourceCount: 0,
-                    sources: [],
-                    headerFontSize: 20 * 2.0,  // Proportionally bigger headers (40pt)
-                    fontName: "Manrope",
-                    headerFontName: "PlayfairDisplay"
-
-                )
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            if isEditing {
+                // Edit mode: Show editable text fields
+                editableRecipeContent
             } else {
-                Text("No recipe content available")
-                    .font(.sfRounded(17, weight: .regular))
-                    .foregroundColor(.secondary)
+                // Read mode: Show markdown
+                let markdownContent = recipeData.recipe.recipeContent ?? buildMarkdownContent()
+
+                if !markdownContent.isEmpty {
+                    MarkdownText(
+                        content: markdownContent,
+                        fontSize: 20,
+                        enableSelection: true,
+                        sourceCount: 0,
+                        sources: [],
+                        headerFontSize: 20 * 2.0,
+                        fontName: "Manrope",
+                        headerFontName: "PlayfairDisplay"
+                    )
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    Text("No recipe content available")
+                        .font(.sfRounded(17, weight: .regular))
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+
+    private var editableRecipeContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Editable Ingredients Section
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Malzemeler")
+                    .font(.playfairDisplay(40, weight: .bold))
+                    .foregroundColor(.primary)
+                    .padding(.bottom, 8)
+
+                ForEach(Array(editedIngredients.enumerated()), id: \.offset) { index, ingredient in
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("•")
+                            .font(.custom("Manrope", size: 20).weight(.semibold))
+                            .foregroundColor(.primary)
+
+                        TextField("", text: Binding(
+                            get: { editedIngredients[index] },
+                            set: { editedIngredients[index] = $0 }
+                        ), axis: .vertical)
+                        .font(.custom("Manrope", size: 20).weight(.semibold))
+                        .foregroundColor(.primary)
+                        .textFieldStyle(.plain)
+                        .submitLabel(.done)
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .padding(.bottom, 24)
+
+            // Editable Instructions Section
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Yapілışı")
+                    .font(.playfairDisplay(40, weight: .bold))
+                    .foregroundColor(.primary)
+                    .padding(.bottom, 8)
+
+                ForEach(Array(editedInstructions.enumerated()), id: \.offset) { index, instruction in
+                    HStack(alignment: .top, spacing: 8) {
+                        Text("\(index + 1).")
+                            .font(.custom("Manrope", size: 20).weight(.semibold))
+                            .foregroundColor(.primary)
+
+                        TextField("", text: Binding(
+                            get: { editedInstructions[index] },
+                            set: { editedInstructions[index] = $0 }
+                        ), axis: .vertical)
+                        .font(.custom("Manrope", size: 20).weight(.semibold))
+                        .foregroundColor(.primary)
+                        .textFieldStyle(.plain)
+                        .submitLabel(.done)
+                    }
+                    .padding(.vertical, 4)
+                }
             }
         }
     }
@@ -329,8 +434,133 @@ struct RecipeDetailView: View {
     // MARK: - Actions
 
     private func handleMoreMenu() {
-        // TODO: Show action sheet with options
-        print("More menu tapped")
+        showingMoreMenu = true
+    }
+
+    // MARK: - Inline Editing Functions
+
+    private func startEditing() {
+        editedName = recipeData.recipeName
+
+        // Try to get ingredients/instructions from arrays first
+        var ingredients = recipeData.recipe.ingredientsArray
+        var instructions = recipeData.recipe.instructionsArray
+
+        // If arrays are empty, parse from markdown content
+        if ingredients.isEmpty || instructions.isEmpty {
+            let markdown = recipeData.recipe.recipeContent ?? ""
+            let parsed = parseMarkdownContent(markdown)
+            ingredients = parsed.ingredients
+            instructions = parsed.instructions
+        }
+
+        editedIngredients = ingredients
+        editedInstructions = instructions
+        editedNotes = recipeData.recipe.notes ?? ""
+
+        logger.info("📝 [EDIT] Starting edit mode")
+        logger.info("   Name: \(editedName)")
+        logger.info("   Ingredients count: \(editedIngredients.count)")
+        logger.info("   Instructions count: \(editedInstructions.count)")
+        if !editedIngredients.isEmpty {
+            logger.info("   First ingredient: \(editedIngredients[0])")
+        }
+
+        isEditing = true
+    }
+
+    private func parseMarkdownContent(_ markdown: String) -> (ingredients: [String], instructions: [String]) {
+        var ingredients: [String] = []
+        var instructions: [String] = []
+
+        let lines = markdown.components(separatedBy: .newlines)
+        var currentSection: String? = nil
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            // Check for section headers
+            if trimmed.starts(with: "## Malzemeler") || trimmed.starts(with: "##Malzemeler") {
+                currentSection = "ingredients"
+                continue
+            } else if trimmed.starts(with: "## Yapılışı") || trimmed.starts(with: "##Yapılışı") {
+                currentSection = "instructions"
+                continue
+            }
+
+            // Skip empty lines
+            if trimmed.isEmpty {
+                continue
+            }
+
+            // Parse ingredients (lines starting with -)
+            if currentSection == "ingredients" && trimmed.starts(with: "- ") {
+                let ingredient = String(trimmed.dropFirst(2)) // Remove "- "
+                ingredients.append(ingredient)
+            }
+            // Parse instructions (lines starting with numbers)
+            else if currentSection == "instructions" {
+                // Match patterns like "1. " or "1) " at the start
+                if let match = trimmed.range(of: "^\\d+[\\.\\)]\\s+", options: .regularExpression) {
+                    let instruction = String(trimmed[match.upperBound...])
+                    instructions.append(instruction)
+                }
+            }
+        }
+
+        logger.info("📄 [PARSE] Parsed markdown: \(ingredients.count) ingredients, \(instructions.count) instructions")
+
+        return (ingredients, instructions)
+    }
+
+    private func saveChanges() {
+        // Update recipe in Core Data
+        recipeData.recipe.name = editedName
+        recipeData.recipe.ingredients = editedIngredients.filter { !$0.isEmpty } as NSArray
+        recipeData.recipe.instructions = editedInstructions.filter { !$0.isEmpty } as NSArray
+        recipeData.recipe.notes = editedNotes.isEmpty ? nil : editedNotes
+        recipeData.recipe.lastModified = Date()
+
+        // Rebuild markdown content
+        recipeData.recipe.recipeContent = buildMarkdownFromEdited()
+
+        do {
+            try viewContext.save()
+            logger.info("✅ Recipe changes saved successfully")
+        } catch {
+            logger.error("❌ Failed to save recipe changes: \(error.localizedDescription)")
+        }
+
+        isEditing = false
+    }
+
+    private func cancelEditing() {
+        isEditing = false
+    }
+
+    private func buildMarkdownFromEdited() -> String {
+        var markdown = ""
+
+        // Add ingredients section
+        let ingredients = editedIngredients.filter { !$0.isEmpty }
+        if !ingredients.isEmpty {
+            markdown += "## Malzemeler\n\n"
+            for ingredient in ingredients {
+                markdown += "- \(ingredient)\n"
+            }
+            markdown += "\n"
+        }
+
+        // Add instructions section
+        let instructions = editedInstructions.filter { !$0.isEmpty }
+        if !instructions.isEmpty {
+            markdown += "## Yapılışı\n\n"
+            for (index, instruction) in instructions.enumerated() {
+                markdown += "\(index + 1). \(instruction)\n"
+            }
+        }
+
+        return markdown
     }
 
     private func handleStoryTap() {

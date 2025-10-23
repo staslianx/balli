@@ -49,6 +49,7 @@ const genkit_1 = require("genkit");
 const providers_1 = require("./providers");
 const cache_manager_1 = require("./cache-manager");
 const genkit_instance_1 = require("./genkit-instance");
+const recipe_memory_1 = require("./services/recipe-memory");
 // Initialize Firebase Admin (guard against duplicate initialization in tests)
 if (!admin.apps.length) {
     (0, app_1.initializeApp)();
@@ -233,18 +234,19 @@ const generateRecipeFromIngredientsFlow = genkit_instance_1.ai.defineFlow({
         throw error;
     }
 });
-// Spontaneous recipe generation flow with diversity support
+// Spontaneous recipe generation flow with memory-based diversity
 const generateSpontaneousRecipeFlow = genkit_instance_1.ai.defineFlow({
     name: 'generateSpontaneousRecipe',
     inputSchema: genkit_1.z.object({
         mealType: genkit_1.z.string().describe('Type of meal (Kahvaltı, Akşam Yemeği, Salatalar, Tatlılar, Atıştırmalıklar)'),
         styleType: genkit_1.z.string().describe('Style subcategory for the meal type'),
         userId: genkit_1.z.string().optional().describe('User ID for personalization'),
-        recentRecipes: genkit_1.z.array(genkit_1.z.object({
-            title: genkit_1.z.string(),
-            mainIngredient: genkit_1.z.string(),
-            cookingMethod: genkit_1.z.string()
-        })).optional().describe('Recent recipes for diversity (titles only)')
+        memoryEntries: genkit_1.z.array(genkit_1.z.object({
+            mainIngredients: genkit_1.z.array(genkit_1.z.string()),
+            dateGenerated: genkit_1.z.string(),
+            subcategory: genkit_1.z.string(),
+            recipeName: genkit_1.z.string().optional()
+        })).optional().describe('Memory entries for diversity checking (last 10 recipes)')
     }),
     outputSchema: genkit_1.z.object({
         recipeName: genkit_1.z.string(),
@@ -260,44 +262,101 @@ const generateSpontaneousRecipeFlow = genkit_instance_1.ai.defineFlow({
         protein: genkit_1.z.string(),
         fat: genkit_1.z.string(),
         sugar: genkit_1.z.string(),
-        glycemicLoad: genkit_1.z.string()
+        glycemicLoad: genkit_1.z.string(),
+        extractedIngredients: genkit_1.z.array(genkit_1.z.string()).optional().describe('Main ingredients extracted by AI'),
+        wasRegenerated: genkit_1.z.boolean().optional().describe('Whether recipe was regenerated due to similarity')
     })
 }, async (input) => {
     try {
         console.log(`🍳 [RECIPE] Generating spontaneous recipe: ${input.mealType} - ${input.styleType}`);
-        if (input.recentRecipes && input.recentRecipes.length > 0) {
-            console.log(`📚 [DIVERSITY] Using ${input.recentRecipes.length} recent recipes for diversity`);
-            console.log(`   Recent titles: ${input.recentRecipes.slice(0, 5).map(r => r.title).join(', ')}`);
+        // Convert memoryEntries to RecipeMemoryEntry format for memory functions
+        const memoryEntries = (input.memoryEntries || []).map(entry => ({
+            mainIngredients: entry.mainIngredients,
+            dateGenerated: entry.dateGenerated, // Already in ISO8601 string format
+            subcategory: entry.subcategory,
+            recipeName: entry.recipeName
+        }));
+        if (memoryEntries.length > 0) {
+            console.log(`📚 [MEMORY] Using ${memoryEntries.length} memory entries for diversity checking`);
+            // Get variety suggestions from memory
+            const suggestions = (0, recipe_memory_1.getLeastUsedIngredients)(memoryEntries, 3, 3);
+            const varietyText = (0, recipe_memory_1.buildVarietySuggestionsText)(suggestions);
+            console.log(`💡 [MEMORY] Variety suggestions: ${varietyText}`);
         }
         const recipePrompt = genkit_instance_1.ai.prompt('recipe_chef_assistant');
-        const response = await recipePrompt({
-            mealType: input.mealType,
-            styleType: input.styleType,
-            spontaneous: true,
-            recentRecipes: input.recentRecipes || []
-        }, {
-            model: (0, providers_1.getRecipeModel)() // Use provider-specific model for caching
-        });
+        // Helper function to generate recipe
+        const generateRecipe = async () => {
+            const response = await recipePrompt({
+                mealType: input.mealType,
+                styleType: input.styleType,
+                spontaneous: true,
+                recentRecipes: [] // Empty array - we're using memory system now
+            }, {
+                model: (0, providers_1.getRecipeModel)()
+            });
+            return response.output;
+        };
+        // First generation attempt
+        console.log(`🎲 [RECIPE] First generation attempt...`);
+        let promptOutput = await generateRecipe();
+        let wasRegenerated = false;
+        // Extract main ingredients using AI
+        const recipeContent = promptOutput.recipeContent || '';
+        const recipeName = promptOutput.name || promptOutput.recipeName || '';
+        console.log(`🔍 [MEMORY] Extracting main ingredients from recipe...`);
+        const extractedIngredients = await (0, recipe_memory_1.extractMainIngredients)(recipeContent, recipeName);
+        console.log(`✅ [MEMORY] Extracted ${extractedIngredients.length} main ingredients: ${extractedIngredients.join(', ')}`);
+        // Check similarity against recent recipes (only if we have memory entries)
+        if (memoryEntries.length > 0 && extractedIngredients.length >= 3) {
+            const similarityCheck = (0, recipe_memory_1.checkSimilarityAgainstRecent)(extractedIngredients, memoryEntries, 10);
+            if (similarityCheck.isSimilar) {
+                console.log(`⚠️ [MEMORY] Recipe too similar! ${similarityCheck.matchCount} matching ingredients: ${similarityCheck.matchingIngredients.join(', ')}`);
+                console.log(`🔄 [RECIPE] Regenerating for more variety...`);
+                // SINGLE RETRY: Regenerate once
+                promptOutput = await generateRecipe();
+                wasRegenerated = true;
+                // Re-extract ingredients from regenerated recipe
+                const newRecipeContent = promptOutput.recipeContent || '';
+                const newRecipeName = promptOutput.name || promptOutput.recipeName || '';
+                const newExtractedIngredients = await (0, recipe_memory_1.extractMainIngredients)(newRecipeContent, newRecipeName);
+                console.log(`🔄 [MEMORY] Regenerated recipe ingredients: ${newExtractedIngredients.join(', ')}`);
+                // Update extracted ingredients with new ones
+                extractedIngredients.length = 0;
+                extractedIngredients.push(...newExtractedIngredients);
+                // Check similarity again (for logging only - we accept the second attempt regardless)
+                const secondCheck = (0, recipe_memory_1.checkSimilarityAgainstRecent)(newExtractedIngredients, memoryEntries, 10);
+                if (secondCheck.isSimilar) {
+                    console.log(`⚠️ [MEMORY] Regenerated recipe still similar (${secondCheck.matchCount} matches), but accepting (fallback)`);
+                }
+                else {
+                    console.log(`✅ [MEMORY] Regenerated recipe is more diverse!`);
+                }
+            }
+            else {
+                console.log(`✅ [MEMORY] Recipe is diverse (${similarityCheck.matchCount} matching ingredients)`);
+            }
+        }
         // Transform the response to match iOS app's expected format
-        const promptOutput = response.output;
         return {
             recipeName: promptOutput.name || promptOutput.recipeName || '',
             prepTime: String(promptOutput.prepTime || '0'),
             cookTime: String(promptOutput.cookTime || '0'),
-            // Legacy arrays: kept for backward compatibility (parse from recipeContent if needed)
+            // Legacy arrays: kept for backward compatibility
             ingredients: Array.isArray(promptOutput.ingredients)
                 ? promptOutput.ingredients.map((ing) => typeof ing === 'string' ? ing : `${ing.quantity || ''} ${ing.item || ''}`.trim())
                 : [],
             directions: promptOutput.instructions || promptOutput.directions || [],
-            notes: promptOutput.notes || promptOutput.aiNotes || '', // AI Chef notes (separate from recipeContent)
-            recipeContent: promptOutput.recipeContent || '', // NEW: Markdown content (ingredients + directions)
+            notes: promptOutput.notes || promptOutput.aiNotes || '',
+            recipeContent: promptOutput.recipeContent || '',
             calories: String(promptOutput.calories || '0'),
             carbohydrates: String(promptOutput.carbohydrates || '0'),
             fiber: String(promptOutput.fiber || '0'),
             protein: String(promptOutput.protein || '0'),
             fat: String(promptOutput.fat || '0'),
             sugar: String(promptOutput.sugar || '0'),
-            glycemicLoad: String(promptOutput.glycemicLoad || '0')
+            glycemicLoad: String(promptOutput.glycemicLoad || '0'),
+            extractedIngredients,
+            wasRegenerated
         };
     }
     catch (error) {
@@ -578,14 +637,14 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                 res.status(405).json({ error: 'Method not allowed' });
                 return;
             }
-            const { mealType, styleType, userId, streamingEnabled, recentRecipes } = req.body;
+            const { mealType, styleType, userId, streamingEnabled, memoryEntries } = req.body;
             if (!mealType || !styleType) {
                 res.status(400).json({ error: 'mealType and styleType are required' });
                 return;
             }
-            // Log diversity info if recent recipes provided
-            if (recentRecipes && Array.isArray(recentRecipes) && recentRecipes.length > 0) {
-                console.log(`📚 [ENDPOINT] Received ${recentRecipes.length} recent recipes for diversity`);
+            // Log memory info if provided
+            if (memoryEntries && Array.isArray(memoryEntries) && memoryEntries.length > 0) {
+                console.log(`📚 [ENDPOINT] Received ${memoryEntries.length} memory entries for diversity`);
             }
             // Set up streaming if requested
             if (streamingEnabled) {
@@ -606,11 +665,14 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                 try {
                     // Use streaming version of the prompt
                     const recipePrompt = genkit_instance_1.ai.prompt('recipe_chef_assistant');
+                    // NOTE: Streaming doesn't support memory system similarity checking
+                    // We can't regenerate during streaming, so we just use the first result
+                    // For full memory support, clients should use non-streaming endpoint
                     const streamingResponse = await recipePrompt.stream({
                         mealType,
                         styleType,
                         spontaneous: true,
-                        recentRecipes: recentRecipes || []
+                        recentRecipes: [] // Empty - memory system works via non-streaming flow
                     }, {
                         model: (0, providers_1.getRecipeModel)() // Use provider-specific model for caching
                     });
@@ -680,12 +742,12 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                 }
             }
             else {
-                // Non-streaming response
+                // Non-streaming response with full memory system support
                 const result = await generateSpontaneousRecipeFlow({
                     mealType,
                     styleType,
                     userId: userId || 'anonymous',
-                    recentRecipes: recentRecipes || []
+                    memoryEntries: memoryEntries || []
                 });
                 res.json({
                     success: true,

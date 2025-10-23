@@ -28,17 +28,19 @@ public final class RecipeGenerationCoordinator: ObservableObject {
     private let formState: RecipeFormState
     private let generationService: RecipeGenerationService
     private let streamingService: RecipeStreamingService
-    private let diversityService = RecipeDiversityService.shared
+    private let memoryService: RecipeMemoryService
 
     init(
         animationController: RecipeAnimationController,
         formState: RecipeFormState,
-        generationService: RecipeGenerationService? = nil
+        generationService: RecipeGenerationService? = nil,
+        memoryService: RecipeMemoryService? = nil
     ) {
         self.animationController = animationController
         self.formState = formState
         self.generationService = generationService ?? RecipeGenerationService.shared
         self.streamingService = RecipeStreamingService()
+        self.memoryService = memoryService ?? RecipeMemoryService()
     }
 
     // MARK: - Recipe Generation
@@ -52,34 +54,31 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         generationError = nil
 
         do {
-            // Load recent recipes for diversity
-            let recentRecipes = await diversityService.loadRecentRecipes(
-                mealType: mealType,
-                styleType: styleType
-            )
-            logger.info("📚 [DIVERSITY] Loaded \(recentRecipes.count) recent recipes for this category")
-
             // Get user ID for personalization
             let userId = getUserId()
 
             logger.info("👤 [COORDINATOR] User ID resolved: \(userId)")
-            logger.info("🚀 [COORDINATOR] Starting recipe generation - mealType: \(mealType), styleType: \(styleType), userId: \(userId)")
 
-            // Convert RecentRecipe to SimpleRecentRecipe for API
-            let simpleRecipes = recentRecipes.map { recipe in
-                SimpleRecentRecipe(
-                    title: recipe.title,
-                    mainIngredient: recipe.mainIngredient,
-                    cookingMethod: recipe.cookingMethod
-                )
-            }
+            // Fetch memory for diversity checking
+            let memoryDicts = await fetchMemoryForGeneration(styleType: styleType)
 
-            if !simpleRecipes.isEmpty {
-                logger.debug("   Recent recipe titles for diversity:")
-                for recipe in simpleRecipes.prefix(5) {
-                    logger.debug("   - \(recipe.title)")
+            // Convert to SimpleRecentRecipe for service call
+            let recentRecipes: [SimpleRecentRecipe] = memoryDicts?.compactMap { dict in
+                guard let ingredients = dict["mainIngredients"] as? [String],
+                      let recipeName = dict["recipeName"] as? String else {
+                    return nil
                 }
-            }
+                // Use first ingredient as main ingredient, or empty string if none
+                let mainIngredient = ingredients.first ?? ""
+                // Use generic cooking method since we don't store it
+                return SimpleRecentRecipe(
+                    title: recipeName,
+                    mainIngredient: mainIngredient,
+                    cookingMethod: "Genel"
+                )
+            } ?? []
+
+            logger.info("🚀 [COORDINATOR] Starting recipe generation - mealType: \(mealType), styleType: \(styleType), userId: \(userId), recentRecipesCount: \(recentRecipes.count)")
 
             let startTime = Date()
 
@@ -89,7 +88,7 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     mealType: mealType,
                     styleType: styleType,
                     userId: userId,
-                    recentRecipes: simpleRecipes
+                    recentRecipes: recentRecipes
                 )
             }.value
 
@@ -102,19 +101,19 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             // Populate form state
             formState.loadFromGenerationResponse(response)
 
+            // Record in memory using ingredients from response
+            await recordRecipeInMemory(
+                styleType: styleType,
+                extractedIngredients: response.ingredients,
+                recipeName: response.recipeName
+            )
+
             // Debug: Verify form state was populated
             logger.info("📊 [DEBUG] Form state after loading:")
             logger.info("   recipeName: '\(self.formState.recipeName)'")
             logger.info("   ingredients count: \(self.formState.ingredients.count)")
             logger.info("   directions count: \(self.formState.directions.count)")
             logger.info("   hasRecipeData: \(self.formState.hasRecipeData)")
-
-            // Save recipe to diversity history
-            await saveToRecipeHistory(
-                response: response,
-                mealType: mealType,
-                styleType: styleType
-            )
 
             // PERFORMANCE FIX: Removed redundant objectWillChange.send()
             // The formState.loadFromGenerationResponse() method now batches updates internally
@@ -143,34 +142,29 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         tokenCount = 0
 
         do {
-            // Load recent recipes for diversity
-            let recentRecipes = await diversityService.loadRecentRecipes(
-                mealType: mealType,
-                styleType: styleType
-            )
-            logger.info("📚 [DIVERSITY] Loaded \(recentRecipes.count) recent recipes for this category")
-
             // Get user ID for personalization
             let userId = getUserId()
 
             logger.info("👤 [COORDINATOR] User ID resolved: \(userId)")
-            logger.info("🚀 [COORDINATOR] Starting recipe generation with streaming - mealType: \(mealType), styleType: \(styleType), userId: \(userId)")
 
-            // Convert RecentRecipe to SimpleRecentRecipe for API
-            let simpleRecipes = recentRecipes.map { recipe in
-                SimpleRecentRecipe(
-                    title: recipe.title,
-                    mainIngredient: recipe.mainIngredient,
-                    cookingMethod: recipe.cookingMethod
-                )
-            }
+            // Fetch memory for diversity checking
+            let memoryDicts = await fetchMemoryForGeneration(styleType: styleType)
 
-            if !simpleRecipes.isEmpty {
-                logger.debug("   Recent recipe titles for diversity:")
-                for recipe in simpleRecipes.prefix(5) {
-                    logger.debug("   - \(recipe.title)")
+            // Convert to SimpleRecentRecipe for service call
+            let recentRecipes: [SimpleRecentRecipe] = memoryDicts?.compactMap { dict in
+                guard let ingredients = dict["mainIngredients"] as? [String],
+                      let recipeName = dict["recipeName"] as? String else {
+                    return nil
                 }
-            }
+                let mainIngredient = ingredients.first ?? ""
+                return SimpleRecentRecipe(
+                    title: recipeName,
+                    mainIngredient: mainIngredient,
+                    cookingMethod: "Genel"
+                )
+            } ?? []
+
+            logger.info("🚀 [COORDINATOR] Starting recipe generation with streaming - mealType: \(mealType), styleType: \(styleType), userId: \(userId), recentRecipesCount: \(recentRecipes.count)")
 
             let startTime = Date()
 
@@ -179,7 +173,7 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                 mealType: mealType,
                 styleType: styleType,
                 userId: userId,
-                recentRecipes: simpleRecipes,
+                recentRecipes: recentRecipes,
                 onConnected: {
                     Task { @MainActor in
                         self.logger.info("✅ [STREAMING] Connected to recipe generation")
@@ -211,18 +205,18 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                         // Populate form state with complete response
                         self.formState.loadFromGenerationResponse(response)
 
+                        // Record in memory using ingredients from response
+                        await self.recordRecipeInMemory(
+                            styleType: styleType,
+                            extractedIngredients: response.ingredients,
+                            recipeName: response.recipeName
+                        )
+
                         // Debug: Verify form state was populated
                         self.logger.info("📊 [DEBUG] Form state after loading:")
                         self.logger.info("   recipeName: '\(self.formState.recipeName)'")
                         self.logger.info("   recipeContent length: \(self.formState.recipeContent.count) chars")
                         self.logger.info("   hasRecipeData: \(self.formState.hasRecipeData)")
-
-                        // Save recipe to diversity history
-                        await self.saveToRecipeHistory(
-                            response: response,
-                            mealType: mealType,
-                            styleType: styleType
-                        )
 
                         // Stop logo rotation
                         self.animationController.stopGenerationAnimation()
@@ -247,36 +241,52 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         }
     }
 
-    // MARK: - Diversity Tracking
+    // MARK: - Memory Integration
 
-    /// Save generated recipe to diversity history
-    /// Extracts metadata and stores in UserDefaults for future diversity
-    private func saveToRecipeHistory(
-        response: RecipeGenerationResponse,
-        mealType: String,
-        styleType: String
+    /// Fetch memory entries for a subcategory and convert to Cloud Functions format
+    private func fetchMemoryForGeneration(styleType: String) async -> [[String: Any]]? {
+        // Parse subcategory from styleType (which is the raw value)
+        guard let subcategory = RecipeSubcategory(rawValue: styleType) else {
+            logger.warning("Could not parse subcategory from styleType: \(styleType)")
+            return nil
+        }
+
+        logger.info("📚 [MEMORY] Fetching memory for subcategory: \(subcategory.rawValue)")
+        let memoryEntries = await memoryService.getMemoryForCloudFunctions(for: subcategory, limit: 10)
+        logger.info("📚 [MEMORY] Retrieved \(memoryEntries.count) memory entries")
+
+        return memoryEntries.isEmpty ? nil : memoryEntries
+    }
+
+    /// Record generated recipe in memory
+    private func recordRecipeInMemory(
+        styleType: String,
+        extractedIngredients: [String]?,
+        recipeName: String
     ) async {
-        // Extract metadata from response
-        let mainIngredient = RecipeMetadataExtractor.extractMainIngredient(from: response.ingredients)
-        let cookingMethod = RecipeMetadataExtractor.extractCookingMethod(from: response.recipeName)
+        // Parse subcategory from styleType
+        guard let subcategory = RecipeSubcategory(rawValue: styleType) else {
+            logger.warning("Could not parse subcategory from styleType: \(styleType)")
+            return
+        }
 
-        // Create recent recipe entry
-        let recentRecipe = RecentRecipe(
-            title: response.recipeName,
-            mainIngredient: mainIngredient,
-            cookingMethod: cookingMethod,
-            mealType: mealType,
-            styleType: styleType
-        )
+        // Only record if we have extracted ingredients
+        guard let ingredients = extractedIngredients, !ingredients.isEmpty else {
+            logger.warning("No extracted ingredients to record in memory")
+            return
+        }
 
-        // Save to diversity service
-        await diversityService.saveRecipe(recentRecipe)
-
-        logger.info("💾 [DIVERSITY] Saved recipe to history:")
-        logger.info("   Title: \(recentRecipe.title)")
-        logger.info("   Main Ingredient: \(mainIngredient)")
-        logger.info("   Cooking Method: \(cookingMethod)")
-        logger.info("   Category: \(recentRecipe.categoryKey)")
+        do {
+            try await memoryService.recordRecipe(
+                subcategory: subcategory,
+                ingredients: ingredients,
+                recipeName: recipeName
+            )
+            logger.info("✅ [MEMORY] Recorded recipe '\(recipeName)' in memory")
+        } catch {
+            logger.error("❌ [MEMORY] Failed to record recipe in memory: \(error.localizedDescription)")
+            // Don't throw - memory failure shouldn't block the flow
+        }
     }
 
     // MARK: - Error Handling
