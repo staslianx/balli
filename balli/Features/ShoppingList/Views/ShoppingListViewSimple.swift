@@ -86,7 +86,7 @@ struct ShoppingListViewSimple: View {
                             onNoteUpdate: { note in updateItemNote(item, note: note) }
                         )
                         .id(item.id)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                     }
@@ -130,7 +130,7 @@ struct ShoppingListViewSimple: View {
                                 onNoteUpdate: { note in updateItemNote(item, note: note) }
                             )
                             .id(item.id)
-                            .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
                         }
@@ -312,7 +312,7 @@ struct EditableItemRow: View {
                             .opacity(item.isCompleted ? 1 : 0)
                     )
             }
-            .liquidGlassButton(style: .thin, tint: AppTheme.primaryPurple)
+            .buttonStyle(.plain)
 
             // Text/TextField with quantity support and glass effects
             if isEditing {
@@ -407,9 +407,9 @@ struct EditableItemRow: View {
                         Button(action: { startEditingQuantity() }) {
                             Text(quantity)
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .foregroundColor(.secondary)
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppTheme.primaryPurple)
+                        .buttonStyle(.bordered)
                     }
                 }
             }
