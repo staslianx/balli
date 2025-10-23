@@ -406,7 +406,7 @@ struct EditableItemRow: View {
                         Button(action: { startEditingQuantity() }) {
                             Text(quantity)
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(AppTheme.primaryPurple)
                         }
                         .buttonStyle(.bordered)
                     }
