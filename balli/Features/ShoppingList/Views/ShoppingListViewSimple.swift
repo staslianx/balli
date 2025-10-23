@@ -212,7 +212,6 @@ struct ShoppingListViewSimple: View {
                         Image(systemName: "map")
                             .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .medium, design: .rounded))
                             .foregroundColor(AppTheme.primaryPurple)
-                            .liquidGlassButton(style: .thin, tint: AppTheme.primaryPurple)
                     }
                 }
             }
