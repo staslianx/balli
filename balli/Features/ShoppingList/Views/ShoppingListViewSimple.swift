@@ -110,7 +110,7 @@ struct ShoppingListViewSimple: View {
                                 .padding(.horizontal, ResponsiveDesign.Spacing.medium)
                                 .padding(.vertical, ResponsiveDesign.Spacing.small)
                             }
-                            .liquidGlassButton(style: .thin, tint: AppTheme.primaryPurple)
+                            .buttonStyle(.plain)
                             Spacer()
                         }
                         .padding(.vertical, ResponsiveDesign.Spacing.small)
