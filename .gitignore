@@ -1,0 +1,54 @@
+build/
+
+# API Keys and Secrets configuration (contains sensitive data)
+Configuration/Secrets.xcconfig
+Configuration/Secrets-*.xcconfig
+!Configuration/Secrets.xcconfig.template
+Config/APIKeys.xcconfig
+Config/APIKeys-*.xcconfig
+!Config/APIKeys-Template.xcconfig
+
+# Firebase configuration (contains sensitive credentials)
+GoogleService-Info.plist
+
+# Xcode
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+DerivedData/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Build outputs and logs
+build_output.txt
+build_verification.txt
+*.txt.log
+*.log
+build*.log
+test*.log
+firebase-debug.log
+
+# Temporary files and scripts
+*.txt
+!requirements.txt
+!package.txt
+*.sh
+add_*.py
+add_*.rb
+test_*.js
+workspace-state.json
+
+# Swift documentation files
+*_SUMMARY.swift
+*_REFACTORING_*.swift
+
+# Test coverage
+coverage/
+functions/coverage/

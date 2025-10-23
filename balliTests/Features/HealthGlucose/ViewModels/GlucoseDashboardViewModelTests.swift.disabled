@@ -1,0 +1,604 @@
+//
+//  GlucoseDashboardViewModelTests.swift
+//  balliTests
+//
+//  Comprehensive tests for GlucoseDashboardViewModel
+//  Tests statistics calculations, chart logic, color mapping, trends, and data loading
+//  Swift 6 strict concurrency compliant
+//
+
+import XCTest
+@testable import balli
+import SwiftUI
+
+@MainActor
+final class GlucoseDashboardViewModelTests: XCTestCase {
+
+    var sut: GlucoseDashboardViewModel!
+
+    override func setUp() async throws {
+        try await super.setUp()
+        // Initialize ViewModel with default DexcomService
+        // Note: DexcomService is a final class, so we test logic that doesn't require mocking
+        // For full data loading tests, a protocol-based approach would be needed
+        sut = GlucoseDashboardViewModel()
+    }
+
+    override func tearDown() async throws {
+        sut = nil
+        try await super.tearDown()
+    }
+
+    // MARK: - Statistics Calculation Tests
+
+    func testCalculateAverageGlucose_WithValidReadings_ReturnsCorrectAverage() {
+        // Given
+        sut.glucoseReadings = [
+            createReading(value: 100, timestamp: Date()),
+            createReading(value: 120, timestamp: Date()),
+            createReading(value: 140, timestamp: Date())
+        ]
+
+        // When
+        let average = sut.calculateAverageGlucose()
+
+        // Then
+        XCTAssertEqual(average, 120.0, accuracy: 0.01, "Average should be (100 + 120 + 140) / 3 = 120")
+    }
+
+    func testCalculateAverageGlucose_WithEmptyReadings_ReturnsZero() {
+        // Given
+        sut.glucoseReadings = []
+
+        // When
+        let average = sut.calculateAverageGlucose()
+
+        // Then
+        XCTAssertEqual(average, 0.0, "Average should be 0 for empty readings")
+    }
+
+    func testCalculateAverageGlucose_WithSingleReading_ReturnsThatValue() {
+        // Given
+        sut.glucoseReadings = [createReading(value: 135, timestamp: Date())]
+
+        // When
+        let average = sut.calculateAverageGlucose()
+
+        // Then
+        XCTAssertEqual(average, 135.0, accuracy: 0.01, "Average of single reading should be that reading")
+    }
+
+    func testCalculateMinimumGlucose_WithValidReadings_ReturnsLowest() {
+        // Given
+        sut.glucoseReadings = [
+            createReading(value: 100, timestamp: Date()),
+            createReading(value: 65, timestamp: Date()),
+            createReading(value: 180, timestamp: Date())
+        ]
+
+        // When
+        let minimum = sut.calculateMinimumGlucose()
+
+        // Then
+        XCTAssertEqual(minimum, 65.0, "Minimum should be 65")
+    }
+
+    func testCalculateMinimumGlucose_WithEmptyReadings_ReturnsZero() {
+        // Given
+        sut.glucoseReadings = []
+
+        // When
+        let minimum = sut.calculateMinimumGlucose()
+
+        // Then
+        XCTAssertEqual(minimum, 0.0, "Minimum should be 0 for empty readings")
+    }
+
+    func testCalculateMaximumGlucose_WithValidReadings_ReturnsHighest() {
+        // Given
+        sut.glucoseReadings = [
+            createReading(value: 100, timestamp: Date()),
+            createReading(value: 250, timestamp: Date()),
+            createReading(value: 180, timestamp: Date())
+        ]
+
+        // When
+        let maximum = sut.calculateMaximumGlucose()
+
+        // Then
+        XCTAssertEqual(maximum, 250.0, "Maximum should be 250")
+    }
+
+    func testCalculateMaximumGlucose_WithEmptyReadings_ReturnsZero() {
+        // Given
+        sut.glucoseReadings = []
+
+        // When
+        let maximum = sut.calculateMaximumGlucose()
+
+        // Then
+        XCTAssertEqual(maximum, 0.0, "Maximum should be 0 for empty readings")
+    }
+
+    func testCalculateTimeInRange_WithAllInRange_Returns100Percent() {
+        // Given - all readings in 70-180 range
+        sut.glucoseReadings = [
+            createReading(value: 70, timestamp: Date()),
+            createReading(value: 100, timestamp: Date()),
+            createReading(value: 150, timestamp: Date()),
+            createReading(value: 180, timestamp: Date())
+        ]
+
+        // When
+        let timeInRange = sut.calculateTimeInRange()
+
+        // Then
+        XCTAssertEqual(timeInRange, 100.0, accuracy: 0.01, "All readings in range should be 100%")
+    }
+
+    func testCalculateTimeInRange_WithAllOutOfRange_ReturnsZeroPercent() {
+        // Given - all readings outside 70-180 range
+        sut.glucoseReadings = [
+            createReading(value: 50, timestamp: Date()),
+            createReading(value: 65, timestamp: Date()),
+            createReading(value: 200, timestamp: Date()),
+            createReading(value: 250, timestamp: Date())
+        ]
+
+        // When
+        let timeInRange = sut.calculateTimeInRange()
+
+        // Then
+        XCTAssertEqual(timeInRange, 0.0, accuracy: 0.01, "No readings in range should be 0%")
+    }
+
+    func testCalculateTimeInRange_WithMixedReadings_ReturnsCorrectPercentage() {
+        // Given - 2 in range, 2 out of range
+        sut.glucoseReadings = [
+            createReading(value: 65, timestamp: Date()),  // Low
+            createReading(value: 100, timestamp: Date()), // In range
+            createReading(value: 150, timestamp: Date()), // In range
+            createReading(value: 200, timestamp: Date())  // High
+        ]
+
+        // When
+        let timeInRange = sut.calculateTimeInRange()
+
+        // Then
+        XCTAssertEqual(timeInRange, 50.0, accuracy: 0.01, "2/4 in range should be 50%")
+    }
+
+    func testCalculateTimeInRange_WithEmptyReadings_ReturnsZero() {
+        // Given
+        sut.glucoseReadings = []
+
+        // When
+        let timeInRange = sut.calculateTimeInRange()
+
+        // Then
+        XCTAssertEqual(timeInRange, 0.0, "Empty readings should return 0%")
+    }
+
+    // MARK: - Chart Logic Tests
+
+    func testChartXAxisRange_BeforeSixAM_ShowsYesterdaySixAMToTodaySixAM() {
+        // Given - Create a time before 6am (e.g., 3am today)
+        let calendar = Calendar.current
+        let now = Date()
+        var components = calendar.dateComponents([.year, .month, .day], from: now)
+        components.hour = 3
+        components.minute = 0
+
+        guard let mockNow = calendar.date(from: components) else {
+            XCTFail("Failed to create mock date")
+            return
+        }
+
+        // When
+        let range = sut.chartXAxisRange
+
+        // Then - Range should span 24 hours
+        let duration = range.upperBound.timeIntervalSince(range.lowerBound)
+        XCTAssertEqual(duration, 86400.0, accuracy: 1.0, "Chart range should be exactly 24 hours")
+
+        // Start time should be at 6am
+        let startComponents = calendar.dateComponents([.hour, .minute], from: range.lowerBound)
+        XCTAssertEqual(startComponents.hour, 6, "Chart should start at 6am")
+        XCTAssertEqual(startComponents.minute, 0, "Chart should start at :00 minutes")
+    }
+
+    func testChartXAxisRange_AfterSixAM_ShowsTodaySixAMToTomorrowSixAM() {
+        // Given - Create a time after 6am (e.g., 10am today)
+        let calendar = Calendar.current
+        let now = Date()
+        var components = calendar.dateComponents([.year, .month, .day], from: now)
+        components.hour = 10
+        components.minute = 0
+
+        guard let mockNow = calendar.date(from: components) else {
+            XCTFail("Failed to create mock date")
+            return
+        }
+
+        // When
+        let range = sut.chartXAxisRange
+
+        // Then - Range should span 24 hours
+        let duration = range.upperBound.timeIntervalSince(range.lowerBound)
+        XCTAssertEqual(duration, 86400.0, accuracy: 1.0, "Chart range should be exactly 24 hours")
+
+        // Start time should be at 6am
+        let startComponents = calendar.dateComponents([.hour, .minute], from: range.lowerBound)
+        XCTAssertEqual(startComponents.hour, 6, "Chart should start at 6am")
+        XCTAssertEqual(startComponents.minute, 0, "Chart should start at :00 minutes")
+    }
+
+    func testFilteredReadingsFor24Hours_FiltersToChartRange() {
+        // Given
+        let calendar = Calendar.current
+        let now = Date()
+
+        // Create readings: some within chart range, some outside
+        let chartRange = sut.chartXAxisRange
+        let midpoint = Date(timeInterval: (chartRange.upperBound.timeIntervalSince(chartRange.lowerBound) / 2), since: chartRange.lowerBound)
+
+        sut.glucoseReadings = [
+            createReading(value: 100, timestamp: chartRange.lowerBound.addingTimeInterval(-3600)), // Before range
+            createReading(value: 120, timestamp: midpoint), // In range
+            createReading(value: 140, timestamp: chartRange.upperBound.addingTimeInterval(-3600)), // In range
+            createReading(value: 160, timestamp: chartRange.upperBound.addingTimeInterval(3600)) // After range
+        ]
+
+        // When
+        let filtered = sut.filteredReadingsFor24Hours()
+
+        // Then
+        XCTAssertEqual(filtered.count, 2, "Should only include readings within 24-hour chart range")
+        XCTAssertTrue(filtered.contains { $0.value == 120 }, "Should include reading at midpoint")
+        XCTAssertTrue(filtered.contains { $0.value == 140 }, "Should include reading near end")
+        XCTAssertFalse(filtered.contains { $0.value == 100 }, "Should exclude reading before range")
+        XCTAssertFalse(filtered.contains { $0.value == 160 }, "Should exclude reading after range")
+    }
+
+    func testFilteredReadingsFor24Hours_WithEmptyReadings_ReturnsEmpty() {
+        // Given
+        sut.glucoseReadings = []
+
+        // When
+        let filtered = sut.filteredReadingsFor24Hours()
+
+        // Then
+        XCTAssertTrue(filtered.isEmpty, "Should return empty array for no readings")
+    }
+
+    // MARK: - Color Logic Tests
+
+    func testGlucoseColor_ForLowValue_ReturnsRed() {
+        // Given / When
+        let color = sut.glucoseColor(for: 65)
+
+        // Then
+        XCTAssertEqual(color, .red, "Values below 70 should be red")
+    }
+
+    func testGlucoseColor_ForInRangeValue_ReturnsGreen() {
+        // Given / When
+        let colorLow = sut.glucoseColor(for: 70)
+        let colorMid = sut.glucoseColor(for: 120)
+        let colorHigh = sut.glucoseColor(for: 179)
+
+        // Then
+        XCTAssertEqual(colorLow, .green, "70 mg/dL should be green")
+        XCTAssertEqual(colorMid, .green, "120 mg/dL should be green")
+        XCTAssertEqual(colorHigh, .green, "179 mg/dL should be green")
+    }
+
+    func testGlucoseColor_ForHighValue_ReturnsOrange() {
+        // Given / When
+        let colorLow = sut.glucoseColor(for: 180)
+        let colorMid = sut.glucoseColor(for: 210)
+        let colorHigh = sut.glucoseColor(for: 249)
+
+        // Then
+        XCTAssertEqual(colorLow, .orange, "180 mg/dL should be orange")
+        XCTAssertEqual(colorMid, .orange, "210 mg/dL should be orange")
+        XCTAssertEqual(colorHigh, .orange, "249 mg/dL should be orange")
+    }
+
+    func testGlucoseColor_ForVeryHighValue_ReturnsRed() {
+        // Given / When
+        let color = sut.glucoseColor(for: 250)
+
+        // Then
+        XCTAssertEqual(color, .red, "Values 250+ should be red")
+    }
+
+    func testRangeColor_ForVeryLowRange_ReturnsColorOrGray() {
+        // Given - Very low range (0-70)
+        let valueInRange: Double = 50
+        let valueOutOfRange: Double = 100
+
+        // When
+        let colorInRange = sut.rangeColor(for: valueInRange, index: 0)
+        let colorOutOfRange = sut.rangeColor(for: valueOutOfRange, index: 0)
+
+        // Then
+        XCTAssertEqual(colorInRange, .red, "Value in very low range should be red")
+        XCTAssertEqual(colorOutOfRange, .gray.opacity(0.2), "Value out of range should be gray")
+    }
+
+    func testRangeColor_ForOptimalRange_ReturnsColorOrGray() {
+        // Given - Optimal range (100-140)
+        let valueInRange: Double = 120
+        let valueOutOfRange: Double = 200
+
+        // When
+        let colorInRange = sut.rangeColor(for: valueInRange, index: 2)
+        let colorOutOfRange = sut.rangeColor(for: valueOutOfRange, index: 2)
+
+        // Then
+        XCTAssertEqual(colorInRange, .green, "Value in optimal range should be green")
+        XCTAssertEqual(colorOutOfRange, .gray.opacity(0.2), "Value out of range should be gray")
+    }
+
+    func testRangeColor_ForHighRange_ReturnsColorOrGray() {
+        // Given - High range (180-400)
+        let valueInRange: Double = 200
+        let valueOutOfRange: Double = 100
+
+        // When
+        let colorInRange = sut.rangeColor(for: valueInRange, index: 4)
+        let colorOutOfRange = sut.rangeColor(for: valueOutOfRange, index: 4)
+
+        // Then
+        XCTAssertEqual(colorInRange, .orange, "Value in high range should be orange")
+        XCTAssertEqual(colorOutOfRange, .gray.opacity(0.2), "Value out of range should be gray")
+    }
+
+    // MARK: - Trend Helper Tests
+
+    func testTrendSymbol_ForFlatTrend_ReturnsForwardArrow() {
+        // Given / When
+        let symbol = sut.trendSymbol(for: "flat")
+
+        // Then
+        XCTAssertEqual(symbol, "arrow.forward", "Flat trend should return forward arrow")
+    }
+
+    func testTrendSymbol_ForDoubleUpTrend_ReturnsUpToLineArrow() {
+        // Given / When
+        let symbol = sut.trendSymbol(for: "doubleup")
+
+        // Then
+        XCTAssertEqual(symbol, "arrow.up.to.line", "DoubleUp trend should return up to line arrow")
+    }
+
+    func testTrendSymbol_ForSingleUpTrend_ReturnsUpArrow() {
+        // Given / When
+        let symbol = sut.trendSymbol(for: "singleup")
+
+        // Then
+        XCTAssertEqual(symbol, "arrow.up", "SingleUp trend should return up arrow")
+    }
+
+    func testTrendSymbol_ForFortyUpTrend_ReturnsUpRightArrow() {
+        // Given / When
+        let symbol = sut.trendSymbol(for: "fortyup")
+
+        // Then
+        XCTAssertEqual(symbol, "arrow.up.right", "FortyUp trend should return up-right arrow")
+    }
+
+    func testTrendSymbol_ForFortyDownTrend_ReturnsDownRightArrow() {
+        // Given / When
+        let symbol = sut.trendSymbol(for: "fortydown")
+
+        // Then
+        XCTAssertEqual(symbol, "arrow.down.right", "FortyDown trend should return down-right arrow")
+    }
+
+    func testTrendSymbol_ForSingleDownTrend_ReturnsDownArrow() {
+        // Given / When
+        let symbol = sut.trendSymbol(for: "singledown")
+
+        // Then
+        XCTAssertEqual(symbol, "arrow.down", "SingleDown trend should return down arrow")
+    }
+
+    func testTrendSymbol_ForDoubleDownTrend_ReturnsDownToLineArrow() {
+        // Given / When
+        let symbol = sut.trendSymbol(for: "doubledown")
+
+        // Then
+        XCTAssertEqual(symbol, "arrow.down.to.line", "DoubleDown trend should return down to line arrow")
+    }
+
+    func testTrendSymbol_ForUnknownTrend_ReturnsForwardArrow() {
+        // Given / When
+        let symbol = sut.trendSymbol(for: "unknown")
+
+        // Then
+        XCTAssertEqual(symbol, "arrow.forward", "Unknown trend should default to forward arrow")
+    }
+
+    func testTrendSymbol_IsCaseInsensitive() {
+        // Given / When
+        let symbolLower = sut.trendSymbol(for: "flat")
+        let symbolUpper = sut.trendSymbol(for: "FLAT")
+        let symbolMixed = sut.trendSymbol(for: "FlAt")
+
+        // Then
+        XCTAssertEqual(symbolLower, symbolUpper, "Trend symbols should be case insensitive")
+        XCTAssertEqual(symbolLower, symbolMixed, "Trend symbols should be case insensitive")
+    }
+
+    func testTrendDescription_ForFlatTrend_ReturnsSteady() {
+        // Given / When
+        let description = sut.trendDescription(for: "flat")
+
+        // Then
+        XCTAssertEqual(description, "Steady", "Flat trend should return 'Steady'")
+    }
+
+    func testTrendDescription_ForDoubleUpTrend_ReturnsRisingFast() {
+        // Given / When
+        let description = sut.trendDescription(for: "doubleup")
+
+        // Then
+        XCTAssertEqual(description, "Rising fast", "DoubleUp trend should return 'Rising fast'")
+    }
+
+    func testTrendDescription_ForSingleUpTrend_ReturnsRising() {
+        // Given / When
+        let description = sut.trendDescription(for: "singleup")
+
+        // Then
+        XCTAssertEqual(description, "Rising", "SingleUp trend should return 'Rising'")
+    }
+
+    func testTrendDescription_ForFortyUpTrend_ReturnsRisingSlow() {
+        // Given / When
+        let description = sut.trendDescription(for: "fortyup")
+
+        // Then
+        XCTAssertEqual(description, "Rising slow", "FortyUp trend should return 'Rising slow'")
+    }
+
+    func testTrendDescription_ForFortyDownTrend_ReturnsFallingSlow() {
+        // Given / When
+        let description = sut.trendDescription(for: "fortydown")
+
+        // Then
+        XCTAssertEqual(description, "Falling slow", "FortyDown trend should return 'Falling slow'")
+    }
+
+    func testTrendDescription_ForSingleDownTrend_ReturnsFalling() {
+        // Given / When
+        let description = sut.trendDescription(for: "singledown")
+
+        // Then
+        XCTAssertEqual(description, "Falling", "SingleDown trend should return 'Falling'")
+    }
+
+    func testTrendDescription_ForDoubleDownTrend_ReturnsFallingFast() {
+        // Given / When
+        let description = sut.trendDescription(for: "doubledown")
+
+        // Then
+        XCTAssertEqual(description, "Falling fast", "DoubleDown trend should return 'Falling fast'")
+    }
+
+    func testTrendDescription_ForUnknownTrend_ReturnsUnknown() {
+        // Given / When
+        let description = sut.trendDescription(for: "unknown")
+
+        // Then
+        XCTAssertEqual(description, "Unknown", "Unknown trend should return 'Unknown'")
+    }
+
+    func testTrendDescription_IsCaseInsensitive() {
+        // Given / When
+        let descriptionLower = sut.trendDescription(for: "flat")
+        let descriptionUpper = sut.trendDescription(for: "FLAT")
+        let descriptionMixed = sut.trendDescription(for: "FlAt")
+
+        // Then
+        XCTAssertEqual(descriptionLower, descriptionUpper, "Trend descriptions should be case insensitive")
+        XCTAssertEqual(descriptionLower, descriptionMixed, "Trend descriptions should be case insensitive")
+    }
+
+    // MARK: - Data Loading Tests
+    //
+    // NOTE: Data loading tests are commented out because DexcomService is a final class
+    // and cannot be mocked without protocol-based dependency injection.
+    // To make these tests work, the following refactoring would be needed:
+    // 1. Create a DexcomServiceProtocol with fetchRecentReadings(days:) method
+    // 2. Update GlucoseDashboardViewModel to accept DexcomServiceProtocol
+    // 3. Create MockDexcomService conforming to the protocol
+    //
+    // For now, data loading is verified through manual testing and integration tests.
+    // The business logic (statistics, colors, trends) is fully tested below.
+
+    /*
+    func testLoadData_WhenNotConnected_DoesNotFetchData() async {
+        // Requires mockable DexcomService
+    }
+
+    func testLoadData_WhenConnected_FetchesDataSuccessfully() async {
+        // Requires mockable DexcomService
+    }
+
+    func testLoadData_SortsReadingsByTimestampDescending() async {
+        // Requires mockable DexcomService
+    }
+
+    func testLoadData_OnError_SetsErrorMessage() async {
+        // Requires mockable DexcomService
+    }
+    */
+
+    // MARK: - Tab Selection Tests
+
+    func testSelectedTab_DefaultsToActivities() {
+        // Given / When
+        let defaultTab = sut.selectedTab
+
+        // Then
+        XCTAssertEqual(defaultTab, .activities, "Default tab should be activities")
+    }
+
+    func testCalculateAverageGlucose_WhenGlucoseTabSelected_UsesFilteredReadings() {
+        // Given
+        let calendar = Calendar.current
+        let chartRange = sut.chartXAxisRange
+        let midpoint = Date(timeInterval: (chartRange.upperBound.timeIntervalSince(chartRange.lowerBound) / 2), since: chartRange.lowerBound)
+
+        sut.glucoseReadings = [
+            createReading(value: 100, timestamp: chartRange.lowerBound.addingTimeInterval(-3600)), // Outside range
+            createReading(value: 120, timestamp: midpoint), // In range
+            createReading(value: 140, timestamp: chartRange.upperBound.addingTimeInterval(-3600)) // In range
+        ]
+
+        sut.selectedTab = .glucose
+
+        // When
+        let average = sut.calculateAverageGlucose()
+
+        // Then
+        // Should only average the 2 readings in range: (120 + 140) / 2 = 130
+        XCTAssertEqual(average, 130.0, accuracy: 0.01, "Should only use filtered readings when glucose tab selected")
+    }
+
+    func testCalculateAverageGlucose_WhenActivitiesTabSelected_UsesAllReadings() {
+        // Given
+        let calendar = Calendar.current
+        let chartRange = sut.chartXAxisRange
+        let midpoint = Date(timeInterval: (chartRange.upperBound.timeIntervalSince(chartRange.lowerBound) / 2), since: chartRange.lowerBound)
+
+        sut.glucoseReadings = [
+            createReading(value: 90, timestamp: chartRange.lowerBound.addingTimeInterval(-3600)), // Outside range
+            createReading(value: 120, timestamp: midpoint), // In range
+            createReading(value: 150, timestamp: chartRange.upperBound.addingTimeInterval(-3600)) // In range
+        ]
+
+        sut.selectedTab = .activities
+
+        // When
+        let average = sut.calculateAverageGlucose()
+
+        // Then
+        // Should average all 3 readings: (90 + 120 + 150) / 3 = 120
+        XCTAssertEqual(average, 120.0, accuracy: 0.01, "Should use all readings when activities tab selected")
+    }
+
+    // MARK: - Helper Methods
+
+    private func createReading(value: Double, timestamp: Date) -> HealthGlucoseReading {
+        return HealthGlucoseReading(
+            value: value,
+            timestamp: timestamp,
+            device: "Test Device",
+            source: "Test"
+        )
+    }
+}

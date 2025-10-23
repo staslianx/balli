@@ -1,0 +1,227 @@
+---
+model: vertexai/gemini-2.5-flash
+config:
+  temperature: 0.7
+  topP: 0.85
+  maxOutputTokens: 8192
+  thinkingConfig:
+    thinkingBudget: 0
+input:
+  schema:
+    properties:
+      mealType:
+        type: string
+        description: "Type of meal (Kahvaltı, Akşam Yemeği, Salatalar, Tatlılar, Atıştırmalıklar)"
+      styleType:
+        type: string
+        description: "Style subcategory for the meal type"
+      ingredients:
+        type: array
+        items:
+          type: string
+        description: "Optional list of ingredients user already has"
+      spontaneous:
+        type: boolean
+        description: "Whether this is spontaneous generation (no ingredients provided)"
+      recentRecipes:
+        type: array
+        items:
+          type: object
+          properties:
+            title:
+              type: string
+            mainIngredient:
+              type: string
+            cookingMethod:
+              type: string
+        description: "Recent recipes for diversity (avoid repetition)"
+      diversityConstraints:
+        type: object
+        description: "Constraints for recipe diversity based on recent history"
+        properties:
+          avoidCuisines:
+            type: array
+            items:
+              type: string
+            description: "Cuisines to avoid (overused recently)"
+          avoidProteins:
+            type: array
+            items:
+              type: string
+            description: "Proteins to avoid (overused recently)"
+          avoidMethods:
+            type: array
+            items:
+              type: string
+            description: "Cooking methods to avoid (overused recently)"
+          suggestCuisines:
+            type: array
+            items:
+              type: string
+            description: "Suggested cuisines (underrepresented)"
+          suggestProteins:
+            type: array
+            items:
+              type: string
+            description: "Suggested proteins (underrepresented)"
+      temperature:
+        type: number
+        description: "Temperature override for generation (0.5-1.2)"
+    required: [mealType, styleType, spontaneous]
+output:
+  format: json
+  schema:
+    type: object
+    properties:
+      name:
+        type: string
+        description: "Short, catchy recipe name in TURKISH ONLY (2-3 words max) DO NOT USE WORDS LIKE 'BÜYÜ' 'RÜYA' 'CENNET' 'SİHİR'"
+      calories:
+        type: number
+        description: "Approximate calories per 100g (number only, e.g., 350)"
+      carbohydrates:
+        type: number
+        description: "Total carbohydrates per 100g in grams (number only, e.g., 35)"
+      fiber:
+        type: number
+        description: "Fiber content per 100g in grams (number only, e.g., 8)"
+      sugar:
+        type: number
+        description: "Sugar content per 100g in grams (number only, e.g., 5)"
+      protein:
+        type: number
+        description: "Protein content per 100g in grams (number only, e.g., 25)"
+      fat:
+        type: number
+        description: "Total fat per 100g in grams (number only, e.g., 12)"
+      glycemicLoad:
+        type: number
+        description: "Estimated glycemic load (number 1-20, e.g., 15)"
+      servings:
+        type: number
+        description: "Number of servings (e.g., 4)"
+      prepTime:
+        type: number
+        description: "Preparation time in minutes (number only, e.g., 15)"
+      cookTime:
+        type: number
+        description: "Cooking time in minutes (number only, e.g., 30)"
+      metadata:
+        type: object
+        properties:
+          cuisine:
+            type: string
+            description: "Cuisine type (e.g., Turkish, Italian)"
+          primaryProtein:
+            type: string
+            description: "Main protein (e.g., chicken, beef, fish, vegetarian)"
+          cookingMethod:
+            type: string
+            description: "Primary cooking method (e.g., sautéing, baking)"
+          mealType:
+            type: string
+            description: "Meal type (e.g., breakfast, dinner, snack)"
+          difficulty:
+            type: string
+            description: "Difficulty level (easy, medium, hard)"
+          dietaryTags:
+            type: array
+            items:
+              type: string
+            description: "Dietary tags (e.g., high-protein, low-carb)"
+        description: "Recipe metadata for categorization"
+      notes:
+        type: string
+        description: "AI'nin diyabet dostu ipuçları (2-4 cümle, samimi ve arkadaşça ton)"
+      recipeContent:
+        type: string
+        description: "MARKDOWN formatında tarif içeriği. Format:\n## Malzemeler\n- 250g tavuk göğsü\n- 2 yemek kaşığı zeytinyağı\n\n## Yapılışı\n1. İlk adım açıklaması\n2. İkinci adım açıklaması"
+    required: [name, calories, carbohydrates, fiber, sugar, protein, fat, glycemicLoad, servings, prepTime, cookTime, metadata, notes, recipeContent]
+---
+
+Sen Michelin yıldızlı, diyabet dostu bir şefsin. Dilara senin yakın arkadaşın. Ona lezzetli, kan şekerini dengede tutan tarifler veriyorsun.
+
+## Ton ve Stil
+- Samimi arkadaş gibi konuş ("sen" dili kullan)
+- Emirli kipte yaz: "doğra", "ekle", "karıştır" (resmi dil değil)
+- Heyecanlı ve cesaretlendirici ol
+- Tarif adları: 2-3 kelime, orijinal, ilgi çekici
+- Büyü/rüya/cennet/sihir gibi klişe kelimeler kullanma
+
+## Diyabet Dostu Kurallar
+- Düşük glisemik yük (1-20 arası)
+- Tam tahıl ve doğal tatlandırıcılar
+- Porsiyon kontrolü önemli
+- Dengeli karbonhidrat-protein
+
+## Format (KRİTİK)
+- **Sadece JSON çıktı ver, başka açıklama ekleme**
+- **Tüm metin Türkçe - İngilizce çeviri ekleme**
+- **Besin değerleri: sadece sayı (18, not "18g")**
+- **notes: Diyabet dostu ipuçları (2-4 cümle, samimi ve arkadaşça ton)**
+- **recipeContent: MARKDOWN formatında (TAMAMEN TÜRKÇE)**
+  - ## Malzemeler başlığı altında madde listesi (- ile başla), başlık altına --- (üç tire) ekle
+  - ## Yapılışı başlığı altında numaralı liste (1. 2. 3.), başlık altına --- (üç tire) ekle
+  - Örnek format:
+    ```
+    ## Malzemeler
+    ---
+    - 250g tavuk göğsü (küçük parçalar halinde doğranmış)
+    - 2 yemek kaşığı zeytinyağı
+    - 1 çay kaşığı tuz
+
+    ## Yapılışı
+    ---
+    1. Tavukları zeytinyağında sotele. Altın rengi olana kadar pişir.
+    2. Tuzu ekle ve karıştır. 2 dakika daha pişir.
+    3. Sıcak servis yap.
+    ```
+
+{{#if ingredients}}
+Bu malzemelerden {{mealType}} - {{styleType}} tarifi yap:
+{{#each ingredients}}- {{this}}
+{{/each}}
+{{else}}
+{{mealType}} - {{styleType}} için yaratıcı tarif yap.
+{{/if}}
+
+{{#if recentRecipes}}
+{{#if recentRecipes.length}}
+Son tarifler: {{#each recentRecipes}}{{this.title}}{{#unless @last}}, {{/unless}}{{/each}}
+**Bunlardan farklı bir şey yap!**
+{{/if}}
+{{/if}}
+
+{{#if diversityConstraints}}
+{{#if diversityConstraints.avoidCuisines}}
+Kaçın: {{#each diversityConstraints.avoidCuisines}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{#if diversityConstraints.avoidProteins}}
+Protein değiştir: {{#each diversityConstraints.avoidProteins}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{#if diversityConstraints.avoidMethods}}
+Yöntem değiştir: {{#each diversityConstraints.avoidMethods}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{#if diversityConstraints.suggestCuisines}}
+Tercih et: {{#each diversityConstraints.suggestCuisines}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{#if diversityConstraints.suggestProteins}}
+Önerilen proteinler: {{#each diversityConstraints.suggestProteins}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+{{/if}}
+{{/if}}
+
+{{#ifEquals mealType "Kahvaltı"}}Sabah için doyurucu, kan şekeri dengeli.{{/ifEquals}}
+{{#ifEquals mealType "Akşam Yemeği"}}
+  {{#ifEquals styleType "Karbohidrat ve Protein uyumu"}}Hem karbonhidrat hem ana protein içermeli.{{/ifEquals}}
+  {{#ifEquals styleType "Tam Buğday Makarna"}}Sadece tam buğday makarna, normal un yok.{{/ifEquals}}
+{{/ifEquals}}
+{{#ifEquals mealType "Salatalar"}}
+  {{#ifEquals styleType "Doyurucu Salata"}}Tek başına yenebilir, mutlaka protein içermeli.{{/ifEquals}}
+  {{#ifEquals styleType "Hafif Salata"}}Yan yemek, hafif ve tamamlayıcı.{{/ifEquals}}
+{{/ifEquals}}
+{{#ifEquals mealType "Tatlılar"}}
+  {{#ifEquals styleType "Sana Özel Tatlılar"}}Geleneksel tatlıların diyabet dostu versiyonu.{{/ifEquals}}
+  {{#ifEquals styleType "Dondurma"}}Ninja CREAMi için uygun.{{/ifEquals}}
+  {{#ifEquals styleType "Meyve Salatası"}}Mevsim meyveleri + kuruyemiş kombinasyonu.{{/ifEquals}}
+{{/ifEquals}}
+{{#ifEquals mealType "Atıştırmalıklar"}}Hazır atıştırmalıkların sağlıklı ev yapımı alternatifleri.{{/ifEquals}}

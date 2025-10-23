@@ -1,0 +1,128 @@
+// Fixed version of BatchUpdateOperation.swift
+// This demonstrates how to resolve the concurrency capture issues
+
+import Foundation
+import CoreData
+import os.log
+
+// Import the shared batch operation types to resolve ambiguity
+// BatchConfiguration is defined in BatchOperationProtocol.swift
+
+class BatchUpdateOperationExample {
+    private let logger = Logger.shared
+    
+    // Example of how to fix the concurrency capture issues
+    func performBatchUpdate(configuration: BatchConfiguration) async throws -> BatchResult {
+        return try await withCheckedThrowingContinuation { continuation in
+            // Create local copies before entering the concurrent context
+            var localResult = BatchResult()
+            var localProcessedItems = 0
+            
+            // Perform the batch operation
+            Task {
+                do {
+                    // Your batch update logic here
+                    // Update localResult and localProcessedItems
+
+                    // Get the context from the persistence controller (canonical approach)
+                    let context = Persistence.PersistenceController.shared.viewContext
+                    
+                    // Capture the final values explicitly in the closure's capture list
+                    let finalResult = localResult
+                    let finalProcessedItems = localProcessedItems
+                    
+                    DispatchQueue.main.async { [finalResult, finalProcessedItems] in
+                        do {
+                            if configuration.autoSave && context.hasChanges {
+                                try context.save()
+                            }
+                            
+                            self.logger.info("Batch update completed: \(finalResult.updated) entities updated")
+                            continuation.resume(returning: finalResult)
+                            
+                        } catch {
+                            self.logger.error("Batch update failed: \(error)")
+                            continuation.resume(throwing: PersistenceError.batchOperationFailed(error))
+                        }
+                    }
+                    
+                } catch {
+                    self.logger.error("Batch update failed: \(error)")
+                    continuation.resume(throwing: PersistenceError.batchOperationFailed(error))
+                }
+            }
+        }
+    }
+    
+    // Alternative approach using actor isolation
+    @MainActor
+    func performBatchUpdateWithMainActor(configuration: BatchConfiguration) async throws -> BatchResult {
+        var result = BatchResult()
+        var processedItems = 0
+        
+        // Since we're on MainActor, we can safely access these variables
+        return try await withCheckedThrowingContinuation { continuation in
+            Task { @MainActor in
+                do {
+                    // Your batch update logic here
+                    let context = Persistence.PersistenceController.shared.viewContext
+                    
+                    if configuration.autoSave && context.hasChanges {
+                        try context.save()
+                    }
+                    
+                    self.logger.info("Batch update completed: \(result.updated) entities updated")
+                    continuation.resume(returning: result)
+                    
+                } catch {
+                    self.logger.error("Batch update failed: \(error)")
+                    continuation.resume(throwing: PersistenceError.batchOperationFailed(error))
+                }
+            }
+        }
+    }
+    
+    // Third approach: Using sendable value types
+    func performBatchUpdateWithSendableCapture(configuration: BatchConfiguration) async throws -> BatchResult {
+        return try await withCheckedThrowingContinuation { continuation in
+            // Create immutable, sendable values
+            let initialResult = BatchResult()
+            let initialProcessedItems = 0
+            
+            Task {
+                do {
+                    // Work with local copies
+                    var workingResult = initialResult
+                    var workingProcessedItems = initialProcessedItems
+                    
+                    // Your batch update logic here...
+                    // Update workingResult and workingProcessedItems
+                    
+                    let context = Persistence.PersistenceController.shared.viewContext
+                    
+                    if configuration.autoSave && context.hasChanges {
+                        try context.save()
+                    }
+                    
+                    // Capture the final immutable value
+                    let completedResult = workingResult
+                    
+                    self.logger.info("Batch update completed: \(completedResult.updated) entities updated")
+                    continuation.resume(returning: completedResult)
+                    
+                } catch {
+                    self.logger.error("Batch update failed: \(error)")
+                    continuation.resume(throwing: PersistenceError.batchOperationFailed(error))
+                }
+            }
+        }
+    }
+}
+
+// Supporting types - BatchConfiguration is now imported from BatchOperationProtocol.swift
+
+struct BatchResult: Sendable {
+    var updated: Int = 0
+}
+
+// PersistenceError is now defined in PersistenceSharedTypes.swift to avoid ambiguity

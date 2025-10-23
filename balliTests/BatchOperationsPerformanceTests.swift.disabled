@@ -1,0 +1,278 @@
+//
+//  BatchOperationsPerformanceTests.swift
+//  balliTests
+//
+//  Created by Claude on 9.08.2025.
+//  Tests for batch operations memory optimization
+//
+
+import XCTest
+@testable import balli
+import CoreData
+
+@MainActor
+final class BatchOperationsPerformanceTests: XCTestCase {
+    
+    // MARK: - Properties
+    
+    private var persistenceController: EnhancedPersistenceController!
+    
+    // MARK: - Setup & Teardown
+    
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        persistenceController = EnhancedPersistenceController.shared
+    }
+    
+    override func tearDownWithError() throws {
+        persistenceController = nil
+        try super.tearDownWithError()
+    }
+    
+    // MARK: - Batch Operations Performance Tests
+    
+    /// Test memory usage during large batch operations
+    func testBatchOperationMemoryEfficiency() async throws {
+        let initialMemory = getCurrentMemoryFootprint()
+        
+        // Create a large dataset for batch processing
+        let batchSize = 1000
+        var testData: [[String: Any]] = []
+        
+        for i in 1...batchSize {
+            testData.append([
+                "name": "Test Food Item \(i)",
+                "calories": Double.random(in: 50...500),
+                "carbohydrates": Double.random(in: 10...80),
+                "protein": Double.random(in: 5...30),
+                "fat": Double.random(in: 2...25),
+                "timestamp": Date()
+            ])
+        }
+        
+        let peakMemoryUsages: [UInt64] = []
+        
+        measure(metrics: [XCTClockMetric(), XCTMemoryMetric()]) {
+            let expectation = XCTestExpectation(description: "Batch operation completed")
+            
+            Task {
+                do {
+                    // Simulate streaming batch processing
+                    let stream = AsyncStream { continuation in
+                        Task {
+                            for data in testData {
+                                continuation.yield(data)
+                            }
+                            continuation.finish()
+                        }
+                    }
+                    
+                    // Process in smaller chunks to prevent memory spikes
+                    let chunkSize = 50
+                    var processedCount = 0
+                    var currentChunk: [[String: Any]] = []
+                    
+                    for await data in stream {
+                        currentChunk.append(data)
+                        
+                        if currentChunk.count >= chunkSize {
+                            // Process chunk
+                            try await processDataChunk(currentChunk)
+                            
+                            // Clear chunk and force memory cleanup
+                            currentChunk.removeAll(keepingCapacity: false)
+                            processedCount += chunkSize
+                            
+                            // Yield to prevent UI blocking
+                            await Task.yield()
+                            
+                            // Monitor memory usage
+                            let currentMemory = getCurrentMemoryFootprint()
+                            print("Processed \(processedCount)/\(batchSize) items, Memory: \(currentMemory / (1024*1024))MB")
+                        }
+                    }
+                    
+                    // Process remaining items
+                    if !currentChunk.isEmpty {
+                        try await processDataChunk(currentChunk)
+                    }
+                    
+                    expectation.fulfill()
+                    
+                } catch {
+                    XCTFail("Batch operation failed: \(error)")
+                    expectation.fulfill()
+                }
+            }
+            
+            wait(for: [expectation], timeout: 30.0)
+        }
+        
+        let finalMemory = getCurrentMemoryFootprint()
+        let memoryGrowth = finalMemory - initialMemory
+        let growthMB = Double(memoryGrowth) / (1024 * 1024)
+        
+        print("✅ Batch operation - Memory growth: \(String(format: "%.2f", growthMB))MB")
+        
+        // Verify memory efficiency - should not grow by more than 50MB for 1000 items
+        XCTAssertLessThan(growthMB, 50.0, "Batch operations should not cause excessive memory growth")
+    }
+    
+    /// Test streaming batch insert performance
+    func testStreamingBatchInsertPerformance() async throws {
+        let itemCount = 500
+        
+        measure(metrics: [XCTClockMetric()]) {
+            let expectation = XCTestExpectation(description: "Streaming insert completed")
+            
+            Task {
+                let startTime = Date()
+                
+                do {
+                    // Create async stream of data
+                    let dataStream = AsyncStream { continuation in
+                        Task {
+                            for i in 1...itemCount {
+                                let data = [
+                                    "name": "Streamed Item \(i)",
+                                    "value": Double.random(in: 1...100)
+                                ]
+                                continuation.yield(data)
+                                
+                                // Add small delay to simulate real data streaming
+                                if i % 100 == 0 {
+                                    try? await Task.sleep(nanoseconds: 1_000_000) // 1ms
+                                }
+                            }
+                            continuation.finish()
+                        }
+                    }
+                    
+                    var processedCount = 0
+                    
+                    // Process stream with memory-efficient batching
+                    for await data in dataStream {
+                        // Simulate processing
+                        try await processSingleItem(data)
+                        processedCount += 1
+                        
+                        // Yield periodically to maintain responsiveness
+                        if processedCount % 50 == 0 {
+                            await Task.yield()
+                        }
+                    }
+                    
+                    let duration = Date().timeIntervalSince(startTime)
+                    let itemsPerSecond = Double(itemCount) / duration
+                    
+                    print("✅ Streaming batch insert: \(itemCount) items in \(String(format: "%.2f", duration))s (\(String(format: "%.0f", itemsPerSecond)) items/sec)")
+                    
+                    // Verify performance target: should process at least 100 items/second
+                    XCTAssertGreaterThan(itemsPerSecond, 100.0, "Should process at least 100 items per second")
+                    
+                    expectation.fulfill()
+                    
+                } catch {
+                    XCTFail("Streaming batch insert failed: \(error)")
+                    expectation.fulfill()
+                }
+            }
+            
+            wait(for: [expectation], timeout: 15.0)
+        }
+    }
+    
+    /// Test that batch operations don't block the UI
+    func testBatchOperationUIResponsiveness() async throws {
+        let uiUpdateCount = 50
+        var uiUpdatesReceived = 0
+        
+        let uiUpdateExpectation = XCTestExpectation(description: "UI updates received")
+        uiUpdateExpectation.expectedFulfillmentCount = uiUpdateCount
+        
+        // Start UI update simulation
+        let uiUpdateTask = Task {
+            for i in 1...uiUpdateCount {
+                // Simulate UI update
+                await MainActor.run {
+                    uiUpdatesReceived += 1
+                    uiUpdateExpectation.fulfill()
+                }
+                
+                try await Task.sleep(nanoseconds: 10_000_000) // 10ms between updates
+            }
+        }
+        
+        // Start batch operation simultaneously
+        let batchTask = Task {
+            do {
+                try await performLongRunningBatchOperation()
+            } catch {
+                print("Batch operation error (expected in test): \(error)")
+            }
+        }
+        
+        // Wait for both operations
+        let result = await withTaskGroup(of: Void.self) { group in
+            group.addTask { await uiUpdateTask.value }
+            group.addTask { await batchTask.value }
+            
+            await group.waitForAll()
+        }
+        
+        await fulfillment(of: [uiUpdateExpectation], timeout: 10.0)
+        
+        print("✅ UI Responsiveness: Received \(uiUpdatesReceived)/\(uiUpdateCount) UI updates during batch operation")
+        
+        // Verify UI remained responsive
+        XCTAssertGreaterThanOrEqual(uiUpdatesReceived, uiUpdateCount * 8 / 10, "Should receive at least 80% of UI updates")
+    }
+    
+    // MARK: - Helper Methods
+    
+    private func processDataChunk(_ chunk: [[String: Any]]) async throws {
+        let sendableChunk = chunk // Capture in a Sendable-safe way
+        try await persistenceController.performBackgroundTask { context in
+            // Simulate processing each item in the chunk
+            for data in sendableChunk {
+                let _ = data // Process the data (mock)
+            }
+
+            // Simulate save
+            if context.hasChanges {
+                try context.save()
+            }
+        }
+    }
+    
+    private func processSingleItem(_ data: [String: Any]) async throws {
+        // Simulate single item processing
+        try await Task.sleep(nanoseconds: 100_000) // 0.1ms processing time
+    }
+    
+    private func performLongRunningBatchOperation() async throws {
+        // Simulate a batch operation that yields periodically
+        for i in 1...1000 {
+            // Simulate work
+            let _ = i * i
+            
+            // Yield every 50 iterations to allow UI updates
+            if i % 50 == 0 {
+                await Task.yield()
+            }
+        }
+    }
+    
+    private func getCurrentMemoryFootprint() -> UInt64 {
+        var info = mach_task_basic_info()
+        var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size)/4
+        
+        let result = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: 1) {
+                task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+            }
+        }
+        
+        return result == KERN_SUCCESS ? info.resident_size : 0
+    }
+}

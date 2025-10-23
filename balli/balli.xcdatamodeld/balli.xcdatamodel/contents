@@ -1,0 +1,675 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23231" systemVersion="24B83" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="false" userDefinedModelVersionIdentifier="">
+    
+    <!-- FoodItem Entity -->
+    <entity name="FoodItem" representedClassName="FoodItem" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String" minValueString="1"/>
+        <attribute name="brand" optional="YES" attributeType="String"/>
+        <attribute name="barcode" optional="YES" attributeType="String"/>
+        <attribute name="category" optional="YES" attributeType="String"/>
+        
+        <!-- Localization -->
+        <attribute name="nameEn" optional="YES" attributeType="String"/>
+        <attribute name="nameTr" optional="YES" attributeType="String"/>
+        <attribute name="scannedText" optional="YES" attributeType="String"/>
+        <attribute name="detectedLanguage" optional="YES" attributeType="String"/>
+        
+        <!-- Serving Information -->
+        <attribute name="servingSize" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="servingUnit" attributeType="String" defaultValueString="serving"/>
+        <attribute name="servingsPerContainer" attributeType="Double" defaultValueString="1.0" usesScalarValueType="YES"/>
+        <attribute name="gramWeight" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        
+        <!-- Macronutrients (per serving) -->
+        <attribute name="calories" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="totalCarbs" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="fiber" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="sugars" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="addedSugars" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="sugarAlcohols" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="protein" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="totalFat" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="saturatedFat" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="transFat" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="sodium" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        
+        <!-- Confidence Scores (0-100) -->
+        <attribute name="carbsConfidence" attributeType="Double" defaultValueString="0.0" minValueString="0" maxValueString="100" usesScalarValueType="YES"/>
+        <attribute name="overallConfidence" attributeType="Double" defaultValueString="0.0" minValueString="0" maxValueString="100" usesScalarValueType="YES"/>
+        <attribute name="ocrConfidence" attributeType="Double" defaultValueString="0.0" minValueString="0" maxValueString="100" usesScalarValueType="YES"/>
+        
+        <!-- Metadata -->
+        <attribute name="source" attributeType="String" defaultValueString="manual"/>
+        <attribute name="dateAdded" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastModified" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastUsed" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="useCount" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="isFavorite" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="isVerified" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        
+        <!-- Relationships -->
+        <relationship name="mealEntries" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MealEntry" inverseName="foodItem" inverseEntity="MealEntry"/>
+        <relationship name="scanImages" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ScanImage" inverseName="foodItem" inverseEntity="ScanImage"/>
+        <relationship name="nutritionVariants" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="NutritionVariant" inverseName="parentFood" inverseEntity="NutritionVariant"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byNameIndex">
+            <fetchIndexElement property="name" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byBarcodeIndex">
+            <fetchIndexElement property="barcode" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byLastUsedIndex">
+            <fetchIndexElement property="lastUsed" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="byUseCountIndex">
+            <fetchIndexElement property="useCount" type="Binary" order="descending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- MealEntry Entity -->
+    <entity name="MealEntry" representedClassName="MealEntry" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="mealType" attributeType="String" defaultValueString="snack"/>
+        
+        <!-- Portion Information -->
+        <attribute name="quantity" attributeType="Double" defaultValueString="1.0" usesScalarValueType="YES"/>
+        <attribute name="unit" attributeType="String" defaultValueString="serving"/>
+        <attribute name="portionGrams" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        
+        <!-- Calculated Nutrition (based on portion) -->
+        <attribute name="consumedCarbs" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="consumedProtein" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="consumedFat" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="consumedCalories" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="consumedFiber" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        
+        <!-- Context -->
+        <attribute name="glucoseBefore" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="glucoseAfter" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="insulinUnits" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="photoData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        
+        <!-- Relationships -->
+        <relationship name="foodItem" maxCount="1" deletionRule="Nullify" destinationEntity="FoodItem" inverseName="mealEntries" inverseEntity="FoodItem"/>
+        <relationship name="glucoseReadings" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="GlucoseReading" inverseName="mealEntry" inverseEntity="GlucoseReading"/>
+        <relationship name="medicationEntries" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="MedicationEntry" inverseName="mealEntry" inverseEntity="MedicationEntry"/>
+        <relationship name="healthContext" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="HealthEventContext" inverseName="mealEntry" inverseEntity="HealthEventContext"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byTimestampIndex">
+            <fetchIndexElement property="timestamp" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="byMealTypeIndex">
+            <fetchIndexElement property="mealType" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- GlucoseReading Entity -->
+    <entity name="GlucoseReading" representedClassName="GlucoseReading" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="value" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="source" attributeType="String" defaultValueString="manual"/>
+        <attribute name="deviceName" optional="YES" attributeType="String"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        
+        <!-- HealthKit Integration -->
+        <attribute name="healthKitUUID" optional="YES" attributeType="String"/>
+        <attribute name="syncStatus" attributeType="String" defaultValueString="pending"/>
+        <attribute name="lastSyncAttempt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        
+        <!-- Relationships -->
+        <relationship name="mealEntry" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MealEntry" inverseName="glucoseReadings" inverseEntity="MealEntry"/>
+        <relationship name="medicationEntry" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MedicationEntry" inverseName="glucoseReading" inverseEntity="MedicationEntry"/>
+        <relationship name="healthContext" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="HealthEventContext" inverseName="glucoseReading" inverseEntity="HealthEventContext"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byTimestampIndex">
+            <fetchIndexElement property="timestamp" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="bySourceIndex">
+            <fetchIndexElement property="source" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- ScanImage Entity -->
+    <entity name="ScanImage" representedClassName="ScanImage" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="imageData" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="thumbnailData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="scanDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="imageType" attributeType="String" defaultValueString="nutrition_label"/>
+        
+        <!-- AI Processing -->
+        <attribute name="aiProcessed" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="aiResponse" optional="YES" attributeType="String"/>
+        <attribute name="processingTime" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="aiModel" optional="YES" attributeType="String"/>
+        
+        <!-- Relationships -->
+        <relationship name="foodItem" maxCount="1" deletionRule="Nullify" destinationEntity="FoodItem" inverseName="scanImages" inverseEntity="FoodItem"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byScanDateIndex">
+            <fetchIndexElement property="scanDate" type="Binary" order="descending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- NutritionVariant Entity -->
+    <entity name="NutritionVariant" representedClassName="NutritionVariant" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="servingSize" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="servingUnit" attributeType="String" defaultValueString="serving"/>
+        
+        <!-- Nutrition that differs from parent -->
+        <attribute name="calories" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="totalCarbs" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="fiber" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="sugars" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="protein" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="totalFat" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        
+        <!-- Relationships -->
+        <relationship name="parentFood" maxCount="1" deletionRule="Nullify" destinationEntity="FoodItem" inverseName="nutritionVariants" inverseEntity="FoodItem"/>
+    </entity>
+    
+    
+    <!-- ShoppingListItem Entity -->
+    <entity name="ShoppingListItem" representedClassName="ShoppingListItem" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String" minValueString="1"/>
+        <attribute name="category" optional="YES" attributeType="String"/>
+        
+        <!-- Status -->
+        <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="sortOrder" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        
+        <!-- Additional Info -->
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="quantity" optional="YES" attributeType="String"/>
+        <attribute name="brand" optional="YES" attributeType="String"/>
+        
+        <!-- Recipe Association -->
+        <attribute name="recipeId" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="recipeName" optional="YES" attributeType="String"/>
+        <attribute name="isFromRecipe" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="measurementUnit" optional="YES" attributeType="String"/>
+        
+        <!-- Metadata -->
+        <attribute name="dateCreated" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastModified" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="dateCompleted" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="bySortOrderIndex">
+            <fetchIndexElement property="sortOrder" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byCompletedIndex">
+            <fetchIndexElement property="isCompleted" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byDateCompletedIndex">
+            <fetchIndexElement property="dateCompleted" type="Binary" order="descending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- RecipeHistory Entity -->
+    <entity name="RecipeHistory" representedClassName="RecipeHistory" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="dateGenerated" attributeType="Date" usesScalarValueType="NO"/>
+        
+        <!-- Recipe Classification -->
+        <attribute name="mealType" attributeType="String"/>
+        <attribute name="styleType" attributeType="String"/>
+        <attribute name="recipeName" attributeType="String"/>
+        
+        <!-- Recipe Content -->
+        <attribute name="ingredients" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="instructions" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="mainProtein" optional="YES" attributeType="String"/>
+        
+        <!-- Nutrition -->
+        <attribute name="carbCount" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="preparationTime" optional="YES" attributeType="Integer 32" usesScalarValueType="YES"/>
+        <attribute name="servings" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="nutritionConfidence" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES"/>
+        
+        <!-- User Feedback -->
+        <attribute name="wasCooked" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="userRating" optional="YES" attributeType="Integer 16" minValueString="1" maxValueString="5" usesScalarValueType="YES"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byDateGeneratedIndex">
+            <fetchIndexElement property="dateGenerated" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="byMealStyleIndex">
+            <fetchIndexElement property="mealType" type="Binary" order="ascending"/>
+            <fetchIndexElement property="styleType" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byMainProteinIndex">
+            <fetchIndexElement property="mainProtein" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- UserMedicalProfile Entity -->
+    <entity name="UserMedicalProfile" representedClassName="UserMedicalProfile" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastUpdated" attributeType="Date" usesScalarValueType="NO"/>
+        
+        <!-- Medical Information -->
+        <attribute name="insulinToCarbRatio" attributeType="String"/>
+        <attribute name="correctionFactor" attributeType="Integer 32" usesScalarValueType="YES"/>
+        <attribute name="targetBloodSugar" attributeType="Integer 32" usesScalarValueType="YES"/>
+        <attribute name="diabetesType" attributeType="String" defaultValueString="LADA"/>
+        
+        <!-- Dietary Preferences -->
+        <attribute name="restrictions" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="preferredCuisines" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="dislikedIngredients" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        
+        <!-- Localization -->
+        <attribute name="preferredLanguage" attributeType="String" defaultValueString="tr"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byLastUpdatedIndex">
+            <fetchIndexElement property="lastUpdated" type="Binary" order="descending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- FoodLabelHistory Entity -->
+    <entity name="FoodLabelHistory" representedClassName="FoodLabelHistory" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="scanDate" attributeType="Date" usesScalarValueType="NO"/>
+        
+        <!-- Product Information -->
+        <attribute name="productName" attributeType="String"/>
+        <attribute name="brandName" optional="YES" attributeType="String"/>
+        <attribute name="barcode" optional="YES" attributeType="String"/>
+        
+        <!-- Nutrition Data -->
+        <attribute name="carbsPer100g" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="carbsPerServing" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="servingSize" attributeType="String"/>
+        <attribute name="sugars" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="fiber" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        
+        <!-- User Data -->
+        <attribute name="userNotes" optional="YES" attributeType="String"/>
+        <attribute name="imageData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byScanDateIndex">
+            <fetchIndexElement property="scanDate" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="byProductNameIndex">
+            <fetchIndexElement property="productName" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byBarcodeIndex">
+            <fetchIndexElement property="barcode" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    
+    
+    <!-- Recipe Entity -->
+    <entity name="Recipe" representedClassName="Recipe" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="dateCreated" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastModified" attributeType="Date" usesScalarValueType="NO"/>
+        
+        <!-- Recipe Content -->
+        <attribute name="ingredients" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="instructions" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="recipeContent" optional="YES" attributeType="String"/>
+        <attribute name="prepTime" optional="YES" attributeType="Integer 16" usesScalarValueType="YES"/>
+        <attribute name="cookTime" optional="YES" attributeType="Integer 16" usesScalarValueType="YES"/>
+        <attribute name="servings" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
+        
+        <!-- Nutrition Information -->
+        <attribute name="calories" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="totalCarbs" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="fiber" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="sugars" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="protein" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="totalFat" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="glycemicLoad" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        
+        <!-- Recipe Metadata -->
+        <attribute name="source" attributeType="String" defaultValueString="manual"/>
+        <attribute name="mealType" optional="YES" attributeType="String"/>
+        <attribute name="styleType" optional="YES" attributeType="String"/>
+        <attribute name="isVerified" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="isFavorite" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="timesCooked" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="userRating" optional="YES" attributeType="Integer 16" minValueString="1" maxValueString="5" usesScalarValueType="YES"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="imageURL" optional="YES" attributeType="String"/>
+        <attribute name="paperColor" optional="YES" attributeType="String"/>
+        <attribute name="imageData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byNameIndex">
+            <fetchIndexElement property="name" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byDateCreatedIndex">
+            <fetchIndexElement property="dateCreated" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="bySourceIndex">
+            <fetchIndexElement property="source" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- MedicationEntry Entity -->
+    <entity name="MedicationEntry" representedClassName="MedicationEntry" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="medicationName" attributeType="String" minValueString="1"/>
+        <attribute name="medicationType" attributeType="String" defaultValueString="insulin"/>
+        
+        <!-- Dosage Information -->
+        <attribute name="dosage" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="dosageUnit" attributeType="String" defaultValueString="units"/>
+        <attribute name="administrationRoute" attributeType="String" defaultValueString="subcutaneous"/>
+        <attribute name="injectionSite" optional="YES" attributeType="String"/>
+        
+        <!-- Timing and Context -->
+        <attribute name="timingRelation" optional="YES" attributeType="String"/>
+        <attribute name="glucoseAtTime" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        <attribute name="isScheduled" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        
+        <!-- Metadata -->
+        <attribute name="dateAdded" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastModified" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="source" attributeType="String" defaultValueString="manual"/>
+        
+        <!-- Relationships -->
+        <relationship name="mealEntry" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MealEntry" inverseName="medicationEntries" inverseEntity="MealEntry"/>
+        <relationship name="glucoseReading" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GlucoseReading" inverseName="medicationEntry" inverseEntity="GlucoseReading"/>
+        <relationship name="medicationSchedule" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MedicationSchedule" inverseName="entries" inverseEntity="MedicationSchedule"/>
+        <relationship name="healthContext" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="HealthEventContext" inverseName="medicationEntries" inverseEntity="HealthEventContext"/>
+
+        <!-- Indexes -->
+        <fetchIndex name="byTimestampIndex">
+            <fetchIndexElement property="timestamp" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="byMedicationTypeIndex">
+            <fetchIndexElement property="medicationType" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- MedicationSchedule Entity -->
+    <entity name="MedicationSchedule" representedClassName="MedicationSchedule" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="medicationName" attributeType="String" minValueString="1"/>
+        <attribute name="medicationType" attributeType="String" defaultValueString="insulin"/>
+        
+        <!-- Schedule Configuration -->
+        <attribute name="defaultDosage" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="dosageUnit" attributeType="String" defaultValueString="units"/>
+        <attribute name="frequency" attributeType="String" defaultValueString="as_needed"/>
+        <attribute name="scheduledTimes" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        
+        <!-- Active Schedule -->
+        <attribute name="isActive" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="startDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="endDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        
+        <!-- Reminders -->
+        <attribute name="enableReminders" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="reminderMinutesBefore" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        
+        <!-- Metadata -->
+        <attribute name="dateCreated" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastModified" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="notes" optional="YES" attributeType="String"/>
+        
+        <!-- Relationships -->
+        <relationship name="entries" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MedicationEntry" inverseName="medicationSchedule" inverseEntity="MedicationEntry"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byMedicationNameIndex">
+            <fetchIndexElement property="medicationName" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byIsActiveIndex">
+            <fetchIndexElement property="isActive" type="Binary" order="descending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- HealthEventContext Entity -->
+    <entity name="HealthEventContext" representedClassName="HealthEventContext" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="eventType" attributeType="String" defaultValueString="composite"/>
+        
+        <!-- Context Data -->
+        <attribute name="glucoseValue" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        <attribute name="carbsConsumed" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        <attribute name="insulinAdministered" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        <attribute name="exerciseMinutes" optional="YES" attributeType="Integer 16" usesScalarValueType="YES"/>
+        <attribute name="stressLevel" optional="YES" attributeType="Integer 16" minValueString="1" maxValueString="10" usesScalarValueType="YES"/>
+        <attribute name="sleepHours" optional="YES" attributeType="Double" usesScalarValueType="YES"/>
+        
+        <!-- Analysis -->
+        <attribute name="aiAnalysis" optional="YES" attributeType="String"/>
+        <attribute name="patterns" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="recommendations" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        
+        <!-- Relationships -->
+        <relationship name="mealEntry" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MealEntry" inverseName="healthContext" inverseEntity="MealEntry"/>
+        <relationship name="glucoseReading" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GlucoseReading" inverseName="healthContext" inverseEntity="GlucoseReading"/>
+        <relationship name="medicationEntries" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="MedicationEntry" inverseName="healthContext" inverseEntity="MedicationEntry"/>
+        <relationship name="chatMessages" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="HealthChatMessage" inverseName="healthEventContext" inverseEntity="HealthChatMessage"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byTimestampIndex">
+            <fetchIndexElement property="timestamp" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="byEventTypeIndex">
+            <fetchIndexElement property="eventType" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- HealthChatMessage Entity -->
+    <entity name="HealthChatMessage" representedClassName="HealthChatMessage" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="content" attributeType="String"/>
+        <attribute name="isUser" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        
+        <!-- Health Context -->
+        <attribute name="messageType" attributeType="String" defaultValueString="general"/>
+        <attribute name="healthDataAttached" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="medicalDisclaimer" optional="YES" attributeType="String"/>
+        <attribute name="confidenceScore" optional="YES" attributeType="Double" minValueString="0" maxValueString="1" usesScalarValueType="YES"/>
+        
+        <!-- AI Processing -->
+        <attribute name="aiProcessed" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="embeddingVector" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="healthKeywords" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        
+        <!-- Streaming Support -->
+        <attribute name="isStreamingComplete" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="tokenCount" optional="YES" attributeType="Integer 32" usesScalarValueType="YES"/>
+        
+        <!-- Relationships -->
+        <relationship name="healthEventContext" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="HealthEventContext" inverseName="chatMessages" inverseEntity="HealthEventContext"/>
+        <relationship name="conversationHealthContext" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ConversationHealthContext" inverseName="messages" inverseEntity="ConversationHealthContext"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byTimestampIndex">
+            <fetchIndexElement property="timestamp" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="byMessageTypeIndex">
+            <fetchIndexElement property="messageType" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- ConversationHealthContext Entity -->
+    <entity name="ConversationHealthContext" representedClassName="ConversationHealthContext" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="conversationId" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="startTimestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="lastUpdated" attributeType="Date" usesScalarValueType="NO"/>
+        
+        <!-- Context Summary -->
+        <attribute name="contextSummary" optional="YES" attributeType="String"/>
+        <attribute name="healthTopics" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        <attribute name="relevantHealthData" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        
+        <!-- Memory Management -->
+        <attribute name="isActive" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="memoryPriority" attributeType="Integer 16" defaultValueString="1" minValueString="1" maxValueString="10" usesScalarValueType="YES"/>
+        <attribute name="lastAccessTimestamp" attributeType="Date" usesScalarValueType="NO"/>
+        
+        <!-- Relationships -->
+        <relationship name="messages" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="HealthChatMessage" inverseName="conversationHealthContext" inverseEntity="HealthChatMessage"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byConversationIdIndex">
+            <fetchIndexElement property="conversationId" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byLastUpdatedIndex">
+            <fetchIndexElement property="lastUpdated" type="Binary" order="descending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- UserPreferences Entity -->
+    <entity name="UserPreferences" representedClassName="UserPreferences" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastUpdated" attributeType="Date" usesScalarValueType="NO"/>
+        
+        <!-- UI/UX Preferences -->
+        <attribute name="themePreference" attributeType="String" defaultValueString="system"/>
+        <attribute name="primaryColor" optional="YES" attributeType="String"/>
+        <attribute name="fontSizeMultiplier" attributeType="Double" defaultValueString="1.0" minValueString="0.8" maxValueString="2.0" usesScalarValueType="YES"/>
+        <attribute name="useHapticFeedback" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        
+        <!-- Accessibility -->
+        <attribute name="voiceOverEnabled" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="highContrastMode" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="reduceMotion" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        
+        <!-- Language and Localization -->
+        <attribute name="preferredLanguage" attributeType="String" defaultValueString="tr"/>
+        <attribute name="measurementSystem" attributeType="String" defaultValueString="metric"/>
+        <attribute name="glucoseUnit" attributeType="String" defaultValueString="mg_dl"/>
+        
+        <!-- AI Assistant Preferences -->
+        <attribute name="responseDetailLevel" attributeType="String" defaultValueString="balanced"/>
+        <attribute name="aiPersonality" attributeType="String" defaultValueString="professional"/>
+        <attribute name="enableThinking" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byLastUpdatedIndex">
+            <fetchIndexElement property="lastUpdated" type="Binary" order="descending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- HealthNotificationSettings Entity -->
+    <entity name="HealthNotificationSettings" representedClassName="HealthNotificationSettings" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastUpdated" attributeType="Date" usesScalarValueType="NO"/>
+        
+        <!-- General Notification Settings -->
+        <attribute name="notificationsEnabled" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="quietHoursStart" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="quietHoursEnd" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        
+        <!-- Health Reminders -->
+        <attribute name="glucoseCheckReminders" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="glucoseCheckInterval" attributeType="Integer 16" defaultValueString="240" usesScalarValueType="YES"/>
+        <attribute name="mealLoggingReminders" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="medicationReminders" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        
+        <!-- Alert Thresholds -->
+        <attribute name="lowGlucoseThreshold" attributeType="Double" defaultValueString="70.0" usesScalarValueType="YES"/>
+        <attribute name="highGlucoseThreshold" attributeType="Double" defaultValueString="180.0" usesScalarValueType="YES"/>
+        <attribute name="criticalAlertsEnabled" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        
+        <!-- Reminder Timing -->
+        <attribute name="morningReminderTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="eveningReminderTime" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="customReminderTimes" optional="YES" attributeType="Transformable" valueTransformerName="NSSecureUnarchiveFromData"/>
+        
+        <!-- Indexes -->
+        <fetchIndex name="byLastUpdatedIndex">
+            <fetchIndexElement property="lastUpdated" type="Binary" order="descending"/>
+        </fetchIndex>
+    </entity>
+    
+    <!-- ResearchAnswer Entity -->
+    <entity name="ResearchAnswer" representedClassName="ResearchAnswer" syncable="YES" codeGenerationType="class">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="String"/>
+        <attribute name="query" attributeType="String"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+
+        <!-- Content -->
+        <attribute name="content" attributeType="String"/>
+        <attribute name="taskSummary" optional="YES" attributeType="String"/>
+        <attribute name="thinkingSummary" optional="YES" attributeType="String"/>
+
+        <!-- Metadata -->
+        <attribute name="tokenCount" optional="YES" attributeType="Integer 32" usesScalarValueType="YES"/>
+        <attribute name="tierRawValue" optional="YES" attributeType="String"/>
+        <attribute name="processingTierRaw" optional="YES" attributeType="String"/>
+
+        <!-- Sources (JSON encoded) -->
+        <attribute name="sourcesJSON" optional="YES" attributeType="String"/>
+        <attribute name="citationsJSON" optional="YES" attributeType="String"/>
+        <attribute name="relatedQuestionsJSON" optional="YES" attributeType="String"/>
+        <attribute name="completedRoundsJSON" optional="YES" attributeType="String"/>
+
+        <!-- Indexes -->
+        <fetchIndex name="byTimestampIndex">
+            <fetchIndexElement property="timestamp" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="byQueryIndex">
+            <fetchIndexElement property="query" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+
+    <elements>
+        <element name="FoodItem" positionX="-63" positionY="-18" width="128" height="674"/>
+        <element name="MealEntry" positionX="261" positionY="90" width="128" height="314"/>
+        <element name="GlucoseReading" positionX="261" positionY="450" width="128" height="194"/>
+        <element name="ScanImage" positionX="-261" positionY="270" width="128" height="194"/>
+        <element name="NutritionVariant" positionX="-261" positionY="90" width="128" height="194"/>
+        <element name="ShoppingListItem" positionX="-261" positionY="500" width="128" height="209"/>
+        <element name="RecipeHistory" positionX="639" positionY="90" width="128" height="344"/>
+        <element name="UserMedicalProfile" positionX="639" positionY="450" width="128" height="194"/>
+        <element name="FoodLabelHistory" positionX="639" positionY="660" width="128" height="224"/>
+        <element name="Recipe" positionX="828" positionY="330" width="128" height="404"/>
+        <element name="MedicationEntry" positionX="450" positionY="90" width="128" height="344"/>
+        <element name="MedicationSchedule" positionX="450" positionY="450" width="128" height="224"/>
+        <element name="HealthEventContext" positionX="100" positionY="700" width="128" height="284"/>
+        <element name="HealthChatMessage" positionX="300" positionY="700" width="128" height="314"/>
+        <element name="ConversationHealthContext" positionX="500" positionY="700" width="128" height="224"/>
+        <element name="UserPreferences" positionX="900" positionY="90" width="128" height="404"/>
+        <element name="HealthNotificationSettings" positionX="900" positionY="530" width="128" height="284"/>
+        <element name="ResearchAnswer" positionX="1100" positionY="90" width="128" height="284"/>
+    </elements>
+</model>

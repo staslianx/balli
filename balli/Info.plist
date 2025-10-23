@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>com.anaxoniclabs.balli</string>
+	<key>CFBundleName</key>
+	<string>balli</string>
+	<key>CFBundleDisplayName</key>
+	<string>balli</string>
+	<key>CFBundleVersion</key>
+	<string>1.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.anaxoniclabs.balli</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.anaxoniclabs.balli</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSHealthShareUsageDescription</key>
+	<string>balli needs access to your glucose data from Dexcom to provide personalized meal recommendations and track your blood sugar patterns.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>balli would like to update your health data with meal information and glucose patterns.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Balli&apos;nin sesli komutlarla tarif adımları arasında geçiş yapmanızı ve yemek girişlerini sesle kaydetmenizi sağlar.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Mikrofon erişimi sesli komutlar ve &quot;hey balli&quot; uyandırma kelimesi için gereklidir.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>balli needs access to the camera to scan food labels and barcodes for nutrition information.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>balli needs your location to find nearby grocery stores and markets for your shopping list.</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.anaxoniclabs.balli.healthsync</string>
+		<string>com.anaxoniclabs.balli.memory-sync</string>
+	</array>
+	<key>PICOVOICE_ACCESS_KEY</key>
+	<string>GpN8Lr646y6NiyIOgdrBulpzhdqAWZW0VYMKCdmJ1uDSPYyXXior2w==</string>
+	<key>UIAppFonts</key>
+	<array>
+		<string>GalanoGrotesqueAltSemiBold.otf</string>
+		<string>PassionOne-Regular.ttf</string>
+		<string>PlayfairDisplay-Italic-VariableFont_wght.ttf</string>
+		<string>PlayfairDisplay-VariableFont_wght.ttf</string>
+		<string>Manrope-VariableFont_wght.ttf</string>
+	</array>
+</dict>
+</plist>

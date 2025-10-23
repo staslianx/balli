@@ -1,0 +1,488 @@
+//
+//  GlucoseReadingTests.swift
+//  balliTests
+//
+//  Created for Testing GlucoseReading Model and Business Logic
+//
+
+import XCTest
+import CoreData
+@testable import balli
+
+class GlucoseReadingTests: XCTestCase {
+
+    var container: NSPersistentContainer?
+    var context: NSManagedObjectContext?
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+
+        // Create in-memory container for testing
+        container = NSPersistentContainer(name: "balli")
+        let description = NSPersistentStoreDescription()
+        description.type = NSInMemoryStoreType
+        container?.persistentStoreDescriptions = [description]
+
+        container?.loadPersistentStores { _, error in
+            XCTAssertNil(error)
+        }
+
+        context = container?.viewContext
+    }
+
+    override func tearDownWithError() throws {
+        container = nil
+        context = nil
+        try super.tearDownWithError()
+    }
+
+    // MARK: - Glucose Range Tests
+
+    func testGlucoseRangeVeryLow() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.value = 45  // < 54
+
+        XCTAssertEqual(reading.glucoseRange, .veryLow)
+        XCTAssertTrue(reading.glucoseRange.requiresAction)
+    }
+
+    func testGlucoseRangeLow() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.value = 65  // 54-69
+
+        XCTAssertEqual(reading.glucoseRange, .low)
+        XCTAssertFalse(reading.glucoseRange.requiresAction)
+    }
+
+    func testGlucoseRangeNormal() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.value = 100  // 70-140
+
+        XCTAssertEqual(reading.glucoseRange, .normal)
+        XCTAssertFalse(reading.glucoseRange.requiresAction)
+    }
+
+    func testGlucoseRangeElevated() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.value = 160  // 141-180
+
+        XCTAssertEqual(reading.glucoseRange, .elevated)
+        XCTAssertFalse(reading.glucoseRange.requiresAction)
+    }
+
+    func testGlucoseRangeHigh() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.value = 200  // 181-250
+
+        XCTAssertEqual(reading.glucoseRange, .high)
+        XCTAssertFalse(reading.glucoseRange.requiresAction)
+    }
+
+    func testGlucoseRangeVeryHigh() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.value = 300  // > 250
+
+        XCTAssertEqual(reading.glucoseRange, .veryHigh)
+        XCTAssertTrue(reading.glucoseRange.requiresAction)
+    }
+
+    // MARK: - Unit Conversion Tests
+
+    func testMgDLToMmolConversion() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.value = 100  // mg/dL
+
+        XCTAssertEqual(reading.valueInMmol, 5.55, accuracy: 0.01)
+    }
+
+    func testFormattedValueMgDL() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.value = 123.4
+
+        XCTAssertEqual(reading.formattedValue(), "123 mg/dL")
+    }
+
+    func testFormattedValueMmol() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.value = 100
+
+        XCTAssertEqual(reading.formattedValue(unit: "mmol/L"), "5.5 mmol/L")
+    }
+
+    // MARK: - Source and Sync Tests
+
+    func testSourceEnum() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+
+        reading.source = "manual"
+        XCTAssertEqual(reading.sourceEnum, .manual)
+
+        reading.source = "healthkit"
+        XCTAssertEqual(reading.sourceEnum, .healthKit)
+
+        reading.source = "cgm"
+        XCTAssertEqual(reading.sourceEnum, .cgm)
+    }
+
+    func testSyncStatusEnum() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+
+        reading.syncStatus = "synced"
+        XCTAssertEqual(reading.syncStatusEnum, .synced)
+
+        reading.syncStatus = "pending"
+        XCTAssertEqual(reading.syncStatusEnum, .pending)
+
+        reading.syncStatus = "failed"
+        XCTAssertEqual(reading.syncStatusEnum, .failed)
+    }
+
+    func testNeedsHealthKitSync() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.source = "manual"
+        reading.syncStatus = "pending"
+        reading.healthKitUUID = nil
+
+        XCTAssertTrue(reading.needsHealthKitSync)
+
+        // Test when already synced
+        reading.syncStatus = "synced"
+        reading.healthKitUUID = "some-uuid"
+        XCTAssertFalse(reading.needsHealthKitSync)
+
+        // Test when not manual source
+        reading.source = "healthkit"
+        reading.syncStatus = "pending"
+        reading.healthKitUUID = nil
+        XCTAssertFalse(reading.needsHealthKitSync)
+    }
+
+    func testMarkAsSynced() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.syncStatus = "pending"
+        reading.healthKitUUID = nil
+
+        let beforeSync = Date()
+        reading.markAsSynced(healthKitID: "test-uuid")
+        let afterSync = Date()
+
+        XCTAssertEqual(reading.healthKitUUID, "test-uuid")
+        XCTAssertEqual(reading.syncStatusEnum, .synced)
+        XCTAssertNotNil(reading.lastSyncAttempt)
+
+        if let syncTime = reading.lastSyncAttempt {
+            XCTAssertTrue(syncTime >= beforeSync)
+            XCTAssertTrue(syncTime <= afterSync)
+        }
+    }
+
+    func testMarkSyncFailed() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.syncStatus = "pending"
+
+        reading.markSyncFailed()
+
+        XCTAssertEqual(reading.syncStatusEnum, .failed)
+        XCTAssertNotNil(reading.lastSyncAttempt)
+    }
+
+    // MARK: - Meal Association Tests
+
+    func testAssociatedMealWithinWindow() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let meal = MealEntry(context: context)
+        meal.timestamp = Date(timeIntervalSinceNow: -2 * 60 * 60)  // 2 hours ago
+
+        let reading = GlucoseReading(context: context)
+        reading.timestamp = Date()  // Now
+        reading.mealEntry = meal
+
+        XCTAssertNotNil(reading.associatedMeal)
+        XCTAssertEqual(reading.associatedMeal?.id, meal.id)
+    }
+
+    func testAssociatedMealOutsideWindow() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let meal = MealEntry(context: context)
+        meal.timestamp = Date(timeIntervalSinceNow: -4 * 60 * 60)  // 4 hours ago
+
+        let reading = GlucoseReading(context: context)
+        reading.timestamp = Date()  // Now
+        reading.mealEntry = meal
+
+        // More than 3 hours, so no association
+        XCTAssertNil(reading.associatedMeal)
+    }
+
+    func testMealTimeRelationship() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let meal = MealEntry(context: context)
+        meal.timestamp = Date(timeIntervalSinceNow: -90 * 60)  // 90 minutes ago
+
+        let reading = GlucoseReading(context: context)
+        reading.timestamp = Date()  // Now
+        reading.mealEntry = meal
+
+        XCTAssertEqual(reading.mealTimeRelationship, "90 minutes after meal")
+    }
+
+    func testMealTimeRelationshipBeforeMeal() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let meal = MealEntry(context: context)
+        meal.timestamp = Date(timeIntervalSinceNow: 30 * 60)  // 30 minutes in future
+
+        let reading = GlucoseReading(context: context)
+        reading.timestamp = Date()  // Now
+        reading.mealEntry = meal
+
+        XCTAssertEqual(reading.mealTimeRelationship, "30 minutes before meal")
+    }
+
+    // MARK: - Validation Tests
+
+    func testValidGlucoseReading() throws {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.value = 100
+
+        XCTAssertNoThrow(try reading.validateGlucoseReading())
+    }
+
+    func testInvalidGlucoseValueTooLow() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.value = 10  // < 20
+
+        XCTAssertThrowsError(try reading.validateGlucoseReading()) { error in
+            XCTAssertEqual(error as? ValidationError, .missingRequiredFields)
+        }
+    }
+
+    func testInvalidGlucoseValueTooHigh() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.value = 700  // > 600
+
+        XCTAssertThrowsError(try reading.validateGlucoseReading()) { error in
+            XCTAssertEqual(error as? ValidationError, .missingRequiredFields)
+        }
+    }
+
+    // MARK: - Fetch Request Tests
+
+    func testReadingsForDate() throws {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let today = Date()
+        let yesterday = try XCTUnwrap(Calendar.current.date(byAdding: .day, value: -1, to: today), "Yesterday date should be calculable")
+
+        // Create readings for different days
+        let todayReading1 = GlucoseReading(context: context)
+        todayReading1.timestamp = today
+        todayReading1.value = 100
+
+        let todayReading2 = GlucoseReading(context: context)
+        todayReading2.timestamp = today
+        todayReading2.value = 120
+
+        let yesterdayReading = GlucoseReading(context: context)
+        yesterdayReading.timestamp = yesterday
+        yesterdayReading.value = 110
+
+        try context.save()
+
+        // Fetch today's readings
+        let request = GlucoseReading.readingsForDate(today)
+        let results = try context.fetch(request)
+
+        XCTAssertEqual(results.count, 2)
+    }
+
+    func testReadingsBySource() throws {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        // Create readings from different sources
+        let manualReading = GlucoseReading(context: context)
+        manualReading.source = "manual"
+        manualReading.value = 100
+
+        let healthKitReading = GlucoseReading(context: context)
+        healthKitReading.source = "healthkit"
+        healthKitReading.value = 110
+
+        let cgmReading = GlucoseReading(context: context)
+        cgmReading.source = "cgm"
+        cgmReading.value = 120
+
+        try context.save()
+
+        // Fetch manual readings
+        let request = GlucoseReading.readingsBySource(.manual)
+        let results = try context.fetch(request)
+
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results.first?.source, "manual")
+    }
+
+    func testNeedingSyncRequest() throws {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        // Create readings with different sync states
+        let needsSync1 = GlucoseReading(context: context)
+        needsSync1.source = "manual"
+        needsSync1.syncStatus = "pending"
+        needsSync1.value = 100
+
+        let needsSync2 = GlucoseReading(context: context)
+        needsSync2.source = "manual"
+        needsSync2.syncStatus = "failed"
+        needsSync2.value = 110
+
+        let alreadySynced = GlucoseReading(context: context)
+        alreadySynced.source = "manual"
+        alreadySynced.syncStatus = "synced"
+        alreadySynced.healthKitUUID = "some-uuid"
+        alreadySynced.value = 120
+
+        let fromHealthKit = GlucoseReading(context: context)
+        fromHealthKit.source = "healthkit"
+        fromHealthKit.syncStatus = "pending"
+        fromHealthKit.value = 130
+
+        try context.save()
+
+        // Fetch readings needing sync
+        let request = GlucoseReading.needingSyncRequest()
+        let results = try context.fetch(request)
+
+        XCTAssertEqual(results.count, 2)
+    }
+
+    func testReadingsInGlucoseRange() throws {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        // Create readings in different ranges
+        let lowReading = GlucoseReading(context: context)
+        lowReading.value = 65
+
+        let normalReading1 = GlucoseReading(context: context)
+        normalReading1.value = 100
+
+        let normalReading2 = GlucoseReading(context: context)
+        normalReading2.value = 120
+
+        let highReading = GlucoseReading(context: context)
+        highReading.value = 200
+
+        try context.save()
+
+        // Fetch normal range readings
+        let request = GlucoseReading.readingsInGlucoseRange(.normal)
+        let results = try context.fetch(request)
+
+        XCTAssertEqual(results.count, 2)
+        XCTAssertTrue(results.allSatisfy { $0.value >= 70 && $0.value < 141 })
+    }
+
+    // MARK: - Performance Tests
+
+    func testTimeAgoCalculationPerformance() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let reading = GlucoseReading(context: context)
+        reading.timestamp = Date(timeIntervalSinceNow: -30 * 60)
+
+        measure {
+            for _ in 0..<1000 {
+                _ = reading.timeAgoDescription
+            }
+        }
+    }
+}

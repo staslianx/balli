@@ -1,0 +1,51 @@
+{
+  "name": "balli-functions",
+  "version": "1.0.0",
+  "description": "Firebase Functions for Balli health app with Genkit and Gemini 2.5 Flash integration",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log",
+    "genkit:start": "genkit start -- npx tsx --watch src/index.ts",
+    "dev": "npx tsx --watch src/index.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose"
+  },
+  "engines": {
+    "node": "20"
+  },
+  "dependencies": {
+    "@genkit-ai/google-genai": "^1.19.2",
+    "@genkit-ai/vertexai": "^1.19.2",
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.12.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "exa-js": "^1.9.3",
+    "firebase-admin": "^12.0.0",
+    "firebase-functions": "^6.0.0",
+    "genkit": "^1.19.2",
+    "uuid": "^13.0.0",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@jest/globals": "^30.2.0",
+    "@types/cors": "^2.8.17",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^20.0.0",
+    "@types/uuid": "^10.0.0",
+    "@types/xml2js": "^0.4.14",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.4",
+    "tsx": "^4.6.0",
+    "typescript": "^5.3.0"
+  },
+  "private": true
+}

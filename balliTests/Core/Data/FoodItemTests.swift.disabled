@@ -1,0 +1,453 @@
+//
+//  FoodItemTests.swift
+//  balliTests
+//
+//  Created for Testing FoodItem Model and Business Logic
+//
+
+import XCTest
+import CoreData
+@testable import balli
+
+class FoodItemTests: XCTestCase {
+    
+    var container: NSPersistentContainer?
+    var context: NSManagedObjectContext?
+    
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        
+        // Create in-memory container for testing
+        container = NSPersistentContainer(name: "balli")
+        let description = NSPersistentStoreDescription()
+        description.type = NSInMemoryStoreType
+        container.persistentStoreDescriptions = [description]
+        
+        container.loadPersistentStores { _, error in
+            XCTAssertNil(error)
+        }
+        
+        context = container?.viewContext
+    }
+    
+    override func tearDownWithError() throws {
+        container = nil
+        context = nil
+        try super.tearDownWithError()
+    }
+    
+    // MARK: - Net Carbs Calculation Tests
+    
+    func testNetCarbsCalculation() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Test Food"
+        food.totalCarbs = 20
+        food.fiber = 5
+        food.sugarAlcohols = 3
+        
+        // Fiber is not subtracted when <= 5g
+        XCTAssertEqual(food.netCarbs, 17, "Net carbs should be 20 - 0 - 3 = 17")
+        
+        // Test with fiber > 5g
+        food.fiber = 6
+        XCTAssertEqual(food.netCarbs, 11, "Net carbs should be 20 - 6 - 3 = 11")
+    }
+    
+    func testNetCarbsNeverNegative() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "High Fiber Food"
+        food.totalCarbs = 5
+        food.fiber = 10
+        food.sugarAlcohols = 2
+        
+        XCTAssertEqual(food.netCarbs, 0, "Net carbs should never be negative")
+    }
+    
+    // MARK: - Impact Score Tests
+    
+    func testImpactScoreCalculation() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Test Food"
+        food.totalCarbs = 30
+        food.fiber = 10  // Will be subtracted (>5g)
+        food.sugars = 10
+        food.protein = 20
+        food.totalFat = 10
+        
+        let netCarbs = 30 - 10  // = 20
+        let expectedScore = (20 * 1.0) + (10 * 0.15) - (20 * 0.1) - (10 * 0.05)
+        // = 20 + 1.5 - 2 - 0.5 = 19.0 (no rounding needed as it's already a whole number)
+
+        XCTAssertEqual(food.impactScore, 19, accuracy: 0.1)
+    }
+    
+    // MARK: - Localization Tests
+    
+    func testLocalizedNameTurkish() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Default Name"
+        food.nameEn = "English Name"
+        food.nameTr = "Türkçe İsim"
+        
+        // Mock Turkish locale
+        let turkishLocale = Locale(identifier: "tr_TR")
+        
+        // This test would need locale injection in the actual implementation
+        // For now, just test that the properties exist
+        XCTAssertEqual(food.nameTr, "Türkçe İsim")
+        XCTAssertEqual(food.nameEn, "English Name")
+    }
+    
+    func testDisplayNameWithBrand() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Yogurt"
+        food.brand = "Danone"
+        
+        XCTAssertEqual(food.displayName, "Yogurt - Danone")
+    }
+    
+    func testDisplayNameWithoutBrand() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Apple"
+        food.brand = nil
+        
+        XCTAssertEqual(food.displayName, "Apple")
+    }
+    
+    // MARK: - Confidence Level Tests
+    
+    func testConfidenceLevelHigh() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Test"
+        food.overallConfidence = 85
+        
+        XCTAssertEqual(food.confidenceLevel, .high)
+    }
+    
+    func testConfidenceLevelMedium() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Test"
+        food.overallConfidence = 65
+        
+        XCTAssertEqual(food.confidenceLevel, .medium)
+    }
+    
+    func testConfidenceLevelLow() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Test"
+        food.overallConfidence = 45
+        
+        XCTAssertEqual(food.confidenceLevel, .low)
+    }
+    
+    // MARK: - Nutrition Validation Tests
+    
+    func testNutritionValidation() throws {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Valid Food"
+        food.servingSize = 100
+        food.servingUnit = "g"
+        food.calories = 100
+        food.totalCarbs = 20
+        food.fiber = 5
+        food.sugars = 10
+        food.addedSugars = 5
+        food.protein = 5
+        food.totalFat = 2
+        
+        XCTAssertNoThrow(try food.validateNutrition())
+    }
+    
+    func testInvalidCarbohydrates() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Invalid Food"
+        food.servingSize = 100
+        food.calories = 100
+        food.totalCarbs = 30  // Too high for 100 calories
+        
+        XCTAssertThrowsError(try food.validateNutrition()) { error in
+            XCTAssertEqual(error as? ValidationError, .invalidCarbohydrates)
+        }
+    }
+    
+    func testInvalidFiber() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Invalid Food"
+        food.servingSize = 100
+        food.totalCarbs = 20
+        food.fiber = 25  // More than total carbs
+        
+        XCTAssertThrowsError(try food.validateNutrition()) { error in
+            XCTAssertEqual(error as? ValidationError, .invalidFiber)
+        }
+    }
+    
+    func testInvalidSugars() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Invalid Food"
+        food.servingSize = 100
+        food.totalCarbs = 20
+        food.sugars = 25  // More than total carbs
+        
+        XCTAssertThrowsError(try food.validateNutrition()) { error in
+            XCTAssertEqual(error as? ValidationError, .invalidSugars)
+        }
+    }
+    
+    func testInvalidAddedSugars() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Invalid Food"
+        food.servingSize = 100
+        food.totalCarbs = 20
+        food.sugars = 10
+        food.addedSugars = 15  // More than total sugars
+        
+        XCTAssertThrowsError(try food.validateNutrition()) { error in
+            XCTAssertEqual(error as? ValidationError, .invalidAddedSugars)
+        }
+    }
+    
+    // MARK: - Portion Calculation Tests
+    
+    func testNutritionForQuantitySameUnit() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Test Food"
+        food.servingSize = 100
+        food.servingUnit = "g"
+        food.totalCarbs = 20
+        food.protein = 10
+        food.totalFat = 5
+        food.calories = 145
+        food.fiber = 3
+        
+        let nutrition = food.nutritionForQuantity(200, unit: "g")
+        
+        XCTAssertEqual(nutrition.carbs, 40, accuracy: 0.1)
+        XCTAssertEqual(nutrition.protein, 20, accuracy: 0.1)
+        XCTAssertEqual(nutrition.fat, 10, accuracy: 0.1)
+        XCTAssertEqual(nutrition.calories, 290, accuracy: 0.1)
+        XCTAssertEqual(nutrition.fiber, 6, accuracy: 0.1)
+    }
+    
+    func testNutritionForQuantityGramConversion() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Test Food"
+        food.servingSize = 1
+        food.servingUnit = "cup"
+        food.gramWeight = 240  // 1 cup = 240g
+        food.totalCarbs = 30
+        
+        let nutrition = food.nutritionForQuantity(120, unit: "g")
+        
+        XCTAssertEqual(nutrition.carbs, 15, accuracy: 0.1)  // Half serving
+    }
+    
+    // MARK: - Usage Tracking Tests
+    
+    func testRecordUsage() {
+        guard let context = context else {
+            XCTFail("Context should be initialized")
+            return
+        }
+        let food = FoodItem(context: context)
+        food.name = "Test Food"
+        food.useCount = 5
+        food.lastUsed = nil
+        
+        let beforeDate = Date()
+        food.recordUsage()
+        let afterDate = Date()
+        
+        XCTAssertEqual(food.useCount, 6)
+        XCTAssertNotNil(food.lastUsed)
+        
+        if let lastUsed = food.lastUsed {
+            XCTAssertTrue(lastUsed >= beforeDate)
+            XCTAssertTrue(lastUsed <= afterDate)
+        }
+    }
+    
+    // MARK: - Duplicate Detection Tests
+    
+    func testDuplicateDetectionByBarcode() throws {
+        // Create existing item
+        let existing = FoodItem(context: context)
+        existing.name = "Existing Product"
+        existing.barcode = "1234567890"
+        existing.brand = "Brand A"
+        
+        try context.save()
+        
+        // Try to find duplicate
+        let duplicate = try context.findDuplicateFoodItem(
+            barcode: "1234567890",
+            name: "Different Name",
+            brand: "Different Brand"
+        )
+        
+        XCTAssertNotNil(duplicate)
+        XCTAssertEqual(duplicate?.id, existing.id)
+    }
+    
+    func testDuplicateDetectionByNameAndBrand() throws {
+        // Create existing item
+        let existing = FoodItem(context: context)
+        existing.name = "Yogurt"
+        existing.brand = "Danone"
+        
+        try context.save()
+        
+        // Try to find duplicate
+        let duplicate = try context.findDuplicateFoodItem(
+            barcode: nil,
+            name: "yogurt",  // Case insensitive
+            brand: "DANONE"   // Case insensitive
+        )
+        
+        XCTAssertNotNil(duplicate)
+        XCTAssertEqual(duplicate?.id, existing.id)
+    }
+    
+    func testNoDuplicateWithDifferentBrand() throws {
+        // Create existing item
+        let existing = FoodItem(context: context)
+        existing.name = "Yogurt"
+        existing.brand = "Danone"
+        
+        try context.save()
+        
+        // Try to find duplicate with different brand
+        let duplicate = try context.findDuplicateFoodItem(
+            barcode: nil,
+            name: "Yogurt",
+            brand: "Activia"
+        )
+        
+        XCTAssertNil(duplicate)
+    }
+    
+    // MARK: - Search Tests
+    
+    func testSearchByName() throws {
+        // Create test items
+        let apple = FoodItem(context: context)
+        apple.name = "Apple"
+        
+        let appleJuice = FoodItem(context: context)
+        appleJuice.name = "Apple Juice"
+        
+        let orange = FoodItem(context: context)
+        orange.name = "Orange"
+        
+        try context.save()
+        
+        // Search for "apple"
+        let request = FoodItem.searchRequest(query: "apple")
+        let results = try context.fetch(request)
+        
+        XCTAssertEqual(results.count, 2)
+        XCTAssertTrue(results.contains { $0.name == "Apple" })
+        XCTAssertTrue(results.contains { $0.name == "Apple Juice" })
+    }
+    
+    func testSearchByBarcode() throws {
+        // Create test item
+        let item = FoodItem(context: context)
+        item.name = "Test Product"
+        item.barcode = "1234567890"
+        
+        try context.save()
+        
+        // Search by barcode
+        let request = FoodItem.searchRequest(query: "1234567890")
+        let results = try context.fetch(request)
+        
+        XCTAssertEqual(results.count, 1)
+        XCTAssertEqual(results.first?.barcode, "1234567890")
+    }
+    
+    // MARK: - Performance Tests
+    
+    func testSearchPerformance() throws {
+        // Create many items
+        for i in 0..<1000 {
+            let food = FoodItem(context: context)
+            food.name = "Food Item \(i)"
+            food.brand = "Brand \(i % 10)"
+            food.category = "Category \(i % 5)"
+            food.useCount = Int32(i % 100)
+        }
+        
+        try context.save()
+        
+        // Measure search performance
+        measure {
+            let request = FoodItem.searchRequest(query: "Food Item 5")
+            _ = try? context.fetch(request)
+        }
+    }
+}

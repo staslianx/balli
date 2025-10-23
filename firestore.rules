@@ -1,0 +1,37 @@
+rules_version='2'
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Recipe memories - users can read their own, only Cloud Functions can write
+    // Used by generateRecipeWithMemory Cloud Function for deduplication
+    match /recipe_memories/{recipeId} {
+      allow read: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    // Legacy recipe_memory collection (keeping for backward compatibility)
+    match /recipe_memory/{recipeId} {
+      allow read: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow write: if false; // Only Cloud Functions can write
+    }
+
+    // User recipe preferences (for future enhancement)
+    match /user_recipe_preferences/{userId} {
+      allow read, write: if request.auth != null
+        && request.auth.uid == userId;
+    }
+
+    // User conversation sessions (for conversation tracking)
+    match /recipe_conversations/{conversationId} {
+      allow read, write: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+    }
+
+    // Default rules for other collections - require authentication
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
