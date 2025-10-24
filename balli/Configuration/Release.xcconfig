@@ -1,1 +1,10 @@
-// Release configuration - placeholder
+// Release configuration
+// Include secrets (contains API keys)
+#include "Secrets.xcconfig"
+
+// Release-specific settings
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+ENABLE_TESTABILITY = NO
+GCC_OPTIMIZATION_LEVEL = s
+SWIFT_OPTIMIZATION_LEVEL = -O
+SWIFT_COMPILATION_MODE = wholemodule

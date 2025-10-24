@@ -43,7 +43,7 @@
 		<string>com.anaxoniclabs.balli.memory-sync</string>
 	</array>
 	<key>PICOVOICE_ACCESS_KEY</key>
-	<string>GpN8Lr646y6NiyIOgdrBulpzhdqAWZW0VYMKCdmJ1uDSPYyXXior2w==</string>
+	<string>$(PICOVOICE_ACCESS_KEY)</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>GalanoGrotesqueAltSemiBold.otf</string>

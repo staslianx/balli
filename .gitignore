@@ -8,6 +8,9 @@ Configuration/Secrets-*.xcconfig
 Config/APIKeys.xcconfig
 Config/APIKeys-*.xcconfig
 !Config/APIKeys-Template.xcconfig
+balli/Configuration/Secrets.xcconfig
+**/Secrets.xcconfig
+!**/Secrets.xcconfig.template
 
 # Firebase configuration (contains sensitive credentials)
 GoogleService-Info.plist

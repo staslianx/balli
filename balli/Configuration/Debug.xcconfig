@@ -1,1 +1,10 @@
-// Debug configuration - placeholder
+// Debug configuration
+// Include secrets (contains API keys)
+#include "Secrets.xcconfig"
+
+// Debug-specific settings
+DEBUG_INFORMATION_FORMAT = dwarf-with-dsym
+ENABLE_TESTABILITY = YES
+GCC_OPTIMIZATION_LEVEL = 0
+SWIFT_OPTIMIZATION_LEVEL = -Onone
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG
