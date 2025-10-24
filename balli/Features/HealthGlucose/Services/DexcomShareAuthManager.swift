@@ -211,10 +211,11 @@ actor DexcomShareAuthManager {
 
                 // Store session (24-hour expiry based on community knowledge)
                 currentSessionId = sessionId
-                sessionExpiry = Date().addingTimeInterval(24 * 60 * 60) // 24 hours
+                let expiry = Date().addingTimeInterval(24 * 60 * 60) // 24 hours
+                sessionExpiry = expiry
 
                 // Save to keychain
-                try await keychainStorage.saveSessionInfo(sessionId: sessionId, expiry: sessionExpiry!)
+                try await keychainStorage.saveSessionInfo(sessionId: sessionId, expiry: expiry)
 
                 // Track successful auth
                 logger.info("SHARE authenticated: \(self.server.regionName)")

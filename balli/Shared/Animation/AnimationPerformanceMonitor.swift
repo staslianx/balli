@@ -139,9 +139,11 @@ public final class AnimationPerformanceMonitor: ObservableObject {
     }
     
     private func updateMetrics() {
-        guard frameTimestamps.count > 1 else { return }
-        
-        let timeRange = frameTimestamps.last! - frameTimestamps.first!
+        guard frameTimestamps.count > 1,
+              let lastTimestamp = frameTimestamps.last,
+              let firstTimestamp = frameTimestamps.first else { return }
+
+        let timeRange = lastTimestamp - firstTimestamp
         let frameCount = frameTimestamps.count - 1
         let averageFPS = Double(frameCount) / timeRange
         

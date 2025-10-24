@@ -33,7 +33,9 @@ actor FTS5Manager {
 
     init(dbPath: String? = nil) throws {
         // Use default path in app's documents directory
-        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        guard let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            throw FTS5Error.databaseError("Documents directory unavailable")
+        }
         self.dbPath = dbPath ?? documentsPath.appendingPathComponent("research_sessions_fts.db").path
 
         logger.info("Initializing FTS5Manager at path: \(self.dbPath)")
@@ -157,8 +159,10 @@ actor FTS5Manager {
 
         let statement = try db.prepare(searchSQL)
         let results = try statement.bind(sanitizedQuery, limit).map { row -> (String, Double) in
-            let sessionIdString = row[0] as! String
-            let rank = row[1] as! Double
+            guard let sessionIdString = row[0] as? String,
+                  let rank = row[1] as? Double else {
+                throw FTS5Error.databaseError("Invalid query result format: expected (String, Double)")
+            }
             return (sessionIdString, rank)
         }
 

@@ -162,7 +162,11 @@ actor DexcomShareAPIClient {
 
                         // For array types, return empty array
                         if T.self == [DexcomShareGlucoseReading].self {
-                            return [] as! T
+                            guard let emptyArray = [] as? T else {
+                                logger.error("Type mismatch: Cannot cast empty array to \(T.self)")
+                                throw DexcomShareError.invalidResponse
+                            }
+                            return emptyArray
                         }
 
                         // For optional types, this will be handled by caller
