@@ -23,21 +23,21 @@ enum GeminiTranscriptionError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "Invalid Cloud Function URL."
+            return NSLocalizedString("error.transcription.invalidURL", comment: "Invalid URL error")
         case .encodingFailed(let message):
-            return "Failed to prepare audio data: \(message)"
+            return String(format: NSLocalizedString("error.transcription.encodingFailed", comment: "Encoding failed"), message)
         case .networkError(let message):
-            return "Network error: \(message)"
+            return String(format: NSLocalizedString("error.transcription.networkError", comment: "Network error"), message)
         case .serverError(let message):
-            return "Server error: \(message)"
+            return String(format: NSLocalizedString("error.transcription.serverError", comment: "Server error"), message)
         case .rateLimitExceeded(let retryAfter):
-            return "Too many requests. Please wait \(retryAfter) seconds and try again."
+            return String(format: NSLocalizedString("error.transcription.rateLimitExceeded", comment: "Rate limit"), retryAfter)
         case .audioTooLarge:
-            return "Audio file is too large. Please record a shorter message."
+            return NSLocalizedString("error.transcription.audioTooLarge", comment: "Audio too large")
         case .decodingFailed(let message):
-            return "Failed to process response: \(message)"
+            return String(format: NSLocalizedString("error.transcription.decodingFailed", comment: "Decoding failed"), message)
         case .noData:
-            return "No data received from server."
+            return NSLocalizedString("error.transcription.noData", comment: "No data")
         }
     }
 }

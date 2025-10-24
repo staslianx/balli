@@ -1,0 +1,52 @@
+/* Turkish Localizations for Balli */
+
+/* Gemini Transcription Errors */
+"error.transcription.invalidURL" = "Geçersiz Cloud Function URL'si.";
+"error.transcription.encodingFailed" = "Ses verisi hazırlanamadı: %@";
+"error.transcription.networkError" = "Ağ hatası: %@";
+"error.transcription.serverError" = "Sunucu hatası: %@";
+"error.transcription.rateLimitExceeded" = "Çok fazla istek. Lütfen %d saniye bekleyip tekrar deneyin.";
+"error.transcription.audioTooLarge" = "Ses dosyası çok büyük. Lütfen daha kısa bir mesaj kaydedin.";
+"error.transcription.decodingFailed" = "Yanıt işlenemedi: %@";
+"error.transcription.noData" = "Sunucudan veri alınamadı.";
+
+/* Dexcom SHARE Errors */
+"error.dexcom.invalidConfiguration" = "Dexcom SHARE yapılandırması geçersiz";
+"error.dexcom.invalidCredentials" = "Dexcom SHARE kullanıcı adı veya şifresi yanlış";
+"error.dexcom.sessionExpired" = "Dexcom SHARE oturumu sona erdi. Lütfen tekrar giriş yapın.";
+"error.dexcom.serverError" = "Dexcom SHARE sunucu hatası. Lütfen daha sonra tekrar deneyin.";
+"error.dexcom.noDataAvailable" = "SHARE API'den veri alınamıyor";
+"error.dexcom.decodingError" = "SHARE veri formatı hatası: %@";
+"error.dexcom.apiError" = "SHARE API hatası: %@";
+"error.dexcom.httpError" = "SHARE HTTP hatası (%d): %@";
+"error.dexcom.invalidResponse" = "SHARE'den geçersiz yanıt alındı";
+"error.dexcom.networkError" = "Ağ hatası: %@";
+"error.dexcom.authenticationFailed" = "Dexcom SHARE kimlik doğrulaması başarısız oldu";
+
+/* Dexcom SHARE Recovery Suggestions */
+"recovery.dexcom.invalidCredentials" = "Ayarlardan Dexcom SHARE kullanıcı adı ve şifrenizi kontrol edin";
+"recovery.dexcom.sessionExpired" = "Uygulama otomatik olarak yeniden bağlanmayı dener";
+"recovery.dexcom.serverError" = "Birkaç dakika sonra tekrar deneyin";
+"recovery.dexcom.noDataAvailable" = "Dexcom CGM'nizin düzgün çalıştığından emin olun";
+
+/* FTS5 Database Errors */
+"error.fts5.databaseError" = "Veritabanı hatası: %@";
+"error.fts5.invalidQuery" = "Geçersiz arama sorgusu: %@";
+
+/* Generic Messages */
+"message.saving" = "Kaydediliyor...";
+"message.syncing" = "Senkronize ediliyor...";
+"message.savingForLater" = "Daha sonra için kaydediliyor...";
+"message.retrying" = "Yeniden deneniyor...";
+"message.loading" = "Yükleniyor...";
+"message.processing" = "İşleniyor...";
+
+/* Offline Messages */
+"offline.mealLogging" = "İnternet bağlantısı yok. Yemek kaydı daha sonra senkronize edilecek.";
+"offline.retry" = "Bağlantı kurulduğunda otomatik olarak yeniden denenecek.";
+"offline.queued" = "Kuyrukta: %d öğe bekleniyor";
+
+/* Success Messages */
+"success.mealSaved" = "Yemek kaydedildi";
+"success.synced" = "Senkronize edildi";
+"success.connected" = "Bağlandı";

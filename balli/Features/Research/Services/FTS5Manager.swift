@@ -283,9 +283,9 @@ enum FTS5Error: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .databaseError(let message):
-            return "Veritabanı hatası: \(message)"
+            return String(format: NSLocalizedString("error.fts5.databaseError", comment: "Database error"), message)
         case .invalidQuery(let query):
-            return "Geçersiz arama sorgusu: \(query)"
+            return String(format: NSLocalizedString("error.fts5.invalidQuery", comment: "Invalid query"), query)
         }
     }
 }

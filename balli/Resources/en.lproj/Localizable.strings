@@ -1,0 +1,52 @@
+/* English Localizations for Balli */
+
+/* Gemini Transcription Errors */
+"error.transcription.invalidURL" = "Invalid Cloud Function URL.";
+"error.transcription.encodingFailed" = "Failed to prepare audio data: %@";
+"error.transcription.networkError" = "Network error: %@";
+"error.transcription.serverError" = "Server error: %@";
+"error.transcription.rateLimitExceeded" = "Too many requests. Please wait %d seconds and try again.";
+"error.transcription.audioTooLarge" = "Audio file is too large. Please record a shorter message.";
+"error.transcription.decodingFailed" = "Failed to process response: %@";
+"error.transcription.noData" = "No data received from server.";
+
+/* Dexcom SHARE Errors */
+"error.dexcom.invalidConfiguration" = "Invalid Dexcom SHARE configuration";
+"error.dexcom.invalidCredentials" = "Invalid Dexcom SHARE username or password";
+"error.dexcom.sessionExpired" = "Dexcom SHARE session expired. Please log in again.";
+"error.dexcom.serverError" = "Dexcom SHARE server error. Please try again later.";
+"error.dexcom.noDataAvailable" = "No data available from SHARE API";
+"error.dexcom.decodingError" = "SHARE data format error: %@";
+"error.dexcom.apiError" = "SHARE API error: %@";
+"error.dexcom.httpError" = "SHARE HTTP error (%d): %@";
+"error.dexcom.invalidResponse" = "Invalid response from SHARE";
+"error.dexcom.networkError" = "Network error: %@";
+"error.dexcom.authenticationFailed" = "Dexcom SHARE authentication failed";
+
+/* Dexcom SHARE Recovery Suggestions */
+"recovery.dexcom.invalidCredentials" = "Check your Dexcom SHARE username and password in Settings";
+"recovery.dexcom.sessionExpired" = "The app will automatically try to reconnect";
+"recovery.dexcom.serverError" = "Try again in a few minutes";
+"recovery.dexcom.noDataAvailable" = "Make sure your Dexcom CGM is working properly";
+
+/* FTS5 Database Errors */
+"error.fts5.databaseError" = "Database error: %@";
+"error.fts5.invalidQuery" = "Invalid search query: %@";
+
+/* Generic Messages */
+"message.saving" = "Saving...";
+"message.syncing" = "Syncing...";
+"message.savingForLater" = "Saving for later...";
+"message.retrying" = "Retrying...";
+"message.loading" = "Loading...";
+"message.processing" = "Processing...";
+
+/* Offline Messages */
+"offline.mealLogging" = "No internet connection. Meal will be synced later.";
+"offline.retry" = "Will automatically retry when connected.";
+"offline.queued" = "Queued: %d items waiting";
+
+/* Success Messages */
+"success.mealSaved" = "Meal saved";
+"success.synced" = "Synced";
+"success.connected" = "Connected";

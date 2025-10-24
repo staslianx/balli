@@ -281,38 +281,38 @@ enum DexcomShareError: LocalizedError, Sendable {
     var errorDescription: String? {
         switch self {
         case .invalidConfiguration:
-            return "SHARE API yapılandırması geçersiz"
+            return NSLocalizedString("error.dexcom.invalidConfiguration", comment: "Invalid configuration")
         case .invalidCredentials:
-            return "Dexcom SHARE kullanıcı adı veya şifresi yanlış"
+            return NSLocalizedString("error.dexcom.invalidCredentials", comment: "Invalid credentials")
         case .sessionExpired:
-            return "Dexcom SHARE oturumu sona erdi. Lütfen tekrar giriş yapın."
+            return NSLocalizedString("error.dexcom.sessionExpired", comment: "Session expired")
         case .serverError:
-            return "Dexcom SHARE sunucu hatası. Lütfen daha sonra tekrar deneyin."
+            return NSLocalizedString("error.dexcom.serverError", comment: "Server error")
         case .noDataAvailable:
-            return "SHARE API'den veri alınamıyor"
+            return NSLocalizedString("error.dexcom.noDataAvailable", comment: "No data available")
         case .decodingError(let error):
-            return "SHARE veri formatı hatası: \(error.localizedDescription)"
+            return String(format: NSLocalizedString("error.dexcom.decodingError", comment: "Decoding error"), error.localizedDescription)
         case .apiError(let message):
-            return "SHARE API hatası: \(message)"
+            return String(format: NSLocalizedString("error.dexcom.apiError", comment: "API error"), message)
         case .httpError(let code, let message):
-            return "SHARE HTTP hatası (\(code)): \(message)"
+            return String(format: NSLocalizedString("error.dexcom.httpError", comment: "HTTP error"), code, message)
         case .invalidResponse:
-            return "SHARE'den geçersiz yanıt alındı"
+            return NSLocalizedString("error.dexcom.invalidResponse", comment: "Invalid response")
         case .networkError(let error):
-            return "Ağ hatası: \(error.localizedDescription)"
+            return String(format: NSLocalizedString("error.dexcom.networkError", comment: "Network error"), error.localizedDescription)
         }
     }
 
     var recoverySuggestion: String? {
         switch self {
         case .invalidCredentials:
-            return "Ayarlardan Dexcom SHARE kullanıcı adı ve şifrenizi kontrol edin"
+            return NSLocalizedString("recovery.dexcom.invalidCredentials", comment: "Check credentials")
         case .sessionExpired:
-            return "Uygulama otomatik olarak yeniden bağlanmayı dener"
+            return NSLocalizedString("recovery.dexcom.sessionExpired", comment: "Auto reconnect")
         case .serverError:
-            return "Birkaç dakika sonra tekrar deneyin"
+            return NSLocalizedString("recovery.dexcom.serverError", comment: "Try later")
         case .noDataAvailable:
-            return "Dexcom CGM'nizin düzgün çalıştığından emin olun"
+            return NSLocalizedString("recovery.dexcom.noDataAvailable", comment: "Check CGM")
         default:
             return nil
         }

@@ -26,17 +26,17 @@
 		</dict>
 	</array>
 	<key>NSHealthShareUsageDescription</key>
-	<string>balli needs access to your glucose data from Dexcom to provide personalized meal recommendations and track your blood sugar patterns.</string>
+	<string>balli, kişiselleştirilmiş yemek önerileri sunmak ve kan şekeri paternlerinizi takip etmek için Dexcom glikoz verilerinize erişmelidir.</string>
 	<key>NSHealthUpdateUsageDescription</key>
-	<string>balli would like to update your health data with meal information and glucose patterns.</string>
+	<string>balli, yemek bilgileriniz ve glikoz paternlerinizle sağlık verilerinizi güncellemek ister.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Balli&apos;nin sesli komutlarla tarif adımları arasında geçiş yapmanızı ve yemek girişlerini sesle kaydetmenizi sağlar.</string>
+	<string>Sesli komutlarla tarif adımları arasında geçiş yapmanızı ve yemek girişlerini sesle kaydetmenizi sağlar.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Mikrofon erişimi sesli komutlar ve &quot;hey balli&quot; uyandırma kelimesi için gereklidir.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>balli needs access to the camera to scan food labels and barcodes for nutrition information.</string>
+	<string>Besin etiketlerini ve barkodları taramak için kamera erişimi gereklidir.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>balli needs your location to find nearby grocery stores and markets for your shopping list.</string>
+	<string>Alışveriş listeniz için yakındaki marketleri ve mağazaları bulmak için konum bilginize ihtiyaç var.</string>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
 		<string>com.anaxoniclabs.balli.healthsync</string>
