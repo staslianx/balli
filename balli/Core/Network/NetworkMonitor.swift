@@ -112,4 +112,5 @@ final class NetworkMonitor: ObservableObject {
 extension Notification.Name {
     static let networkDidBecomeReachable = Notification.Name("networkDidBecomeReachable")
     static let networkDidBecomeUnreachable = Notification.Name("networkDidBecomeUnreachable")
+    static let offlineTranscriptionCompleted = Notification.Name("offlineTranscriptionCompleted")
 }

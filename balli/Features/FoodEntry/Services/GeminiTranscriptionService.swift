@@ -62,18 +62,23 @@ actor GeminiTranscriptionService {
 
     // MARK: - Public API
 
-    /// Transcribes meal audio using Gemini 2.5 Flash
+    /// Transcribes meal audio using Gemini 2.5 Flash with offline support
     /// - Parameters:
     ///   - audioData: Audio file data (m4a format)
     ///   - userId: User ID for authentication
     ///   - progressCallback: Optional callback for progress updates
+    ///   - allowOfflineQueue: If true, failed transcriptions will be queued for retry (default: true)
     /// - Returns: Transcribed meal data
     func transcribeMeal(
         audioData: Data,
         userId: String,
-        progressCallback: (@Sendable (String) -> Void)? = nil
+        progressCallback: (@Sendable (String) -> Void)? = nil,
+        allowOfflineQueue: Bool = true
     ) async throws -> GeminiMealResponse {
         logger.info("🎤 Starting meal transcription for user: \(userId)")
+
+        // Save audio file locally first (for offline queue if needed)
+        let audioURL = try await saveAudioLocally(audioData: audioData, userId: userId)
 
         // Validate audio size (20MB limit as per spec)
         let audioSizeMB = Double(audioData.count) / (1024 * 1024)
@@ -88,17 +93,55 @@ actor GeminiTranscriptionService {
         await notifyProgress("Sesi hazırlıyor...", callback: progressCallback)
         let audioBase64 = audioData.base64EncodedString()
 
-        // Step 2: Call Cloud Function
+        // Step 2: Call Cloud Function with retry logic
         await notifyProgress("AI ile analiz ediyor...", callback: progressCallback)
-        let response = try await callTranscriptionAPI(
-            audioBase64: audioBase64,
-            userId: userId
-        )
 
-        await notifyProgress("Sonuçları hazırlıyor...", callback: progressCallback)
-        logger.info("✅ Meal transcription completed successfully")
+        do {
+            // Use existing NetworkRetryHandler with exponential backoff
+            let response = try await NetworkRetryHandler.retryWithBackoff(
+                configuration: .network
+            ) {
+                try await self.callTranscriptionAPI(
+                    audioBase64: audioBase64,
+                    userId: userId
+                )
+            }
 
-        return response
+            await notifyProgress("Sonuçları hazırlıyor...", callback: progressCallback)
+            logger.info("✅ Meal transcription completed successfully")
+
+            // Clean up local audio file after successful transcription
+            try? FileManager.default.removeItem(at: audioURL)
+
+            return response
+
+        } catch {
+            // Only queue if offline queueing is enabled (prevents infinite loop)
+            if allowOfflineQueue {
+                // Check if it's a network error that should be queued
+                let isNetworkError: Bool = {
+                    if case .networkError = error as? GeminiTranscriptionError {
+                        return true
+                    }
+                    return NetworkRetryHandler.defaultShouldRetry(error)
+                }()
+
+                if isNetworkError {
+                    logger.warning("⚠️ Network error, queueing audio for offline processing")
+                    await notifyProgress("Kaydedildi, ağ bağlantısı geldiğinde gönderilecek", callback: progressCallback)
+
+                    // Queue the operation for retry when network returns
+                    try await queueOfflineTranscription(audioURL: audioURL, userId: userId)
+
+                    // Return a placeholder error that UI can handle gracefully
+                    throw GeminiTranscriptionError.networkError("Ses kaydedildi, internet bağlantısı geldiğinde otomatik gönderilecek")
+                }
+            }
+
+            // Clean up on other errors
+            try? FileManager.default.removeItem(at: audioURL)
+            throw error
+        }
     }
 
     // MARK: - Private Implementation
@@ -240,5 +283,56 @@ actor GeminiTranscriptionService {
         await MainActor.run {
             callback(message)
         }
+    }
+
+    // MARK: - Offline Support
+
+    /// Save audio file to persistent storage for offline queue
+    private func saveAudioLocally(audioData: Data, userId: String) async throws -> URL {
+        guard let documentsPath = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first else {
+            throw GeminiTranscriptionError.encodingFailed("Documents directory unavailable")
+        }
+
+        // Create audio storage directory
+        let audioDirectory = documentsPath.appendingPathComponent("OfflineAudio")
+        try? FileManager.default.createDirectory(
+            at: audioDirectory,
+            withIntermediateDirectories: true
+        )
+
+        // Save with unique filename
+        let filename = "meal_\(UUID().uuidString).m4a"
+        let fileURL = audioDirectory.appendingPathComponent(filename)
+
+        try audioData.write(to: fileURL)
+        logger.info("💾 Saved audio locally: \(filename)")
+
+        return fileURL
+    }
+
+    /// Queue audio transcription for later processing when network returns
+    private func queueOfflineTranscription(audioURL: URL, userId: String) async throws {
+        // Create queue data structure
+        struct AudioTranscriptionQueueData: Codable {
+            let audioPath: String
+            let userId: String
+            let timestamp: Date
+        }
+
+        let queueData = AudioTranscriptionQueueData(
+            audioPath: audioURL.path,
+            userId: userId,
+            timestamp: Date()
+        )
+
+        try await OfflineQueue.shared.enqueue(
+            type: .audioTranscription,
+            data: queueData
+        )
+
+        logger.info("📥 Queued audio transcription for offline processing")
     }
 }

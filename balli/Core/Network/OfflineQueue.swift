@@ -29,6 +29,7 @@ actor OfflineQueue {
             case generateRecipePhoto
             case parseMealTranscription
             case submitResearchFeedback
+            case audioTranscription
         }
     }
 
@@ -187,21 +188,66 @@ actor OfflineQueue {
     // MARK: - Private Methods
 
     private func processOperation(_ operation: QueuedOperation) async throws {
-        // In a 2-user app, we don't need complex retry logic
-        // Just try to execute the operation again
-        // Real implementation would use GenkitService or appropriate service
-
-        // For now, we'll log that we attempted to process it
-        // The actual implementation would depend on the operation type
         logger.debug("Processing operation: \(operation.operationType.rawValue)")
 
-        // Simulate processing delay
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+        switch operation.operationType {
+        case .audioTranscription:
+            try await processAudioTranscription(operation)
 
-        // In real implementation:
-        // - Decode operation.data to appropriate request type
-        // - Call corresponding service method
-        // - Throw error if it fails
+        case .processMessage, .generateRecipePhoto, .parseMealTranscription, .submitResearchFeedback:
+            // These are handled by their respective services
+            // For now, log that we attempted to process them
+            logger.debug("Skipping \(operation.operationType.rawValue) - handled by other services")
+            // Simulate processing delay
+            try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+        }
+    }
+
+    /// Process queued audio transcription when network returns
+    private func processAudioTranscription(_ operation: QueuedOperation) async throws {
+        // Decode queue data
+        struct AudioTranscriptionQueueData: Codable {
+            let audioPath: String
+            let userId: String
+            let timestamp: Date
+        }
+
+        let queueData = try JSONDecoder().decode(AudioTranscriptionQueueData.self, from: operation.data)
+        let audioURL = URL(fileURLWithPath: queueData.audioPath)
+
+        logger.info("🔄 Processing queued audio transcription from: \(audioURL.lastPathComponent)")
+
+        // Check if audio file still exists
+        guard FileManager.default.fileExists(atPath: audioURL.path) else {
+            logger.warning("⚠️ Audio file no longer exists, removing from queue")
+            return
+        }
+
+        // Read audio data
+        let audioData = try Data(contentsOf: audioURL)
+
+        // Call transcription service with allowOfflineQueue=false to prevent re-queuing
+        let transcriptionService = GeminiTranscriptionService.shared
+        let response = try await transcriptionService.transcribeMeal(
+            audioData: audioData,
+            userId: queueData.userId,
+            progressCallback: nil, // No UI feedback for background processing
+            allowOfflineQueue: false // Prevent infinite loop - don't re-queue if this fails
+        )
+
+        // If successful, clean up audio file
+        try? FileManager.default.removeItem(at: audioURL)
+
+        logger.info("✅ Successfully processed queued audio transcription")
+
+        // Post notification to UI that transcription completed
+        await MainActor.run {
+            NotificationCenter.default.post(
+                name: .offlineTranscriptionCompleted,
+                object: nil,
+                userInfo: ["response": response]
+            )
+        }
     }
 
     private func loadQueue() async {
