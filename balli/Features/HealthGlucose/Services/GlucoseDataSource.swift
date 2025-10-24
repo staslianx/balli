@@ -75,40 +75,33 @@ final class DexcomOfficialDataSource: GlucoseDataSource, @unchecked Sendable {
     func fetchReadings(startDate: Date, endDate: Date) async throws -> [HealthGlucoseReading] {
         logger.info("📊 Fetching from Official API: \(startDate) to \(endDate)")
 
-        // DexcomService methods are @MainActor, so we need to call from main actor
-        return await MainActor.run {
-            Task {
-                do {
-                    let readings = try await service.fetchGlucoseReadings(
-                        startDate: startDate,
-                        endDate: endDate
-                    )
+        // DexcomService is @MainActor, so call it from main actor
+        let readings = try await service.fetchGlucoseReadings(
+            startDate: startDate,
+            endDate: endDate
+        )
 
-                    logger.info("✅ Official API returned \(readings.count) readings")
-                    return readings
-                } catch {
-                    logger.error("❌ Official API fetch failed: \(error.localizedDescription)")
-                    throw error
-                }
-            }.value
-        }
+        logger.info("✅ Official API returned \(readings.count) readings")
+        return readings
     }
 
     func fetchLatestReading() async throws -> HealthGlucoseReading? {
         logger.info("📊 Fetching latest from Official API")
 
-        return await MainActor.run {
-            Task {
-                do {
-                    let reading = try await service.fetchLatestReading()
-                    logger.info("✅ Official API returned latest reading")
-                    return reading
-                } catch {
-                    logger.error("❌ Official API latest fetch failed: \(error.localizedDescription)")
-                    throw error
-                }
-            }.value
+        // Fetch the most recent reading (last 5 minutes)
+        let endDate = Date()
+        let startDate = Calendar.current.date(byAdding: .minute, value: -5, to: endDate) ?? endDate
+
+        let readings = try await fetchReadings(startDate: startDate, endDate: endDate)
+        let latest = readings.max(by: { $0.timestamp < $1.timestamp })
+
+        if latest != nil {
+            logger.info("✅ Official API returned latest reading")
+        } else {
+            logger.warning("⚠️ Official API returned no recent data")
         }
+
+        return latest
     }
 
     func isAvailable() async -> Bool {
@@ -141,45 +134,32 @@ final class DexcomShareDataSource: GlucoseDataSource, @unchecked Sendable {
     func fetchReadings(startDate: Date, endDate: Date) async throws -> [HealthGlucoseReading] {
         logger.info("📱 Fetching from SHARE API: \(startDate) to \(endDate)")
 
-        return await MainActor.run {
-            Task {
-                do {
-                    let shareReadings = try await service.fetchGlucoseReadings(
-                        startDate: startDate,
-                        endDate: endDate
-                    )
+        // DexcomShareService is @MainActor
+        let shareReadings = try await service.fetchGlucoseReadings(
+            startDate: startDate,
+            endDate: endDate
+        )
 
-                    let readings = service.convertToHealthReadings(shareReadings)
-                    logger.info("✅ SHARE API returned \(readings.count) readings")
-                    return readings
-                } catch {
-                    logger.error("❌ SHARE API fetch failed: \(error.localizedDescription)")
-                    throw error
-                }
-            }.value
-        }
+        let readings = await service.convertToHealthReadings(shareReadings)
+
+        logger.info("✅ SHARE API returned \(readings.count) readings")
+        return readings
     }
 
     func fetchLatestReading() async throws -> HealthGlucoseReading? {
         logger.info("📱 Fetching latest from SHARE API")
 
-        return await MainActor.run {
-            Task {
-                do {
-                    guard let shareReading = try await service.fetchLatestReading() else {
-                        logger.info("⚠️ SHARE API returned no data")
-                        return nil
-                    }
+        // DexcomShareService is @MainActor
+        let shareReading = try await service.fetchLatestReading()
 
-                    let reading = shareReading.toHealthGlucoseReading()
-                    logger.info("✅ SHARE API returned latest reading")
-                    return reading
-                } catch {
-                    logger.error("❌ SHARE API latest fetch failed: \(error.localizedDescription)")
-                    throw error
-                }
-            }.value
+        guard let shareReading = shareReading else {
+            logger.info("⚠️ SHARE API returned no data")
+            return nil
         }
+
+        let reading = shareReading.toHealthGlucoseReading()
+        logger.info("✅ SHARE API returned latest reading")
+        return reading
     }
 
     func isAvailable() async -> Bool {
@@ -223,8 +203,8 @@ final class HybridGlucoseDataSource: GlucoseDataSource {
         let splitPoint = now.addingTimeInterval(-timeBoundary)
 
         logger.info("🔄 HYBRID: Split point = \(splitPoint)")
-        logger.info("🔄 HYBRID: Recent data (<\(timeBoundary/3600)hrs): SHARE API")
-        logger.info("🔄 HYBRID: Historical data (>\(timeBoundary/3600)hrs): Official API")
+        logger.info("🔄 HYBRID: Recent data (<\(self.timeBoundary/3600)hrs): SHARE API")
+        logger.info("🔄 HYBRID: Historical data (>\(self.timeBoundary/3600)hrs): Official API")
 
         // Determine which sources to use based on time range
         let needsShareData = endDate > splitPoint
@@ -280,6 +260,14 @@ final class HybridGlucoseDataSource: GlucoseDataSource {
         let sortedReadings = uniqueReadings.sorted { $0.timestamp > $1.timestamp }
 
         logger.info("🔄 HYBRID: Total \(sortedReadings.count) unique readings")
+
+        // Notify that new glucose data is available
+        if !sortedReadings.isEmpty {
+            await MainActor.run {
+                NotificationCenter.default.post(name: .glucoseDataDidUpdate, object: nil)
+            }
+        }
+
         return sortedReadings
     }
 

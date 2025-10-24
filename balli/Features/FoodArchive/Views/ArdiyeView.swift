@@ -208,17 +208,18 @@ struct ArdiyeView: View {
 
     // MARK: - Save Helper
 
-    /// Save viewContext with proper error handling and user feedback
+    /// Save viewContext silently - ArdiyeView is read-only, saves are for internal state only
+    /// Errors are logged but not shown to users (save errors should appear in generation/edit views)
     private func saveContext() {
         guard viewContext.hasChanges else { return }
 
         do {
             try viewContext.save()
-            toastMessage = .success("Kaydedildi")
             logger.debug("Successfully saved food archive changes")
         } catch {
             logger.error("Failed to save food archive: \(error.localizedDescription)")
-            toastMessage = .error("Kaydetme başarısız oldu")
+            // Don't show error toast in Ardiye - this is a read-only view
+            // Save errors should be handled in RecipeGenerationView or edit views
         }
     }
 

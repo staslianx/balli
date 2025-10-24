@@ -1,4 +1,5 @@
 build/
+.build/
 
 # API Keys and Secrets configuration (contains sensitive data)
 Configuration/Secrets.xcconfig

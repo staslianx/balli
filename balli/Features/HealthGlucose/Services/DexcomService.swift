@@ -237,7 +237,16 @@ final class DexcomService: ObservableObject {
 
         // Convert to app's HealthGlucoseReading format with device name if available
         let deviceName = currentDevice?.deviceName
-        return dexcomReadings.map { $0.toHealthGlucoseReading(deviceName: deviceName) }
+        let readings = dexcomReadings.map { $0.toHealthGlucoseReading(deviceName: deviceName) }
+
+        // Notify that new glucose data is available
+        if !readings.isEmpty {
+            await MainActor.run {
+                NotificationCenter.default.post(name: .glucoseDataDidUpdate, object: nil)
+            }
+        }
+
+        return readings
     }
 
     /// Fetch today's glucose readings

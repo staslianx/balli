@@ -80,8 +80,11 @@ extension RecipeDetailData {
         imageURL: String? = nil
     ) -> RecipeDetailData {
         // Create in-memory recipe
-        let context = Persistence.PersistenceController(inMemory: true).viewContext
+        let controller = Persistence.PersistenceController(inMemory: true)
+        let context = controller.viewContext
         let recipe = Recipe(context: context)
+
+        // Set required properties explicitly (don't rely on awakeFromInsert in previews)
         recipe.id = UUID()
         recipe.name = recipeName
         recipe.servings = 4
@@ -93,12 +96,17 @@ extension RecipeDetailData {
         recipe.sugars = 28
         recipe.protein = 4
         recipe.totalFat = 2
+        recipe.glycemicLoad = 10
         recipe.ingredients = ["1 cup tamarind pulp", "2 ripe peaches", "2 cups yogurt", "1/4 cup honey", "1 cup ice", "Fresh mint leaves"] as NSArray
         recipe.instructions = ["Blend tamarind pulp with peaches", "Add yogurt and honey", "Blend until smooth", "Add ice and blend again", "Garnish with mint"] as NSArray
         recipe.dateCreated = Date()
         recipe.lastModified = Date()
         recipe.source = "manual"
         recipe.imageURL = imageURL
+        recipe.isVerified = false
+        recipe.isFavorite = false
+        recipe.timesCooked = 0
+        recipe.userRating = 0
 
         return RecipeDetailData(
             recipe: recipe,

@@ -21,6 +21,7 @@ struct HosgeldinView: View {
 
     // Dependencies
     @StateObject private var dexcomService = DexcomService()
+    @ObservedObject private var dexcomShareService = DexcomShareService.shared
 
     // MARK: - Initialization
 
@@ -33,6 +34,7 @@ struct HosgeldinView: View {
         _viewModel = StateObject(wrappedValue: HosgeldinViewModel(
             healthKitService: dependencies.healthKitService,
             dexcomService: dexcomService,
+            dexcomShareService: DexcomShareService.shared,
             healthKitPermissions: HealthKitPermissionManager.shared,
             viewContext: viewContext
         ))
@@ -73,6 +75,12 @@ struct HosgeldinView: View {
                 // The ViewModel already handles this notification, having it here causes rapid polling loops
                 .onChange(of: dexcomService.isConnected) { _, isConnected in
                     viewModel.onDexcomConnectionChange(isConnected)
+                }
+                .onChange(of: dexcomShareService.isConnected) { _, isConnected in
+                    if isConnected {
+                        // SHARE connected - reload glucose data
+                        viewModel.glucoseChartViewModel.loadGlucoseData()
+                    }
                 }
                 .onDisappear {
                     viewModel.onDisappear()

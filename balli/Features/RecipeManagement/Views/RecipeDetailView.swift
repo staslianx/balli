@@ -361,14 +361,14 @@ struct RecipeDetailView: View {
                 ForEach(Array(editedIngredients.enumerated()), id: \.offset) { index, ingredient in
                     HStack(alignment: .top, spacing: 8) {
                         Text("•")
-                            .font(.custom("Manrope", size: 20).weight(.semibold))
+                            .font(.custom("Manrope", size: 20))
                             .foregroundColor(.primary)
 
                         TextField("", text: Binding(
                             get: { editedIngredients[index] },
                             set: { editedIngredients[index] = $0 }
                         ), axis: .vertical)
-                        .font(.custom("Manrope", size: 20).weight(.semibold))
+                        .font(.custom("Manrope", size: 20))
                         .foregroundColor(.primary)
                         .textFieldStyle(.plain)
                         .submitLabel(.done)
@@ -388,14 +388,14 @@ struct RecipeDetailView: View {
                 ForEach(Array(editedInstructions.enumerated()), id: \.offset) { index, instruction in
                     HStack(alignment: .top, spacing: 8) {
                         Text("\(index + 1).")
-                            .font(.custom("Manrope", size: 20).weight(.semibold))
+                            .font(.custom("Manrope", size: 20))
                             .foregroundColor(.primary)
 
                         TextField("", text: Binding(
                             get: { editedInstructions[index] },
                             set: { editedInstructions[index] = $0 }
                         ), axis: .vertical)
-                        .font(.custom("Manrope", size: 20).weight(.semibold))
+                        .font(.custom("Manrope", size: 20))
                         .foregroundColor(.primary)
                         .textFieldStyle(.plain)
                         .submitLabel(.done)
@@ -700,22 +700,43 @@ extension RecipeDetailView {
 // MARK: - Preview
 
 #Preview("Tamarind-Peach Lassi") {
-    NavigationStack {
-        RecipeDetailView(
-            recipeData: .preview()
-        )
+    let recipeData = RecipeDetailData.preview()
+    let controller = Persistence.PersistenceController(inMemory: true)
+
+    return NavigationStack {
+        RecipeDetailView(recipeData: recipeData)
+            .environment(\.managedObjectContext, controller.viewContext)
     }
 }
 
 #Preview("Without Story Card") {
-    let context = Persistence.PersistenceController(inMemory: true).viewContext
+    let controller = Persistence.PersistenceController(inMemory: true)
+    let context = controller.viewContext
     let recipe = Recipe(context: context)
+
+    // Set all required properties
     recipe.id = UUID()
     recipe.name = "Classic Hummus"
     recipe.servings = 6
     recipe.imageURL = nil
     recipe.dateCreated = Date()
     recipe.lastModified = Date()
+    recipe.source = "manual"
+    recipe.isVerified = false
+    recipe.isFavorite = false
+    recipe.timesCooked = 0
+    recipe.userRating = 0
+    recipe.calories = 120
+    recipe.totalCarbs = 15
+    recipe.fiber = 4
+    recipe.sugars = 1
+    recipe.protein = 5
+    recipe.totalFat = 6
+    recipe.glycemicLoad = 5
+    recipe.prepTime = 10
+    recipe.cookTime = 0
+    recipe.ingredients = ["1 can chickpeas", "1/4 cup tahini", "2 tbsp lemon juice", "2 cloves garlic", "2 tbsp olive oil", "Salt to taste"] as NSArray
+    recipe.instructions = ["Drain chickpeas", "Blend all ingredients", "Adjust seasoning", "Serve with olive oil drizzle"] as NSArray
 
     let detailData = RecipeDetailData(
         recipe: recipe,
@@ -730,17 +751,37 @@ extension RecipeDetailView {
 
     return NavigationStack {
         RecipeDetailView(recipeData: detailData)
+            .environment(\.managedObjectContext, context)
     }
 }
 
 #Preview("Long Description") {
-    let context = Persistence.PersistenceController(inMemory: true).viewContext
+    let controller = Persistence.PersistenceController(inMemory: true)
+    let context = controller.viewContext
     let recipe = Recipe(context: context)
+
+    // Set all required properties
     recipe.id = UUID()
     recipe.name = "Homemade Sourdough Bread"
     recipe.servings = 1
     recipe.dateCreated = Date()
     recipe.lastModified = Date()
+    recipe.source = "manual"
+    recipe.isVerified = false
+    recipe.isFavorite = false
+    recipe.timesCooked = 0
+    recipe.userRating = 0
+    recipe.calories = 250
+    recipe.totalCarbs = 48
+    recipe.fiber = 3
+    recipe.sugars = 2
+    recipe.protein = 8
+    recipe.totalFat = 2
+    recipe.glycemicLoad = 15
+    recipe.prepTime = 240
+    recipe.cookTime = 40
+    recipe.ingredients = ["500g bread flour", "350ml water", "100g active sourdough starter", "10g salt"] as NSArray
+    recipe.instructions = ["Mix flour and water", "Let autolyse for 30 minutes", "Add starter and salt", "Knead until smooth", "Bulk fermentation 4 hours", "Shape into loaf", "Final proof 2 hours", "Score and bake at 450°F"] as NSArray
 
     let detailData = RecipeDetailData(
         recipe: recipe,
@@ -755,5 +796,6 @@ extension RecipeDetailView {
 
     return NavigationStack {
         RecipeDetailView(recipeData: detailData)
+            .environment(\.managedObjectContext, context)
     }
 }

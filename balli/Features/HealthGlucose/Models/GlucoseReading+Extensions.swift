@@ -26,7 +26,7 @@ public enum GlucoseSource: String, CaseIterable {
         switch self {
         case .manual: return "pencil"
         case .healthKit: return "heart.text.square"
-        case .cgm: return "sensor.tag.radiowaves.forward"
+        case .cgm: return "sensor.radiowaves.left.and.right.fill"
         }
     }
 }

@@ -27,6 +27,19 @@ struct DexcomShareAuthRequest: Codable, Sendable {
     }
 }
 
+/// Request body for SHARE API login by account ID
+struct DexcomShareLoginByIdRequest: Codable, Sendable {
+    let accountId: String
+    let password: String
+    let applicationId: String
+
+    enum CodingKeys: String, CodingKey {
+        case accountId
+        case password
+        case applicationId
+    }
+}
+
 /// Response from SHARE API authentication - just returns session ID as plain string
 /// Not JSON - just the UUID string like "00000000-0000-0000-0000-000000000000"
 typealias DexcomShareSessionID = String
@@ -49,10 +62,24 @@ struct DexcomShareGlucoseReading: Codable, Sendable, Identifiable {
     }
 
     /// Parse date from SHARE API timestamp format
-    /// SHARE returns dates like "/Date(1640995200000)/" (Unix timestamp in milliseconds)
+    /// SHARE returns dates like "Date(1640995200000)" (Unix timestamp in milliseconds)
+    /// OR "/Date(1640995200000)/" format
     /// OR ISO8601 format like "2025-01-31T14:30:00"
     private static func parseShareDate(_ dateString: String) -> Date? {
-        // Try Unix timestamp format first: "/Date(1640995200000)/"
+        // Try Unix timestamp format: "Date(1640995200000)" or "Date(1640995200000+0300)"
+        if dateString.hasPrefix("Date(") && dateString.hasSuffix(")") {
+            let timestampString = dateString
+                .replacingOccurrences(of: "Date(", with: "")
+                .replacingOccurrences(of: ")", with: "")
+
+            // Handle optional timezone offset like "Date(1640995200000+0300)"
+            let components = timestampString.components(separatedBy: CharacterSet(charactersIn: "+-"))
+            if let milliseconds = Double(components[0]) {
+                return Date(timeIntervalSince1970: milliseconds / 1000.0)
+            }
+        }
+
+        // Try legacy format with slashes: "/Date(1640995200000)/"
         if dateString.hasPrefix("/Date(") && dateString.hasSuffix(")/") {
             let timestampString = dateString
                 .replacingOccurrences(of: "/Date(", with: "")
@@ -227,6 +254,11 @@ enum DexcomShareServer: String, Sendable {
         baseURL.appendingPathComponent("/ShareWebServices/Services/General/LoginPublisherAccountByName")
     }
 
+    /// Login by account ID endpoint (step 2 of two-step auth)
+    var loginByIdURL: URL {
+        baseURL.appendingPathComponent("/ShareWebServices/Services/General/LoginPublisherAccountById")
+    }
+
     /// Get latest glucose readings endpoint
     var glucoseURL: URL {
         baseURL.appendingPathComponent("/ShareWebServices/Services/Publisher/ReadPublisherLatestGlucoseValues")
@@ -251,15 +283,13 @@ enum DexcomShareApplicationID: String, Sendable {
     /// Nightscout default application ID
     case nightscout = "d89443d2-327c-4a6f-89e5-496bbb0317db"
 
-    /// xDrip application ID
-    case xdrip = "d8665ade-9673-4e27-9ff6-92db4ce13d13"
+    /// xDrip/Loop shared application ID
+    /// Note: xDrip and Loop both use the same application ID in the community
+    case xdripLoop = "d8665ade-9673-4e27-9ff6-92db4ce13d13"
 
-    /// Loop application ID
-    case loop = "d8665ade-9673-4e27-9ff6-92db4ce13d13"
-
-    /// Default - use Nightscout's ID (most widely tested)
+    /// Default - use xDrip/Loop's ID (confirmed working with current SHARE API)
     static var `default`: DexcomShareApplicationID {
-        .nightscout
+        .xdripLoop
     }
 }
 

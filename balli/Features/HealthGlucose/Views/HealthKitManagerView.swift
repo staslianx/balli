@@ -22,31 +22,28 @@ struct HealthKitManagerView: View {
     @State private var glucoseStats: GlucoseStatistics?
     
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 24) {
-                if isChecking {
-                    loadingView
-                } else if isAuthorized {
-                    authorizedView
-                } else {
-                    unauthorizedView
+        Group {
+            if isChecking {
+                loadingView
+            } else if isAuthorized {
+                authorizedView
+            } else {
+                unauthorizedView
+            }
+        }
+        .navigationTitle("Sağlık Verileri")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Tamam") {
+                    dismiss()
                 }
             }
-            .padding()
-            .navigationTitle("Sağlık Verileri")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-            .alert("Error", isPresented: $showingError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(errorMessage)
-            }
+        }
+        .alert("Hata", isPresented: $showingError) {
+            Button("Tamam", role: .cancel) {}
+        } message: {
+            Text(errorMessage)
         }
         .task {
             await checkAuthorizationStatus()
@@ -59,8 +56,8 @@ struct HealthKitManagerView: View {
         VStack(spacing: 20) {
             ProgressView()
                 .scaleEffect(1.5)
-            
-            Text("Checking HealthKit status...")
+
+            Text("HealthKit durumu kontrol ediliyor...")
                 .font(.headline)
                 .foregroundColor(.secondary)
         }
@@ -68,206 +65,176 @@ struct HealthKitManagerView: View {
     }
     
     private var unauthorizedView: some View {
-        VStack(spacing: 30) {
-            Image(systemName: "heart.text.square.fill")
-                .font(.system(size: 80))
-                .foregroundColor(.red)
-                .symbolRenderingMode(.hierarchical)
-            
-            VStack(spacing: 16) {
-                Text("Connect to Health")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                
-                Text("balli can read your glucose data from the Health app to provide personalized meal recommendations based on your blood sugar patterns.")
-                    .font(.body)
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(.secondary)
+        ScrollView {
+            VStack(spacing: 32) {
+                Spacer()
+                    .frame(height: 40)
+
+                Image(systemName: "heart.text.square.fill")
+                    .font(.system(size: 64))
+                    .foregroundStyle(.red)
+                    .symbolRenderingMode(.hierarchical)
+
+                VStack(spacing: 12) {
+                    Text("Sağlık Uygulamasına Bağlan")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+
+                    Text("balli, Sağlık uygulamasından kan şekeri verilerinizi okuyarak kan şekeri modellerinize göre kişiselleştirilmiş öğün önerileri sunabilir.")
+                        .font(.body)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal)
+
+                VStack(spacing: 16) {
+                    featureRow(
+                        icon: "chart.line.uptrend.xyaxis",
+                        title: "Kan Şekeri Analizleri",
+                        description: "Öğünlerin kan şekerinizi nasıl etkilediğini görün"
+                    )
+
+                    featureRow(
+                        icon: "fork.knife",
+                        title: "Akıllı Öneriler",
+                        description: "Modellerinize göre öğün önerileri alın"
+                    )
+
+                    featureRow(
+                        icon: "moon.fill",
+                        title: "Haftalık Özetler",
+                        description: "Kan şekeri trendlerinizin otomatik raporları"
+                    )
+                }
+                .padding(.vertical, 24)
+
+                Spacer()
+                    .frame(height: 40)
+
+                VStack(spacing: 12) {
+                    Button(action: requestAuthorization) {
+                        Label("HealthKit'i Bağla", systemImage: "heart.fill")
+                            .font(.body)
+                            .fontWeight(.semibold)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .tint(.red)
+
+                    Text("Sağlık verileriniz güvende kalır ve yalnızca balli içinde kullanılır")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
             }
-            
-            VStack(spacing: 12) {
-                featureRow(
-                    icon: "chart.line.uptrend.xyaxis",
-                    title: "Glucose Insights",
-                    description: "See how meals affect your blood sugar"
-                )
-                
-                featureRow(
-                    icon: "fork.knife",
-                    title: "Smart Recommendations",
-                    description: "Get meal suggestions based on your patterns"
-                )
-                
-                featureRow(
-                    icon: "moon.fill",
-                    title: "Weekly Summaries",
-                    description: "Automatic reports of your glucose trends"
-                )
-            }
-            .padding(.vertical)
-            
-            Spacer()
-            
-            Button(action: requestAuthorization) {
-                Label("Connect HealthKit", systemImage: "heart.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.red)
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-            }
-            
-            Text("Your health data stays private and is only used within balli")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
+            .padding()
         }
     }
     
     private var authorizedView: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                // Success Header
-                VStack(spacing: 16) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 60))
-                        .foregroundColor(.green)
-                    
-                    Text("HealthKit Connected")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    Text("balli is reading your glucose data")
-                        .font(.body)
-                        .foregroundColor(.secondary)
-                }
-                .padding()
-                
-                // Glucose Statistics
-                if let stats = glucoseStats {
-                    glucoseStatsView(stats)
+        Form {
+            // Connection Status
+            Section("Bağlantı") {
+                HStack {
+                    Text("Durum")
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(.green)
+                            .frame(width: 8, height: 8)
+                        Text("Bağlı")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                // Settings
-                VStack(spacing: 16) {
-                    settingRow(
-                        title: "Data Access",
-                        value: "Read Only",
-                        icon: "lock.fill"
-                    )
-                    
-                    settingRow(
-                        title: "Background Updates",
-                        value: "Enabled",
-                        icon: "arrow.clockwise"
-                    )
-                    
-                    settingRow(
-                        title: "Last Sync",
-                        value: Date().formatted(date: .omitted, time: .shortened),
-                        icon: "clock.fill"
-                    )
+                HStack {
+                    Text("Veri Erişimi")
+                    Spacer()
+                    Text("Sadece Okuma")
+                        .foregroundStyle(.secondary)
                 }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(12)
-                
-                // Manage in Settings
+
+                HStack {
+                    Text("Arka Plan Güncellemeleri")
+                    Spacer()
+                    Text("Etkin")
+                        .foregroundStyle(.secondary)
+                }
+
+                HStack {
+                    Text("Son Senkronizasyon")
+                    Spacer()
+                    Text(Date().formatted(date: .omitted, time: .shortened))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // Glucose Statistics
+            if let stats = glucoseStats {
+                Section("Son 7 Gün") {
+                    HStack {
+                        Text("Ortalama")
+                        Spacer()
+                        HStack(spacing: 4) {
+                            Text(String(format: "%.0f", stats.average))
+                                .fontWeight(.semibold)
+                            Text("mg/dL")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    HStack {
+                        Text("Hedef Aralık")
+                        Spacer()
+                        HStack(spacing: 4) {
+                            Text(String(format: "%.0f", stats.timeInRange))
+                                .fontWeight(.semibold)
+                            Text("%")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    HStack {
+                        Text("Toplam Ölçüm")
+                        Spacer()
+                        Text("\(stats.readingCount)")
+                            .fontWeight(.semibold)
+                    }
+                }
+            }
+
+            // Actions
+            Section {
                 Button(action: openHealthSettings) {
-                    Label("Manage in Settings", systemImage: "gear")
-                        .font(.body)
-                        .foregroundColor(.blue)
+                    Label("Ayarlarda Yönet", systemImage: "gear")
                 }
-                .padding(.top)
             }
         }
     }
     
     // MARK: - Helper Views
-    
+
     private func featureRow(icon: String, title: String, description: String) -> some View {
-        HStack(alignment: .top, spacing: 16) {
+        HStack(alignment: .top, spacing: 12) {
             Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(.blue)
-                .frame(width: 30)
-            
-            VStack(alignment: .leading, spacing: 4) {
+                .font(.title3)
+                .foregroundStyle(.red)
+                .frame(width: 28)
+
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.headline)
-                
+                    .font(.body)
+                    .fontWeight(.medium)
+
                 Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
             }
-            
+
             Spacer()
         }
-    }
-    
-    private func settingRow(title: String, value: String, icon: String) -> some View {
-        HStack {
-            Label(title, systemImage: icon)
-                .font(.body)
-            
-            Spacer()
-            
-            Text(value)
-                .font(.body)
-                .foregroundColor(.secondary)
-        }
-    }
-    
-    private func glucoseStatsView(_ stats: GlucoseStatistics) -> some View {
-        VStack(spacing: 16) {
-            Text("Last 7 Days")
-                .font(.headline)
-            
-            HStack(spacing: 20) {
-                statCard(
-                    title: "Average",
-                    value: String(format: "%.0f", stats.average),
-                    unit: "mg/dL",
-                    color: .blue
-                )
-                
-                statCard(
-                    title: "Time in Range",
-                    value: String(format: "%.0f", stats.timeInRange),
-                    unit: "%",
-                    color: .green
-                )
-                
-                statCard(
-                    title: "Readings",
-                    value: "\(stats.readingCount)",
-                    unit: "total",
-                    color: .orange
-                )
-            }
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
-    }
-    
-    private func statCard(title: String, value: String, unit: String, color: Color) -> some View {
-        VStack(spacing: 8) {
-            Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
-            
-            Text(value)
-                .font(.title2)
-                .fontWeight(.bold)
-                .foregroundColor(color)
-            
-            Text(unit)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
     }
     
     // MARK: - Actions
@@ -307,10 +274,10 @@ struct HealthKitManagerView: View {
                 // Check if we need to show settings alert
                 let status = permissionManager.status(for: .health)
                 if status.needsSettings {
-                    errorMessage = "HealthKit authorization was previously denied. Please enable it in Settings."
+                    errorMessage = "HealthKit yetkilendirmesi daha önce reddedildi. Lütfen Ayarlar'dan etkinleştirin."
                     showingError = true
                 } else {
-                    errorMessage = "HealthKit authorization was not granted."
+                    errorMessage = "HealthKit yetkilendirmesi verilmedi."
                     showingError = true
                 }
             }

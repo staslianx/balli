@@ -19,6 +19,7 @@ struct balliApp: App {
 
     @StateObject private var appConfiguration = AppConfigurationManager.shared
     @StateObject private var healthKitPermissions = HealthKitPermissionManager.shared
+    @StateObject private var syncCoordinator = AppSyncCoordinator.shared
 
     private let logger = Logger(subsystem: "com.anaxoniclabs.balli", category: "app.lifecycle")
 
@@ -32,80 +33,81 @@ struct balliApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.viewContext)
-                .environmentObject(appConfiguration)
-                .environmentObject(healthKitPermissions)
-                .injectDependencies() // This sets up all our AI/Memory services!
-                .captureWindow() // Capture window for ASWebAuthenticationSession
-                .tint(AppTheme.primaryPurple)
-                .accentColor(AppTheme.primaryPurple)
-                .enableSettingsOpener() // Enable SwiftUI-native Settings opener
-                .preferredColorScheme(.light)
-                .onAppear {
-                    configureApp()
+            Group {
+                // Show loading only on FIRST launch or if sync fails
+                // After initial sync, app launches directly to main UI
+                if syncCoordinator.state == .completed {
+                    ContentView()
+                } else if case .failed(let error) = syncCoordinator.state {
+                    SyncErrorView(
+                        error: error,
+                        retry: {
+                            Task {
+                                await syncCoordinator.retrySync()
+                            }
+                        }
+                    )
+                } else {
+                    // Loading only shown on FIRST app launch
+                    LoadingSplashView(
+                        progress: syncCoordinator.progress,
+                        operation: syncCoordinator.currentOperation
+                    )
                 }
-                .task {
-                    // Sync memory on app launch (non-blocking)
-                    await MemorySyncCoordinator.shared.syncOnAppLaunch()
+            }
+            .environment(\.managedObjectContext, persistenceController.viewContext)
+            .environmentObject(appConfiguration)
+            .environmentObject(healthKitPermissions)
+            .injectDependencies() // This sets up all our AI/Memory services!
+            .captureWindow() // Capture window for ASWebAuthenticationSession
+            .tint(AppTheme.primaryPurple)
+            .accentColor(AppTheme.primaryPurple)
+            .enableSettingsOpener() // Enable SwiftUI-native Settings opener
+            .preferredColorScheme(.light)
+            .task {
+                // CRITICAL: Perform sync ONCE on first launch
+                if syncCoordinator.state == .idle {
+                    await syncCoordinator.performInitialSync()
                 }
-                .onChange(of: scenePhase) { oldPhase, newPhase in
-                    handleScenePhaseChange(oldPhase: oldPhase, newPhase: newPhase)
-                }
-                .onOpenURL { url in
-                    handleOpenURL(url)
-                }
-                .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { userActivity in
-                    handleUserActivity(userActivity)
-                }
-                .onContinueUserActivity("com.anaxoniclabs.balli.state-restoration") { userActivity in
-                    handleUserActivity(userActivity)
-                }
-                .userActivity("com.anaxoniclabs.balli.state-restoration") { activity in
-                    configureStateRestoration(activity)
-                }
+
+                // Sync memory on app launch (non-blocking)
+                await MemorySyncCoordinator.shared.syncOnAppLaunch()
+            }
+            .onAppear {
+                configureApp()
+            }
+            .onChange(of: scenePhase) { oldPhase, newPhase in
+                handleScenePhaseChange(oldPhase: oldPhase, newPhase: newPhase)
+            }
+            .onOpenURL { url in
+                handleOpenURL(url)
+            }
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { userActivity in
+                handleUserActivity(userActivity)
+            }
+            .onContinueUserActivity("com.anaxoniclabs.balli.state-restoration") { userActivity in
+                handleUserActivity(userActivity)
+            }
+            .userActivity("com.anaxoniclabs.balli.state-restoration") { activity in
+                configureStateRestoration(activity)
+            }
         }
     }
 
     // MARK: - App Configuration
 
     private func configureApp() {
-        logger.info("🚀 Balli app initializing")
+        logger.info("🚀 Balli app initializing (non-blocking operations)")
 
         // Force light mode (synchronous, no blocking)
         applyLightMode()
 
-        #if DEBUG
-        // Generate mock meal data for simulator/debug builds
-        Task {
-            await generateDebugMealData()
-        }
-        #endif
-
-        // CRITICAL FIX: Defer app configuration to background priority
-        // This prevents blocking keyboard appearance on cold start
-        Task.detached(priority: .background) {
-            do {
-                // Configure app completely off main thread
-                let app = await UIApplication.shared
-                try await appConfiguration.configure(application: app)
-            } catch {
-                logger.error("App configuration failed: \(error.localizedDescription)")
-            }
-        }
-
-        // Request HealthKit permissions upfront on app launch
-        // This prevents infinite loops from repeated per-type requests
-        Task {
-            do {
-                try await healthKitPermissions.requestAllPermissions()
-            } catch {
-                logger.error("HealthKit authorization failed: \(error.localizedDescription)")
-                // Non-fatal - app continues to work with limited functionality
-            }
-        }
+        // NOTE: Mock meal data generation removed - use real meal logging instead
+        // NOTE: App configuration and HealthKit permissions moved to AppSyncCoordinator
+        // This ensures they complete before main UI is shown
 
         // Initialize FTS5 Manager for cross-conversation memory (recall)
+        // This is non-critical and can run in background
         Task.detached(priority: .background) {
             do {
                 // Initialize FTS5Manager
@@ -235,79 +237,4 @@ struct balliApp: App {
             window.overrideUserInterfaceStyle = .light
         }
     }
-
-    #if DEBUG
-    /// Generate mock meal data for debugging in simulator
-    private func generateDebugMealData() async {
-        let context = persistenceController.viewContext
-
-        // Check if we already have meal entries (don't duplicate)
-        let fetchRequest = MealEntry.fetchRequest()
-        fetchRequest.fetchLimit = 1
-
-        do {
-            let existingMeals = try context.fetch(fetchRequest)
-            if !existingMeals.isEmpty {
-                logger.debug("Mock meal data already exists, skipping generation")
-                return
-            }
-        } catch {
-            logger.error("Failed to check for existing meals: \(error.localizedDescription)")
-            return
-        }
-
-        // Create mock meal entries at specific times today
-        // Chart shows 6am-6am (24 hours), so place meals within that window
-        let calendar = Calendar.current
-        let now = Date()
-
-        // Get today at 6am (chart start time)
-        var components = calendar.dateComponents([.year, .month, .day], from: now)
-        components.hour = 6
-        components.minute = 0
-        components.second = 0
-
-        guard let today6am = calendar.date(from: components) else {
-            logger.error("Failed to calculate 6am time")
-            return
-        }
-
-        // Create meals at specific times relative to 6am start
-        let mealData: [(hoursAfter6am: Double, mealType: String, carbs: Double)] = [
-            (3.0, "breakfast", 45.0),   // 9:00 AM - Breakfast - 45g carbs
-            (3.5, "breakfast", 12.0),   // 9:30 AM - Coffee/snack - 12g carbs
-            (6.5, "snack", 25.0),       // 12:30 PM - Snack - 25g carbs
-            (8.0, "lunch", 38.0)        // 2:00 PM - Lunch - 38g carbs
-        ]
-
-        for (hoursAfter6am, mealType, carbs) in mealData {
-            let meal = MealEntry(context: context)
-            meal.id = UUID()
-            meal.timestamp = today6am.addingTimeInterval(hoursAfter6am * 3600)
-            meal.mealType = mealType
-
-            // Only carbs are tracked
-            meal.consumedCarbs = carbs
-
-            // Set defaults for other fields
-            meal.quantity = 1.0
-            meal.unit = "serving"
-            meal.portionGrams = 0.0
-            meal.consumedProtein = 0.0
-            meal.consumedFat = 0.0
-            meal.consumedCalories = 0.0
-            meal.consumedFiber = 0.0
-            meal.glucoseBefore = 0.0
-            meal.glucoseAfter = 0.0
-            meal.insulinUnits = 0.0
-        }
-
-        do {
-            try context.save()
-            logger.info("✅ Generated mock meal data for debugging")
-        } catch {
-            logger.error("Failed to save mock meal data: \(error.localizedDescription)")
-        }
-    }
-    #endif
 }

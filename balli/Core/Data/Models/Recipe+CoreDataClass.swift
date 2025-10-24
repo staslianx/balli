@@ -10,6 +10,20 @@ import CoreData
 
 @objc(Recipe)
 public class Recipe: NSManagedObject, @unchecked Sendable {
+
+    // MARK: - Lifecycle
+
+    public override func awakeFromInsert() {
+        super.awakeFromInsert()
+        setPrimitiveValue(UUID(), forKey: "id")
+        setPrimitiveValue(Date(), forKey: "dateCreated")
+        setPrimitiveValue(Date(), forKey: "lastModified")
+        setPrimitiveValue("manual", forKey: "source")
+        setPrimitiveValue(false, forKey: "isVerified")
+        setPrimitiveValue(false, forKey: "isFavorite")
+        setPrimitiveValue(Int32(0), forKey: "timesCooked")
+        setPrimitiveValue(Int16(0), forKey: "userRating")
+    }
     
     // MARK: - Computed Properties
     

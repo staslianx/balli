@@ -19,8 +19,8 @@ struct ContentView: View {
     @State private var hasConfiguredTabBar = false
 
     init() {
-        // CRITICAL FIX: Don't configure tab bar in init
-        // This will be done lazily after first render
+        // NOTE: Sync happens in balliApp.swift BEFORE ContentView is created
+        // By the time we get here, all critical services should be ready
     }
 
     private func configureTabBarIfNeeded() {
@@ -50,11 +50,12 @@ struct ContentView: View {
     }
     
     var body: some View {
-        Group {
+        ZStack {
+            // Main UI - sync already completed in balliApp.swift
             if userManager.currentUser != nil {
                 mainTabView
             } else {
-                Color.clear // Invisible placeholder while modal loads
+                Color.clear // Invisible placeholder while user selection modal loads
             }
         }
         .sheet(isPresented: $userManager.showUserSelection) {
@@ -62,17 +63,12 @@ struct ContentView: View {
                 .interactiveDismissDisabled()
         }
         .onAppear {
-            // CRITICAL FIX: Defer all non-critical work
-            Task.detached(priority: .background) {
-                await MainActor.run {
-                    userManager.loadCurrentUser()
-                    updateCalendarIcon()
-                }
-            }
-            // Configure tab bar after a small delay to not block initial render
+            // Configure tab bar (cosmetic, doesn't affect sync)
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                 configureTabBarIfNeeded()
             }
+            // Update calendar icon
+            updateCalendarIcon()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
             updateCalendarIcon()

@@ -88,7 +88,7 @@ struct AppSettingsView: View {
                         }
                     }
 
-                    Button(action: {
+                    Button(role: .destructive, action: {
                         Task {
                             // Reset app configuration
                             await AppConfigurationManager.shared.resetConfiguration()
@@ -107,155 +107,53 @@ struct AppSettingsView: View {
                             dismiss()
                         }
                     }) {
-                        HStack {
-                            Image(systemName: "rectangle.portrait.and.arrow.right.fill")
-                                .foregroundColor(AppTheme.internationalOrange)
-                                .frame(width: 24)
-
-                            Text("Çıkış Yap")
-                                .foregroundColor(AppTheme.internationalOrange)
-                        }
+                        Label("Çıkış Yap", systemImage: "rectangle.portrait.and.arrow.right.fill")
                     }
+                    .foregroundStyle(.red)
                 }
 
-                // Settings Container
-                Section {
+                // Health & Data Section
+                Section("Sağlık & Veri") {
                     NavigationLink(destination: HealthKitManagerView()) {
-                        HStack {
-                            Image(systemName: "heart.text.square.fill")
-                                .foregroundColor(AppTheme.primaryPurple)
-                                .frame(width: 24)
-
-                            Text("Apple Sağlık")
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(.gray)
-                                .font(.caption)
-                        }
+                        Label("Apple Sağlık", systemImage: "heart.text.square.fill")
                     }
+                    .tint(AppTheme.primaryPurple)
 
                     NavigationLink(destination: DexcomConnectionView()) {
-                        HStack {
-                            Image(systemName: "sensor.tag.radiowaves.forward.fill")
-                                .foregroundColor(AppTheme.primaryPurple)
-                                .frame(width: 24)
-
-                            Text("CGM Ayarları")
-
-                            Spacer()
-
-                            Image(systemName: "chevron.right")
-                                .foregroundColor(.gray)
-                                .font(.caption)
-                        }
+                        Label("Dexcom CGM", systemImage: "sensor.radiowaves.left.and.right.fill.fill")
                     }
+                    .tint(AppTheme.primaryPurple)
 
-                    HStack {
-                        Image(systemName: "bell.fill")
-                            .foregroundColor(AppTheme.primaryPurple)
-                            .frame(width: 24)
-
-                        Toggle("Bildirimler", isOn: $notificationsEnabled)
+                    Toggle(isOn: $notificationsEnabled) {
+                        Label("Bildirimler", systemImage: "bell.fill")
                     }
+                    .tint(AppTheme.primaryPurple)
 
                     NavigationLink(destination: ExportDataView()) {
-                        HStack {
-                            Image(systemName: "square.and.arrow.up.fill")
-                                .foregroundColor(AppTheme.primaryPurple)
-                                .frame(width: 24)
-
-                            Text("Verileri Dışarı Aktar")
-                        }
+                        Label("Verileri Dışarı Aktar", systemImage: "square.and.arrow.up.fill")
                     }
-                }
-
-                // Recipe Design Previews Section
-                Section("Recipe Design Previews") {
-                    NavigationLink(destination: RecipeDetailView(recipeData: createTamarindLassiRecipe()).withSheets()) {
-                        RecipePreviewRow(
-                            icon: "🥤",
-                            title: "Tamarind-Peach Lassi",
-                            subtitle: "Tropical yogurt drink",
-                            color: Color(red: 1.0, green: 0.85, blue: 0.5)
-                        )
-                    }
-
-                    NavigationLink(destination: RecipeDetailView(recipeData: createAvocadoToastRecipe()).withSheets()) {
-                        RecipePreviewRow(
-                            icon: "🥑",
-                            title: "Avocado Toast",
-                            subtitle: "Healthy breakfast classic",
-                            color: Color(red: 0.5, green: 0.8, blue: 0.4)
-                        )
-                    }
-
-                    NavigationLink(destination: RecipeDetailView(recipeData: createChocolateCakeRecipe()).withSheets()) {
-                        RecipePreviewRow(
-                            icon: "🍰",
-                            title: "Chocolate Lava Cake",
-                            subtitle: "Decadent dessert",
-                            color: Color(red: 0.4, green: 0.2, blue: 0.1)
-                        )
-                    }
-
-                    NavigationLink(destination: RecipeDetailView(recipeData: createGreekSaladRecipe()).withSheets()) {
-                        RecipePreviewRow(
-                            icon: "🥗",
-                            title: "Greek Salad",
-                            subtitle: "Fresh Mediterranean",
-                            color: Color(red: 0.9, green: 0.3, blue: 0.3)
-                        )
-                    }
-
-                    NavigationLink(destination: RecipeDetailView(recipeData: createSmoothieBowlRecipe()).withSheets()) {
-                        RecipePreviewRow(
-                            icon: "🍓",
-                            title: "Berry Smoothie Bowl",
-                            subtitle: "Vibrant breakfast bowl",
-                            color: Color(red: 0.9, green: 0.2, blue: 0.5)
-                        )
-                    }
+                    .tint(AppTheme.primaryPurple)
                 }
 
                 // Support & Info Section
                 Section {
-
                     if let emailURL = URL(string: "mailto:destek@balli.app") {
                         Link(destination: emailURL) {
-                            HStack {
-                                Image(systemName: "envelope.fill")
-                                    .foregroundColor(AppTheme.primaryPurple)
-                                    .frame(width: 24)
-
-                                Text("İletişim")
-                                    .foregroundColor(.primary)
-                            }
+                            Label("İletişim", systemImage: "envelope.fill")
                         }
+                        .tint(AppTheme.primaryPurple)
                     }
 
                     NavigationLink(destination: AboutView()) {
-                        HStack {
-                            Image(systemName: "info.circle.fill")
-                                .foregroundColor(AppTheme.primaryPurple)
-                                .frame(width: 24)
-
-                            Text("Hakkında")
-                        }
+                        Label("Hakkında", systemImage: "info.circle.fill")
                     }
+                    .tint(AppTheme.primaryPurple)
 
                     HStack {
-                        Image(systemName: "app.badge.fill")
-                            .foregroundColor(AppTheme.primaryPurple)
-                            .frame(width: 24)
-
-                        Text("Sürüm")
-
+                        Label("Sürüm", systemImage: "app.badge.fill")
                         Spacer()
-
                         Text("1.0.0")
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }

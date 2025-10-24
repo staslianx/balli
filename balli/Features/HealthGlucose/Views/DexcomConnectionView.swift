@@ -36,6 +36,7 @@ struct DexcomConnectionView: View {
     @State private var showingError = false
     @State private var errorMessage = ""
     @State private var isConnecting = false
+    @State private var showingShareSettings = false
 
     // MARK: - Initialization
 
@@ -46,18 +47,15 @@ struct DexcomConnectionView: View {
     // MARK: - Body
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                if dexcomService.isConnected {
-                    connectedView
-                } else {
-                    disconnectedView
-                }
+        Group {
+            if dexcomService.isConnected {
+                connectedView
+            } else {
+                disconnectedView
             }
-            .padding()
         }
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationTitle("Dexcom CGM")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Tamam") {
@@ -86,16 +84,15 @@ struct DexcomConnectionView: View {
     // MARK: - Disconnected View
 
     private var disconnectedView: some View {
-        VStack {
+        VStack(spacing: 32) {
             Spacer()
-                .padding(60)
 
-            VStack(spacing: 50) {
-                Image("dexcom-logo")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(height: 30)
+            Image("dexcom-logo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(height: 32)
 
+            VStack(spacing: 24) {
                 Text("Kan şekeri ölçümlerini senkronize et.")
                     .font(.title2)
                     .fontWeight(.semibold)
@@ -107,68 +104,131 @@ struct DexcomConnectionView: View {
                         .tint(AppTheme.dexcomGreen)
                 } else {
                     Button(action: connect) {
-                        Label("Bağlan", systemImage: "sensor.tag.radiowaves.forward.fill")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 48)
+                        Text("Bağlan")
+                            .font(.body)
+                            .fontWeight(.semibold)
                     }
                     .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
                     .tint(AppTheme.dexcomGreen)
                 }
-
             }
+            .padding(.horizontal)
+
+            Spacer()
         }
     }
 
     // MARK: - Connected View
 
     private var connectedView: some View {
-        VStack(spacing: 24) {
-            // Success Header
-            VStack(spacing: 16) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 60))
-                    .foregroundStyle(.green)
+        Form {
+            // Connection Status
+            Section {
+                HStack {
+                    Image("dexcom-logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 12)
+                    Spacer()
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(.green)
+                            .frame(width: 8, height: 8)
+                        Text("Bağlı")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
 
-                VStack(spacing: 8) {
-                    Text("Dexcom'a Bağlı")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                if let reading = dexcomService.latestReading {
+                    HStack {
+                        Text("Son Okuma")
+                        Spacer()
+                        HStack(spacing: 4) {
+                            Text("\(reading.value)")
+                                .fontWeight(.semibold)
+                            Text("mg/dL")
+                                .foregroundStyle(.secondary)
+                            Image(systemName: reading.trendSymbol)
+                                .foregroundStyle(AppTheme.dexcomGreen)
+                        }
+                    }
 
-                    Text("CGM verileriniz senkronize ediliyor")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
+                    HStack {
+                        Text("Trend")
+                        Spacer()
+                        Text(reading.trendDescription)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("Zaman")
+                        Spacer()
+                        Text(reading.displayTime.formatted(date: .omitted, time: .shortened))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let lastSync = dexcomService.lastSync {
+                    HStack {
+                        Text("Son Senkronizasyon")
+                        Spacer()
+                        Text(lastSync, style: .relative)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("Bağlantı")
+            }
+
+            // Device Info
+            if let device = dexcomService.currentDevice {
+                Section {
+                    HStack {
+                        Text("Verici")
+                        Spacer()
+                        Text(device.transmitterGeneration.uppercased())
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack {
+                        Text("Ekran Cihazı")
+                        Spacer()
+                        Text(device.displayDevice)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if let unit = device.unitDisplayMode {
+                        HStack {
+                            Text("Birim")
+                            Spacer()
+                            Text(unit)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Cihaz Bilgisi")
                 }
             }
-            .padding()
-
-            // Current Reading (if available)
-            if let reading = dexcomService.latestReading {
-                glucoseReadingCard(reading)
-            }
-
-            // Device Info (if available)
-            if let device = dexcomService.currentDevice {
-                deviceInfoCard(device)
-            }
-
-            // Sync Status
-            syncStatusCard
 
             // Actions
-            VStack(spacing: 12) {
+            Section {
                 Button(action: syncNow) {
                     Label("Şimdi Senkronize Et", systemImage: "arrow.triangle.2.circlepath")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                .foregroundStyle(.primary)
                 .disabled(isConnecting)
+
+                NavigationLink(destination: DexcomShareSettingsView()) {
+                    Label("Gerçek Zamanlı Mod", systemImage: "bolt.fill")
+                }
+                .foregroundStyle(.primary)
 
                 Button(role: .destructive, action: disconnectAlert) {
                     Label("Bağlantıyı Kes", systemImage: "xmark.circle")
-                        .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.bordered)
+                .foregroundStyle(.red)
             }
         }
     }

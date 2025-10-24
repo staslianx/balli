@@ -31,6 +31,7 @@ final class HosgeldinViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let dexcomService: DexcomService
+    private let dexcomShareService: DexcomShareService
     private let logger = AppLoggers.Health.glucose
     private var syncTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
@@ -44,15 +45,18 @@ final class HosgeldinViewModel: ObservableObject {
     init(
         healthKitService: HealthKitServiceProtocol,
         dexcomService: DexcomService,
+        dexcomShareService: DexcomShareService,
         healthKitPermissions: HealthKitPermissionManager,
         viewContext: NSManagedObjectContext? = nil
     ) {
         self.dexcomService = dexcomService
+        self.dexcomShareService = dexcomShareService
 
         // Initialize child ViewModels
         self.glucoseChartViewModel = GlucoseChartViewModel(
             healthKitService: healthKitService,
             dexcomService: dexcomService,
+            dexcomShareService: dexcomShareService,
             healthKitPermissions: healthKitPermissions,
             viewContext: viewContext
         )

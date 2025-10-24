@@ -2,13 +2,12 @@
 //  VoiceInputView.swift
 //  balli
 //
-//  Voice input interface for meal logging with Apple Speech Recognition
-//  Shows real-time word-by-word transcription
+//  Voice input interface for meal logging with Gemini 2.5 Flash
+//  Records audio and uses AI to extract structured meal data
 //
 
 import SwiftUI
 import AVFoundation
-import Speech
 import CoreData
 import os.log
 
@@ -17,8 +16,8 @@ struct VoiceInputView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.managedObjectContext) private var viewContext
 
-    // Speech recognition
-    @StateObject private var speechRecognizer = SpeechRecognitionService()
+    // Gemini audio recording
+    @StateObject private var audioRecorder = AudioRecordingService()
 
     // State
     @State private var recordingDuration: TimeInterval = 0
@@ -30,6 +29,12 @@ struct VoiceInputView: View {
     @State private var parsedMealData: ParsedMealData?
     @State private var showingPreview = false
     @State private var isParsing = false
+
+    // Editable meal data (for user corrections)
+    @State private var editableFoods: [EditableFoodItem] = []
+    @State private var editableTotalCarbs: String = ""
+    @State private var editableMealType: String = "atıştırmalık"
+    @State private var editableMealTime: String = ""
 
     // Haptic feedback
     private let hapticManager = HapticManager()
@@ -74,43 +79,29 @@ struct VoiceInputView: View {
             // Start animation immediately
             pulseAnimation = true
 
-            // Complete async initialization that was deferred from init()
-            await speechRecognizer.completeInitialization()
+            // Check microphone permission
+            audioRecorder.checkMicrophonePermission()
 
-            // Check permissions first
-            speechRecognizer.checkAuthorizationStatus()
-            speechRecognizer.checkMicrophonePermission()
+            logger.info("🎙️ VoiceInputView ready with Gemini transcription")
 
-            let speechStatus = speechRecognizer.authorizationStatus
-            let micGranted = speechRecognizer.microphonePermissionGranted
-            logger.info("🎙️ VoiceInputView appeared - Speech: \(String(describing: speechStatus)), Mic: \(micGranted)")
-
-            // Request permissions if needed
-            if speechRecognizer.authorizationStatus != .authorized {
-                logger.info("🎙️ Requesting speech recognition authorization...")
-                await speechRecognizer.requestAuthorization()
-                let newStatus = speechRecognizer.authorizationStatus
-                logger.info("🎙️ Speech authorization result: \(String(describing: newStatus))")
-            }
-
-            if !speechRecognizer.microphonePermissionGranted {
+            // Request permission if needed
+            if !audioRecorder.microphonePermissionGranted {
                 logger.info("🎙️ Requesting microphone permission...")
-                await speechRecognizer.requestMicrophonePermission()
-                let micResult = speechRecognizer.microphonePermissionGranted
+                await audioRecorder.requestMicrophonePermission()
+                let micResult = audioRecorder.microphonePermissionGranted
                 logger.info("🎙️ Microphone permission result: \(micResult)")
             }
         }
         .onDisappear {
-            speechRecognizer.cleanup()
+            audioRecorder.cleanup()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
             // Re-check authorization when app becomes active (e.g., returning from Settings)
-            speechRecognizer.checkAuthorizationStatus()
-            speechRecognizer.checkMicrophonePermission()
+            audioRecorder.checkMicrophonePermission()
         }
-        .alert("Hata", isPresented: .constant(speechRecognizer.error != nil), presenting: speechRecognizer.error) { _ in
+        .alert("Hata", isPresented: .constant(audioRecorder.error != nil), presenting: audioRecorder.error) { _ in
             Button("Tamam") {
-                speechRecognizer.error = nil
+                audioRecorder.error = nil
             }
         } message: { error in
             Text(error.localizedDescription)
@@ -133,44 +124,32 @@ struct VoiceInputView: View {
                             .scaleEffect(1.5)
                             .tint(AppTheme.primaryPurple)
 
-                        Text("Öğün bilgisi çıkarılıyor...")
+                        Text("Gemini ile analiz ediliyor...")
                             .font(.system(size: 17, weight: .medium, design: .rounded))
                             .foregroundStyle(.secondary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, ResponsiveDesign.height(80))
-                } else if speechRecognizer.transcribedText.isEmpty {
+                } else if !audioRecorder.isRecording {
                     // Placeholder when not recording
                     VStack(spacing: ResponsiveDesign.Spacing.small) {
-                        if speechRecognizer.authorizationStatus != .authorized || !speechRecognizer.microphonePermissionGranted {
+                        if !audioRecorder.microphonePermissionGranted {
                             Image(systemName: "exclamationmark.triangle")
                                 .font(.system(size: 60))
                                 .foregroundStyle(.red)
 
-                            Text("İzinler Gerekli")
+                            Text("Mikrofon İzni Gerekli")
                                 .font(.system(size: 20, weight: .medium, design: .rounded))
                                 .foregroundStyle(.red)
 
                             VStack(spacing: 8) {
-                                if speechRecognizer.authorizationStatus != .authorized {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundStyle(.red)
-                                        Text("Konuşma Tanıma izni")
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                                HStack(spacing: 4) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.red)
+                                    Text("Mikrofon izni")
+                                        .foregroundStyle(.secondary)
                                 }
-
-                                if !speechRecognizer.microphonePermissionGranted {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "xmark.circle.fill")
-                                            .foregroundStyle(.red)
-                                        Text("Mikrofon izni")
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .font(.system(size: 13, weight: .regular, design: .rounded))
-                                }
+                                .font(.system(size: 13, weight: .regular, design: .rounded))
                             }
                             .padding(.horizontal)
 
@@ -188,104 +167,228 @@ struct VoiceInputView: View {
                                     .clipShape(Capsule())
                             }
                             .padding(.top, ResponsiveDesign.Spacing.small)
-                        } else if !speechRecognizer.isRecognizing {
+                        } else {
                             Image(systemName: "waveform.low")
                                 .font(.system(size: 80, weight: .bold))
                                 .foregroundStyle(.secondary.opacity(0.3))
+
+                            Text("Kayıt için dokunun")
+                                .font(.system(size: 17, weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .padding(.top, 8)
                         }
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.top, ResponsiveDesign.height(80))
                 } else {
-                    // Real-time transcription - scrollable with wrapping text
-                    Text(speechRecognizer.transcribedText)
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(nil)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding()
-                        .padding(.horizontal)
-                        .padding(.top, ResponsiveDesign.Spacing.medium)
-                        .padding(.bottom, ResponsiveDesign.height(150))
+                    // Recording in progress
+                    VStack(spacing: ResponsiveDesign.Spacing.large) {
+                        // Audio waveform visualization
+                        VoiceGlowView(audioLevel: audioRecorder.audioLevel)
+                            .frame(height: 200)
+
+                        // Recording indicator
+                        HStack(spacing: 8) {
+                            Circle()
+                                .fill(.red)
+                                .frame(width: 12, height: 12)
+                                .opacity(pulseAnimation ? 0.3 : 1.0)
+                                .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulseAnimation)
+
+                            Text("Kaydediliyor...")
+                                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        // Duration
+                        Text(formatDuration(recordingDuration))
+                            .font(.system(size: 48, weight: .bold, design: .rounded).monospacedDigit())
+                            .foregroundStyle(.primary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, ResponsiveDesign.height(60))
                 }
             })
         }
     }
 
-    // MARK: - Meal Preview
+    // MARK: - Meal Preview (Editable)
 
     @ViewBuilder
     private func mealPreviewView(_ data: ParsedMealData) -> some View {
-        VStack(spacing: ResponsiveDesign.Spacing.medium) {
-            // Carbs
-            if let carbs = data.carbsGrams {
-                HStack {
-                    Image(systemName: "scale.3d")
-                        .font(.system(size: 28))
-                        .foregroundStyle(AppTheme.primaryPurple)
-                        .frame(width: 44)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Karbonhidrat")
+        ScrollView {
+            VStack(spacing: ResponsiveDesign.Spacing.medium) {
+                // Show transcription if Gemini format
+                if let transcription = data.transcription {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Söylediğiniz:")
                             .font(.system(size: 14, weight: .medium, design: .rounded))
                             .foregroundStyle(.secondary)
 
-                        Text("\(carbs)g")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
+                        Text(transcription)
+                            .font(.system(size: 16, weight: .regular, design: .rounded))
                             .foregroundStyle(.primary)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                }
+
+                // EDITABLE Foods Array
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Yiyecekler")
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal)
+
+                    ForEach($editableFoods) { $food in
+                        VStack(spacing: 8) {
+                            // Food name
+                            HStack {
+                                Text("İsim:")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 60, alignment: .leading)
+
+                                TextField("Yiyecek adı", text: $food.name)
+                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                    .textFieldStyle(.roundedBorder)
+                            }
+
+                            // Amount
+                            HStack {
+                                Text("Miktar:")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 60, alignment: .leading)
+
+                                TextField("Örn: 2 adet, 1 dilim", text: $food.amount)
+                                    .font(.system(size: 14, design: .rounded))
+                                    .textFieldStyle(.roundedBorder)
+                            }
+
+                            // Per-item carbs (if detailed format)
+                            if data.isDetailedFormat {
+                                HStack {
+                                    Text("Karb:")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 60, alignment: .leading)
+
+                                    TextField("0", text: $food.carbs)
+                                        .keyboardType(.numberPad)
+                                        .font(.system(size: 16, weight: .bold, design: .rounded).monospacedDigit())
+                                        .textFieldStyle(.roundedBorder)
+                                        .frame(width: 80)
+
+                                    Text("gram")
+                                        .font(.system(size: 14))
+                                        .foregroundStyle(.secondary)
+
+                                    Spacer()
+                                }
+                            }
+                        }
+                        .padding()
+                        .background(Color.gray.opacity(0.05))
+                        .cornerRadius(12)
                     }
 
-                    Spacer()
+                    // Add food button
+                    Button {
+                        editableFoods.append(EditableFoodItem(name: "", amount: nil, carbs: nil))
+                    } label: {
+                        Label("Yiyecek Ekle", systemImage: "plus.circle")
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.horizontal)
                 }
-            }
+                .padding(.horizontal)
 
-            // Time
-            if let timestamp = data.timestamp {
-                HStack {
-                    Image(systemName: "clock.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(AppTheme.primaryPurple)
-                        .frame(width: 44)
+                Divider()
+                    .padding(.horizontal)
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Saat")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                // EDITABLE Total Carbs
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Toplam Karbonhidrat")
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+
+                    HStack {
+                        TextField("0", text: $editableTotalCarbs)
+                            .keyboardType(.numberPad)
+                            .font(.system(size: 28, weight: .bold, design: .rounded).monospacedDigit())
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 100)
+
+                        Text("gram")
+                            .font(.system(size: 18))
                             .foregroundStyle(.secondary)
 
-                        Text(timestamp, style: .time)
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
+                        Spacer()
                     }
+                }
+                .padding(.horizontal)
 
-                    Spacer()
+                Divider()
+                    .padding(.horizontal)
+
+                // EDITABLE Meal Type Picker
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Öğün Türü")
+                        .font(.system(size: 18, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.primary)
+
+                    Picker("Öğün", selection: $editableMealType) {
+                        Text("Kahvaltı").tag("kahvaltı")
+                        Text("Öğle Yemeği").tag("öğle yemeği")
+                        Text("Akşam Yemeği").tag("akşam yemeği")
+                        Text("Atıştırmalık").tag("atıştırmalık")
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .padding(.horizontal)
+
+                // EDITABLE Meal Time (optional)
+                if !editableMealTime.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Saat (opsiyonel)")
+                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+
+                        TextField("HH:MM", text: $editableMealTime)
+                            .keyboardType(.numbersAndPunctuation)
+                            .font(.system(size: 24, weight: .bold, design: .rounded).monospacedDigit())
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 120)
+                    }
+                    .padding(.horizontal)
+                }
+
+                Divider()
+                    .padding(.horizontal)
+
+                // Confidence warning
+                if let confidence = data.confidence, confidence != "high" {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text("Bazı bilgiler tahmin edildi, lütfen kontrol edin")
+                            .font(.system(size: 13, weight: .medium, design: .rounded))
+                            .foregroundStyle(.orange)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(12)
+                    .padding(.horizontal)
                 }
             }
-
-            // Meal Type
-            if let mealType = data.localizedMealType {
-                HStack {
-                    Image(systemName: "fork.knife")
-                        .font(.system(size: 28))
-                        .foregroundStyle(AppTheme.primaryPurple)
-                        .frame(width: 44)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Öğün")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(.secondary)
-
-                        Text(mealType.capitalized)
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
-                    }
-
-                    Spacer()
-                }
-            }
+            .padding(.top, ResponsiveDesign.Spacing.large)
         }
-        .padding(.horizontal)
-        .padding(.top, ResponsiveDesign.Spacing.large)
     }
 
     // MARK: - Recording Controls
@@ -298,7 +401,7 @@ struct VoiceInputView: View {
         }) {
             ZStack {
                 // Animated background when recording
-                if speechRecognizer.isRecognizing {
+                if audioRecorder.isRecording {
                     ForEach(0..<2) { index in
                         Circle()
                             .fill(AppTheme.primaryPurple.opacity(0.15))
@@ -315,10 +418,10 @@ struct VoiceInputView: View {
                 }
 
                 // Main Liquid Glass button
-                Image(systemName: speechRecognizer.isRecognizing ? "stop.fill" : "mic.fill")
+                Image(systemName: audioRecorder.isRecording ? "stop.fill" : "mic.fill")
                     .font(.system(size: 28, weight: .medium))
                     .foregroundStyle(AppTheme.primaryPurple)
-                    .symbolEffect(.bounce, value: speechRecognizer.isRecognizing)
+                    .symbolEffect(.bounce, value: audioRecorder.isRecording)
             }
             .frame(width: 75, height: 75)
             .background(Color.clear)
@@ -326,8 +429,8 @@ struct VoiceInputView: View {
             .glassEffect(.regular.interactive(), in: Circle())
         }
         .buttonStyle(.plain)
-        .disabled((speechRecognizer.authorizationStatus != .authorized || !speechRecognizer.microphonePermissionGranted) && !speechRecognizer.isRecognizing || isProcessingButtonTap)
-        .opacity((speechRecognizer.authorizationStatus != .authorized || !speechRecognizer.microphonePermissionGranted) && !speechRecognizer.isRecognizing || isProcessingButtonTap ? 0.5 : 1.0)
+        .disabled(!audioRecorder.microphonePermissionGranted && !audioRecorder.isRecording || isProcessingButtonTap)
+        .opacity(!audioRecorder.microphonePermissionGranted && !audioRecorder.isRecording || isProcessingButtonTap ? 0.5 : 1.0)
     }
 
 
@@ -340,7 +443,7 @@ struct VoiceInputView: View {
             return
         }
 
-        logger.info("🎙️ Mic button tapped - Speech: \(String(describing: speechRecognizer.authorizationStatus)), Mic: \(speechRecognizer.microphonePermissionGranted), isRecognizing: \(speechRecognizer.isRecognizing)")
+        logger.info("🎙️ Mic button tapped - Mic: \(audioRecorder.microphonePermissionGranted), isRecording: \(audioRecorder.isRecording)")
 
         // Set debounce flag
         isProcessingButtonTap = true
@@ -357,9 +460,8 @@ struct VoiceInputView: View {
             // Reset to start re-recording
             showingPreview = false
             parsedMealData = nil
-            speechRecognizer.transcribedText = ""
             startRecording()
-        } else if speechRecognizer.isRecognizing {
+        } else if audioRecorder.isRecording {
             stopRecording()
         } else {
             startRecording()
@@ -370,67 +472,116 @@ struct VoiceInputView: View {
         Task {
             do {
                 hapticManager.notification(.success)
-                try await speechRecognizer.startRecording()
+                try await audioRecorder.startRecording()
 
-                // Start duration timer on main actor
+                // Update recording duration from audio recorder
                 await MainActor.run {
                     recordingDuration = 0
-                    recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-                        Task { @MainActor [self] in
-                            recordingDuration += 0.1
+                    recordingTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak audioRecorder] _ in
+                        Task { @MainActor in
+                            recordingDuration = audioRecorder?.recordingDuration ?? 0
                         }
                     }
                 }
+
+                logger.info("✅ Started Gemini audio recording")
             } catch {
-                logger.error("Failed to start recording: \(error.localizedDescription)")
+                logger.error("❌ Failed to start recording: \(error.localizedDescription)")
+                audioRecorder.error = error as? AudioRecordingError
             }
         }
     }
 
     private func stopRecording() {
         hapticManager.impact(.light)
-        speechRecognizer.stopRecording()
         recordingTimer?.invalidate()
         recordingTimer = nil
 
-        // Parse the transcription
+        _ = audioRecorder.stopRecording()
+
+        // Transcribe with Gemini
         Task {
-            await parseMealTranscription()
+            await transcribeWithGemini()
         }
     }
 
-    private func parseMealTranscription() async {
-        guard !speechRecognizer.transcribedText.isEmpty else { return }
+    private func transcribeWithGemini() async {
+        guard !audioRecorder.isRecording else { return }
 
         isParsing = true
 
-        // Parse locally - no network call needed!
-        let parsed = MealTranscriptionParser.parse(speechRecognizer.transcribedText)
+        do {
+            // Get recorded audio data
+            guard let audioData = try audioRecorder.getRecordingData() else {
+                throw AudioRecordingError.notRecording
+            }
 
-        await MainActor.run {
-            isParsing = false
+            logger.info("🎤 Transcribing \(audioData.count) bytes with Gemini...")
 
-            if parsed.isValid {
-                parsedMealData = parsed
-                showingPreview = true
-                hapticManager.notification(.success)
-                logger.info("✅ Parsed meal: \(parsed.carbsGrams ?? 0)g carbs, \(parsed.mealType ?? "unknown")")
-            } else {
-                // Show error - no valid data extracted
-                speechRecognizer.error = .mealParsingFailed("Karbonhidrat miktarı bulunamadı. Lütfen tekrar deneyin.")
-                logger.warning("⚠️ Could not extract carbs from: \(speechRecognizer.transcribedText)")
+            // Call Gemini transcription service
+            let response = try await GeminiTranscriptionService.shared.transcribeMeal(
+                audioData: audioData,
+                userId: "ios-user", // TODO: Get from Firebase Auth when available
+                progressCallback: { message in
+                    Task { @MainActor in
+                        logger.info("📱 Progress: \(message)")
+                    }
+                }
+            )
+
+            await MainActor.run {
+                isParsing = false
+
+                if response.success, let mealData = response.data {
+                    // Convert to ParsedMealData
+                    parsedMealData = ParsedMealData(from: mealData)
+
+                    // Populate editable fields for user corrections
+                    editableFoods = mealData.foods.map { food in
+                        EditableFoodItem(
+                            name: food.name,
+                            amount: food.amount,
+                            carbs: food.carbs
+                        )
+                    }
+                    editableTotalCarbs = "\(mealData.totalCarbs)"
+                    editableMealType = mealData.mealType
+                    editableMealTime = mealData.mealTime ?? ""
+
+                    showingPreview = true
+                    hapticManager.notification(.success)
+
+                    logger.info("✅ Gemini transcription successful:")
+                    logger.info("   - Foods: \(mealData.foods.count)")
+                    logger.info("   - Total carbs: \(mealData.totalCarbs)g")
+                    logger.info("   - Confidence: \(mealData.confidence)")
+                    logger.info("   - Transcription: \(mealData.transcription)")
+                } else {
+                    let errorMsg = response.error ?? "Transcription failed"
+                    audioRecorder.error = .recordingFailed(errorMsg)
+                    logger.error("❌ Gemini transcription failed: \(errorMsg)")
+                }
+            }
+
+        } catch {
+            await MainActor.run {
+                isParsing = false
+
+                let errorMsg = error.localizedDescription
+                audioRecorder.error = .recordingFailed(errorMsg)
+                logger.error("❌ Gemini transcription error: \(errorMsg)")
             }
         }
     }
 
     private func saveMealEntry() async {
-        guard let parsedData = parsedMealData,
-              let carbsGrams = parsedData.carbsGrams else {
+        // Use edited values from user
+        guard let totalCarbs = Int(editableTotalCarbs), totalCarbs > 0 else {
+            logger.warning("⚠️ Invalid total carbs value: \(editableTotalCarbs)")
             return
         }
 
         // Create a background context for async CoreData operations
-        // This prevents blocking the main thread during save
         guard let coordinator = viewContext.persistentStoreCoordinator else {
             logger.error("Failed to get persistent store coordinator")
             return
@@ -439,70 +590,124 @@ struct VoiceInputView: View {
         let context = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
         context.persistentStoreCoordinator = coordinator
 
-        // Capture values needed in background context - these are Sendable value types
-        let carbsValue = carbsGrams
-        let timestamp = parsedData.timestamp ?? Date()
-        let mealTypeText = parsedData.localizedMealType ?? "ara öğün"
+        // Capture edited values - these are Sendable value types
+        let carbsValue = totalCarbs
+        let mealTypeText = editableMealType
+        let timeText = editableMealTime
+
+        // Parse time if provided
+        let timestamp: Date
+        if !timeText.isEmpty, let parsedTime = parseTimeString(timeText) {
+            timestamp = parsedTime
+        } else {
+            timestamp = parsedMealData?.timestamp ?? Date()
+        }
+
+        // Convert editable foods to array
+        let foodsArray = editableFoods.filter { !$0.name.isEmpty }
+        let isGeminiFormat = !foodsArray.isEmpty
 
         // Perform CoreData operations on background context
         do {
             try await context.perform {
-                // Create a FoodItem to represent the voice-entered food
-                // This is required because MealEntry.foodItem is a non-optional relationship
-                let foodItem = FoodItem(context: context)
-                foodItem.id = UUID()
+                if isGeminiFormat {
+                    // GEMINI FORMAT: Create separate MealEntry for each food item (using edited values)
+                    for (index, editableFood) in foodsArray.enumerated() {
+                        // Create FoodItem
+                        let foodItem = FoodItem(context: context)
+                        foodItem.id = UUID()
+                        foodItem.name = editableFood.name
+                        foodItem.nameTr = editableFood.name
 
-                // Use the meal type as the food name, or a descriptive default
-                foodItem.name = "Sesli Giriş: \(mealTypeText.capitalized)"
-                foodItem.nameTr = "Sesli Giriş: \(mealTypeText.capitalized)"
+                        // Set nutrition (from edited carbs)
+                        if let itemCarbs = editableFood.carbsInt {
+                            foodItem.totalCarbs = Double(itemCarbs)
+                        } else {
+                            // For simple format, don't set carbs on individual items
+                            foodItem.totalCarbs = 0
+                        }
 
-                // Set nutrition based on voice input (carbs only)
-                foodItem.totalCarbs = Double(carbsValue)
-                foodItem.servingSize = 1.0
-                foodItem.servingUnit = "porsiyon"
-                foodItem.gramWeight = Double(carbsValue)
+                        // Parse amount if possible (from edited amount)
+                        let amountText = editableFood.amount
+                        if !amountText.isEmpty {
+                            let components = amountText.split(separator: " ")
+                            if let firstNum = components.first, let value = Double(firstNum) {
+                                foodItem.servingSize = value
+                                foodItem.servingUnit = components.dropFirst().joined(separator: " ")
+                            } else {
+                                foodItem.servingSize = 1.0
+                                foodItem.servingUnit = amountText
+                            }
+                        } else {
+                            foodItem.servingSize = 1.0
+                            foodItem.servingUnit = "porsiyon"
+                        }
 
-                // Mark as voice entry
-                foodItem.source = "voice"
-                foodItem.dateAdded = Date()
-                // lastModified will be set by willSave() - don't set it here to avoid recursion
-                foodItem.lastUsed = Date()
-                foodItem.useCount = 1
+                        foodItem.gramWeight = foodItem.totalCarbs
+                        foodItem.source = "voice-gemini"
+                        foodItem.dateAdded = Date()
+                        foodItem.lastUsed = Date()
+                        foodItem.useCount = 1
 
-                // Create the meal entry and link it to the food item
-                let mealEntry = MealEntry(context: context)
-                mealEntry.id = UUID()
-                mealEntry.timestamp = timestamp
-                mealEntry.mealType = mealTypeText
-                mealEntry.foodItem = foodItem  // ✅ Required relationship
-                mealEntry.quantity = 1.0
-                mealEntry.unit = "porsiyon"
+                        // Create MealEntry
+                        let mealEntry = MealEntry(context: context)
+                        mealEntry.id = UUID()
+                        mealEntry.timestamp = timestamp
+                        mealEntry.mealType = mealTypeText
+                        mealEntry.foodItem = foodItem
+                        mealEntry.quantity = 1.0
+                        mealEntry.unit = "porsiyon"
 
-                // IMPORTANT: Calculate nutrition BEFORE save to avoid infinite recursion
-                // This sets consumedCarbs, consumedProtein, etc. based on the food item
-                mealEntry.calculateNutrition()
+                        // Calculate and set nutrition
+                        mealEntry.calculateNutrition()
 
-                // Override consumedCarbs with our voice input value since we only have carbs
-                mealEntry.consumedCarbs = Double(carbsValue)
+                        // For first entry in simple format (no per-item carbs), store total carbs
+                        let isSimpleFormat = foodsArray.allSatisfy { $0.carbsInt == nil }
+                        if index == 0 && isSimpleFormat {
+                            mealEntry.consumedCarbs = Double(carbsValue)
+                        }
+                    }
+                } else {
+                    // LEGACY FORMAT: Single entry (backward compatible)
+                    let foodItem = FoodItem(context: context)
+                    foodItem.id = UUID()
+                    foodItem.name = "Sesli Giriş: \(mealTypeText.capitalized)"
+                    foodItem.nameTr = "Sesli Giriş: \(mealTypeText.capitalized)"
+                    foodItem.totalCarbs = Double(carbsValue)
+                    foodItem.servingSize = 1.0
+                    foodItem.servingUnit = "porsiyon"
+                    foodItem.gramWeight = Double(carbsValue)
+                    foodItem.source = "voice-gemini"
+                    foodItem.dateAdded = Date()
+                    foodItem.lastUsed = Date()
+                    foodItem.useCount = 1
 
-                // Save on background thread - won't block main thread
+                    let mealEntry = MealEntry(context: context)
+                    mealEntry.id = UUID()
+                    mealEntry.timestamp = timestamp
+                    mealEntry.mealType = mealTypeText
+                    mealEntry.foodItem = foodItem
+                    mealEntry.quantity = 1.0
+                    mealEntry.unit = "porsiyon"
+                    mealEntry.calculateNutrition()
+                    mealEntry.consumedCarbs = Double(carbsValue)
+                }
+
+                // Save on background thread
                 try context.save()
-
-                // Note: No logger calls here - this closure runs on background thread
-                // and cannot access main actor-isolated properties
             }
 
-            // Success - log and update UI on main actor
+            // Success
             await MainActor.run {
                 logger.info("✅ Saved meal entry: \(carbsValue)g carbs, \(mealTypeText)")
                 hapticManager.notification(.success)
                 dismiss()
             }
         } catch {
-            // Error - log and update UI on main actor
+            // Error
             await MainActor.run {
                 logger.error("Failed to save meal entry: \(error.localizedDescription)")
-                speechRecognizer.error = .mealParsingFailed("Öğün kaydedilemedi: \(error.localizedDescription)")
+                audioRecorder.error = .recordingFailed("Öğün kaydedilemedi: \(error.localizedDescription)")
             }
         }
     }
@@ -513,8 +718,49 @@ struct VoiceInputView: View {
         return String(format: "%02d:%02d", minutes, seconds)
     }
 
+    /// Parse time string in HH:MM format to Date (today with that time)
+    private func parseTimeString(_ timeString: String) -> Date? {
+        let components = timeString.split(separator: ":").map { String($0) }
+        guard components.count == 2,
+              let hour = Int(components[0]),
+              let minute = Int(components[1]),
+              hour >= 0, hour < 24,
+              minute >= 0, minute < 60 else {
+            return nil
+        }
+
+        let calendar = Calendar.current
+        var dateComponents = calendar.dateComponents([.year, .month, .day], from: Date())
+        dateComponents.hour = hour
+        dateComponents.minute = minute
+
+        return calendar.date(from: dateComponents)
+    }
+
     // Logger
-    private let logger = os.Logger(subsystem: "com.balli.diabetes", category: "VoiceInputView")
+    private let logger = Logger(subsystem: "com.balli.diabetes", category: "VoiceInputView")
+}
+
+// MARK: - Editable Food Item
+
+/// Editable version of food item for user corrections
+struct EditableFoodItem: Identifiable {
+    let id: UUID
+    var name: String
+    var amount: String
+    var carbs: String  // String for TextField
+
+    init(id: UUID = UUID(), name: String, amount: String?, carbs: Int?) {
+        self.id = id
+        self.name = name
+        self.amount = amount ?? ""
+        self.carbs = carbs != nil ? "\(carbs!)" : ""
+    }
+
+    /// Convert to Int for saving
+    var carbsInt: Int? {
+        Int(carbs)
+    }
 }
 
 // MARK: - Preview

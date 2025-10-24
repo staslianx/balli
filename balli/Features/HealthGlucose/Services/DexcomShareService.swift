@@ -17,6 +17,10 @@ import OSLog
 @MainActor
 final class DexcomShareService: ObservableObject {
 
+    // MARK: - Singleton
+
+    static let shared = DexcomShareService()
+
     // MARK: - Published State
 
     @Published var isConnected: Bool = false
@@ -73,9 +77,7 @@ final class DexcomShareService: ObservableObject {
     func connect(username: String, password: String) async throws {
         logger.info("Connecting to Dexcom SHARE...")
         connectionStatus = .connecting
-        await analytics.track(.dexcomShareConnectionStarted, properties: [
-            "server": server.regionName
-        ])
+        logger.info("SHARE connection started: \(self.server.regionName)")
 
         do {
             // Test credentials and authenticate
@@ -88,17 +90,13 @@ final class DexcomShareService: ObservableObject {
             // Fetch initial data
             try await syncData()
 
-            await analytics.track(.dexcomShareConnectionSuccess, properties: [
-                "server": server.regionName
-            ])
+            logger.info("✅ SHARE connection success: \(self.server.regionName)")
             logger.info("✅ Successfully connected to Dexcom SHARE")
 
         } catch {
             connectionStatus = .error(error as? DexcomShareError ?? .serverError)
             isConnected = false
-            await analytics.trackError(.dexcomShareConnectionFailed, error: error, properties: [
-                "server": server.regionName
-            ])
+            logger.error("❌ SHARE connection failed: \(error.localizedDescription)")
             throw error
         }
     }
@@ -112,7 +110,6 @@ final class DexcomShareService: ObservableObject {
         latestReading = nil
         lastSync = nil
 
-        await analytics.track(.dexcomShareDisconnected)
         logger.info("Disconnected from Dexcom SHARE")
     }
 
@@ -134,7 +131,6 @@ final class DexcomShareService: ObservableObject {
         }
 
         logger.info("Starting SHARE data sync...")
-        await analytics.track(.dexcomShareSyncStarted)
         let startTime = Date()
 
         do {
@@ -146,10 +142,7 @@ final class DexcomShareService: ObservableObject {
             lastSync = Date()
 
             let duration = Date().timeIntervalSince(startTime)
-            await analytics.track(.dexcomShareSyncCompleted, properties: [
-                "duration": duration,
-                "has_reading": reading != nil
-            ])
+            logger.info("SHARE sync completed in \(String(format: "%.2f", duration))s")
 
             if let reading = reading {
                 logger.info("✅ SHARE sync complete: \(reading.Value) mg/dL at \(reading.displayTime)")
@@ -157,9 +150,14 @@ final class DexcomShareService: ObservableObject {
                 logger.info("✅ SHARE sync complete: No recent data")
             }
 
+        } catch DexcomShareError.noDataAvailable {
+            // No data available is not an error - just means CGM hasn't sent data yet
+            logger.info("⚠️ SHARE sync: No glucose data available (CGM may not be transmitting)")
+            latestReading = nil
+            lastSync = Date()
+            // Don't throw - this is a valid state
         } catch {
-            await analytics.trackError(.dexcomShareSyncFailed, error: error)
-            logger.error("SHARE sync failed: \(error.localizedDescription)")
+            logger.error("❌ SHARE sync failed: \(error.localizedDescription)")
             throw error
         }
     }
@@ -183,6 +181,14 @@ final class DexcomShareService: ObservableObject {
             )
 
             logger.info("Fetched \(readings.count) SHARE readings")
+
+            // Notify that new glucose data is available
+            if !readings.isEmpty {
+                await MainActor.run {
+                    NotificationCenter.default.post(name: .glucoseDataDidUpdate, object: nil)
+                }
+            }
+
             return readings
 
         } catch {
@@ -240,18 +246,6 @@ final class DexcomShareService: ObservableObject {
     func convertToHealthReadings(_ shareReadings: [DexcomShareGlucoseReading]) -> [HealthGlucoseReading] {
         shareReadings.map { $0.toHealthGlucoseReading() }
     }
-}
-
-// MARK: - Analytics Events
-
-extension AnalyticsEvent {
-    static let dexcomShareConnectionStarted = AnalyticsEvent("dexcom_share_connection_started")
-    static let dexcomShareConnectionSuccess = AnalyticsEvent("dexcom_share_connection_success")
-    static let dexcomShareConnectionFailed = AnalyticsEvent("dexcom_share_connection_failed")
-    static let dexcomShareDisconnected = AnalyticsEvent("dexcom_share_disconnected")
-    static let dexcomShareSyncStarted = AnalyticsEvent("dexcom_share_sync_started")
-    static let dexcomShareSyncCompleted = AnalyticsEvent("dexcom_share_sync_completed")
-    static let dexcomShareSyncFailed = AnalyticsEvent("dexcom_share_sync_failed")
 }
 
 // MARK: - Preview Support

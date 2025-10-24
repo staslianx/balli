@@ -1676,6 +1676,93 @@ export const extractNutritionFromImage = onRequest({
 // REMOVED: nutritionApiHealth - not used by iOS app
 
 // ============================================
+// MEAL TRANSCRIPTION ENDPOINT
+// ============================================
+
+// Import the meal transcription function
+import { transcribeMealAudio } from './transcribeMeal';
+
+// Endpoint: Transcribe Turkish audio and extract meal data using Gemini 2.5 Flash
+export const transcribeMeal = onRequest({
+  timeoutSeconds: 60,
+  memory: '512MiB',
+  cpu: 1,
+  concurrency: 5
+}, async (req, res) => {
+  corsHandler(req, res, async () => {
+    try {
+      // Validate request method
+      if (req.method !== 'POST') {
+        res.status(405).json({ error: 'Method not allowed. Use POST.' });
+        return;
+      }
+
+      // Extract and validate input
+      const { audioData, mimeType, userId, currentTime } = req.body;
+
+      if (!audioData) {
+        res.status(400).json({
+          success: false,
+          error: 'Missing required field: audioData',
+          message: 'Please provide a base64 encoded audio file'
+        });
+        return;
+      }
+
+      if (!userId) {
+        res.status(400).json({
+          success: false,
+          error: 'Missing required field: userId',
+          message: 'User ID required'
+        });
+        return;
+      }
+
+      console.log(`🎤 [TRANSCRIBE-MEAL-ENDPOINT] Processing audio for user ${userId}`);
+      const startTime = Date.now();
+
+      // Call the transcription function
+      const result = await transcribeMealAudio({
+        audioData,
+        mimeType: mimeType || 'audio/m4a',
+        userId: userId,
+        currentTime: currentTime || new Date().toISOString()
+      });
+
+      const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
+
+      if (result.success) {
+        console.log(`✅ [TRANSCRIBE-MEAL-ENDPOINT] Completed in ${totalTime}s - ${result.data!.foods.length} foods, ${result.data!.totalCarbs}g carbs`);
+      } else {
+        console.log(`❌ [TRANSCRIBE-MEAL-ENDPOINT] Failed in ${totalTime}s: ${result.error}`);
+      }
+
+      // Return response with metadata
+      res.json({
+        ...result,
+        metadata: {
+          processingTime: `${totalTime}s`,
+          timestamp: new Date().toISOString(),
+          version: '1.0.0-gemini-2.5-flash'
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ [TRANSCRIBE-MEAL-ENDPOINT] Unexpected error:', error);
+
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+
+      res.status(500).json({
+        success: false,
+        error: 'Meal transcription failed',
+        message: errorMessage,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+});
+
+// ============================================
 // ACTIVE EXPORTS - ONLY ESSENTIAL FUNCTIONS
 // ============================================
 

@@ -66,7 +66,7 @@ actor DexcomShareAuthManager {
     /// Check if currently authenticated with valid session
     func isAuthenticated() async -> Bool {
         // Check if we have a session ID
-        guard currentSessionId != nil else {
+        if currentSessionId == nil {
             // Try to load from keychain
             do {
                 if let session = try await keychainStorage.getSessionInfo() {
@@ -131,16 +131,53 @@ actor DexcomShareAuthManager {
             let encoder = JSONEncoder()
             let requestBody = try encoder.encode(authRequest)
 
-            // Try login endpoint first (more reliable)
-            var request = URLRequest(url: server.loginURL)
+            // Step 1: AuthenticatePublisherAccount to get accountId
+            var authURLRequest = URLRequest(url: self.server.authURL)
+            authURLRequest.httpMethod = "POST"
+            authURLRequest.httpBody = requestBody
+            authURLRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            authURLRequest.setValue("application/json", forHTTPHeaderField: "Accept")
+            authURLRequest.setValue("Dexcom Share/3.0.2.11 CFNetwork/672.0.2 Darwin/14.0.0", forHTTPHeaderField: "User-Agent")
+
+            logger.debug("Step 1: Getting accountId from: \(self.server.authURL.absoluteString)")
+
+            // Execute auth request to get accountId
+            let (authData, authResponse) = try await session.data(for: authURLRequest)
+
+            guard let httpAuthResponse = authResponse as? HTTPURLResponse else {
+                throw DexcomShareError.invalidResponse
+            }
+
+            guard httpAuthResponse.statusCode == 200 else {
+                logger.error("Step 1 failed with status: \(httpAuthResponse.statusCode)")
+                throw DexcomShareError.invalidCredentials
+            }
+
+            guard let accountId = String(data: authData, encoding: .utf8)?.trimmingCharacters(in: CharacterSet(charactersIn: "\"")) else {
+                throw DexcomShareError.invalidResponse
+            }
+
+            logger.debug("Received accountId: \(accountId)")
+
+            // Step 2: LoginPublisherAccountById with accountId to get session
+            let loginRequest = DexcomShareLoginByIdRequest(
+                accountId: accountId,
+                password: credentials.password,
+                applicationId: applicationId.rawValue
+            )
+
+            let loginBody = try encoder.encode(loginRequest)
+
+            var request = URLRequest(url: self.server.loginByIdURL)
             request.httpMethod = "POST"
-            request.httpBody = requestBody
+            request.httpBody = loginBody
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.setValue("Dexcom Share/3.0.2.11 CFNetwork/672.0.2 Darwin/14.0.0", forHTTPHeaderField: "User-Agent")
 
-            logger.debug("Sending SHARE auth request to: \(server.loginURL.absoluteString)")
+            logger.debug("Step 2: Getting session from: \(self.server.loginByIdURL.absoluteString)")
 
-            // Execute request
+            // Execute login request to get session ID
             let (data, response) = try await session.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
@@ -162,6 +199,8 @@ actor DexcomShareAuthManager {
                 // Remove quotes if present
                 let sessionId = responseString.trimmingCharacters(in: CharacterSet(charactersIn: "\""))
 
+                logger.debug("Received session ID: \(sessionId)")
+
                 // Validate UUID format
                 guard UUID(uuidString: sessionId) != nil else {
                     logger.error("Invalid session ID format: \(responseString)")
@@ -178,9 +217,7 @@ actor DexcomShareAuthManager {
                 try await keychainStorage.saveSessionInfo(sessionId: sessionId, expiry: sessionExpiry!)
 
                 // Track successful auth
-                await analytics.track(.dexcomShareAuthenticated, properties: [
-                    "server": server.regionName
-                ])
+                logger.info("SHARE authenticated: \(self.server.regionName)")
 
                 // Resume any waiting continuations
                 for continuation in authContinuations {

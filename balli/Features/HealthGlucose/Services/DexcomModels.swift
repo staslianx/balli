@@ -446,7 +446,7 @@ extension DexcomDevice {
     var deviceIcon: String {
         switch transmitterGeneration.lowercased() {
         case "g6", "g7", "dexcomone", "dexcomone+":
-            return "sensor.tag.radiowaves.forward.fill"
+            return "sensor.radiowaves.left.and.right.fill.fill"
         default:
             return "sensor.fill"
         }

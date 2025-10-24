@@ -65,6 +65,8 @@ actor DexcomShareAPIClient {
         // Get session ID
         let sessionId = try await authManager.getSessionId()
 
+        logger.debug("Using session ID for data fetch: \(sessionId)")
+
         // Add query parameters
         components.queryItems = [
             URLQueryItem(name: "sessionId", value: sessionId),
@@ -88,7 +90,9 @@ actor DexcomShareAPIClient {
 
     /// Fetch most recent glucose reading
     func fetchLatestGlucoseReading() async throws -> DexcomShareGlucoseReading? {
-        let readings = try await fetchGlucoseReadings(maxCount: 1, minutes: 10)
+        // Request last 60 minutes to be more reliable (CGM readings are every 5 min)
+        // This gives us up to 12 readings to find the latest
+        let readings = try await fetchGlucoseReadings(maxCount: 12, minutes: 60)
         return readings.first
     }
 
@@ -130,6 +134,7 @@ actor DexcomShareAPIClient {
         request.httpMethod = "POST" // SHARE API uses POST even for reads
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("Dexcom Share/3.0.2.11 CFNetwork/672.0.2 Darwin/14.0.0", forHTTPHeaderField: "User-Agent")
 
         logger.debug("Executing SHARE request: \(url.absoluteString)")
 
@@ -149,14 +154,46 @@ actor DexcomShareAPIClient {
             do {
                 // Log raw JSON for debugging
                 if let jsonString = String(data: data, encoding: .utf8) {
-                    logger.debug("Raw SHARE JSON response: \(jsonString.prefix(500))...")
+                    logger.debug("Raw SHARE JSON response: \(jsonString)")
+
+                    // Handle empty response (no data available)
+                    if jsonString.isEmpty || jsonString.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        logger.info("⚠️ SHARE API returned empty response (no glucose data available)")
+
+                        // For array types, return empty array
+                        if T.self == [DexcomShareGlucoseReading].self {
+                            return [] as! T
+                        }
+
+                        // For optional types, this will be handled by caller
+                        throw DexcomShareError.noDataAvailable
+                    }
                 }
 
                 // SHARE API returns plain JSON arrays, not wrapped objects
                 let decoder = JSONDecoder()
                 return try decoder.decode(T.self, from: data)
+            } catch let error as DexcomShareError {
+                // Re-throw our custom errors
+                throw error
             } catch {
                 logger.error("SHARE decoding error: \(error.localizedDescription)")
+
+                // Log detailed decoding error
+                if let decodingError = error as? DecodingError {
+                    switch decodingError {
+                    case .keyNotFound(let key, let context):
+                        logger.error("Missing key '\(key.stringValue)' - \(context.debugDescription)")
+                    case .typeMismatch(let type, let context):
+                        logger.error("Type mismatch for \(type) - \(context.debugDescription)")
+                    case .valueNotFound(let type, let context):
+                        logger.error("Value not found for \(type) - \(context.debugDescription)")
+                    case .dataCorrupted(let context):
+                        logger.error("Data corrupted - \(context.debugDescription)")
+                    @unknown default:
+                        logger.error("Unknown decoding error: \(error.localizedDescription)")
+                    }
+                }
 
                 // Try to decode error response
                 if let errorResponse = try? JSONDecoder().decode(DexcomShareErrorResponse.self, from: data) {

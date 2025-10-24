@@ -80,6 +80,7 @@ struct RecipeGenerationView: View {
                                 .padding(.horizontal, 20)
                                 .padding(.bottom, 40)
                         }
+                        .background(Color(.secondarySystemBackground))
                     }
 
                     // Recipe metadata - positioned absolutely over hero image
@@ -107,6 +108,7 @@ struct RecipeGenerationView: View {
                 }
             }
             .scrollIndicators(.hidden)
+            .background(Color(.secondarySystemBackground))
 
             // MARK: - Navigation Overlay
             navigationOverlay
@@ -115,17 +117,17 @@ struct RecipeGenerationView: View {
             if showingSaveConfirmation {
                 VStack {
                     Spacer()
-                    HStack {
+                    HStack(spacing: 12) {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 20))
-                            .foregroundColor(.green)
+                            .foregroundColor(ThemeColors.primaryPurple)
                         Text("Tarif kaydedildi!")
                             .font(.system(size: 17, weight: .semibold, design: .rounded))
                             .foregroundColor(.primary)
                     }
                     .padding(.horizontal, 24)
                     .padding(.vertical, 16)
-                    .recipeGlass(tint: .warm, cornerRadius: 20)
+                    .recipeGlass(tint: .warm, cornerRadius: 100) // Pill-shaped with very large corner radius
                     .padding(.bottom, 100)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
