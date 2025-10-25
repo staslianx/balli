@@ -38,7 +38,11 @@ public actor QuantityParser: QuantityParsing {
 
         // Handle complex Turkish patterns
         while i < words.count {
-            let word = words[i].lowercased()
+            // Safe array access for current word
+            guard let word = words[safe: i]?.lowercased() else {
+                i += 1
+                continue
+            }
 
             // Pattern 1: Complex number patterns like "iki kilo üç yüz gram domates"
             if let num = await parseComplexNumber(startingAt: i, in: words) {
@@ -48,8 +52,9 @@ public actor QuantityParser: QuantityParsing {
                 // Look for unit after the number (check both single and multi-word units)
                 if i < words.count {
                     // Try two-word unit first (e.g., "yemek kaşığı", "çay kaşığı")
-                    if i + 1 < words.count {
-                        let potentialTwoWordUnit = (words[i] + " " + words[i + 1]).lowercased()
+                    if let currentWord = words[safe: i],
+                       let nextWord = words[safe: i + 1] {
+                        let potentialTwoWordUnit = (currentWord + " " + nextWord).lowercased()
                         if let unitType = await unitParser.classifyUnit(potentialTwoWordUnit) {
                             unit = unitType
                             i += 2
@@ -58,10 +63,11 @@ public actor QuantityParser: QuantityParsing {
                     }
 
                     // Try single-word unit
-                    let potentialUnit = words[i].lowercased()
-                    if let unitType = await unitParser.classifyUnit(potentialUnit) {
-                        unit = unitType
-                        i += 1
+                    if let potentialUnit = words[safe: i]?.lowercased() {
+                        if let unitType = await unitParser.classifyUnit(potentialUnit) {
+                            unit = unitType
+                            i += 1
+                        }
                     }
                 }
                 continue
@@ -69,8 +75,8 @@ public actor QuantityParser: QuantityParsing {
 
             // Pattern 2: Direct unit recognition (check both single and multi-word units)
             // Try two-word unit first
-            if i + 1 < words.count {
-                let potentialTwoWordUnit = (word + " " + words[i + 1].lowercased()).lowercased()
+            if let nextWord = words[safe: i + 1]?.lowercased() {
+                let potentialTwoWordUnit = (word + " " + nextWord).lowercased()
                 if let unitType = await unitParser.classifyUnit(potentialTwoWordUnit) {
                     unit = unitType
                     i += 2
@@ -86,7 +92,9 @@ public actor QuantityParser: QuantityParsing {
             }
 
             // Pattern 3: Everything else is part of the name
-            nameWords.append(words[i])
+            if let currentWord = words[safe: i] {
+                nameWords.append(currentWord)
+            }
             i += 1
         }
 

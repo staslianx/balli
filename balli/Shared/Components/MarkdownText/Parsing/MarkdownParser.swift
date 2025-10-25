@@ -23,7 +23,10 @@ enum MarkdownParser {
         var i = 0
 
         while i < lines.count {
-            let line = lines[i]
+            guard let line = lines[safe: i] else {
+                i += 1
+                continue
+            }
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
             // Skip empty lines
@@ -66,7 +69,8 @@ enum MarkdownParser {
                 }
                 var listItems: [String] = []
                 while i < lines.count {
-                    let listLine = lines[i].trimmingCharacters(in: .whitespaces)
+                    guard let currentLine = lines[safe: i] else { break }
+                    let listLine = currentLine.trimmingCharacters(in: .whitespaces)
                     if listLine.hasPrefix("- ") || listLine.hasPrefix("* ") {
                         listItems.append(String(listLine.dropFirst(2)))
                         i += 1
@@ -88,7 +92,8 @@ enum MarkdownParser {
                 }
                 var listItems: [String] = []
                 while i < lines.count {
-                    let listLine = lines[i].trimmingCharacters(in: .whitespaces)
+                    guard let currentLine = lines[safe: i] else { break }
+                    let listLine = currentLine.trimmingCharacters(in: .whitespaces)
                     if let itemMatch = listLine.range(of: #"^\d+\.\s"#, options: .regularExpression) {
                         listItems.append(String(listLine[itemMatch.upperBound...]))
                         i += 1
@@ -112,7 +117,7 @@ enum MarkdownParser {
                 i += 1
                 var codeLines: [String] = []
                 while i < lines.count {
-                    let codeLine = lines[i]
+                    guard let codeLine = lines[safe: i] else { break }
                     if codeLine.trimmingCharacters(in: .whitespaces).hasPrefix("```") {
                         i += 1
                         break
@@ -132,7 +137,8 @@ enum MarkdownParser {
                 }
                 var quoteLines: [String] = []
                 while i < lines.count {
-                    let quoteLine = lines[i].trimmingCharacters(in: .whitespaces)
+                    guard let currentLine = lines[safe: i] else { break }
+                    let quoteLine = currentLine.trimmingCharacters(in: .whitespaces)
                     if quoteLine.hasPrefix("> ") {
                         quoteLines.append(String(quoteLine.dropFirst(2)))
                         i += 1

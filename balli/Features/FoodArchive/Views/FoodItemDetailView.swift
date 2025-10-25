@@ -193,6 +193,7 @@ struct FoodItemDetailView: View {
                     Button(action: handleBack) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 18, weight: .medium, design: .rounded))
+                            .foregroundColor(ThemeColors.primaryPurple)
                     }
                 }
             }
@@ -323,6 +324,14 @@ struct FoodItemDetailView: View {
         }
 
         if !validationErrors.isEmpty {
+            showingValidationAlert = true
+            return
+        }
+
+        // CRITICAL: Verify foodItem is in the correct context
+        guard foodItem.managedObjectContext == viewContext else {
+            logger.error("❌ FoodItem is not in viewContext - cannot save")
+            validationErrors.append("Veri tutarsızlığı - lütfen tekrar açın")
             showingValidationAlert = true
             return
         }

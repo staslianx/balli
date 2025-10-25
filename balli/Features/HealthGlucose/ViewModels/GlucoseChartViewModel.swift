@@ -29,6 +29,7 @@ final class GlucoseChartViewModel: ObservableObject {
     private let dexcomShareService: DexcomShareService
     private let healthKitPermissions: HealthKitPermissionManager
     private let viewContext: NSManagedObjectContext?
+    private let glucoseRepository: GlucoseReadingRepository
     private let logger = AppLoggers.Health.glucose
 
     // Hybrid data source (combines Official + SHARE)
@@ -38,7 +39,7 @@ final class GlucoseChartViewModel: ObservableObject {
 
     private var loadTask: Task<Void, Never>?
     private var lastLoadTime: Date?
-    private let minimumLoadInterval: TimeInterval = 30 // Don't reload more than once per 30 seconds
+    private let minimumLoadInterval: TimeInterval = 60 // Don't reload more than once per 60 seconds
 
     // MARK: - Observers
 
@@ -54,13 +55,15 @@ final class GlucoseChartViewModel: ObservableObject {
         dexcomService: DexcomService,
         dexcomShareService: DexcomShareService,
         healthKitPermissions: HealthKitPermissionManager,
-        viewContext: NSManagedObjectContext? = nil
+        viewContext: NSManagedObjectContext? = nil,
+        glucoseRepository: GlucoseReadingRepository = GlucoseReadingRepository()
     ) {
         self.healthKitService = healthKitService
         self.dexcomService = dexcomService
         self.dexcomShareService = dexcomShareService
         self.healthKitPermissions = healthKitPermissions
         self.viewContext = viewContext
+        self.glucoseRepository = glucoseRepository
 
         // Initialize hybrid data source if both services available
         self.hybridDataSource = HybridGlucoseDataSource(
@@ -173,7 +176,10 @@ final class GlucoseChartViewModel: ObservableObject {
 
         // Create new load task
         loadTask = Task {
-            isLoading = true
+            // Only show loading if we don't have data already
+            if glucoseData.isEmpty {
+                isLoading = true
+            }
             errorMessage = nil
             dataSource = nil
             lastLoadTime = Date()
@@ -199,31 +205,29 @@ final class GlucoseChartViewModel: ObservableObject {
             logger.debug("Current glucoseData count: \(self.glucoseData.count)")
             logger.debug("Time range being queried: \(timeRange.start) to \(timeRange.end)")
 
-            // Try hybrid/Dexcom data source first
-            if isRealTimeModeEnabled && hybridDataSource != nil {
-                logger.info("✅ Using Hybrid mode")
-                await loadFromHybridSource(timeRange: timeRange)
-                if !glucoseData.isEmpty {
-                    isLoading = false
-                    return
-                }
-            } else if dexcomService.isConnected {
-                logger.info("✅ Using Official Dexcom API")
-                await loadFromDexcom(timeRange: timeRange)
-                if !glucoseData.isEmpty {
-                    isLoading = false
-                    return
-                }
-            } else {
-                logger.info("No Dexcom sources available, falling back to HealthKit")
-            }
+            // ALWAYS load CoreData first as baseline (fast, offline-capable)
+            await loadFromCoreData(timeRange: timeRange)
+            logger.info("Loaded \(self.glucoseData.count) readings from CoreData")
 
-            // Fall back to HealthKit
-            await loadFromHealthKit(timeRange: timeRange)
+            // Try to refresh with real-time data if available
+            if isRealTimeModeEnabled && hybridDataSource != nil {
+                logger.info("✅ Refreshing with Hybrid mode (Official + SHARE)")
+                await loadFromHybridSource(timeRange: timeRange, mergeWithExisting: true)
+            } else if dexcomShareService.isConnected {
+                logger.info("✅ Refreshing with SHARE API")
+                await loadFromDexcomShare(timeRange: timeRange, mergeWithExisting: true)
+            } else if dexcomService.isConnected {
+                logger.info("✅ Refreshing with Official Dexcom API")
+                await loadFromDexcom(timeRange: timeRange)
+            } else {
+                logger.info("No Dexcom sources available, trying HealthKit")
+                await loadFromHealthKit(timeRange: timeRange)
+            }
 
             // Load meal logs for the time range
             loadMealLogs(timeRange: timeRange)
 
+            logger.info("Final glucose data count: \(self.glucoseData.count)")
             isLoading = false
         }
     }
@@ -290,9 +294,125 @@ final class GlucoseChartViewModel: ObservableObject {
         loadGlucoseData()
     }
 
+    // MARK: - Gap Detection
+
+    /// Maximum time between readings before considering it a gap (15 minutes)
+    private static let gapThresholdMinutes: Double = 15
+
+    /// Mark gaps in glucose data where readings are >15 minutes apart
+    /// - Parameter readings: Array of glucose readings sorted by time
+    /// - Returns: Same readings with hasGapBefore flags set
+    private func markGaps(_ readings: [GlucoseDataPoint]) -> [GlucoseDataPoint] {
+        guard readings.count > 1 else { return readings }
+
+        var markedReadings = readings
+
+        // Use readings.count for loop bounds to ensure consistency
+        for i in 1..<readings.count {
+            let previousTime = markedReadings[i - 1].time
+            let currentTime = markedReadings[i].time
+            let minutesDifference = currentTime.timeIntervalSince(previousTime) / 60.0
+
+            if minutesDifference > Self.gapThresholdMinutes {
+                markedReadings[i].hasGapBefore = true
+                logger.debug("Gap detected: \(String(format: "%.1f", minutesDifference)) minutes between \(previousTime) and \(currentTime)")
+            }
+        }
+
+        let gapCount = markedReadings.filter { $0.hasGapBefore }.count
+        if gapCount > 0 {
+            logger.info("Marked \(gapCount) gaps in glucose data")
+        }
+
+        return markedReadings
+    }
+
     // MARK: - Private Methods
 
-    private func loadFromHybridSource(timeRange: (start: Date, end: Date)) async {
+    /// Load glucose readings from CoreData (persisted from previous Dexcom syncs)
+    private func loadFromCoreData(timeRange: (start: Date, end: Date)) async {
+        do {
+            let readings = try await glucoseRepository.fetchReadings(
+                startDate: timeRange.start,
+                endDate: timeRange.end
+            )
+
+            logger.info("📦 Fetched \(readings.count) readings from CoreData")
+
+            // Convert CoreData readings to chart data points
+            let points = readings
+                .map { reading in
+                    GlucoseDataPoint(time: reading.timestamp, value: reading.value)
+                }
+                .sorted { $0.time < $1.time }
+
+            // Mark gaps in data
+            glucoseData = markGaps(points)
+
+            if !self.glucoseData.isEmpty {
+                dataSource = "CoreData (Persisted)"
+                logger.info("Loaded \(self.glucoseData.count) readings from CoreData")
+                if let first = self.glucoseData.first, let last = self.glucoseData.last {
+                    logger.debug("First: \(first.value) mg/dL at \(first.time)")
+                    logger.debug("Last: \(last.value) mg/dL at \(last.time)")
+                }
+            }
+        } catch {
+            logger.error("Failed to load from CoreData: \(error.localizedDescription)")
+        }
+    }
+
+    /// Load from Dexcom SHARE API and optionally merge with existing data
+    private func loadFromDexcomShare(timeRange: (start: Date, end: Date), mergeWithExisting: Bool = false) async {
+        do {
+            // Fetch historical readings for the time range from SHARE API
+            logger.info("📡 Fetching SHARE readings from \(timeRange.start) to \(timeRange.end)")
+
+            let shareReadings = try await dexcomShareService.fetchGlucoseReadings(
+                startDate: timeRange.start,
+                endDate: timeRange.end
+            )
+
+            logger.info("📡 Fetched \(shareReadings.count) SHARE readings")
+
+            // Convert SHARE readings to data points
+            let newPoints = shareReadings.map { reading in
+                GlucoseDataPoint(time: reading.displayTime, value: Double(reading.Value))
+            }
+
+            if mergeWithExisting {
+                // Merge with existing CoreData readings
+                var mergedData = glucoseData
+                for newPoint in newPoints {
+                    // Only add if not already present (within 60 second window)
+                    if !mergedData.contains(where: { abs($0.time.timeIntervalSince(newPoint.time)) < 60 }) {
+                        mergedData.append(newPoint)
+                    }
+                }
+                let sortedData = mergedData.sorted { $0.time < $1.time }
+                glucoseData = markGaps(sortedData)
+                dataSource = "CoreData + SHARE"
+                logger.info("Merged \(newPoints.count) SHARE readings with CoreData")
+            } else {
+                // Replace all data with SHARE readings
+                let sortedData = newPoints.sorted { $0.time < $1.time }
+                glucoseData = markGaps(sortedData)
+                dataSource = "SHARE"
+            }
+
+            if !glucoseData.isEmpty {
+                logger.info("Successfully loaded \(self.glucoseData.count) total readings")
+                if let first = self.glucoseData.first, let last = self.glucoseData.last {
+                    logger.debug("First: \(first.value) mg/dL at \(first.time)")
+                    logger.debug("Last: \(last.value) mg/dL at \(last.time)")
+                }
+            }
+        } catch {
+            logger.error("Failed to load from SHARE: \(error.localizedDescription)")
+        }
+    }
+
+    private func loadFromHybridSource(timeRange: (start: Date, end: Date), mergeWithExisting: Bool = false) async {
         logger.info("🔄 Using Hybrid mode (Official + SHARE)")
 
         guard let hybrid = hybridDataSource else {
@@ -309,27 +429,37 @@ final class GlucoseChartViewModel: ObservableObject {
 
             logger.info("Fetched \(healthReadings.count) readings from Hybrid source")
 
-            // Convert HealthGlucoseReading to GlucoseDataPoint and sort by time
-            glucoseData = healthReadings
-                .map { reading in
-                    GlucoseDataPoint(time: reading.timestamp, value: reading.value)
+            // Convert HealthGlucoseReading to GlucoseDataPoint
+            let newPoints = healthReadings.map { reading in
+                GlucoseDataPoint(time: reading.timestamp, value: reading.value)
+            }
+
+            if mergeWithExisting {
+                // Merge with existing CoreData readings
+                var mergedData = glucoseData
+                for newPoint in newPoints {
+                    // Only add if not already present (within 60 second window)
+                    if !mergedData.contains(where: { abs($0.time.timeIntervalSince(newPoint.time)) < 60 }) {
+                        mergedData.append(newPoint)
+                    }
                 }
-                .sorted { $0.time < $1.time } // Sort chronologically for chart display
+                let sortedData = mergedData.sorted { $0.time < $1.time }
+                glucoseData = markGaps(sortedData)
+                dataSource = "CoreData + Hybrid"
+                logger.info("Merged \(newPoints.count) hybrid readings with \(self.glucoseData.count - newPoints.count) existing")
+            } else {
+                // Replace all data
+                let sortedData = newPoints.sorted { $0.time < $1.time }
+                glucoseData = markGaps(sortedData)
+                dataSource = "Hybrid (Official + SHARE)"
+            }
 
             if !glucoseData.isEmpty {
-                logger.info("Successfully converted \(self.glucoseData.count) readings to chart data")
+                logger.info("Successfully processed \(self.glucoseData.count) readings")
                 if let first = glucoseData.first, let last = glucoseData.last {
                     logger.debug("First reading: \(first.value) mg/dL at \(first.time)")
                     logger.debug("Last reading: \(last.value) mg/dL at \(last.time)")
                 }
-
-                // Debug: Log all readings to find the issue
-                logger.debug("📊 ALL READINGS:")
-                for (index, reading) in glucoseData.enumerated() {
-                    logger.debug("  [\(index)] \(reading.value) mg/dL at \(reading.time)")
-                }
-
-                dataSource = "Hybrid (Official + SHARE)"
             } else {
                 logger.notice("Hybrid source returned no readings for this time range")
             }
@@ -359,11 +489,14 @@ final class GlucoseChartViewModel: ObservableObject {
             logger.info("Fetched \(healthReadings.count) Dexcom readings")
 
             // Convert HealthGlucoseReading to GlucoseDataPoint and sort by time
-            glucoseData = healthReadings
+            let points = healthReadings
                 .map { reading in
                     GlucoseDataPoint(time: reading.timestamp, value: reading.value)
                 }
                 .sorted { $0.time < $1.time } // Sort chronologically for chart display
+
+            // Mark gaps in data
+            glucoseData = markGaps(points)
 
             if !glucoseData.isEmpty {
                 logger.info("Successfully converted \(self.glucoseData.count) readings to chart data")
@@ -402,11 +535,14 @@ final class GlucoseChartViewModel: ObservableObject {
             )
 
             // Convert to chart data points and sort by time
-            glucoseData = readings
+            let points = readings
                 .map { reading in
                     GlucoseDataPoint(time: reading.timestamp, value: reading.value)
                 }
                 .sorted { $0.time < $1.time } // Sort chronologically for chart display
+
+            // Mark gaps in data
+            glucoseData = markGaps(points)
 
             if !glucoseData.isEmpty {
                 dataSource = "HealthKit"

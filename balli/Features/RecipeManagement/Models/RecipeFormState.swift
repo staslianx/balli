@@ -81,7 +81,10 @@ public final class RecipeFormState: ObservableObject {
     }
 
     public func updateIngredient(at index: Int, newValue: String) {
-        guard index < ingredients.count else { return }
+        guard ingredients.indices.contains(index) else {
+            print("⚠️ Warning: Attempted to update ingredient at invalid index \(index)")
+            return
+        }
         ingredients[index] = newValue
     }
 

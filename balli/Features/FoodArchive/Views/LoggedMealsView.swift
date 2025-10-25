@@ -6,11 +6,25 @@
 //
 
 import SwiftUI
+import os.log
 
 struct LoggedMealsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.scenePhase) private var scenePhase
+
+    @StateObject private var syncCoordinator: MealSyncCoordinator
+
+    @State private var selectedMealGroup: MealGroup?
+    @State private var showMealDetail = false
+    @State private var errorMessage: String?
+    @State private var showErrorAlert = false
+
+    init() {
+        let mealService = MealFirestoreService()
+        _syncCoordinator = StateObject(wrappedValue: MealSyncCoordinator(mealService: mealService))
+    }
 
     // Fetch all meal entries sorted by timestamp (newest first)
     @FetchRequest(
@@ -21,15 +35,39 @@ struct LoggedMealsView: View {
     )
     private var mealEntries: FetchedResults<MealEntry>
 
-    // Group entries by date (calendar day)
-    private var groupedEntries: [(date: Date, meals: [MealEntry])] {
-        let grouped = Dictionary(grouping: mealEntries) { entry in
+    // Group entries by date (calendar day), then by meal timestamp
+    private var groupedEntries: [(date: Date, mealGroups: [MealGroup])] {
+        let byDay = Dictionary(grouping: mealEntries) { entry in
             Calendar.current.startOfDay(for: entry.timestamp)
         }
 
-        return grouped
-            .map { (date: $0.key, meals: $0.value.sorted { $0.timestamp > $1.timestamp }) }
+        return byDay
+            .map { (date: $0.key, mealGroups: groupMealsByTimestamp($0.value)) }
             .sorted { $0.date > $1.date }
+    }
+
+    /// Groups meal entries that were logged together (within 5 seconds of each other)
+    private func groupMealsByTimestamp(_ meals: [MealEntry]) -> [MealGroup] {
+        var groups: [MealGroup] = []
+        var processedIDs = Set<UUID>()
+
+        for meal in meals.sorted(by: { $0.timestamp > $1.timestamp }) {
+            guard !processedIDs.contains(meal.id) else { continue }
+
+            // Find all meals within 5 seconds of this meal
+            let relatedMeals = meals.filter { otherMeal in
+                !processedIDs.contains(otherMeal.id) &&
+                abs(otherMeal.timestamp.timeIntervalSince(meal.timestamp)) <= 5
+            }
+
+            // Mark all related meals as processed
+            relatedMeals.forEach { processedIDs.insert($0.id) }
+
+            // Create meal group
+            groups.append(MealGroup(meals: relatedMeals))
+        }
+
+        return groups.sorted { $0.timestamp > $1.timestamp }
     }
 
     // MARK: - Helper Functions
@@ -41,22 +79,20 @@ struct LoggedMealsView: View {
         switch normalizedType {
         case "kahvaltı":
             return "sun.max"
-        case "öğle yemeği":
-            return "sun.max.fill"
+        case "ara öğün", "atıştırmalık":
+            return "circle.hexagongrid"
         case "akşam yemeği":
             return "fork.knife"
-        case "ara öğün":
-            return "circle.hexagongrid"
         default:
             return "fork.knife"
         }
     }
 
-    /// Formats date header in Turkish format (e.g., "16 Ekim 2025 Perşembe")
+    /// Formats date header in Turkish format (e.g., "24 Ekim Cuma 2025")
     private func formatDateForHeader(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "tr_TR")
-        formatter.dateFormat = "d MMMM yyyy EEEE"
+        formatter.dateFormat = "d MMMM EEEE yyyy"
         return formatter.string(from: date)
     }
 
@@ -85,8 +121,20 @@ struct LoggedMealsView: View {
                     List {
                         ForEach(groupedEntries, id: \.date) { dateGroup in
                             Section {
-                                ForEach(dateGroup.meals) { entry in
-                                    mealEntryRow(entry)
+                                ForEach(dateGroup.mealGroups) { mealGroup in
+                                    mealGroupRow(mealGroup)
+                                        .contentShape(Rectangle())
+                                        .onTapGesture {
+                                            selectedMealGroup = mealGroup
+                                            showMealDetail = true
+                                        }
+                                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                            Button(role: .destructive) {
+                                                deleteMealGroup(mealGroup)
+                                            } label: {
+                                                Label("Sil", systemImage: "trash")
+                                            }
+                                        }
                                 }
                             } header: {
                                 dateGroupHeader(for: dateGroup.date)
@@ -104,6 +152,10 @@ struct LoggedMealsView: View {
             .navigationTitle("Günlük Kayıtlar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    syncStatusButton
+                }
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         dismiss()
@@ -117,45 +169,168 @@ struct LoggedMealsView: View {
                     }
                 }
             }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    Task {
+                        await syncCoordinator.syncOnAppActivation()
+                    }
+                }
+            }
+            .sheet(isPresented: $showMealDetail) {
+                if let mealGroup = selectedMealGroup {
+                    MealDetailView(mealGroup: mealGroup)
+                        .environment(\.managedObjectContext, viewContext)
+                }
+            }
+            .alert("Hata", isPresented: $showErrorAlert) {
+                Button("Tamam", role: .cancel) { }
+            } message: {
+                if let errorMessage {
+                    Text(errorMessage)
+                }
+            }
         }
     }
+
+    // MARK: - Helper Methods
+
+    /// Deletes a meal group (all related meal entries) from Core Data
+    private func deleteMealGroup(_ mealGroup: MealGroup) {
+        // Delete all meals in the group (with their associated food items)
+        mealGroup.meals.forEach { meal in
+            // CRITICAL: Verify meal is in the correct context before deleting
+            guard meal.managedObjectContext == viewContext else {
+                logger.error("❌ Meal is not in viewContext - cannot delete")
+                return
+            }
+
+            // Delete associated food item if it exists
+            if let foodItem = meal.foodItem {
+                // CRITICAL: Verify foodItem is in the correct context
+                guard foodItem.managedObjectContext == viewContext else {
+                    logger.error("❌ FoodItem is not in viewContext - cannot delete")
+                    return
+                }
+                viewContext.delete(foodItem)
+            }
+
+            // Delete the meal entry
+            viewContext.delete(meal)
+        }
+
+        do {
+            try viewContext.save()
+            logger.info("✅ Deleted meal group with \(mealGroup.meals.count) entries")
+        } catch {
+            // Show error to user
+            errorMessage = "Öğün silinemedi: \(error.localizedDescription)"
+            showErrorAlert = true
+            logger.error("❌ Failed to delete meal group: \(error.localizedDescription)")
+
+            // Rollback changes
+            viewContext.rollback()
+        }
+    }
+
+    // Logger
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "LoggedMealsView")
 
     // MARK: - Date Group Header
 
     @ViewBuilder
     private func dateGroupHeader(for date: Date) -> some View {
-        VStack(alignment: .center, spacing: 0) {
+        HStack(spacing: 8) {
             Text(formatDateForHeader(date))
-                .font(.system(size: 14, weight: .medium, design: .rounded))
-                .foregroundStyle(.secondary)
-                .padding(.vertical, 12)
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary)
 
-            Divider()
+            Rectangle()
+                .fill(Color.secondary.opacity(0.3))
                 .frame(height: 1)
         }
-        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 16)
+        .padding(.top, 16)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .listRowInsets(EdgeInsets())
     }
 
-    // MARK: - Meal Entry Row
+    // MARK: - Meal Group Row
 
     @ViewBuilder
-    private func mealEntryRow(_ entry: MealEntry) -> some View {
+    // MARK: - Sync Status Button
+
+    private var syncStatusButton: some View {
+        Button {
+            Task {
+                await syncCoordinator.manualSync()
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: syncCoordinator.syncStatusIcon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(syncStatusColor)
+                    .rotationEffect(.degrees(syncCoordinator.isSyncing ? 360 : 0))
+                    .animation(
+                        syncCoordinator.isSyncing ?
+                            .linear(duration: 1).repeatForever(autoreverses: false) :
+                            .default,
+                        value: syncCoordinator.isSyncing
+                    )
+
+                if syncCoordinator.pendingChangesCount > 0 {
+                    Text("\(syncCoordinator.pendingChangesCount)")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(syncStatusColor)
+                        .clipShape(Capsule())
+                }
+            }
+            .frame(height: 28)
+            .padding(.horizontal, 10)
+            .background(syncStatusColor.opacity(0.15))
+            .clipShape(Capsule())
+        }
+        .disabled(syncCoordinator.isSyncing)
+    }
+
+    private var syncStatusColor: Color {
+        switch syncCoordinator.syncStatusColor {
+        case "blue": return .blue
+        case "red": return .red
+        case "orange": return .orange
+        case "green": return .green
+        default: return .gray
+        }
+    }
+
+    // MARK: - Meal Row
+
+    private func mealGroupRow(_ mealGroup: MealGroup) -> some View {
         HStack(spacing: 12) {
             // Meal type icon
-            Image(systemName: symbolForMealType(entry.mealType))
+            Image(systemName: symbolForMealType(mealGroup.mealType))
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(AppTheme.primaryPurple)
                 .frame(width: 32, alignment: .center)
 
             // Meal details
             VStack(alignment: .leading, spacing: 4) {
-                Text(entry.mealType.capitalized)
+                Text(mealGroup.mealType.capitalized)
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
 
+                // Ingredient count if multiple
+                if mealGroup.meals.count > 1 {
+                    Text("\(mealGroup.meals.count) malzeme")
+                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
+                }
+
                 // Time only (date is shown in header)
-                Text(entry.timestamp, format: .dateTime.hour().minute())
+                Text(mealGroup.timestamp, format: .dateTime.hour().minute())
                     .font(.system(size: 13, weight: .regular, design: .rounded))
                     .foregroundStyle(.secondary)
             }
@@ -163,8 +338,8 @@ struct LoggedMealsView: View {
             Spacer()
 
             // Right-aligned carbohydrate badge
-            if entry.consumedCarbs > 0 {
-                Text("\(Int(entry.consumedCarbs)) gr")
+            if mealGroup.totalCarbs > 0 {
+                Text("\(Int(mealGroup.totalCarbs)) gr")
                     .font(.system(size: 14, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 10)
@@ -178,6 +353,42 @@ struct LoggedMealsView: View {
         .padding(.vertical, 10)
         .padding(.horizontal, 16)
         .listRowInsets(EdgeInsets())
+    }
+}
+
+// MARK: - MealGroup Model
+
+/// Represents a group of meal entries logged together
+struct MealGroup: Identifiable {
+    let id = UUID()
+    let meals: [MealEntry]
+
+    var timestamp: Date {
+        meals.first?.timestamp ?? Date()
+    }
+
+    var mealType: String {
+        meals.first?.mealType ?? "atıştırmalık"
+    }
+
+    var totalCarbs: Double {
+        meals.reduce(0) { $0 + $1.consumedCarbs }
+    }
+
+    var totalProtein: Double {
+        meals.reduce(0) { $0 + $1.consumedProtein }
+    }
+
+    var totalFat: Double {
+        meals.reduce(0) { $0 + $1.consumedFat }
+    }
+
+    var totalCalories: Double {
+        meals.reduce(0) { $0 + $1.consumedCalories }
+    }
+
+    var totalFiber: Double {
+        meals.reduce(0) { $0 + $1.consumedFiber }
     }
 }
 
