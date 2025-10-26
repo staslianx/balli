@@ -17,12 +17,12 @@ struct RecipeDetailView: View {
 
     let recipeData: RecipeDetailData
 
-    @State private var isSaved = false
     @State private var showingShareSheet = false
     @State private var showingNutritionalValues = false
     @State private var showingNoteDetail = false
     @State private var isGeneratingPhoto = false
     @State private var generatedImageData: Data?
+    @State private var showingShoppingConfirmation = false
 
     // Inline editing state
     @State private var isEditing = false
@@ -31,10 +31,16 @@ struct RecipeDetailView: View {
     @State private var editedInstructions: [String] = []
     @State private var editedNotes: String = ""
 
+    // MARK: - Data Manager
+    private var dataManager: RecipeDataManager {
+        RecipeDataManager(context: viewContext)
+    }
+
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeDetailView")
 
     var body: some View {
-        ScrollView {
+        ZStack {
+            ScrollView {
             ZStack(alignment: .top) {
                 VStack(spacing: 0) {
                     // Hero image that scrolls with content
@@ -86,9 +92,31 @@ struct RecipeDetailView: View {
                     }
                 }
             }
+            }
+            .scrollIndicators(.hidden)
+            .ignoresSafeArea(edges: .top)
+
+            // Shopping confirmation toast
+            if showingShoppingConfirmation {
+                VStack {
+                    Spacer()
+                    HStack(spacing: 12) {
+                        Image(systemName: "cart.fill.badge.plus")
+                            .font(.system(size: 20))
+                            .foregroundColor(ThemeColors.primaryPurple)
+                        Text("Alışveriş listesine eklendi!")
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    .recipeGlass(tint: .warm, cornerRadius: 100)
+                    .padding(.bottom, 100)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingShoppingConfirmation)
+            }
         }
-        .scrollIndicators(.hidden)
-        .ignoresSafeArea(edges: .top)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
@@ -309,8 +337,8 @@ struct RecipeDetailView: View {
 
     private var actionButtonsSection: some View {
         RecipeActionRow(
-            actions: [.save, .values, .shopping],
-            activeStates: [isSaved, false, false]
+            actions: [.favorite, .values, .shopping],
+            activeStates: [recipeData.recipe.isFavorite, false, false]
         ) { action in
             handleAction(action)
         }
@@ -600,8 +628,8 @@ struct RecipeDetailView: View {
 
     private func handleAction(_ action: RecipeAction) {
         switch action {
-        case .save:
-            handleSave()
+        case .favorite:
+            handleFavorite()
         case .values:
             handleValues()
         case .shopping:
@@ -611,12 +639,17 @@ struct RecipeDetailView: View {
         }
     }
 
-    private func handleSave() {
+    private func handleFavorite() {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-            isSaved.toggle()
+            recipeData.recipe.toggleFavorite()
         }
-        // TODO: Toggle favorite status in Core Data
-        print("Save toggled: \(isSaved)")
+
+        do {
+            try viewContext.save()
+            logger.info("✅ Recipe favorite status toggled: \(recipeData.recipe.isFavorite)")
+        } catch {
+            logger.error("❌ Failed to toggle favorite status: \(error.localizedDescription)")
+        }
     }
 
     private func handleValues() {
@@ -624,8 +657,52 @@ struct RecipeDetailView: View {
     }
 
     private func handleShopping() {
-        // TODO: Add recipe ingredients to shopping list
-        print("Add to shopping list: \(recipeData.recipeName)")
+        logger.info("🛒 [DETAIL] Adding ingredients to shopping list for: \(recipeData.recipeName)")
+
+        Task {
+            do {
+                // Extract ingredients from recipe
+                let ingredients = recipeData.recipe.ingredientsArray
+
+                guard !ingredients.isEmpty else {
+                    logger.warning("⚠️ [DETAIL] No ingredients found in recipe")
+                    return
+                }
+
+                logger.debug("📦 [DETAIL] Processing \(ingredients.count) ingredients")
+
+                // Add ingredients to shopping list with recipe context
+                let updatedSent = try await dataManager.addIngredientsToShoppingList(
+                    ingredients: ingredients,
+                    sentIngredients: [],
+                    recipeName: recipeData.recipeName,
+                    recipeId: recipeData.recipe.id
+                )
+
+                logger.info("✅ [DETAIL] Successfully added \(ingredients.count) ingredients to shopping list")
+                logger.debug("📋 [DETAIL] Recipe context: recipeId=\(recipeData.recipe.id), recipeName=\(recipeData.recipeName)")
+                logger.debug("📋 [DETAIL] Updated sent ingredients: \(updatedSent.count) total")
+
+                // Show confirmation feedback
+                await MainActor.run {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        showingShoppingConfirmation = true
+                    }
+                }
+
+                // Hide confirmation after 2 seconds
+                try? await Task.sleep(for: .seconds(2))
+                await MainActor.run {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        showingShoppingConfirmation = false
+                    }
+                }
+
+            } catch {
+                logger.error("❌ [DETAIL] Failed to add ingredients to shopping list: \(error.localizedDescription)")
+                ErrorHandler.shared.handle(error)
+            }
+        }
     }
 
     // MARK: - Photo Generation

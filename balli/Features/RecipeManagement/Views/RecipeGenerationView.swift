@@ -209,8 +209,8 @@ struct RecipeGenerationView: View {
                             Image(systemName: "spatial.capture")
                                 .font(.system(size: 64, weight: .light))
                                 .foregroundStyle(.white.opacity(0.8))
-                                .opacity(viewModel.isGeneratingPhoto ? 0.6 : 1.0)
-                                .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: viewModel.isGeneratingPhoto)
+                                .scaleEffect(viewModel.isGeneratingPhoto ? 1.2 : 1.0)
+                                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: viewModel.isGeneratingPhoto)
                             Text("Fotoğraf Oluşturuluyor...")
                                 .font(.system(size: 17, weight: .medium, design: .rounded))
                                 .foregroundStyle(.white.opacity(0.8))
@@ -381,60 +381,19 @@ struct RecipeGenerationView: View {
             isFavorited.toggle()
         }
 
-        Task {
-            // Save the recipe with favorite status if not already saved
-            if !isSaved {
-                viewModel.formState.isFavorite = isFavorited
-                await saveRecipe()
-            } else {
-                // Update existing recipe's favorite status
-                viewModel.formState.isFavorite = isFavorited
-            }
-        }
+        // Only update the form state, don't save
+        // Favoriting is just a UI state change until user explicitly saves
+        viewModel.formState.isFavorite = isFavorited
     }
 
     private func handleShopping() {
-        // Add recipe ingredients to shopping list
         logger.info("🛒 [VIEW] Adding \(viewModel.ingredients.count) ingredients to shopping list")
+        logger.debug("📋 [VIEW] Recipe name: '\(viewModel.recipeName)'")
+        logger.debug("📋 [VIEW] First 3 ingredients: \(viewModel.ingredients.prefix(3).joined(separator: ", "))")
 
-        // Extract measurement and ingredient from each ingredient string
-        // Format is typically: "250g tavuk göğsü" or "1 adet soğan"
-        var shoppingItems: [(name: String, measurement: String)] = []
-
-        for ingredient in viewModel.ingredients {
-            let trimmed = ingredient.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.isEmpty { continue }
-
-            // Parse measurement and ingredient name
-            // Simple parsing: look for common measurement units at the start
-            let measurementPatterns = ["g", "kg", "ml", "l", "adet", "yaprak", "dilim", "kaşık", "fincan", "bardak"]
-            var measurement = ""
-            var name = trimmed
-
-            for pattern in measurementPatterns {
-                if let range = trimmed.lowercased().range(of: pattern) {
-                    let endIndex = trimmed.index(range.upperBound, offsetBy: 0)
-                    measurement = String(trimmed[..<endIndex])
-                    name = String(trimmed[endIndex...]).trimmingCharacters(in: .whitespacesAndNewlines)
-                    break
-                }
-            }
-
-            shoppingItems.append((name: name, measurement: measurement.isEmpty ? trimmed : measurement + " " + name))
-        }
-
-        logger.info("📦 [VIEW] Parsed \(shoppingItems.count) shopping items")
-
-        // Call shopping list service to add ingredients
-        Task { @MainActor in
-            for item in shoppingItems {
-                logger.debug("  - Adding: \(item.measurement)")
-            }
-
-            // The ShoppingListIntegrationService handles adding to shopping list
-            // This would be called via viewModel.shoppingListService if available
-            // For now, log the action
-            logger.info("✅ [VIEW] Shopping items prepared for addition to shopping list")
+        Task {
+            await viewModel.addIngredientsToShoppingList()
+            logger.info("✅ [VIEW] Ingredients successfully added to shopping list")
         }
     }
 

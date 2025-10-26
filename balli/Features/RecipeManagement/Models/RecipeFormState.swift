@@ -162,9 +162,10 @@ public final class RecipeFormState: ObservableObject {
             // NEW FORMAT: Use recipeContent if available (markdown), otherwise fall back to legacy arrays
             if let content = response.recipeContent, !content.isEmpty {
                 recipeContent = content
-                // Keep legacy arrays empty for new format
-                ingredients = [""]
-                directions = [""]
+                // Parse markdown to extract ingredients and directions for shopping list
+                let parsed = parseMarkdownContent(content)
+                ingredients = parsed.ingredients.isEmpty ? [""] : parsed.ingredients
+                directions = parsed.directions.isEmpty ? [""] : parsed.directions
             } else {
                 // Legacy format: structured arrays
                 ingredients = response.ingredients.isEmpty ? [""] : response.ingredients
@@ -182,5 +183,48 @@ public final class RecipeFormState: ObservableObject {
             glycemicLoad = response.glycemicLoad
             portionGrams = 100.0  // Nutrition values from AI are per 100g (standard)
         }
+    }
+
+    // MARK: - Markdown Parser
+    private func parseMarkdownContent(_ markdown: String) -> (ingredients: [String], directions: [String]) {
+        var ingredients: [String] = []
+        var directions: [String] = []
+
+        let lines = markdown.components(separatedBy: .newlines)
+        var currentSection: String? = nil
+
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            // Check for section headers
+            if trimmed.starts(with: "## Malzemeler") || trimmed.starts(with: "##Malzemeler") {
+                currentSection = "ingredients"
+                continue
+            } else if trimmed.starts(with: "## Yapılışı") || trimmed.starts(with: "##Yapılışı") {
+                currentSection = "directions"
+                continue
+            }
+
+            // Skip empty lines
+            if trimmed.isEmpty {
+                continue
+            }
+
+            // Parse ingredients (lines starting with -)
+            if currentSection == "ingredients" && trimmed.starts(with: "- ") {
+                let ingredient = String(trimmed.dropFirst(2)) // Remove "- "
+                ingredients.append(ingredient)
+            }
+            // Parse directions (lines starting with numbers)
+            else if currentSection == "directions" {
+                // Match patterns like "1. " or "1) " at the start
+                if let match = trimmed.range(of: "^\\d+[\\.\\)]\\s+", options: .regularExpression) {
+                    let direction = String(trimmed[match.upperBound...])
+                    directions.append(direction)
+                }
+            }
+        }
+
+        return (ingredients, directions)
     }
 }
