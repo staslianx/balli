@@ -22,8 +22,6 @@ struct NutritionalValuesView: View {
     let fat: String
     let glycemicLoad: String
 
-    @State private var showingCopyConfirmation = false
-
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -37,96 +35,51 @@ struct NutritionalValuesView: View {
                     // Nutritional Values Cards
                     VStack(spacing: 12) {
                         nutritionRow(
-                            icon: "flame.fill",
                             label: "Kalori",
                             value: calories,
-                            unit: "kcal",
-                            color: .orange
+                            unit: "kcal"
                         )
 
                         nutritionRow(
-                            icon: "fork.knife",
                             label: "Karbonhidrat",
                             value: carbohydrates,
-                            unit: "g",
-                            color: .blue
+                            unit: "g"
                         )
 
                         nutritionRow(
-                            icon: "leaf.fill",
                             label: "Lif",
                             value: fiber,
-                            unit: "g",
-                            color: .green
+                            unit: "g"
                         )
 
                         nutritionRow(
-                            icon: "cube.fill",
                             label: "Şeker",
                             value: sugar,
-                            unit: "g",
-                            color: .pink
+                            unit: "g"
                         )
 
                         nutritionRow(
-                            icon: "figure.run",
                             label: "Protein",
                             value: protein,
-                            unit: "g",
-                            color: .purple
+                            unit: "g"
                         )
 
                         nutritionRow(
-                            icon: "drop.fill",
                             label: "Yağ",
                             value: fat,
-                            unit: "g",
-                            color: .yellow
+                            unit: "g"
                         )
 
                         nutritionRow(
-                            icon: "chart.line.uptrend.xyaxis",
                             label: "Glisemik Yük",
                             value: glycemicLoad,
-                            unit: "",
-                            color: .red
+                            unit: ""
                         )
-                    }
-
-                    // Copy JSON Button
-                    Button(action: copyJSONToClipboard) {
-                        HStack {
-                            Image(systemName: "doc.on.doc.fill")
-                                .font(.system(size: 16, weight: .semibold))
-
-                            Text("JSON Kopyala")
-                                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(AppTheme.primaryPurple)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 8)
-
-                    // Copy Confirmation
-                    if showingCopyConfirmation {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                            Text("JSON kopyalandı!")
-                                .font(.system(size: 15, weight: .medium, design: .rounded))
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.vertical, 8)
-                        .transition(.opacity)
                     }
                 }
                 .padding(20)
             }
-            .background(Color.appBackground(for: colorScheme))
+            .background(Color(.systemBackground))
             .navigationTitle("Besin Değerleri")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -143,80 +96,32 @@ struct NutritionalValuesView: View {
     // MARK: - Components
 
     private func nutritionRow(
-        icon: String,
         label: String,
         value: String,
-        unit: String,
-        color: Color
+        unit: String
     ) -> some View {
-        HStack(spacing: 16) {
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(color.opacity(0.15))
-                    .frame(width: 48, height: 48)
+        HStack {
+            Text(label)
+                .font(.system(size: 17, weight: .medium, design: .rounded))
+                .foregroundColor(.primary)
 
-                Image(systemName: icon)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(color)
-            }
+            Spacer()
 
-            // Label and Value
-            HStack {
-                Text(label)
-                    .font(.system(size: 17, weight: .medium, design: .rounded))
+            HStack(spacing: 4) {
+                Text(value.isEmpty ? "0" : value)
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
 
-                Spacer()
-
-                HStack(spacing: 4) {
-                    Text(value.isEmpty ? "0" : value)
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
-
-                    if !unit.isEmpty {
-                        Text(unit)
-                            .font(.system(size: 15, weight: .regular, design: .rounded))
-                            .foregroundColor(.secondary)
-                    }
+                if !unit.isEmpty {
+                    Text(unit)
+                        .font(.system(size: 15, weight: .regular, design: .rounded))
+                        .foregroundColor(.secondary)
                 }
             }
         }
         .padding(16)
-        .recipeGlass(tint: .warm, cornerRadius: 16)
-    }
-
-    // MARK: - Actions
-
-    private func copyJSONToClipboard() {
-        let jsonDict: [String: Any] = [
-            "name": recipeName,
-            "calories": Double(calories) ?? 0,
-            "carbohydrates": Double(carbohydrates) ?? 0,
-            "fiber": Double(fiber) ?? 0,
-            "sugar": Double(sugar) ?? 0,
-            "protein": Double(protein) ?? 0,
-            "fat": Double(fat) ?? 0,
-            "glycemicLoad": Double(glycemicLoad) ?? 0
-        ]
-
-        if let jsonData = try? JSONSerialization.data(withJSONObject: jsonDict, options: .prettyPrinted),
-           let jsonString = String(data: jsonData, encoding: .utf8) {
-            UIPasteboard.general.string = jsonString
-
-            // Show confirmation
-            withAnimation {
-                showingCopyConfirmation = true
-            }
-
-            // Hide confirmation after 2 seconds
-            Task {
-                try? await Task.sleep(for: .seconds(2))
-                withAnimation {
-                    showingCopyConfirmation = false
-                }
-            }
-        }
+        .balliTintedGlass(cornerRadius: 28)
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
     }
 }
 

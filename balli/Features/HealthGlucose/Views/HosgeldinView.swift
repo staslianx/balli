@@ -23,6 +23,9 @@ struct HosgeldinView: View {
     @StateObject private var dexcomService = DexcomService()
     @ObservedObject private var dexcomShareService = DexcomShareService.shared
 
+    // Sheet state
+    @State private var showingMealHistory = false
+
     // MARK: - Initialization
 
     init(viewContext: NSManagedObjectContext) {
@@ -66,7 +69,7 @@ struct HosgeldinView: View {
                         Spacer()
                     }
                 }
-                .background(Color.appBackground(for: colorScheme))
+                .background(Color(.systemBackground))
                 .navigationBarTitleDisplayMode(.inline)
                 .onAppear {
                     viewModel.onAppear()
@@ -100,6 +103,9 @@ struct HosgeldinView: View {
                         .presentationDragIndicator(.visible)
                         .presentationBackgroundInteraction(.enabled)
                 }
+                .sheet(isPresented: $showingMealHistory) {
+                    LoggedMealsView()
+                }
                 .toolbar {
                     ToolbarItem(placement: .principal) {
                         Image("balli-text-logo")
@@ -109,10 +115,12 @@ struct HosgeldinView: View {
                     }
 
                     ToolbarItem(placement: .topBarLeading) {
-                        NavigationLink(destination: LoggedMealsView()) {
+                        Button {
+                            showingMealHistory = true
+                        } label: {
                             Image(systemName: "calendar")
                                 .font(.system(size: 18, weight: .medium, design: .rounded))
-                                .foregroundColor(.primary)
+                                .foregroundColor(AppTheme.primaryPurple)
                         }
                         .accessibilityLabel("Günlük Kayıtlar")
                         .accessibilityHint("Sesle kaydedilen öğünleri gör")
@@ -125,7 +133,7 @@ struct HosgeldinView: View {
                         } label: {
                             Image(systemName: "plus")
                                 .font(.system(size: 18, weight: .medium, design: .rounded))
-                                .foregroundColor(.primary)
+                                .foregroundColor(AppTheme.primaryPurple)
                         }
                         .buttonStyle(.plain)
                     }
@@ -153,7 +161,8 @@ struct HosgeldinView: View {
                                 healthKitPermissions: healthKitPermissions
                             )
                             .padding(.vertical, 24)
-                            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                            .balliTintedGlass(cornerRadius: ResponsiveDesign.CornerRadius.card)
+                            .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
                             .frame(width: geometry.size.width - ResponsiveDesign.Spacing.medium * 2)
                             .id(0)
                             .onTapGesture {
@@ -165,7 +174,8 @@ struct HosgeldinView: View {
                             // Glucose Card
                             GlucoseChartCard(viewModel: viewModel.glucoseChartViewModel)
                                 .padding(.vertical, 24)
-                                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                                .balliTintedGlass(cornerRadius: ResponsiveDesign.CornerRadius.card)
+                                .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
                                 .frame(width: geometry.size.width - ResponsiveDesign.Spacing.medium * 2)
                                 .id(1)
                                 .onTapGesture {

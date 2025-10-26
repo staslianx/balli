@@ -29,6 +29,41 @@ service cloud.firestore {
         && resource.data.userId == request.auth.uid;
     }
 
+    // Helper function to check if user is authorized (serhat@balli or dilara@balli)
+    function isAuthorizedUser() {
+      return request.auth != null &&
+             (request.auth.token.email == 'serhat@balli' ||
+              request.auth.token.email == 'dilara@balli');
+    }
+
+    // Users collection - meal sync data
+    match /users/{userId} {
+      // User can only access their own user document
+      allow read, write: if isAuthorizedUser() &&
+                           request.auth.token.email == userId;
+
+      // Meals subcollection for bidirectional sync
+      match /meals/{mealId} {
+        // Users can read/write their own meals
+        allow read: if isAuthorizedUser() &&
+                      request.auth.token.email == userId;
+
+        allow create: if isAuthorizedUser() &&
+                        request.auth.token.email == userId &&
+                        request.resource.data.keys().hasAll(['id', 'timestamp', 'mealType', 'lastModified']) &&
+                        request.resource.data.id is string &&
+                        request.resource.data.timestamp is timestamp &&
+                        request.resource.data.lastModified is timestamp;
+
+        allow update: if isAuthorizedUser() &&
+                        request.auth.token.email == userId &&
+                        request.resource.data.lastModified is timestamp;
+
+        allow delete: if isAuthorizedUser() &&
+                        request.auth.token.email == userId;
+      }
+    }
+
     // Default rules for other collections - require authentication
     match /{document=**} {
       allow read, write: if request.auth != null;

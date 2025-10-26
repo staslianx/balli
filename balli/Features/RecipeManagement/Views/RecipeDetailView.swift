@@ -23,7 +23,6 @@ struct RecipeDetailView: View {
     @State private var showingNoteDetail = false
     @State private var isGeneratingPhoto = false
     @State private var generatedImageData: Data?
-    @State private var showingMoreMenu = false
 
     // Inline editing state
     @State private var isEditing = false
@@ -35,68 +34,119 @@ struct RecipeDetailView: View {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeDetailView")
 
     var body: some View {
-        ZStack {
-            // MARK: - Scrollable Content (including hero image)
-            ScrollView {
-                ZStack(alignment: .top) {
+        ScrollView {
+            ZStack(alignment: .top) {
+                VStack(spacing: 0) {
+                    // Hero image that scrolls with content
+                    heroImageSection
+
+                    // Spacer to accommodate story card overlap
+                    // Story card is 82px tall + 16px padding = 98px
+                    // We want it half-over image, so subtract half its height
+                    Spacer()
+                        .frame(height: 49)
+
+                    // All content below story card
                     VStack(spacing: 0) {
-                        // Hero image that scrolls with content
-                        heroImageSection
-
-                        // Spacer to accommodate story card overlap
-                        // Story card is 82px tall + 16px padding = 98px
-                        // We want it half-over image, so subtract half its height
-                        Spacer()
-                            .frame(height: 49)
-
-                        // All content below story card
-                        VStack(spacing: 0) {
-                            // Action buttons
-                            actionButtonsSection
-                                .padding(.horizontal, 20)
-                                .padding(.top, 16)
-                                .padding(.bottom, 32)
-
-                            // Recipe Content (Ingredients + Instructions)
-                            recipeContentSection
-                                .padding(.horizontal, 20)
-                                .padding(.bottom, 40)
-                        }
-                    }
-
-                    // Recipe metadata - positioned absolutely over hero image
-                    // Uses bottom alignment to grow upward when text is longer
-                    VStack(spacing: 0) {
-                        Spacer(minLength: 0)
-
-                        recipeMetadataSection
+                        // Action buttons
+                        actionButtonsSection
                             .padding(.horizontal, 20)
-                            .padding(.bottom, 24) // Minimum gap between name and story card
+                            .padding(.top, 16)
+                            .padding(.bottom, 32)
+
+                        // Recipe Content (Ingredients + Instructions)
+                        recipeContentSection
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 40)
                     }
-                    .frame(height: UIScreen.main.bounds.height * 0.5 - 49) // Ends where story card begins
+                }
 
-                    // Story card - positioned absolutely at fixed offset
-                    // This stays in place regardless of recipe name length
-                    if recipeData.hasStory {
-                        VStack {
-                            Spacer()
-                                .frame(height: UIScreen.main.bounds.height * 0.5 - 49)
+                // Recipe metadata - positioned absolutely over hero image
+                // Uses bottom alignment to grow upward when text is longer
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
 
-                            storyCardSection
-                                .padding(.horizontal, 20)
+                    recipeMetadataSection
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 24) // Minimum gap between name and story card
+                }
+                .frame(height: UIScreen.main.bounds.height * 0.5 - 49) // Ends where story card begins
 
-                            Spacer()
-                        }
+                // Story card - positioned absolutely at fixed offset
+                // This stays in place regardless of recipe name length
+                if recipeData.hasStory {
+                    VStack {
+                        Spacer()
+                            .frame(height: UIScreen.main.bounds.height * 0.5 - 49)
+
+                        storyCardSection
+                            .padding(.horizontal, 20)
+
+                        Spacer()
                     }
                 }
             }
-            .scrollIndicators(.hidden)
-
-            // MARK: - Navigation Overlay
-            navigationOverlay
         }
-        .navigationBarHidden(true)
-        .ignoresSafeArea()
+        .scrollIndicators(.hidden)
+        .ignoresSafeArea(edges: .top)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                if isEditing {
+                    Button("Kaydet") {
+                        saveChanges()
+                    }
+                    .foregroundColor(ThemeColors.primaryPurple)
+                    .fontWeight(.semibold)
+                } else {
+                    Menu {
+                        Button {
+                            startEditing()
+                        } label: {
+                            Label("Düzenle", systemImage: "pencil")
+                        }
+
+                        Button {
+                            toggleFavorite()
+                        } label: {
+                            Label(
+                                recipeData.recipe.isFavorite ? "Favorilerden Çıkar" : "Favorilere Ekle",
+                                systemImage: recipeData.recipe.isFavorite ? "star.fill" : "star"
+                            )
+                        }
+
+                        Button(role: .destructive) {
+                            deleteRecipe()
+                        } label: {
+                            Label("Sil", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(ThemeColors.primaryPurple)
+                    }
+                }
+            }
+
+            ToolbarItem(placement: .topBarLeading) {
+                if isEditing {
+                    Button("İptal") {
+                        cancelEditing()
+                    }
+                    .foregroundColor(ThemeColors.primaryPurple)
+                    .fontWeight(.semibold)
+                } else {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(ThemeColors.primaryPurple)
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showingNutritionalValues) {
             NutritionalValuesView(
                 recipeName: recipeData.recipeName,
@@ -116,12 +166,6 @@ struct RecipeDetailView: View {
             )
             .presentationDetents([.fraction(0.6)])
             .presentationDragIndicator(.visible)
-        }
-        .confirmationDialog("", isPresented: $showingMoreMenu, titleVisibility: .hidden) {
-            Button("Düzenle") {
-                startEditing()
-            }
-            Button("İptal", role: .cancel) { }
         }
     }
 
@@ -213,62 +257,18 @@ struct RecipeDetailView: View {
         .frame(width: width, height: height)
     }
 
-    // MARK: - Navigation
-
-    private var navigationOverlay: some View {
-        VStack {
-            HStack {
-                // Left button: Back (read mode) or İptal (edit mode)
-                if isEditing {
-                    Button(action: cancelEditing) {
-                        Text("İptal")
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .foregroundColor(.primary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                    }
-                    .recipeGlass(tint: .warm, cornerRadius: 22)
-                } else {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .foregroundColor(.primary)
-                    }
-                    .recipeCircularGlass(size: 44, tint: .warm)
-                }
-
-                Spacer()
-
-                // Right button: More menu (read mode) or Kaydet (edit mode)
-                if isEditing {
-                    Button(action: saveChanges) {
-                        Text("Kaydet")
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .foregroundColor(.primary)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                    }
-                    .recipeGlass(tint: .warm, cornerRadius: 22)
-                } else {
-                    Button(action: handleMoreMenu) {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .foregroundColor(.primary)
-                    }
-                    .recipeCircularGlass(size: 44, tint: .warm)
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 60) // Account for status bar
-
-            Spacer()
-        }
-    }
-
     // MARK: - Recipe Metadata
 
     private var recipeMetadataSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
+            // Balli logo for AI-generated recipes
+            if recipeData.recipe.source == RecipeConstants.Source.ai {
+                Image("balli-text-logo-dark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 20)
+            }
+
             // Author
             if let author = recipeData.author {
                 Text(author)
@@ -354,24 +354,27 @@ struct RecipeDetailView: View {
             // Editable Ingredients Section
             VStack(alignment: .leading, spacing: 8) {
                 Text("Malzemeler")
-                    .font(.playfairDisplay(40, weight: .bold))
+                    .font(.playfairDisplay(33, weight: .bold))
                     .foregroundColor(.primary)
                     .padding(.bottom, 8)
 
                 ForEach(Array(editedIngredients.enumerated()), id: \.offset) { index, ingredient in
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .top, spacing: 16) {
                         Text("•")
                             .font(.custom("Manrope", size: 20))
                             .foregroundColor(.primary)
+                            .padding(.top, 8)
 
-                        TextField("", text: Binding(
+                        TextEditor(text: Binding(
                             get: { editedIngredients[index] },
                             set: { editedIngredients[index] = $0 }
-                        ), axis: .vertical)
+                        ))
                         .font(.custom("Manrope", size: 20))
                         .foregroundColor(.primary)
-                        .textFieldStyle(.plain)
-                        .submitLabel(.done)
+                        .scrollContentBackground(.hidden)
+                        .background(Color.clear)
+                        .frame(minHeight: 30)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.vertical, 4)
                 }
@@ -380,25 +383,28 @@ struct RecipeDetailView: View {
 
             // Editable Instructions Section
             VStack(alignment: .leading, spacing: 8) {
-                Text("Yapілışı")
-                    .font(.playfairDisplay(40, weight: .bold))
+                Text("Yapілışі")
+                    .font(.playfairDisplay(33, weight: .bold))
                     .foregroundColor(.primary)
                     .padding(.bottom, 8)
 
                 ForEach(Array(editedInstructions.enumerated()), id: \.offset) { index, instruction in
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .top, spacing: 16) {
                         Text("\(index + 1).")
                             .font(.custom("Manrope", size: 20))
                             .foregroundColor(.primary)
+                            .padding(.top, 8)
 
-                        TextField("", text: Binding(
+                        TextEditor(text: Binding(
                             get: { editedInstructions[index] },
                             set: { editedInstructions[index] = $0 }
-                        ), axis: .vertical)
+                        ))
                         .font(.custom("Manrope", size: 20))
                         .foregroundColor(.primary)
-                        .textFieldStyle(.plain)
-                        .submitLabel(.done)
+                        .scrollContentBackground(.hidden)
+                        .background(Color.clear)
+                        .frame(minHeight: 30)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.vertical, 4)
                 }
@@ -433,8 +439,29 @@ struct RecipeDetailView: View {
 
     // MARK: - Actions
 
-    private func handleMoreMenu() {
-        showingMoreMenu = true
+    private func toggleFavorite() {
+        recipeData.recipe.toggleFavorite()
+
+        do {
+            try viewContext.save()
+            logger.info("✅ Recipe favorite status toggled: \(recipeData.recipe.isFavorite)")
+        } catch {
+            logger.error("❌ Failed to toggle favorite status: \(error.localizedDescription)")
+        }
+    }
+
+    private func deleteRecipe() {
+        logger.info("🗑️ Deleting recipe: \(recipeData.recipeName)")
+
+        viewContext.delete(recipeData.recipe)
+
+        do {
+            try viewContext.save()
+            logger.info("✅ Recipe deleted successfully")
+            dismiss()
+        } catch {
+            logger.error("❌ Failed to delete recipe: \(error.localizedDescription)")
+        }
     }
 
     // MARK: - Inline Editing Functions

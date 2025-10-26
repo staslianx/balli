@@ -14,7 +14,7 @@ input:
         description: "Type of meal (Kahvaltı, Akşam Yemeği, Salatalar, Tatlılar, Atıştırmalıklar)"
       styleType:
         type: string
-        description: "Style subcategory for the meal type"
+        description: "Style subcategory for the meal type (defaults to mealType if not provided)"
       ingredients:
         type: array
         items:
@@ -67,7 +67,7 @@ input:
       temperature:
         type: number
         description: "Temperature override for generation (0.5-1.2)"
-    required: [mealType, styleType, spontaneous]
+    required: [mealType, spontaneous]
 output:
   format: json
   schema:
@@ -132,7 +132,7 @@ output:
         description: "Recipe metadata for categorization"
       notes:
         type: string
-        description: "AI'nin diyabet dostu ipuçları (2-4 cümle, samimi ve arkadaşça ton)"
+        description: "AI'nin diyabet dostu ipuçları (5-6 cümle, samimi ve arkadaşça ton)"
       recipeContent:
         type: string
         description: "MARKDOWN formatında tarif içeriği. Format:\n## Malzemeler\n- 250g tavuk göğsü\n- 2 yemek kaşığı zeytinyağı\n\n## Yapılışı\n1. İlk adım açıklaması\n2. İkinci adım açıklaması"
@@ -212,7 +212,7 @@ Tercih et: {{#each diversityConstraints.suggestCuisines}}{{this}}{{#unless @last
 
 {{#ifEquals mealType "Kahvaltı"}}Sabah için doyurucu, kan şekeri dengeli.{{/ifEquals}}
 {{#ifEquals mealType "Akşam Yemeği"}}
-  {{#ifEquals styleType "Karbohidrat ve Protein uyumu"}}Hem karbonhidrat hem ana protein içermeli.{{/ifEquals}}
+  {{#ifEquals styleType "Karbohidrat ve Protein uyumu"}}Hem karbonhidrat hem ana protein (tavuk,balık,kırmızı et vb) içermeli.{{/ifEquals}}
   {{#ifEquals styleType "Tam Buğday Makarna"}}Sadece tam buğday makarna, normal un yok.{{/ifEquals}}
 {{/ifEquals}}
 {{#ifEquals mealType "Salatalar"}}

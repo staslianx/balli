@@ -114,7 +114,8 @@ final class RecallDetectionTests: XCTestCase {
     // MARK: - Helper Method (Mirrors ViewModel Logic)
 
     private func shouldAttemptRecall(_ query: String) -> Bool {
-        let lowercased = query.lowercased()
+        // Use Turkish locale for proper case conversion (İ→i, I→ı)
+        let lowercased = query.lowercased(with: Locale(identifier: "tr_TR"))
 
         // Past tense patterns
         let pastTensePatterns = [

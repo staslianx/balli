@@ -49,7 +49,11 @@ public final class RecipePersistenceCoordinator: ObservableObject {
         logger.info("💾 [PERSIST] saveRecipe() called for '\(self.formState.recipeName)'")
         logger.debug("📋 [PERSIST] Image parameters:")
         logger.debug("  - imageURL: \(imageURL != nil ? "present" : "nil")")
-        logger.debug("  - imageData: \(imageData != nil ? "\(imageData!.count) bytes" : "nil")")
+        if let data = imageData {
+            logger.debug("  - imageData: \(data.count) bytes")
+        } else {
+            logger.debug("  - imageData: nil")
+        }
 
         // Validate nutrition values
         let validationResult = dataManager.validateNutritionValues(
@@ -128,7 +132,11 @@ public final class RecipePersistenceCoordinator: ObservableObject {
     private func createNewRecipe(imageURL: String?, imageData: Data?) {
         logger.info("📝 [PERSIST] Building RecipeSaveData...")
         logger.debug("  - Recipe name: '\(self.formState.recipeName)'")
-        logger.debug("  - imageData: \(imageData != nil ? "\(imageData!.count) bytes" : "nil")")
+        if let data = imageData {
+            logger.debug("  - imageData: \(data.count) bytes")
+        } else {
+            logger.debug("  - imageData: nil")
+        }
 
         let saveData = RecipeSaveData(
             recipeName: formState.recipeName,

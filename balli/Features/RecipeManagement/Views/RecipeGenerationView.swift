@@ -29,9 +29,10 @@ struct RecipeGenerationView: View {
     @State private var showingMealSelection = false
     @State private var showingNutritionModal = false
     @State private var selectedMealType = "Kahvaltı"
-    @State private var selectedStyleType = "Geleneksel"
+    @State private var selectedStyleType = ""  // Empty for categories without subcategories
     @State private var isGenerating = false
     @State private var isSaved = false
+    @State private var isFavorited = false
     @State private var showingSaveConfirmation = false
     @State private var isAddingIngredient = false
     @State private var isAddingStep = false
@@ -39,6 +40,7 @@ struct RecipeGenerationView: View {
     @State private var newStepText = ""
     @State private var manualIngredients: [RecipeItem] = []
     @State private var manualSteps: [RecipeItem] = []
+    @State private var storyCardTitle = "Tarif notu"  // Default title for user-created recipes
     @FocusState private var focusedField: FocusField?
 
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeGenerationView")
@@ -202,11 +204,18 @@ struct RecipeGenerationView: View {
                 // Photo generation button or loading indicator
                 if !viewModel.recipeName.isEmpty {
                     if viewModel.isGeneratingPhoto {
-                        // Show loading indicator while generating
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(1.5)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        // Show pulsing spatial.capture icon while generating
+                        VStack(spacing: 12) {
+                            Image(systemName: "spatial.capture")
+                                .font(.system(size: 64, weight: .light))
+                                .foregroundStyle(.white.opacity(0.8))
+                                .opacity(viewModel.isGeneratingPhoto ? 0.6 : 1.0)
+                                .animation(.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: viewModel.isGeneratingPhoto)
+                            Text("Fotoğraf Oluşturuluyor...")
+                                .font(.system(size: 17, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if viewModel.preparedImage == nil {
                         // Show photo generation button if no image yet
                         Button(action: {
@@ -242,7 +251,10 @@ struct RecipeGenerationView: View {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 18, weight: .semibold, design: .rounded))
                         .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .contentShape(Circle())
                 }
+                .buttonStyle(RecipeButtonStyle())
                 .recipeCircularGlass(size: 44, tint: .warm)
 
                 Spacer()
@@ -257,16 +269,23 @@ struct RecipeGenerationView: View {
                         Image(systemName: "checkmark")
                             .font(.system(size: 18, weight: .semibold, design: .rounded))
                             .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .contentShape(Circle())
                     }
+                    .buttonStyle(RecipeButtonStyle())
                     .recipeCircularGlass(size: 44, tint: .warm)
                 }
 
-                // Generate menu button (sparkles)
+                // Generate menu button (balli logo)
                 Button(action: { showingMealSelection = true }) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
+                    Image("balli-logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(8)
+                        .contentShape(Circle())
                 }
+                .buttonStyle(RecipeButtonStyle())
                 .recipeCircularGlass(size: 44, tint: .warm)
             }
             .padding(.horizontal, 20)
@@ -279,11 +298,14 @@ struct RecipeGenerationView: View {
     // MARK: - Metadata Placeholder
 
     private var metadataPlaceholder: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Author
-            Text("Tarifin sahibi")
-                .font(.sfRounded(17, weight: .regular))
-                .foregroundColor(.white.opacity(0.3))
+        VStack(alignment: .leading, spacing: 12) {
+            // Logo - Shows balli logo if AI-generated recipe
+            if !viewModel.formState.recipeContent.isEmpty {
+                Image("balli-text-logo-dark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 20)
+            }
 
             // Recipe title
             if !viewModel.recipeName.isEmpty {
@@ -301,11 +323,26 @@ struct RecipeGenerationView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    // MARK: - Author Section
+
+    private var authorSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Only show logo/author for AI-generated recipes
+            if !viewModel.formState.recipeContent.isEmpty {
+                // Recipe was AI-generated - show balli logo above recipe name
+                Image("balli-text-logo-dark")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 20)
+            }
+        }
+    }
+
     // MARK: - Story Card Placeholder
 
     private var storyCardPlaceholder: some View {
         RecipeStoryCard(
-            title: "balli'nin notu",
+            title: storyCardTitle,
             description: viewModel.notes.isEmpty
                 ? "Tarif oluşturulduğunda notlar burada görünecek"
                 : viewModel.notes,
@@ -319,8 +356,8 @@ struct RecipeGenerationView: View {
 
     private var actionButtonsPlaceholder: some View {
         RecipeActionRow(
-            actions: [.save, .values, .shopping],
-            activeStates: [isSaved, false, false]
+            actions: [.favorite, .values, .shopping],
+            activeStates: [isFavorited, false, false]
         ) { action in
             handleAction(action)
         }
@@ -328,10 +365,8 @@ struct RecipeGenerationView: View {
 
     private func handleAction(_ action: RecipeAction) {
         switch action {
-        case .save:
-            Task {
-                await saveRecipe()
-            }
+        case .favorite:
+            toggleFavorite()
         case .values:
             showingNutritionModal = true
         case .shopping:
@@ -341,9 +376,66 @@ struct RecipeGenerationView: View {
         }
     }
 
+    private func toggleFavorite() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            isFavorited.toggle()
+        }
+
+        Task {
+            // Save the recipe with favorite status if not already saved
+            if !isSaved {
+                viewModel.formState.isFavorite = isFavorited
+                await saveRecipe()
+            } else {
+                // Update existing recipe's favorite status
+                viewModel.formState.isFavorite = isFavorited
+            }
+        }
+    }
+
     private func handleShopping() {
-        // TODO: Add recipe ingredients to shopping list
-        print("Add to shopping list: \(viewModel.recipeName)")
+        // Add recipe ingredients to shopping list
+        logger.info("🛒 [VIEW] Adding \(viewModel.ingredients.count) ingredients to shopping list")
+
+        // Extract measurement and ingredient from each ingredient string
+        // Format is typically: "250g tavuk göğsü" or "1 adet soğan"
+        var shoppingItems: [(name: String, measurement: String)] = []
+
+        for ingredient in viewModel.ingredients {
+            let trimmed = ingredient.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { continue }
+
+            // Parse measurement and ingredient name
+            // Simple parsing: look for common measurement units at the start
+            let measurementPatterns = ["g", "kg", "ml", "l", "adet", "yaprak", "dilim", "kaşık", "fincan", "bardak"]
+            var measurement = ""
+            var name = trimmed
+
+            for pattern in measurementPatterns {
+                if let range = trimmed.lowercased().range(of: pattern) {
+                    let endIndex = trimmed.index(range.upperBound, offsetBy: 0)
+                    measurement = String(trimmed[..<endIndex])
+                    name = String(trimmed[endIndex...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+
+            shoppingItems.append((name: name, measurement: measurement.isEmpty ? trimmed : measurement + " " + name))
+        }
+
+        logger.info("📦 [VIEW] Parsed \(shoppingItems.count) shopping items")
+
+        // Call shopping list service to add ingredients
+        Task { @MainActor in
+            for item in shoppingItems {
+                logger.debug("  - Adding: \(item.measurement)")
+            }
+
+            // The ShoppingListIntegrationService handles adding to shopping list
+            // This would be called via viewModel.shoppingListService if available
+            // For now, log the action
+            logger.info("✅ [VIEW] Shopping items prepared for addition to shopping list")
+        }
     }
 
     // MARK: - Recipe Content (Markdown)
@@ -390,6 +482,8 @@ struct RecipeGenerationView: View {
         isGenerating = true
         // Reset saved state when generating new recipe
         isSaved = false
+        // Change story card title to "balli'nin notu" for AI-generated recipes
+        storyCardTitle = "balli'nin notu"
 
         // Use streaming version for real-time updates
         await viewModel.generationCoordinator.generateRecipeWithStreaming(
@@ -653,6 +747,17 @@ struct ManualStepsSection: View {
         steps.append(RecipeItem(text: newStepText))
         newStepText = ""
         focusedField.wrappedValue = .step
+    }
+}
+
+// MARK: - Custom Button Style
+
+/// Button style that provides subtle opacity feedback without the glass interactive effect
+struct RecipeButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.6 : 1.0)
+            .animation(.easeInOut(duration: 0.1), value: configuration.isPressed)
     }
 }
 

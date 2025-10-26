@@ -10,6 +10,7 @@ import {
   SimilarityCheckResult
 } from "../types/recipe-memory";
 import { ai } from "../genkit-instance";
+import { getRecipeModel } from "../providers";
 import { z } from "zod";
 
 // Re-export types for convenience
@@ -267,10 +268,15 @@ export async function extractMainIngredients(
   );
 
   try {
-    const result = await extractionPrompt({
-      recipeContent,
-      recipeName
-    });
+    const result = await extractionPrompt(
+      {
+        recipeContent,
+        recipeName
+      },
+      {
+        model: getRecipeModel() // Use provider-specific model for extraction
+      }
+    );
 
     // Access the output from the prompt result
     const output = result.output;
@@ -318,14 +324,14 @@ export function getSubcategoryContext(subcategory: string): string {
   // Map styleType (which is now subcategory) to context
   const contexts: Record<string, string> = {
     "Kahvaltı": "Diyabet dostu kahvaltı",
+    "Atıştırmalık": "Sağlıklı atıştırmalıklar",
     "Doyurucu salata": "Protein içeren ana yemek olarak servis edilen doyurucu bir salata",
     "Hafif salata": "Yan yemek olarak servis edilen hafif bir salata",
     "Karbonhidrat ve Protein Uyumu": "Dengeli karbonhidrat ve protein kombinasyonu içeren akşam yemeği",
-    "Tam tahıl makarna çeşitleri": "Tam tahıllı makarna çeşitleri",
-    "Sana özel tatlılar": "Diyabet dostu tatlı versiyonları",
+    "Tam Buğday Makarna": "Tam buğday makarna çeşitleri",
+    "Sana Özel Tatlılar": "Diyabet dostu tatlı versiyonları",
     "Dondurma": "Ninja Creami makinesi için diyabet dostu dondurma",
-    "Meyve salatası": "Diyabet yönetimine uygun meyve salatası",
-    "Atıştırmalıklar": "Sağlıklı atıştırmalıklar"
+    "Meyve Salatası": "Diyabet yönetimine uygun meyve salatası"
   };
 
   return contexts[subcategory] || subcategory;

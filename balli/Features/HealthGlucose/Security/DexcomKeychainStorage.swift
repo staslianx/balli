@@ -228,11 +228,17 @@ extension DexcomKeychainStorage {
 
     /// Store complete token set
     func storeTokens(accessToken: String, refreshToken: String, expiresIn: TimeInterval) throws {
+        let expiryDate = Date().addingTimeInterval(expiresIn)
+
+        // Log token storage event (without exposing token values)
+        let logger = AppLoggers.Auth.main
+        logger.info("🔐 Storing new tokens - expires in \(expiresIn)s at \(expiryDate)")
+
         try storeAccessToken(accessToken)
         try storeRefreshToken(refreshToken)
-
-        let expiryDate = Date().addingTimeInterval(expiresIn)
         try storeTokenExpiry(expiryDate)
+
+        logger.info("✅ Tokens stored successfully")
     }
 }
 

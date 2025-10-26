@@ -30,22 +30,22 @@ struct VoiceGlowView: View {
                 // Layer 1: Outermost glow (most blurred, largest)
                 GlowLayer(height: targetHeight, size: size)
                     .blur(radius: 100)
-                    .opacity(0.6)
+                    .opacity(0.3)
 
                 // Layer 2: Mid glow
                 GlowLayer(height: targetHeight * 0.8, size: size)
                     .blur(radius: 60)
-                    .opacity(0.7)
+                    .opacity(0.4)
 
                 // Layer 3: Inner glow
                 GlowLayer(height: targetHeight * 0.6, size: size)
                     .blur(radius: 35)
-                    .opacity(0.8)
+                    .opacity(0.5)
 
                 // Layer 4: Core (least blurred, brightest)
                 GlowLayer(height: targetHeight * 0.4, size: size)
                     .blur(radius: 20)
-                    .opacity(0.9)
+                    .opacity(0.6)
             }
         }
         .ignoresSafeArea()

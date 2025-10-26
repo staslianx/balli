@@ -140,8 +140,8 @@ final class GlucoseChartViewModel: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
-                self?.logger.info("Glucose data updated - refreshing chart")
-                await self?.refreshData()
+                self?.logger.info("Glucose data updated - loading with debounce protection")
+                self?.loadGlucoseData()  // Use loadGlucoseData (with debounce) instead of refreshData (bypasses debounce)
             }
         }
     }
@@ -339,10 +339,16 @@ final class GlucoseChartViewModel: ObservableObject {
 
             logger.info("📦 Fetched \(readings.count) readings from CoreData")
 
-            // Convert CoreData readings to chart data points
+            // Convert CoreData readings to chart data points with safety checks
             let points = readings
-                .map { reading in
-                    GlucoseDataPoint(time: reading.timestamp, value: reading.value)
+                .compactMap { reading -> GlucoseDataPoint? in
+                    // Safety check: ensure the object is valid and not a fault
+                    guard !reading.isFault,
+                          !reading.isDeleted else {
+                        logger.warning("⚠️ Skipping invalid/deleted reading")
+                        return nil
+                    }
+                    return GlucoseDataPoint(time: reading.timestamp, value: reading.value)
                 }
                 .sorted { $0.time < $1.time }
 
@@ -534,10 +540,15 @@ final class GlucoseChartViewModel: ObservableObject {
                 limit: 50
             )
 
-            // Convert to chart data points and sort by time
+            // Convert to chart data points and sort by time with safety checks
             let points = readings
-                .map { reading in
-                    GlucoseDataPoint(time: reading.timestamp, value: reading.value)
+                .compactMap { reading -> GlucoseDataPoint? in
+                    // Validate reading has valid data
+                    guard reading.value > 0 else {
+                        logger.warning("⚠️ Skipping invalid HealthKit reading with value: \(reading.value)")
+                        return nil
+                    }
+                    return GlucoseDataPoint(time: reading.timestamp, value: reading.value)
                 }
                 .sorted { $0.time < $1.time } // Sort chronologically for chart display
 

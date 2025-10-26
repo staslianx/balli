@@ -64,21 +64,81 @@ public final class CoreDataStack: @unchecked Sendable {
     public func loadStores() async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             container.loadPersistentStores { [weak self] storeDescription, error in
+                guard let self = self else {
+                    continuation.resume(throwing: CoreDataError.contextUnavailable)
+                    return
+                }
+
                 if let error = error {
-                    self?.logger.fault("Core Data failed to load: \(error.localizedDescription)")
+                    self.logger.fault("Core Data failed to load: \(error.localizedDescription)")
 
                     if let nsError = error as NSError? {
-                        self?.logger.error("Error Code: \(nsError.code)")
-                        self?.logger.error("Error Domain: \(nsError.domain)")
+                        self.logger.error("Error Code: \(nsError.code)")
+                        self.logger.error("Error Domain: \(nsError.domain)")
+
+                        // Check if this is a migration error (Code 134110)
+                        if nsError.code == 134110 {
+                            self.logger.warning("Migration error detected - attempting to recreate store")
+
+                            // Attempt to delete and recreate the store
+                            if let storeURL = storeDescription.url {
+                                do {
+                                    // Backup the old store
+                                    let backupURL = storeURL.appendingPathExtension("backup-\(Date().timeIntervalSince1970)")
+                                    try? FileManager.default.copyItem(at: storeURL, to: backupURL)
+                                    self.logger.info("Backed up corrupt store to: \(backupURL.path)")
+
+                                    // Delete the old store files
+                                    try self.deleteStoreFiles(at: storeURL)
+                                    self.logger.info("Deleted corrupt store files")
+
+                                    // Try loading again with a fresh store
+                                    self.container.loadPersistentStores { _, retryError in
+                                        if let retryError = retryError {
+                                            self.logger.fault("Failed to recreate store: \(retryError.localizedDescription)")
+                                            continuation.resume(throwing: retryError)
+                                        } else {
+                                            self.logger.info("Successfully recreated Core Data store")
+                                            continuation.resume()
+                                        }
+                                    }
+                                    return
+                                } catch {
+                                    self.logger.error("Failed to delete corrupt store: \(error.localizedDescription)")
+                                }
+                            }
+                        }
                     }
 
                     continuation.resume(throwing: error)
                 } else {
-                    self?.logger.info("Core Data store loaded successfully")
-                    self?.logger.debug("Store URL: \(storeDescription.url?.absoluteString ?? "unknown")")
+                    self.logger.info("Core Data store loaded successfully")
+                    self.logger.debug("Store URL: \(storeDescription.url?.absoluteString ?? "unknown")")
                     continuation.resume()
                 }
             }
+        }
+    }
+
+    /// Deletes the SQLite store and associated files
+    private func deleteStoreFiles(at storeURL: URL) throws {
+        let fileManager = FileManager.default
+
+        // Delete main store file
+        if fileManager.fileExists(atPath: storeURL.path) {
+            try fileManager.removeItem(at: storeURL)
+        }
+
+        // Delete -shm file
+        let shmURL = URL(fileURLWithPath: storeURL.path + "-shm")
+        if fileManager.fileExists(atPath: shmURL.path) {
+            try fileManager.removeItem(at: shmURL)
+        }
+
+        // Delete -wal file
+        let walURL = URL(fileURLWithPath: storeURL.path + "-wal")
+        if fileManager.fileExists(atPath: walURL.path) {
+            try fileManager.removeItem(at: walURL)
         }
     }
     

@@ -72,7 +72,8 @@ struct AIProcessingView: View {
         .onChange(of: captureFlowManager.currentError) { oldValue, newValue in
             if newValue != nil {
                 // Analysis failed - return to previous view
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1.0 seconds
                     dismiss()
                 }
             }

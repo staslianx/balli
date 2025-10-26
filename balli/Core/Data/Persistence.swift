@@ -41,11 +41,11 @@ public final class PersistenceController: @unchecked Sendable {
     }
     
     // MARK: - Initialization
-    
-    public init(inMemory: Bool = false) {
-        self.controller = RefactoredController(inMemory: inMemory)
+
+    public init(inMemory: Bool = false, waitForReady: Bool = false) {
+        self.controller = RefactoredController(inMemory: inMemory, waitForReady: waitForReady)
     }
-    
+
     private init() {
         self.controller = RefactoredController.shared
     }
@@ -197,8 +197,8 @@ extension PersistenceController {
 
 extension PersistenceController {
     public static var preview: PersistenceController {
-        let controller = PersistenceController(inMemory: true)
-        
+        let controller = PersistenceController(inMemory: true, waitForReady: true)
+
         #if DEBUG
         do {
             try controller.generatePreviewData()
@@ -206,7 +206,7 @@ extension PersistenceController {
             AppLoggers.Data.coredata.error("Failed to generate preview data: \(error.localizedDescription)")
         }
         #endif
-        
+
         return controller
     }
     

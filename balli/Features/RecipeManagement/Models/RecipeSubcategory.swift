@@ -8,18 +8,27 @@
 
 import Foundation
 
-/// Represents the 9 independent meal subcategories for recipe memory tracking
+/// Represents the 7 independent meal subcategories for recipe memory tracking
 /// Each subcategory maintains its own memory pool to prevent false positives between contextually different meals
+/// Categories with subcategories: Salatalar (2), Akşam Yemeği (2), Tatlılar (3)
+/// Categories without subcategories: Kahvaltı, Atıştırmalık (use parent category as subcategory)
 enum RecipeSubcategory: String, Codable, CaseIterable, Sendable {
+    // Top-level categories (no subcategories)
     case kahvalti = "Kahvaltı"
-    case doyurucuSalata = "Doyurucu salata"
-    case hafifSalata = "Hafif salata"
+    case atistirmalik = "Atıştırmalık"
+
+    // Salatalar subcategories
+    case doyurucuSalata = "Doyurucu Salata"
+    case hafifSalata = "Hafif Salata"
+
+    // Akşam Yemeği subcategories
     case karbonhidratProtein = "Karbonhidrat ve Protein Uyumu"
-    case tamTahilMakarna = "Tam tahıl makarna çeşitleri"
-    case sanaOzelTatlilar = "Sana özel tatlılar"
+    case tamBugdayMakarna = "Tam Buğday Makarna"
+
+    // Tatlılar subcategories
+    case sanaOzelTatlilar = "Sana Özel Tatlılar"
     case dondurma = "Dondurma"
-    case meyveSalatasi = "Meyve salatası"
-    case atistirmaliklar = "Atıştırmalıklar"
+    case meyveSalatasi = "Meyve Salatası"
 
     /// Maximum number of recipes to store in memory for this subcategory
     /// Limits are based on realistic variety potential for diabetes-friendly recipes
@@ -27,13 +36,15 @@ enum RecipeSubcategory: String, Codable, CaseIterable, Sendable {
         switch self {
         case .kahvalti:
             return 25  // Limited breakfast options
+        case .atistirmalik:
+            return 20  // Moderate variety for healthy snacks
         case .doyurucuSalata:
             return 30  // High variety with protein + vegetable combos
         case .hafifSalata:
             return 20  // Simpler compositions
         case .karbonhidratProtein:
             return 30  // Main dinners require maximum variety
-        case .tamTahilMakarna:
+        case .tamBugdayMakarna:
             return 25  // Decent variety with different sauces/proteins
         case .sanaOzelTatlilar:
             return 15  // Diabetes-friendly desserts inherently limited
@@ -41,8 +52,6 @@ enum RecipeSubcategory: String, Codable, CaseIterable, Sendable {
             return 10  // Very limited for diabetes-friendly ice cream
         case .meyveSalatasi:
             return 10  // Limited fruit combinations for diabetes
-        case .atistirmaliklar:
-            return 20  // Moderate variety for healthy snacks
         }
     }
 
@@ -51,14 +60,14 @@ enum RecipeSubcategory: String, Codable, CaseIterable, Sendable {
         switch self {
         case .kahvalti:
             return "Kahvaltı"
+        case .atistirmalik:
+            return "Atıştırmalık"
         case .doyurucuSalata, .hafifSalata:
             return "Salatalar"
-        case .karbonhidratProtein, .tamTahilMakarna:
-            return "Akşam Yemeği"
+        case .karbonhidratProtein, .tamBugdayMakarna:
+            return "Akşam yemeği"
         case .sanaOzelTatlilar, .dondurma, .meyveSalatasi:
             return "Tatlılar"
-        case .atistirmaliklar:
-            return "Atıştırmalıklar"
         }
     }
 
@@ -72,22 +81,22 @@ enum RecipeSubcategory: String, Codable, CaseIterable, Sendable {
         switch self {
         case .kahvalti:
             return "Diyabet dostu kahvaltı"
+        case .atistirmalik:
+            return "Sağlıklı atıştırmalıklar"
         case .doyurucuSalata:
             return "Protein içeren ana yemek olarak servis edilen doyurucu bir salata"
         case .hafifSalata:
             return "Yan yemek olarak servis edilen hafif bir salata"
         case .karbonhidratProtein:
             return "Dengeli karbonhidrat ve protein kombinasyonu içeren akşam yemeği"
-        case .tamTahilMakarna:
-            return "Tam tahıllı makarna çeşitleri"
+        case .tamBugdayMakarna:
+            return "Tam buğday makarna çeşitleri"
         case .sanaOzelTatlilar:
             return "Diyabet dostu tatlı versiyonları"
         case .dondurma:
             return "Ninja Creami makinesi için diyabet dostu dondurma"
         case .meyveSalatasi:
             return "Diyabet yönetimine uygun meyve salatası"
-        case .atistirmaliklar:
-            return "Sağlıklı atıştırmalıklar"
         }
     }
 }

@@ -90,7 +90,7 @@ struct CameraPreviewLayer: UIViewRepresentable {
             }
 
             // Wait for valid bounds before creating preview layer
-            DispatchQueue.main.async { [weak self] in
+            Task { @MainActor [weak self] in
                 guard let self = self else { return }
 
                 let targetBounds: CGRect

@@ -45,7 +45,7 @@ struct FoodItemDetailView: View {
         NavigationStack {
             ZStack {
                 // Background color
-                Color(.systemGray6)
+                Color(.systemBackground)
                     .ignoresSafeArea()
 
                 ScrollView {
@@ -90,20 +90,6 @@ struct FoodItemDetailView: View {
                                             .fill(.clear)
                                             .glassEffect(.regular.interactive(), in: Circle())
                                     )
-                                    .overlay(
-                                        Circle()
-                                            .stroke(
-                                                LinearGradient(
-                                                    colors: [
-                                                        AppTheme.primaryPurple.opacity(0.15),
-                                                        AppTheme.primaryPurple.opacity(0.05)
-                                                    ],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ),
-                                                lineWidth: 0.5
-                                            )
-                                    )
                             }
                             .padding(.bottom, ResponsiveDesign.height(12))
                         } else if isEditMode {
@@ -117,20 +103,6 @@ struct FoodItemDetailView: View {
                                         Circle()
                                             .fill(.clear)
                                             .glassEffect(.regular.interactive(), in: Circle())
-                                    )
-                                    .overlay(
-                                        Circle()
-                                            .stroke(
-                                                LinearGradient(
-                                                    colors: [
-                                                        AppTheme.primaryPurple.opacity(0.15),
-                                                        AppTheme.primaryPurple.opacity(0.05)
-                                                    ],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ),
-                                                lineWidth: 0.5
-                                            )
                                     )
                             }
                             .padding(.bottom, ResponsiveDesign.height(12))

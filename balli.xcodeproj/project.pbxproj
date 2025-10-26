@@ -10,6 +10,7 @@
 		7308578E2EA8F5E400D7100F /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 7308578D2EA8F5E400D7100F /* SQLite */; };
 		731FA27E2E66CF7000C3BC2E /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 731FA27C2E66CF7000C3BC2E /* HealthKit.framework */; };
 		731FA27F2E66CF7000C3BC2E /* HealthKitUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 731FA27D2E66CF7000C3BC2E /* HealthKitUI.framework */; };
+		733ADC8B2EACEDD20040165F /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 733ADC8A2EACEDD20040165F /* FirebaseFirestore */; };
 		734BD3B52E7E7AFD00F4F22C /* balli.icon in Resources */ = {isa = PBXBuildFile; fileRef = 734BD3B42E7E7AFD00F4F22C /* balli.icon */; };
 		73C5728E2E9E795400999C36 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 73C5728D2E9E795400999C36 /* FirebaseStorage */; };
 		73C572902E9E826000999C36 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 73C5728F2E9E826000999C36 /* GoogleService-Info.plist */; };
@@ -94,6 +95,7 @@
 				7308578E2EA8F5E400D7100F /* SQLite in Frameworks */,
 				731FA27E2E66CF7000C3BC2E /* HealthKit.framework in Frameworks */,
 				731FA27F2E66CF7000C3BC2E /* HealthKitUI.framework in Frameworks */,
+				733ADC8B2EACEDD20040165F /* FirebaseFirestore in Frameworks */,
 				73C5728E2E9E795400999C36 /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -177,6 +179,7 @@
 			packageProductDependencies = (
 				73C5728D2E9E795400999C36 /* FirebaseStorage */,
 				7308578D2EA8F5E400D7100F /* SQLite */,
+				733ADC8A2EACEDD20040165F /* FirebaseFirestore */,
 			);
 			productName = balli;
 			productReference = 73D31C302E407BF900D2214B /* balli.app */;
@@ -715,6 +718,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 7308578C2EA8F5E400D7100F /* XCRemoteSwiftPackageReference "SQLite" */;
 			productName = SQLite;
+		};
+		733ADC8A2EACEDD20040165F /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 73C5728C2E9E795400999C36 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
 		};
 		73C5728D2E9E795400999C36 /* FirebaseStorage */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -66,11 +66,18 @@ extension ShoppingListItem {
         let request: NSFetchRequest<ShoppingListItem> = ShoppingListItem.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(key: "sortOrder", ascending: false)]
         request.fetchLimit = 1
-        
+
         do {
             let items = try context.fetch(request)
-            return (items.first?.sortOrder ?? 0) + 1
+            if let firstItem = items.first {
+                // There are existing items, return next order
+                return firstItem.sortOrder + 1
+            } else {
+                // No existing items, start at 0
+                return 0
+            }
         } catch {
+            // On error, start at 0
             return 0
         }
     }

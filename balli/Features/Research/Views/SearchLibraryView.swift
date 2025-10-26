@@ -11,59 +11,27 @@ import SwiftUI
 struct SearchLibraryView: View {
     @State private var threads: [SearchAnswer] = []
     @State private var isLoading = true
-    @State private var selectedTab: ResearchTab = .search
 
     private let repository = ResearchHistoryRepository()
 
-    enum ResearchTab: String, CaseIterable {
-        case search = "Araştırma"
-        case deepResearch = "Derin Araştırma"
-    }
-
-    var filteredAnswers: [SearchAnswer] {
-        threads.filter { answer in
-            switch selectedTab {
-            case .search:
-                // Show search tier (HYBRID_RESEARCH) and model tier answers
-                return answer.tier?.rawValue == ResponseTier.search.rawValue ||
-                       answer.tier?.rawValue == ResponseTier.model.rawValue
-            case .deepResearch:
-                // Show deep research tier (DEEP_RESEARCH) answers
-                return answer.tier?.rawValue == ResponseTier.research.rawValue
-            }
-        }
-    }
-
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Segmented Picker
-                Picker("Araştırma Türü", selection: $selectedTab) {
-                    ForEach(ResearchTab.allCases, id: \.self) { tab in
-                        Text(tab.rawValue).tag(tab)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding()
-
-                // List
-                List {
-                    if isLoading {
-                        ProgressView("Yükleniyor...")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    } else if filteredAnswers.isEmpty {
-                        ContentUnavailableView(
-                            "Henüz araştırma yok",
-                            systemImage: "book.closed",
-                            description: Text("Yaptığın araştırmalar burada görünecek")
-                        )
-                    } else {
-                        Section("Son Araştırmalar") {
-                            ForEach(filteredAnswers) { thread in
-                                NavigationLink(destination: SearchDetailView(answer: thread)) {
-                                    SearchAnswerRow(answer: thread)
-                                        .equatable()
-                                }
+            List {
+                if isLoading {
+                    ProgressView("Yükleniyor...")
+                        .frame(maxWidth: .infinity, alignment: .center)
+                } else if threads.isEmpty {
+                    ContentUnavailableView(
+                        "Henüz araştırma yok",
+                        systemImage: "book.closed",
+                        description: Text("Yaptığın araştırmalar burada görünecek")
+                    )
+                } else {
+                    Section("Son Araştırmalar") {
+                        ForEach(threads) { thread in
+                            NavigationLink(destination: SearchDetailView(answer: thread)) {
+                                SearchAnswerRow(answer: thread)
+                                    .equatable()
                             }
                         }
                     }
@@ -106,17 +74,35 @@ struct SearchLibraryView: View {
 /// PERFORMANCE: Equatable row view prevents unnecessary re-renders when answer data hasn't changed
 struct SearchAnswerRow: View, Equatable {
     let answer: SearchAnswer
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(answer.query)
-                .font(.headline)
-                .lineLimit(2)
-                .foregroundStyle(.primary)
+        HStack(alignment: .top, spacing: 12) {
+            // Research type badge on the left
+            if let tier = answer.tier {
+                VStack(spacing: 4) {
+                    Image(systemName: tier.iconName)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(tier.badgeForegroundColor(for: colorScheme))
+                        .frame(width: 24, height: 24)
+                        .background {
+                            Circle()
+                                .fill(tier.badgeBackgroundColor(for: colorScheme))
+                        }
+                }
+            }
 
-            Text(answer.timestamp, style: .relative)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            // Question and timestamp
+            VStack(alignment: .leading, spacing: 4) {
+                Text(answer.query)
+                    .font(.headline)
+                    .lineLimit(2)
+                    .foregroundStyle(.primary)
+
+                Text(answer.timestamp, style: .relative)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.vertical, 4)
     }
@@ -125,6 +111,55 @@ struct SearchAnswerRow: View, Equatable {
     nonisolated static func == (lhs: SearchAnswerRow, rhs: SearchAnswerRow) -> Bool {
         lhs.answer.id == rhs.answer.id &&
         lhs.answer.query == rhs.answer.query &&
-        lhs.answer.timestamp == rhs.answer.timestamp
+        lhs.answer.timestamp == rhs.answer.timestamp &&
+        lhs.answer.tier?.rawValue == rhs.answer.tier?.rawValue
     }
+}
+
+// MARK: - Previews
+
+#Preview("Library with Different Tiers") {
+    NavigationStack {
+        List {
+            Section("Son Araştırmalar") {
+                // Recall tier
+                SearchAnswerRow(answer: SearchAnswer(
+                    query: "Daha önce sorduğum bir soru",
+                    content: "Hatırlanmış yanıt",
+                    sources: [],
+                    tier: .recall
+                ))
+
+                // Model tier
+                SearchAnswerRow(answer: SearchAnswer(
+                    query: "Hızlı bir soru sordum",
+                    content: "Model yanıtı",
+                    sources: [],
+                    tier: .model
+                ))
+
+                // Search tier
+                SearchAnswerRow(answer: SearchAnswer(
+                    query: "Diyabette karbonhidrat sayımı nasıl yapılır?",
+                    content: "Web araştırması yanıtı",
+                    sources: [],
+                    tier: .search
+                ))
+
+                // Research tier
+                SearchAnswerRow(answer: SearchAnswer(
+                    query: "CGM sensörlerinin doğruluğu hakkında bilimsel araştırmalar neler?",
+                    content: "Derin araştırma yanıtı",
+                    sources: [],
+                    tier: .research
+                ))
+            }
+        }
+        .navigationTitle("Kütüphane")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+#Preview("Full Library View") {
+    SearchLibraryView()
 }

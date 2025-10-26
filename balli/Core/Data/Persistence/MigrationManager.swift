@@ -34,17 +34,40 @@ public final class MigrationManager {
     }
     
     // MARK: - Migration Strategies
-    
+
     private func setupMigrationStrategies() {
-        // Register custom migration strategies here
-        // Example:
-        // migrationStrategies["v1_to_v2"] = MigrationStrategy(
-        //     fromVersion: "1.0",
-        //     toVersion: "2.0",
-        //     migrationBlock: { context in
-        //         // Custom migration logic
-        //     }
-        // )
+        // Register MealEntry lastModified migration
+        migrationStrategies["mealentry_lastmodified_fix"] = MigrationStrategy(
+            fromVersion: "1.0",
+            toVersion: "1.1",
+            migrationBlock: { context in
+                // Fetch all MealEntry objects without lastModified
+                let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "MealEntry")
+                fetchRequest.predicate = NSPredicate(format: "lastModified == nil")
+
+                do {
+                    let entries = try context.fetch(fetchRequest)
+                    self.logger.info("Found \(entries.count) MealEntry records needing lastModified fix")
+
+                    for entry in entries {
+                        // Use timestamp as default, or current date if timestamp is nil
+                        if let timestamp = entry.value(forKey: "timestamp") as? Date {
+                            entry.setValue(timestamp, forKey: "lastModified")
+                        } else {
+                            entry.setValue(Date(), forKey: "lastModified")
+                        }
+                    }
+
+                    if context.hasChanges {
+                        try context.save()
+                        self.logger.info("Successfully updated lastModified for \(entries.count) MealEntry records")
+                    }
+                } catch {
+                    self.logger.error("Failed to update MealEntry lastModified: \(error.localizedDescription)")
+                    throw error
+                }
+            }
+        )
     }
     
     // MARK: - Migration Check

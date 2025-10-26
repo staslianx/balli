@@ -91,8 +91,9 @@ struct SearchBarView: View {
             }
             .padding(.bottom, ResponsiveDesign.Spacing.xSmall)
         }
-        // iOS 26 Native Liquid Glass Effect with interactive response
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        // balli's signature purple-tinted glass effect
+        .balliTintedGlass(cornerRadius: 28)
+        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
         // CRITICAL FIX: Only animate button color change, not entire view
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSearching)
     }

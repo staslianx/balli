@@ -90,6 +90,12 @@ actor DexcomShareAuthManager {
     func getSessionId() async throws -> String {
         // Check if we have a valid session
         if await isAuthenticated(), let sessionId = currentSessionId {
+            // Proactively refresh if session is close to expiring (within 1 hour)
+            if let expiry = sessionExpiry,
+               Date().addingTimeInterval(60 * 60) >= expiry {
+                logger.info("SHARE session expires soon, proactively refreshing...")
+                return try await authenticate()
+            }
             return sessionId
         }
 

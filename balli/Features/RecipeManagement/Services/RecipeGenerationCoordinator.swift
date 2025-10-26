@@ -60,7 +60,7 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             logger.info("👤 [COORDINATOR] User ID resolved: \(userId)")
 
             // Fetch memory for diversity checking
-            let memoryDicts = await fetchMemoryForGeneration(styleType: styleType)
+            let memoryDicts = await fetchMemoryForGeneration(mealType: mealType, styleType: styleType)
 
             // Convert to SimpleRecentRecipe for service call
             let recentRecipes: [SimpleRecentRecipe] = memoryDicts?.compactMap { dict in
@@ -101,10 +101,11 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             // Populate form state
             formState.loadFromGenerationResponse(response)
 
-            // Record in memory using ingredients from response
+            // Record in memory using extracted ingredients from Cloud Functions
             await recordRecipeInMemory(
+                mealType: mealType,
                 styleType: styleType,
-                extractedIngredients: response.ingredients,
+                extractedIngredients: response.extractedIngredients,
                 recipeName: response.recipeName
             )
 
@@ -148,7 +149,7 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             logger.info("👤 [COORDINATOR] User ID resolved: \(userId)")
 
             // Fetch memory for diversity checking
-            let memoryDicts = await fetchMemoryForGeneration(styleType: styleType)
+            let memoryDicts = await fetchMemoryForGeneration(mealType: mealType, styleType: styleType)
 
             // Convert to SimpleRecentRecipe for service call
             let recentRecipes: [SimpleRecentRecipe] = memoryDicts?.compactMap { dict in
@@ -185,12 +186,28 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                         self.streamingContent = fullContent
                         self.tokenCount = count
 
-                        // Try to parse JSON incrementally to extract recipeContent if available
+                        // Try to parse JSON incrementally to extract recipeContent and recipeName if available
                         if let jsonData = fullContent.data(using: .utf8),
-                           let parsedJSON = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                           let recipeContent = parsedJSON["recipeContent"] as? String {
-                            // Update form state with streaming markdown content
-                            self.formState.recipeContent = recipeContent
+                           let parsedJSON = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+
+                            // Extract recipe name early (usually appears in first few chunks)
+                            if let recipeName = (parsedJSON["recipeName"] as? String) ?? (parsedJSON["name"] as? String),
+                               !recipeName.isEmpty,
+                               recipeName != self.formState.recipeName {
+                                self.formState.recipeName = recipeName
+                            }
+
+                            // Extract streaming markdown content - ONLY update if it changed
+                            if let recipeContent = parsedJSON["recipeContent"] as? String,
+                               recipeContent != self.formState.recipeContent {
+                                self.formState.recipeContent = recipeContent
+                            }
+
+                            // Extract notes progressively as they stream - ONLY update if it changed
+                            if let notes = parsedJSON["notes"] as? String,
+                               notes != self.formState.notes {
+                                self.formState.notes = notes
+                            }
                         }
 
                         self.logger.debug("📦 [STREAMING] Received chunk: \(count) tokens, \(fullContent.count) chars")
@@ -205,10 +222,11 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                         // Populate form state with complete response
                         self.formState.loadFromGenerationResponse(response)
 
-                        // Record in memory using ingredients from response
+                        // Record in memory using extracted ingredients from Cloud Functions
                         await self.recordRecipeInMemory(
+                            mealType: mealType,
                             styleType: styleType,
-                            extractedIngredients: response.ingredients,
+                            extractedIngredients: response.extractedIngredients,
                             recipeName: response.recipeName
                         )
 
@@ -244,37 +262,110 @@ public final class RecipeGenerationCoordinator: ObservableObject {
     // MARK: - Memory Integration
 
     /// Fetch memory entries for a subcategory and convert to Cloud Functions format
-    private func fetchMemoryForGeneration(styleType: String) async -> [[String: Any]]? {
-        // Parse subcategory from styleType (which is the raw value)
-        guard let subcategory = RecipeSubcategory(rawValue: styleType) else {
-            logger.warning("Could not parse subcategory from styleType: \(styleType)")
+    private func fetchMemoryForGeneration(mealType: String, styleType: String) async -> [[String: Any]]? {
+        logger.info("🔍 [INTEGRATION] ========== FETCHING MEMORY FOR GENERATION ==========")
+        logger.info("🔍 [INTEGRATION] MealType: \(mealType), StyleType: \(styleType)")
+
+        // Determine subcategory: try styleType first, then fall back to mealType
+        let subcategoryName = determineSubcategory(mealType: mealType, styleType: styleType)
+        logger.info("🔍 [INTEGRATION] Resolved subcategory name: \(subcategoryName)")
+
+        // Parse subcategory from resolved name
+        guard let subcategory = RecipeSubcategory(rawValue: subcategoryName) else {
+            logger.error("🔍 [INTEGRATION] ❌ FAILED: Could not parse subcategory from: \(subcategoryName)")
+            logger.error("🔍 [INTEGRATION] Available subcategories: \(RecipeSubcategory.allCases.map { $0.rawValue }.joined(separator: ", "))")
             return nil
         }
 
-        logger.info("📚 [MEMORY] Fetching memory for subcategory: \(subcategory.rawValue)")
+        logger.info("🔍 [INTEGRATION] Subcategory: \(subcategory.rawValue) (limit: \(subcategory.memoryLimit))")
         let memoryEntries = await memoryService.getMemoryForCloudFunctions(for: subcategory, limit: 10)
-        logger.info("📚 [MEMORY] Retrieved \(memoryEntries.count) memory entries")
+        logger.info("🔍 [INTEGRATION] Retrieved \(memoryEntries.count) memory entries for Cloud Functions")
 
-        return memoryEntries.isEmpty ? nil : memoryEntries
+        if memoryEntries.isEmpty {
+            logger.info("🔍 [INTEGRATION] ⚠️ Memory is EMPTY - first recipe in this subcategory!")
+            return nil
+        } else {
+            // Log first few entries for debugging
+            for (index, entry) in memoryEntries.prefix(3).enumerated() {
+                if let ingredients = entry["mainIngredients"] as? [String],
+                   let name = entry["recipeName"] as? String {
+                    logger.info("🔍 [INTEGRATION] Entry \(index + 1): '\(name)' - [\(ingredients.joined(separator: ", "))]")
+                }
+            }
+            return memoryEntries
+        }
+    }
+
+    /// Determine subcategory from mealType and styleType
+    private func determineSubcategory(mealType: String, styleType: String) -> String {
+        logger.debug("🔍 [SUBCATEGORY-MAP] Input - mealType: '\(mealType)', styleType: '\(styleType)'")
+
+        // Subcategory mapping from UI values to memory system values
+        // IMPORTANT: Keys must EXACTLY match what RecipeMealSelectionView sends (line 49-53)
+        // Rule: Every first letter capitalized EXCEPT "ve" (lowercase)
+        let subcategoryMap: [String: String] = [
+            // Salatalar subcategories
+            "Doyurucu Salata": "Doyurucu Salata",
+            "Hafif Salata": "Hafif Salata",
+
+            // Akşam Yemeği subcategories
+            "Karbonhidrat ve Protein Uyumu": "Karbonhidrat ve Protein Uyumu",
+            "Tam Buğday Makarna": "Tam Buğday Makarna",
+
+            // Tatlılar subcategories
+            "Sana Özel Tatlılar": "Sana Özel Tatlılar",
+            "Dondurma": "Dondurma",
+            "Meyve Salatası": "Meyve Salatası"
+        ]
+
+        // If styleType is NOT empty and is a known subcategory, use it
+        if !styleType.isEmpty, let mappedSubcategory = subcategoryMap[styleType] {
+            logger.debug("🔍 [SUBCATEGORY-MAP] Found mapping for styleType: '\(styleType)' → '\(mappedSubcategory)'")
+            return mappedSubcategory
+        }
+
+        // Otherwise, use mealType for categories without subcategories
+        let mealTypeMap: [String: String] = [
+            "Kahvaltı": "Kahvaltı",
+            "Atıştırmalık": "Atıştırmalık"
+        ]
+
+        let result = mealTypeMap[mealType] ?? mealType
+        logger.debug("🔍 [SUBCATEGORY-MAP] Using mealType mapping: '\(mealType)' → '\(result)'")
+        return result
     }
 
     /// Record generated recipe in memory
     private func recordRecipeInMemory(
+        mealType: String,
         styleType: String,
         extractedIngredients: [String]?,
         recipeName: String
     ) async {
-        // Parse subcategory from styleType
-        guard let subcategory = RecipeSubcategory(rawValue: styleType) else {
-            logger.warning("Could not parse subcategory from styleType: \(styleType)")
+        logger.info("💾 [INTEGRATION] ========== RECORDING RECIPE IN MEMORY ==========")
+        logger.info("💾 [INTEGRATION] Recipe: '\(recipeName)'")
+        logger.info("💾 [INTEGRATION] MealType: \(mealType), StyleType: \(styleType)")
+
+        // Determine subcategory
+        let subcategoryName = determineSubcategory(mealType: mealType, styleType: styleType)
+        logger.info("💾 [INTEGRATION] Resolved subcategory name: \(subcategoryName)")
+
+        // Parse subcategory from resolved name
+        guard let subcategory = RecipeSubcategory(rawValue: subcategoryName) else {
+            logger.error("💾 [INTEGRATION] ❌ FAILED: Could not parse subcategory from: \(subcategoryName)")
             return
         }
 
+        logger.info("💾 [INTEGRATION] Subcategory: \(subcategory.rawValue)")
+
         // Only record if we have extracted ingredients
         guard let ingredients = extractedIngredients, !ingredients.isEmpty else {
-            logger.warning("No extracted ingredients to record in memory")
+            logger.error("💾 [INTEGRATION] ❌ FAILED: No extracted ingredients to record")
+            logger.error("💾 [INTEGRATION] This means Cloud Functions didn't extract ingredients!")
             return
         }
+
+        logger.info("💾 [INTEGRATION] Extracted ingredients from Cloud Functions: \(ingredients.joined(separator: ", "))")
 
         do {
             try await memoryService.recordRecipe(
@@ -282,9 +373,9 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                 ingredients: ingredients,
                 recipeName: recipeName
             )
-            logger.info("✅ [MEMORY] Recorded recipe '\(recipeName)' in memory")
+            logger.info("💾 [INTEGRATION] ✅ Successfully recorded recipe in memory system")
         } catch {
-            logger.error("❌ [MEMORY] Failed to record recipe in memory: \(error.localizedDescription)")
+            logger.error("💾 [INTEGRATION] ❌ FAILED to record recipe: \(error.localizedDescription)")
             // Don't throw - memory failure shouldn't block the flow
         }
     }

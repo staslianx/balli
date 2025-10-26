@@ -11,6 +11,30 @@ import AVFoundation
 import CoreData
 import os.log
 
+// MARK: - Glass Text Field Modifier
+
+struct GlassTextFieldStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .textFieldStyle(.plain)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(.clear)
+            )
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+extension View {
+    func glassTextField() -> some View {
+        modifier(GlassTextFieldStyle())
+    }
+}
+
+// MARK: - Voice Input View
+
 struct VoiceInputView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -33,52 +57,46 @@ struct VoiceInputView: View {
     // Editable meal data (for user corrections)
     @State private var editableFoods: [EditableFoodItem] = []
     @State private var editableTotalCarbs: String = ""
-    @State private var editableMealType: String = "atıştırmalık"
+    @State private var editableMealType: String = "ara öğün"
     @State private var editableMealTime: String = ""
+    @State private var editableTimestamp: Date = Date()
 
     // Haptic feedback
     private let hapticManager = HapticManager()
 
     // Animation values
-    @State private var pulseAnimation = false
+    @State private var dotAnimation = false
 
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
                 // Main content area
-                VStack(spacing: 0) {
-                    // Transcription display area
-                    transcriptionDisplayView
-                        .frame(maxHeight: .infinity)
-                }
-                .navigationTitle("Öğününü Kaydet")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        if showingPreview {
-                            // Checkmark button to save meal
-                            Button {
-                                Task {
-                                    await saveMealEntry()
-                                }
-                            } label: {
-                                Image(systemName: "checkmark")
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.primaryPurple)
-                        }
-                    }
-                }
+                transcriptionDisplayView
 
                 // Floating recording button overlay
                 recordingControlsView
                     .padding(.bottom, ResponsiveDesign.Spacing.large)
             }
+            .navigationTitle("Öğününü Kaydet")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if showingPreview {
+                        // Checkmark button to save meal
+                        Button {
+                            Task {
+                                await saveMealEntry()
+                            }
+                        } label: {
+                            Image(systemName: "checkmark")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(AppTheme.primaryPurple)
+                    }
+                }
+            }
         }
         .task {
-            // Start animation immediately
-            pulseAnimation = true
-
             // Check microphone permission
             audioRecorder.checkMicrophonePermission()
 
@@ -90,6 +108,12 @@ struct VoiceInputView: View {
                 await audioRecorder.requestMicrophonePermission()
                 let micResult = audioRecorder.microphonePermissionGranted
                 logger.info("🎙️ Microphone permission result: \(micResult)")
+            }
+        }
+        .onChange(of: audioRecorder.isRecording) { _, isRecording in
+            // Trigger dot animation when recording starts
+            if isRecording {
+                dotAnimation = true
             }
         }
         .onDisappear {
@@ -112,103 +136,104 @@ struct VoiceInputView: View {
 
     @ViewBuilder
     private var transcriptionDisplayView: some View {
-        ScrollView {
-            VStack(spacing: ResponsiveDesign.Spacing.medium, content: {
-                if showingPreview, let parsedData = parsedMealData {
-                    // Preview of parsed meal data
-                    mealPreviewView(parsedData)
-                } else if isParsing {
-                    // Loading indicator while parsing
-                    VStack(spacing: ResponsiveDesign.Spacing.medium) {
-                        ProgressView()
-                            .scaleEffect(1.5)
-                            .tint(AppTheme.primaryPurple)
+        if showingPreview, let parsedData = parsedMealData {
+            // Preview of parsed meal data - scrollable
+            ScrollView {
+                mealPreviewView(parsedData)
+            }
+        } else if isParsing {
+            // Processing state - "Notumu alıyorum" centered with icon
+            VStack {
+                Spacer()
 
-                        Text("Gemini ile analiz ediliyor...")
+                HStack(spacing: 12) {
+                    Image(systemName: "long.text.page.and.pencil.fill")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(AppTheme.primaryPurple)
+                        .symbolEffect(.pulse.wholeSymbol, options: .repeat(.continuous))
+
+                    Text("Notumu alıyorum")
+                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .foregroundStyle(AppTheme.primaryPurple)
+                }
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else if !audioRecorder.isRecording {
+            // Placeholder when not recording
+            VStack {
+                Spacer()
+
+                VStack(spacing: ResponsiveDesign.Spacing.small) {
+                    if !audioRecorder.microphonePermissionGranted {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 60))
+                            .foregroundStyle(.red)
+
+                        Text("Mikrofon İzni Gerekli")
+                            .font(.system(size: 20, weight: .medium, design: .rounded))
+                            .foregroundStyle(.red)
+
+                        VStack(spacing: 8) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundStyle(.red)
+                                Text("Mikrofon izni")
+                                    .foregroundStyle(.secondary)
+                            }
+                            .font(.system(size: 13, weight: .regular, design: .rounded))
+                        }
+                        .padding(.horizontal)
+
+                        Button {
+                            if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+                                UIApplication.shared.open(settingsUrl)
+                            }
+                        } label: {
+                            Text("Ayarları Aç")
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
+                                .background(AppTheme.primaryPurple)
+                                .clipShape(Capsule())
+                        }
+                        .padding(.top, ResponsiveDesign.Spacing.small)
+                    } else {
+                        Image(systemName: "waveform.low")
+                            .font(.system(size: 80, weight: .bold))
+                            .foregroundStyle(.secondary.opacity(0.3))
+
+                        Text("Kayıt için dokunun")
                             .font(.system(size: 17, weight: .medium, design: .rounded))
                             .foregroundStyle(.secondary)
+                            .padding(.top, 8)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, ResponsiveDesign.height(80))
-                } else if !audioRecorder.isRecording {
-                    // Placeholder when not recording
-                    VStack(spacing: ResponsiveDesign.Spacing.small) {
-                        if !audioRecorder.microphonePermissionGranted {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 60))
-                                .foregroundStyle(.red)
-
-                            Text("Mikrofon İzni Gerekli")
-                                .font(.system(size: 20, weight: .medium, design: .rounded))
-                                .foregroundStyle(.red)
-
-                            VStack(spacing: 8) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "xmark.circle.fill")
-                                        .foregroundStyle(.red)
-                                    Text("Mikrofon izni")
-                                        .foregroundStyle(.secondary)
-                                }
-                                .font(.system(size: 13, weight: .regular, design: .rounded))
-                            }
-                            .padding(.horizontal)
-
-                            Button {
-                                if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
-                                    UIApplication.shared.open(settingsUrl)
-                                }
-                            } label: {
-                                Text("Ayarları Aç")
-                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 24)
-                                    .padding(.vertical, 12)
-                                    .background(AppTheme.primaryPurple)
-                                    .clipShape(Capsule())
-                            }
-                            .padding(.top, ResponsiveDesign.Spacing.small)
-                        } else {
-                            Image(systemName: "waveform.low")
-                                .font(.system(size: 80, weight: .bold))
-                                .foregroundStyle(.secondary.opacity(0.3))
-
-                            Text("Kayıt için dokunun")
-                                .font(.system(size: 17, weight: .medium, design: .rounded))
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 8)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, ResponsiveDesign.height(80))
-                } else {
-                    // Recording in progress
-                    VStack(spacing: ResponsiveDesign.Spacing.large) {
-                        // Audio waveform visualization
-                        VoiceGlowView(audioLevel: audioRecorder.audioLevel)
-                            .frame(height: 200)
-
-                        // Recording indicator
-                        HStack(spacing: 8) {
-                            Circle()
-                                .fill(.red)
-                                .frame(width: 12, height: 12)
-                                .opacity(pulseAnimation ? 0.3 : 1.0)
-                                .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: pulseAnimation)
-
-                            Text("Kaydediliyor...")
-                                .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.secondary)
-                        }
-
-                        // Duration
-                        Text(formatDuration(recordingDuration))
-                            .font(.system(size: 48, weight: .bold, design: .rounded).monospacedDigit())
-                            .foregroundStyle(.primary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, ResponsiveDesign.height(60))
                 }
-            })
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        } else {
+            // Recording in progress - "Dinliyorum" with waveform icon
+            VStack {
+                Spacer()
+
+                HStack(spacing: 12) {
+                    Image(systemName: "waveform")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(AppTheme.primaryPurple)
+                        .symbolEffect(.variableColor)
+
+                    Text("Dinliyorum")
+                        .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        .foregroundStyle(AppTheme.primaryPurple)
+                }
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
@@ -218,23 +243,69 @@ struct VoiceInputView: View {
     private func mealPreviewView(_ data: ParsedMealData) -> some View {
         ScrollView {
             VStack(spacing: ResponsiveDesign.Spacing.medium) {
-                // Show transcription if Gemini format
-                if let transcription = data.transcription {
+                // TOP ROW: Meal Type (left) and Carb Stepper (right)
+                HStack(alignment: .top, spacing: 16) {
+                    // EDITABLE Meal Type Picker - LEFT SIDE
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Söylediğiniz:")
-                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                        Text("Öğün Türü")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .foregroundStyle(.secondary)
 
-                        Text(transcription)
-                            .font(.system(size: 16, weight: .regular, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(12)
+                        Picker("Öğün", selection: $editableMealType) {
+                            Text("Kahvaltı").tag("kahvaltı")
+                            Text("Ara Öğün").tag("ara öğün")
+                            Text("Akşam Yemeği").tag("akşam yemeği")
+                        }
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(.horizontal)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    // EDITABLE Total Carbs with Stepper - RIGHT SIDE
+                    VStack(alignment: .trailing, spacing: 8) {
+                        Text("Karbonhidrat")
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        HStack(spacing: 8) {
+                            // Decrease button
+                            Button {
+                                adjustCarbs(by: -5)
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundStyle(AppTheme.primaryPurple)
+                            }
+                            .buttonStyle(.plain)
+
+                            // Carb value
+                            TextField("0", text: $editableTotalCarbs)
+                                .keyboardType(.numberPad)
+                                .font(.system(size: 24, weight: .bold, design: .rounded).monospacedDigit())
+                                .glassTextField()
+                                .frame(width: 70)
+                                .multilineTextAlignment(.center)
+
+                            Text("g")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(.secondary)
+
+                            // Increase button
+                            Button {
+                                adjustCarbs(by: 5)
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundStyle(AppTheme.primaryPurple)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
+                .padding(.horizontal)
+
+                Divider()
+                    .padding(.horizontal)
 
                 // EDITABLE Foods Array
                 VStack(alignment: .leading, spacing: 12) {
@@ -254,7 +325,7 @@ struct VoiceInputView: View {
 
                                 TextField("Yiyecek adı", text: $food.name)
                                     .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                    .textFieldStyle(.roundedBorder)
+                                    .glassTextField()
                             }
 
                             // Amount
@@ -266,7 +337,7 @@ struct VoiceInputView: View {
 
                                 TextField("Örn: 2 adet, 1 dilim", text: $food.amount)
                                     .font(.system(size: 14, design: .rounded))
-                                    .textFieldStyle(.roundedBorder)
+                                    .glassTextField()
                             }
 
                             // Per-item carbs (if detailed format)
@@ -280,7 +351,7 @@ struct VoiceInputView: View {
                                     TextField("0", text: $food.carbs)
                                         .keyboardType(.numberPad)
                                         .font(.system(size: 16, weight: .bold, design: .rounded).monospacedDigit())
-                                        .textFieldStyle(.roundedBorder)
+                                        .glassTextField()
                                         .frame(width: 80)
 
                                     Text("gram")
@@ -308,68 +379,23 @@ struct VoiceInputView: View {
                 }
                 .padding(.horizontal)
 
-                Divider()
-                    .padding(.horizontal)
-
-                // EDITABLE Total Carbs
+                // EDITABLE Timestamp
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Toplam Karbonhidrat")
+                    Text("Tarih ve Saat")
                         .font(.system(size: 18, weight: .semibold, design: .rounded))
                         .foregroundStyle(.primary)
 
-                    HStack {
-                        TextField("0", text: $editableTotalCarbs)
-                            .keyboardType(.numberPad)
-                            .font(.system(size: 28, weight: .bold, design: .rounded).monospacedDigit())
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 100)
-
-                        Text("gram")
-                            .font(.system(size: 18))
-                            .foregroundStyle(.secondary)
-
-                        Spacer()
-                    }
+                    DatePicker(
+                        "Öğün zamanı",
+                        selection: $editableTimestamp,
+                        in: ...Date(),
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .padding(.horizontal)
-
-                Divider()
-                    .padding(.horizontal)
-
-                // EDITABLE Meal Type Picker
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Öğün Türü")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.primary)
-
-                    Picker("Öğün", selection: $editableMealType) {
-                        Text("Kahvaltı").tag("kahvaltı")
-                        Text("Öğle Yemeği").tag("öğle yemeği")
-                        Text("Akşam Yemeği").tag("akşam yemeği")
-                        Text("Atıştırmalık").tag("atıştırmalık")
-                    }
-                    .pickerStyle(.segmented)
-                }
-                .padding(.horizontal)
-
-                // EDITABLE Meal Time (optional)
-                if !editableMealTime.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Saat (opsiyonel)")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-
-                        TextField("HH:MM", text: $editableMealTime)
-                            .keyboardType(.numbersAndPunctuation)
-                            .font(.system(size: 24, weight: .bold, design: .rounded).monospacedDigit())
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 120)
-                    }
-                    .padding(.horizontal)
-                }
-
-                Divider()
-                    .padding(.horizontal)
 
                 // Confidence warning
                 if let confidence = data.confidence, confidence != "high" {
@@ -385,6 +411,29 @@ struct VoiceInputView: View {
                     .background(Color.orange.opacity(0.1))
                     .cornerRadius(12)
                     .padding(.horizontal)
+
+                    Divider()
+                        .padding(.horizontal)
+                }
+
+                // Show transcription at the BOTTOM
+                if let transcription = data.transcription {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Söylediğiniz:")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+
+                        Text(transcription)
+                            .font(.system(size: 16, weight: .regular, design: .rounded))
+                            .italic()
+                            .foregroundStyle(.primary)
+                            .padding()
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(12)
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, ResponsiveDesign.Spacing.medium)
                 }
             }
             .padding(.top, ResponsiveDesign.Spacing.large)
@@ -395,38 +444,19 @@ struct VoiceInputView: View {
 
     @ViewBuilder
     private var recordingControlsView: some View {
-        // Microphone button - floating liquid glass overlay
+        // Microphone/Stop button - floating liquid glass
         Button(action: {
             toggleRecording()
         }) {
-            ZStack {
-                // Animated background when recording
-                if audioRecorder.isRecording {
-                    ForEach(0..<2) { index in
-                        Circle()
-                            .fill(AppTheme.primaryPurple.opacity(0.15))
-                            .frame(width: 75 + CGFloat(index) * 35, height: 75 + CGFloat(index) * 35)
-                            .scaleEffect(pulseAnimation ? 1.3 : 1.0)
-                            .opacity(pulseAnimation ? 0.0 : 1.0)
-                            .animation(
-                                .easeOut(duration: 1.5)
-                                .repeatForever(autoreverses: false)
-                                .delay(Double(index) * 0.3),
-                                value: pulseAnimation
-                            )
-                    }
-                }
-
-                // Main Liquid Glass button
-                Image(systemName: audioRecorder.isRecording ? "stop.fill" : "mic.fill")
-                    .font(.system(size: 28, weight: .medium))
-                    .foregroundStyle(AppTheme.primaryPurple)
-                    .symbolEffect(.bounce, value: audioRecorder.isRecording)
-            }
-            .frame(width: 75, height: 75)
-            .background(Color.clear)
-            .clipShape(Circle())
-            .glassEffect(.regular.interactive(), in: Circle())
+            // Icon
+            Image(systemName: audioRecorder.isRecording ? "stop.fill" : "mic.fill")
+                .font(.system(size: 28, weight: .medium))
+                .foregroundStyle(AppTheme.primaryPurple)
+                .symbolEffect(.bounce, value: audioRecorder.isRecording)
+                .frame(width: 75, height: 75)
+                .background(Color.clear)
+                .clipShape(Circle())
+                .glassEffect(.regular, in: Circle())
         }
         .buttonStyle(.plain)
         .disabled(!audioRecorder.microphonePermissionGranted && !audioRecorder.isRecording || isProcessingButtonTap)
@@ -448,9 +478,9 @@ struct VoiceInputView: View {
         // Set debounce flag
         isProcessingButtonTap = true
 
-        // Reset debounce flag after a short delay
+        // Reset debounce flag after a very short delay (just enough to prevent double-taps)
         Task {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
             await MainActor.run {
                 isProcessingButtonTap = false
             }
@@ -537,9 +567,11 @@ struct VoiceInputView: View {
                     parsedMealData = ParsedMealData(from: mealData)
 
                     // Populate editable fields for user corrections
+                    // Auto-capitalize first letter of food names
                     editableFoods = mealData.foods.map { food in
-                        EditableFoodItem(
-                            name: food.name,
+                        let capitalizedName = food.name.isEmpty ? "" : food.name.prefix(1).uppercased() + food.name.dropFirst()
+                        return EditableFoodItem(
+                            name: capitalizedName,
                             amount: food.amount,
                             carbs: food.carbs
                         )
@@ -547,6 +579,13 @@ struct VoiceInputView: View {
                     editableTotalCarbs = "\(mealData.totalCarbs)"
                     editableMealType = mealData.mealType
                     editableMealTime = mealData.mealTime ?? ""
+
+                    // Initialize timestamp - parse from mealTime if provided, otherwise use current time
+                    if let timeString = mealData.mealTime, let parsedTime = parseTimeString(timeString) {
+                        editableTimestamp = parsedTime
+                    } else {
+                        editableTimestamp = Date()
+                    }
 
                     showingPreview = true
                     hapticManager.notification(.success)
@@ -593,15 +632,9 @@ struct VoiceInputView: View {
         // Capture edited values - these are Sendable value types
         let carbsValue = totalCarbs
         let mealTypeText = editableMealType
-        let timeText = editableMealTime
 
-        // Parse time if provided
-        let timestamp: Date
-        if !timeText.isEmpty, let parsedTime = parseTimeString(timeText) {
-            timestamp = parsedTime
-        } else {
-            timestamp = parsedMealData?.timestamp ?? Date()
-        }
+        // Use the editable timestamp (user may have changed it)
+        let timestamp = editableTimestamp
 
         // Convert editable foods to array
         let foodsArray = editableFoods.filter { !$0.name.isEmpty }
@@ -737,6 +770,13 @@ struct VoiceInputView: View {
         return calendar.date(from: dateComponents)
     }
 
+    /// Adjust carbs by a specific amount (±5g increments)
+    private func adjustCarbs(by amount: Int) {
+        let currentCarbs = Int(editableTotalCarbs) ?? 0
+        let newCarbs = max(0, currentCarbs + amount)
+        editableTotalCarbs = "\(newCarbs)"
+    }
+
     // Logger
     private let logger = Logger(subsystem: "com.balli.diabetes", category: "VoiceInputView")
 }
@@ -754,7 +794,7 @@ struct EditableFoodItem: Identifiable {
         self.id = id
         self.name = name
         self.amount = amount ?? ""
-        self.carbs = carbs != nil ? "\(carbs!)" : ""
+        self.carbs = carbs.map { "\($0)" } ?? ""
     }
 
     /// Convert to Int for saving

@@ -139,9 +139,10 @@ struct ShoppingListInputContainer: View {
                 if !ingredients.isEmpty {
                     onAddIngredients(ingredients)
                     inputText = ""
-                    
+
                     // Keep focus for continuous adding
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
                         isInputFocused = true
                     }
                 }

@@ -261,12 +261,9 @@ final class HybridGlucoseDataSource: GlucoseDataSource {
 
         logger.info("🔄 HYBRID: Total \(sortedReadings.count) unique readings")
 
-        // Notify that new glucose data is available
-        if !sortedReadings.isEmpty {
-            await MainActor.run {
-                NotificationCenter.default.post(name: .glucoseDataDidUpdate, object: nil)
-            }
-        }
+        // NOTE: DO NOT post .glucoseDataDidUpdate here - this creates infinite loop!
+        // The notification is posted by the underlying services (DexcomService, DexcomShareService)
+        // when they actually fetch new data from APIs. This hybrid source just combines data.
 
         return sortedReadings
     }

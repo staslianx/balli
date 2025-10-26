@@ -92,6 +92,7 @@ struct InformationRetrievalView: View {
                 } label: {
                     Image(systemName: "book.pages")
                         .font(.system(size: 17))
+                        .foregroundColor(ThemeColors.primaryPurple)
                 }
             }
 
@@ -117,6 +118,7 @@ struct InformationRetrievalView: View {
                 } label: {
                     Image(systemName: "plus.message")
                         .font(.system(size: 17))
+                        .foregroundColor(ThemeColors.primaryPurple)
                 }
             }
         }
@@ -145,10 +147,7 @@ struct InformationRetrievalView: View {
     private var emptyStateView: some View {
         VStack {
             Spacer()
-            Text("Ne öğrenmek istersin?")
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .foregroundStyle(AppTheme.balliGradient)
-                .multilineTextAlignment(.center)
+            TimeBasedGreetingView()
             Spacer()
         }
     }

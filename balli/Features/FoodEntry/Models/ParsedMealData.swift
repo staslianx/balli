@@ -112,7 +112,8 @@ struct ParsedMealData: Sendable {
 
     /// Check if this is Gemini format (has foods array)
     var isGeminiFormat: Bool {
-        foods != nil && !foods!.isEmpty
+        guard let foods = foods else { return false }
+        return !foods.isEmpty
     }
 
     /// Check if this is simple format (legacy or Gemini with total carbs only)

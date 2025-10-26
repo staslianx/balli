@@ -21,6 +21,7 @@ struct FavoritesSection: View {
     @State private var favoriteItems: [FoodItem] = []
     @State private var fetchError: Error?
     @State private var refreshID = UUID() // Force view refresh when data changes
+    @State private var showingAllFavorites = false // Navigation to OnlyFavoritesView
 
     // Limit displayed items to avoid memory issues
     private let maxDisplayedItems = 6
@@ -161,12 +162,16 @@ struct FavoritesSection: View {
             Spacer()
 
             Button("Tümünü Gör") {
-                selectedTab.wrappedValue = 0 // Switch to Ardiye tab
+                showingAllFavorites = true
             }
             .font(.system(size: 15, weight: .regular, design: .rounded))
             .foregroundColor(AppTheme.primaryPurple)
         }
         .padding(.horizontal)
+        .sheet(isPresented: $showingAllFavorites) {
+            OnlyFavoritesView()
+                .environment(\.managedObjectContext, viewContext)
+        }
     }
 
     @ViewBuilder
@@ -188,6 +193,7 @@ struct FavoritesSection: View {
             let spacing: CGFloat = ResponsiveDesign.height(13)
             let availableWidth = geometry.size.width - (horizontalPadding * 2)
             let cardWidth = (availableWidth - spacing) / 2
+            let extraTopSpace: CGFloat = ResponsiveDesign.height(20) // Room for shadow/scale
 
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: spacing) {
@@ -212,10 +218,12 @@ struct FavoritesSection: View {
                     }
                 }
                 .padding(.horizontal, horizontalPadding)
-                .padding(.top, ResponsiveDesign.Spacing.xxSmall)
+                .padding(.top, extraTopSpace + ResponsiveDesign.Spacing.xxSmall)
                 .padding(.bottom, ResponsiveDesign.height(20))
                 .id(refreshID) // Force view rebuild when refreshID changes
             }
+            .scrollClipDisabled() // Allow cards to scale beyond scroll bounds
+            .offset(y: -extraTopSpace) // Shift content up to maintain visual position
         }
         .frame(height: calculateFavoritesHeight())
     }
@@ -228,7 +236,8 @@ struct FavoritesSection: View {
             return 200
         }
         let spacing = ResponsiveDesign.height(13)
-        let padding = ResponsiveDesign.Spacing.xxSmall + ResponsiveDesign.height(20)
+        let extraTopSpace = ResponsiveDesign.height(20) // Extra room for shadow/scale
+        let padding = extraTopSpace + ResponsiveDesign.Spacing.xxSmall + ResponsiveDesign.height(20)
         let cardHeight = (screenWidth - 32 - spacing) / 2
         let totalHeight = cardHeight + padding
         guard !totalHeight.isNaN && !totalHeight.isInfinite && totalHeight > 0 else {

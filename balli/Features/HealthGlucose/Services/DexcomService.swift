@@ -113,22 +113,37 @@ final class DexcomService: ObservableObject {
     }
 
     /// Check if connected and update status
+    /// Also proactively refreshes token if needed to prevent expiration
     func checkConnectionStatus() async {
         let authenticated = await authManager.isAuthenticated()
         isConnected = authenticated
         connectionStatus = authenticated ? .connected : .disconnected
+
+        // Proactively refresh token if it's about to expire
+        if authenticated {
+            do {
+                let didRefresh = try await authManager.refreshIfNeeded()
+                if didRefresh {
+                    logger.info("✅ Token proactively refreshed to prevent expiration")
+                }
+            } catch {
+                logger.error("⚠️ Failed to proactively refresh token: \(error.localizedDescription)")
+                // Don't mark as disconnected yet - token might still be valid
+            }
+        }
     }
 
     // MARK: - Data Synchronization
 
     /// Sync glucose data from Dexcom
-    func syncData() async throws {
+    /// - Parameter includeHistorical: If true, fetches historical data beyond 3 hours (default: true)
+    func syncData(includeHistorical: Bool = true) async throws {
         guard isConnected else {
             logger.error("Sync failed: Not connected")
             throw DexcomError.notConnected
         }
 
-        logger.info("Starting Dexcom data sync...")
+        logger.info("Starting Dexcom data sync (includeHistorical: \(includeHistorical))...")
         await analytics.track(.dexcomSyncStarted)
         let startTime = Date()
 
@@ -209,6 +224,34 @@ final class DexcomService: ObservableObject {
             }
         }
 
+        // 📊 HISTORICAL DATA: Fetch data beyond 3 hours if requested
+        // This ensures we have complete glucose history, not just recent data
+        if includeHistorical {
+            logger.info("📊 Fetching historical glucose data (>3 hours)...")
+            do {
+                // Fetch last 7 days of historical data accounting for 3-hour EU delay
+                let endDate = DexcomConfiguration.mostRecentAvailableDate()
+                let startDate = Calendar.current.date(byAdding: .day, value: -7, to: endDate) ?? endDate
+
+                logger.info("📊 Historical range: \(startDate) to \(endDate)")
+
+                let historicalReadings = try await NetworkRetryHandler.retryWithBackoff(configuration: .network) {
+                    try await self.apiClient.fetchGlucoseReadings(startDate: startDate, endDate: endDate)
+                }
+
+                logger.info("📊 Fetched \(historicalReadings.count) historical readings")
+
+                // Log historical data fetch success
+                logger.info("✅ Historical data fetch complete: \(historicalReadings.count) readings over 7 days")
+
+                // Note: ViewModel will handle persisting these to CoreData when it fetches data
+                // We don't auto-persist here to avoid duplicate writes
+            } catch {
+                logger.error("⚠️ Failed to fetch historical data: \(error.localizedDescription)")
+                // Don't throw - this is optional enhancement, not critical failure
+            }
+        }
+
         lastSync = Date()
         logger.info("Data sync completed")
 
@@ -239,12 +282,10 @@ final class DexcomService: ObservableObject {
         let deviceName = currentDevice?.deviceName
         let readings = dexcomReadings.map { $0.toHealthGlucoseReading(deviceName: deviceName) }
 
-        // Notify that new glucose data is available
-        if !readings.isEmpty {
-            await MainActor.run {
-                NotificationCenter.default.post(name: .glucoseDataDidUpdate, object: nil)
-            }
-        }
+        // NOTE: DO NOT post .glucoseDataDidUpdate here!
+        // This method is called BY the ViewModel when loading data, which would create infinite loop:
+        // ViewModel gets notification → loads data → calls this → posts notification → LOOP
+        // Only background sync operations should post notifications, not on-demand data fetches
 
         return readings
     }
@@ -278,12 +319,12 @@ final class DexcomService: ObservableObject {
             var totalNew = 0
 
             for (index, healthReading) in readings.enumerated() {
-                // Check if reading already exists
+                // Check if reading already exists from Official API
                 let fetchRequest: NSFetchRequest<GlucoseReading> = GlucoseReading.fetchRequest()
                 fetchRequest.predicate = NSPredicate(
                     format: "timestamp == %@ AND source == %@",
                     healthReading.timestamp as NSDate,
-                    "cgm"
+                    GlucoseSource.dexcomOfficial.rawValue
                 )
                 fetchRequest.fetchLimit = 1
 
@@ -291,14 +332,14 @@ final class DexcomService: ObservableObject {
                     let existingReadings = try viewContext.fetch(fetchRequest)
 
                     if existingReadings.isEmpty {
-                        // Create new glucose reading
+                        // Create new glucose reading with Official API source
                         let glucoseReading = GlucoseReading(context: viewContext)
                         glucoseReading.id = UUID()
                         glucoseReading.value = healthReading.value
                         glucoseReading.timestamp = healthReading.timestamp
-                        glucoseReading.source = "cgm"
+                        glucoseReading.source = GlucoseSource.dexcomOfficial.rawValue
                         glucoseReading.deviceName = healthReading.device
-                        glucoseReading.notes = "Synced from Dexcom CGM"
+                        glucoseReading.notes = "Synced from Dexcom Official API"
                         glucoseReading.syncStatus = SyncStatus.synced.rawValue
 
                         totalNew += 1

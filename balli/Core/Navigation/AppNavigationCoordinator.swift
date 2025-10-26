@@ -261,7 +261,7 @@ struct NavigationHandler: ViewModifier {
     private func destinationView(for destination: NavigationDestination) -> some View {
         switch destination {
         case .home:
-            HosgeldinView(viewContext: viewContext)
+            TodayView(viewContext: viewContext)
         case .foodDetail(let id):
             // FoodDetailView(foodId: id)
             Text("Food Detail: \(id)")

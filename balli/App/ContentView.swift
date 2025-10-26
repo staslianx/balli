@@ -12,8 +12,7 @@ struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var userManager = UserProfileSelector.shared
     @State private var selectedTab = 1 // Start with Hoşgeldin tab
-    @State private var searchText = "" // Global search text
-    @State private var isSearchPresented = false // Search presentation state
+    @State private var searchText = "" // Search text for Ardiye
     @State private var isSearchActivated = false // For Ardiye search activation
     @State private var calendarIcon = "calendar" // Dynamic calendar icon
     @State private var hasConfiguredTabBar = false
@@ -64,7 +63,8 @@ struct ContentView: View {
         }
         .onAppear {
             // Configure tab bar (cosmetic, doesn't affect sync)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
                 configureTabBarIfNeeded()
             }
             // Update calendar icon
@@ -93,7 +93,7 @@ struct ContentView: View {
             // Main balli Tab
             Tab("Bugün", systemImage: calendarIcon, value: 1) {
                 NavigationStack {
-                    HosgeldinView(viewContext: viewContext)
+                    TodayView(viewContext: viewContext)
                         .environment(\.selectedTab, $selectedTab)
                 }
             }
@@ -103,19 +103,6 @@ struct ContentView: View {
                 NavigationStack {
                     InformationRetrievalView()
                 }
-            }
-
-            // Native Search Tab with .search role
-            Tab("Ara", systemImage: "magnifyingglass", value: 3, role: .search) {
-                NavigationStack {
-                    ArdiyeView(isSearchActivated: $isSearchActivated, searchText: $searchText)
-                }
-                .searchable(
-                    text: $searchText,
-                    isPresented: $isSearchPresented,
-                    prompt: "Ürün veya tarif ara"
-                )
-                .searchToolbarBehavior(.minimize)
             }
         }
         .tint(AppTheme.primaryPurple)

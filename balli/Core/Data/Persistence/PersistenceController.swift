@@ -55,53 +55,89 @@ public final class PersistenceController: @unchecked Sendable {
     private var isPerformingBackgroundWork = false
     
     // MARK: - Initialization
-    
-    public init(inMemory: Bool = false) {
+
+    /// Initializes PersistenceController
+    /// - Parameters:
+    ///   - inMemory: If true, uses in-memory store (for testing)
+    ///   - waitForReady: If true, blocks until Core Data is ready (for testing only)
+    public init(inMemory: Bool = false, waitForReady: Bool = false) {
         // Initialize components
         self.coreDataStack = CoreDataStack(inMemory: inMemory)
-        
-        // Defer store loading to avoid blocking init
-        Task { [weak self] in
-            guard let self = self else { return }
-            
-            do {
-                // Load stores asynchronously
-                try await self.coreDataStack.loadStores()
-                
-                // Configure contexts after stores are loaded
-                self.coreDataStack.configureContexts()
-                
-                // Initialize migration manager and monitor
-                let container = self.coreDataStack.container
-                
-                await Task { @PersistenceActor in
-                    self.migrationManager = MigrationManager(container: container)
-                    self.monitor = PersistenceMonitor(container: container)
-                }.value
-                
-                // Setup notifications
-                await MainActor.run {
-                    self.setupNotifications()
-                }
-                
-                // Mark as ready
-                await self.isReadyStorage.setValue(true)
 
-                self.logger.info("Core Data initialization completed")
+        if waitForReady {
+            // Synchronous initialization for testing
+            // This blocks until Core Data is fully ready
+            let semaphore = DispatchSemaphore(value: 0)
 
-                // Post notification that Core Data is ready (on main thread for UI safety)
-                await MainActor.run {
-                    NotificationCenter.default.post(
-                        name: .coreDataReady,
-                        object: nil
-                    )
+            Task { [weak self] in
+                guard let self = self else {
+                    semaphore.signal()
+                    return
                 }
-            } catch {
-                self.logger.critical("Failed to load Core Data stores: \(error)")
-                #if DEBUG
-                fatalError("Core Data failed to load: \(error)")
-                #endif
+
+                do {
+                    try await self.performInitialization()
+                    semaphore.signal()
+                } catch {
+                    self.logger.critical("Failed to load Core Data stores: \(error)")
+                    semaphore.signal()
+                    #if DEBUG
+                    fatalError("Core Data failed to load: \(error)")
+                    #endif
+                }
             }
+
+            // Wait for initialization to complete
+            semaphore.wait()
+        } else {
+            // Defer store loading to avoid blocking init
+            Task { [weak self] in
+                guard let self = self else { return }
+
+                do {
+                    try await self.performInitialization()
+                } catch {
+                    self.logger.critical("Failed to load Core Data stores: \(error)")
+                    #if DEBUG
+                    fatalError("Core Data failed to load: \(error)")
+                    #endif
+                }
+            }
+        }
+    }
+
+    /// Performs the actual initialization steps
+    private func performInitialization() async throws {
+        // Load stores asynchronously
+        try await self.coreDataStack.loadStores()
+
+        // Configure contexts after stores are loaded
+        self.coreDataStack.configureContexts()
+
+        // Initialize migration manager and monitor
+        let container = self.coreDataStack.container
+
+        await Task { @PersistenceActor in
+            self.migrationManager = MigrationManager(container: container)
+            self.monitor = PersistenceMonitor(container: container)
+        }.value
+
+        // Setup notifications
+        await MainActor.run {
+            self.setupNotifications()
+        }
+
+        // Mark as ready
+        await self.isReadyStorage.setValue(true)
+
+        self.logger.info("Core Data initialization completed")
+
+        // Post notification that Core Data is ready (on main thread for UI safety)
+        await MainActor.run {
+            NotificationCenter.default.post(
+                name: .coreDataReady,
+                object: nil
+            )
         }
     }
     

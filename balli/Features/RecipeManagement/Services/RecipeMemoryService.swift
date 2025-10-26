@@ -104,7 +104,10 @@ final class RecipeMemoryService {
         proteinCount: Int = 3,
         vegetableCount: Int = 3
     ) async -> (proteins: [String], vegetables: [String]) {
+        logger.info("🎯 [VARIETY] Analyzing ingredient frequency for \(subcategory.rawValue)")
         let frequencyMap = await analyzeIngredientFrequency(for: subcategory)
+
+        logger.info("🎯 [VARIETY] Found \(frequencyMap.count) unique ingredients in history")
 
         // Classify ingredients
         let proteinFrequencies = frequencyMap.filter { Self.isProtein($0.key) }
@@ -121,8 +124,8 @@ final class RecipeMemoryService {
             .prefix(vegetableCount)
             .map { $0.key }
 
-        logger.info("Least-used proteins: \(leastUsedProteins.joined(separator: ", "))")
-        logger.info("Least-used vegetables: \(leastUsedVegetables.joined(separator: ", "))")
+        logger.info("🎯 [VARIETY] ✅ Suggesting PROTEINS: \(leastUsedProteins.joined(separator: ", "))")
+        logger.info("🎯 [VARIETY] ✅ Suggesting VEGETABLES: \(leastUsedVegetables.joined(separator: ", "))")
 
         return (Array(leastUsedProteins), Array(leastUsedVegetables))
     }
@@ -137,11 +140,16 @@ final class RecipeMemoryService {
         ingredients: [String],
         recipeName: String? = nil
     ) async throws {
+        logger.info("💾 [RECORD] Attempting to record recipe '\(recipeName ?? "Unknown")' in \(subcategory.rawValue)")
+        logger.info("💾 [RECORD] Raw ingredients: \(ingredients.joined(separator: ", "))")
+
         guard !ingredients.isEmpty else {
+            logger.error("💾 [RECORD] ❌ FAILED: Empty ingredients list")
             throw RecipeMemoryError.invalidMemoryEntry(reason: "Malzeme listesi boş olamaz")
         }
 
         guard ingredients.count <= 10 else {
+            logger.error("💾 [RECORD] ❌ FAILED: Too many ingredients (\(ingredients.count))")
             throw RecipeMemoryError.invalidMemoryEntry(reason: "Çok fazla ana malzeme (maksimum 10)")
         }
 
@@ -152,8 +160,10 @@ final class RecipeMemoryService {
             recipeName: recipeName
         )
 
+        logger.info("💾 [RECORD] Normalized ingredients: \(entry.mainIngredients.joined(separator: ", "))")
+
         try await repository.saveEntry(entry, for: subcategory)
-        logger.info("Successfully recorded recipe '\(recipeName ?? "Unknown")' in \(subcategory.rawValue)")
+        logger.info("💾 [RECORD] ✅ Successfully recorded in memory")
     }
 
     /// Get memory entries for Cloud Functions (serializable format)

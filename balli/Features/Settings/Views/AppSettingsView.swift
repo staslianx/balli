@@ -120,7 +120,7 @@ struct AppSettingsView: View {
                     .tint(AppTheme.primaryPurple)
 
                     NavigationLink(destination: DexcomConnectionView()) {
-                        Label("Dexcom CGM", systemImage: "sensor.radiowaves.left.and.right.fill.fill")
+                        Label("Dexcom CGM", systemImage: "wave.3.right")
                     }
                     .tint(AppTheme.primaryPurple)
 

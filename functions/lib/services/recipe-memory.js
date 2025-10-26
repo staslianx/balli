@@ -15,6 +15,7 @@ exports.extractMainIngredients = extractMainIngredients;
 exports.buildVarietySuggestionsText = buildVarietySuggestionsText;
 exports.getSubcategoryContext = getSubcategoryContext;
 const genkit_instance_1 = require("../genkit-instance");
+const providers_1 = require("../providers");
 const zod_1 = require("zod");
 /**
  * Common Turkish protein ingredients for classification
@@ -221,6 +222,8 @@ async function extractMainIngredients(recipeContent, recipeName) {
         const result = await extractionPrompt({
             recipeContent,
             recipeName
+        }, {
+            model: (0, providers_1.getRecipeModel)() // Use provider-specific model for extraction
         });
         // Access the output from the prompt result
         const output = result.output;
@@ -260,14 +263,14 @@ function getSubcategoryContext(subcategory) {
     // Map styleType (which is now subcategory) to context
     const contexts = {
         "Kahvaltı": "Diyabet dostu kahvaltı",
+        "Atıştırmalık": "Sağlıklı atıştırmalıklar",
         "Doyurucu salata": "Protein içeren ana yemek olarak servis edilen doyurucu bir salata",
         "Hafif salata": "Yan yemek olarak servis edilen hafif bir salata",
         "Karbonhidrat ve Protein Uyumu": "Dengeli karbonhidrat ve protein kombinasyonu içeren akşam yemeği",
-        "Tam tahıl makarna çeşitleri": "Tam tahıllı makarna çeşitleri",
-        "Sana özel tatlılar": "Diyabet dostu tatlı versiyonları",
+        "Tam Buğday Makarna": "Tam buğday makarna çeşitleri",
+        "Sana Özel Tatlılar": "Diyabet dostu tatlı versiyonları",
         "Dondurma": "Ninja Creami makinesi için diyabet dostu dondurma",
-        "Meyve salatası": "Diyabet yönetimine uygun meyve salatası",
-        "Atıştırmalıklar": "Sağlıklı atıştırmalıklar"
+        "Meyve Salatası": "Diyabet yönetimine uygun meyve salatası"
     };
     return contexts[subcategory] || subcategory;
 }

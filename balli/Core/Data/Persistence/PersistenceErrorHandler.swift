@@ -83,7 +83,15 @@ actor PersistenceErrorHandler {
         }
 
         // All retries exhausted or fatal error - notify and throw
-        let finalError = classifyError(lastError!)
+        guard let lastError = lastError else {
+            // This should never happen since we always set lastError in catch block
+            let unexpectedError = PersistenceError.saveFailed(NSError(domain: "PersistenceErrorHandler", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unexpected error: no error recorded"]))
+            logger.fault("❌ Critical: Save failed but no error was recorded")
+            await postFailureNotification(error: unexpectedError)
+            throw unexpectedError
+        }
+
+        let finalError = classifyError(lastError)
         logger.error("❌ Save failed after \(attempt) attempts: \(finalError.localizedDescription)")
 
         await postFailureNotification(error: finalError)

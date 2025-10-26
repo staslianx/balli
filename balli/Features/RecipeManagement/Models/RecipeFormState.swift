@@ -21,6 +21,7 @@ public final class RecipeFormState: ObservableObject {
     @Published public var directions: [String] = [""]
     @Published public var notes = ""
     @Published public var recipeContent = ""  // Markdown content for streaming (ingredients + directions)
+    @Published public var isFavorite = false  // Recipe favorite status
 
     // MARK: - Nutrition Information
     @Published public var calories = ""
@@ -105,6 +106,7 @@ public final class RecipeFormState: ObservableObject {
         directions = [""]
         notes = ""
         recipeContent = ""
+        isFavorite = false
         calories = ""
         carbohydrates = ""
         fiber = ""

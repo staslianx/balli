@@ -57,9 +57,14 @@ actor FTS5Manager {
     /// Creates the FTS5 virtual table with Turkish language support
     private nonisolated func createFTS5TableIfNeeded() throws {
         // Check if table exists
-        let tableExists = try db.scalar(
+        guard let count = try db.scalar(
             "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sessions_fts'"
-        ) as! Int64 > 0
+        ) as? Int64 else {
+            logger.error("Failed to check if FTS5 table exists")
+            throw FTS5Error.tableCreationFailed
+        }
+
+        let tableExists = count > 0
 
         if tableExists {
             logger.debug("FTS5 table already exists")
@@ -199,7 +204,10 @@ actor FTS5Manager {
 
     /// Returns the number of indexed sessions
     func getIndexedSessionCount() throws -> Int {
-        let count = try db.scalar("SELECT COUNT(*) FROM sessions_fts") as! Int64
+        guard let count = try db.scalar("SELECT COUNT(*) FROM sessions_fts") as? Int64 else {
+            logger.error("Failed to get indexed session count")
+            return 0
+        }
         return Int(count)
     }
 
@@ -208,18 +216,35 @@ actor FTS5Manager {
     /// Sanitizes user query for FTS5 MATCH syntax
     /// Removes or escapes characters that have special meaning in FTS5
     private func sanitizeFTS5Query(_ query: String) -> String {
-        // Remove special FTS5 operators: " * ( ) AND OR NOT
+        // Remove special FTS5 operators and problematic characters
+        // Keep: letters, numbers, spaces, Turkish chars (ç, ğ, ı, ö, ş, ü, İ)
         var sanitized = query
             .replacingOccurrences(of: "\"", with: "")
             .replacingOccurrences(of: "*", with: "")
             .replacingOccurrences(of: "(", with: "")
             .replacingOccurrences(of: ")", with: "")
+            .replacingOccurrences(of: "@", with: "")
+            .replacingOccurrences(of: "#", with: "")
+            .replacingOccurrences(of: "$", with: "")
+            .replacingOccurrences(of: "%", with: "")
+            .replacingOccurrences(of: "^", with: "")
+            .replacingOccurrences(of: "&", with: "")
+            .replacingOccurrences(of: "[", with: "")
+            .replacingOccurrences(of: "]", with: "")
+            .replacingOccurrences(of: "{", with: "")
+            .replacingOccurrences(of: "}", with: "")
+            .replacingOccurrences(of: "|", with: "")
+            .replacingOccurrences(of: "\\", with: "")
+            .replacingOccurrences(of: ";", with: "")
+            .replacingOccurrences(of: ":", with: "")
+            .replacingOccurrences(of: "<", with: "")
+            .replacingOccurrences(of: ">", with: "")
 
         // Remove standalone boolean operators (they need proper syntax)
         let words = sanitized.components(separatedBy: .whitespacesAndNewlines)
         let filtered = words.filter { word in
             let lower = word.lowercased()
-            return !["and", "or", "not", "ve", "veya", "değil"].contains(lower)
+            return !["and", "or", "not", "ve", "veya", "değil"].contains(lower) && !word.isEmpty
         }
 
         sanitized = filtered.joined(separator: " ")
@@ -279,6 +304,7 @@ extension FTS5Manager {
 enum FTS5Error: LocalizedError {
     case databaseError(String)
     case invalidQuery(String)
+    case tableCreationFailed
 
     var errorDescription: String? {
         switch self {
@@ -286,6 +312,8 @@ enum FTS5Error: LocalizedError {
             return String(format: NSLocalizedString("error.fts5.databaseError", comment: "Database error"), message)
         case .invalidQuery(let query):
             return String(format: NSLocalizedString("error.fts5.invalidQuery", comment: "Invalid query"), query)
+        case .tableCreationFailed:
+            return NSLocalizedString("error.fts5.tableCreationFailed", comment: "FTS5 table creation failed")
         }
     }
 }

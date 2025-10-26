@@ -12,21 +12,25 @@ import CoreData
 public enum GlucoseSource: String, CaseIterable {
     case manual = "manual"
     case healthKit = "healthkit"
-    case cgm = "cgm"
-    
+    case cgm = "cgm" // Legacy - kept for backwards compatibility
+    case dexcomOfficial = "dexcom_official" // Official API (>3hr delay)
+    case dexcomShare = "dexcom_share" // SHARE API (real-time)
+
     var displayName: String {
         switch self {
         case .manual: return NSLocalizedString("glucose.source.manual", comment: "Manual Entry")
         case .healthKit: return NSLocalizedString("glucose.source.healthkit", comment: "Apple Health")
         case .cgm: return NSLocalizedString("glucose.source.cgm", comment: "CGM Device")
+        case .dexcomOfficial: return NSLocalizedString("glucose.source.dexcom_official", comment: "Dexcom (Official)")
+        case .dexcomShare: return NSLocalizedString("glucose.source.dexcom_share", comment: "Dexcom (Live)")
         }
     }
-    
+
     var icon: String {
         switch self {
         case .manual: return "pencil"
         case .healthKit: return "heart.text.square"
-        case .cgm: return "sensor.radiowaves.left.and.right.fill"
+        case .cgm, .dexcomOfficial, .dexcomShare: return "wave.3.right"
         }
     }
 }
@@ -319,3 +323,42 @@ extension GlucoseReading {
         return request
     }
 }
+
+// MARK: - HealthGlucoseReading Conversion
+
+import HealthKit
+
+extension GlucoseReading {
+    /// Convert CoreData GlucoseReading to HealthGlucoseReading struct
+    func toHealthGlucoseReading() -> HealthGlucoseReading {
+        HealthGlucoseReading(
+            id: self.id,
+            value: self.value,
+            unit: HKUnit(from: "mg/dL"),
+            timestamp: self.timestamp,
+            device: self.deviceName,
+            source: self.source,
+            metadata: self.notes.map { ["notes": $0] }
+        )
+    }
+}
+
+extension HealthGlucoseReading {
+    /// Create a new CoreData GlucoseReading from HealthGlucoseReading
+    /// - Parameter context: The NSManagedObjectContext to create the object in
+    /// - Returns: New GlucoseReading entity
+    func toCoreDataReading(in context: NSManagedObjectContext) -> GlucoseReading {
+        let reading = GlucoseReading(context: context)
+        reading.id = self.id
+        reading.timestamp = self.timestamp
+        reading.value = self.value
+        reading.source = self.source ?? "unknown"
+        reading.deviceName = self.device
+        reading.syncStatus = "synced"
+        reading.notes = self.metadata?["notes"]
+        return reading
+    }
+}
+
+// MARK: - DexcomShareGlucoseReading Conversion
+// Note: toHealthGlucoseReading() is already defined in DexcomShareModels.swift

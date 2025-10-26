@@ -111,31 +111,31 @@ struct ProductCardView: View {
                     // Product Brand - allow wrapping for wide cards (recipes)
                     Text(brand)
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(26), weight: .semibold, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                         .lineLimit((width ?? 0) > ResponsiveDesign.width(250) ? nil : 1)
                         .minimumScaleFactor(0.8)
                         .fixedSize(horizontal: false, vertical: false)
-                    
+
                     // Product Name - allow wrapping for recipe cards
                     Text(name)
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .medium, design: .rounded))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(.secondary)
                         .lineLimit(3)  // Allow up to 3 lines for long recipe names
                         .multilineTextAlignment(.leading)
                         .minimumScaleFactor(0.85)  // Allow text to shrink slightly if needed
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                
+
                 // Impact level icon or category icon - top right with proper spacing
                 if let impactLevel = impactLevel {
                     Image(systemName: impactLevel.cardSymbolName)
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(AppTheme.primaryPurple)
                         .frame(width: ResponsiveDesign.Font.scaledSize(24), height: ResponsiveDesign.Font.scaledSize(24), alignment: .center)
                 } else {
                     Image(systemName: getCategoryIcon())
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(20)))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(AppTheme.primaryPurple)
                         .frame(width: ResponsiveDesign.Font.scaledSize(24), height: ResponsiveDesign.Font.scaledSize(24), alignment: .center)
                 }
             }
@@ -150,49 +150,35 @@ struct ProductCardView: View {
                 // Portion size
                 Text(portion)
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .regular, design: .rounded))
-                    .foregroundColor(.white.opacity(0.8))
-                
+                    .foregroundColor(.secondary)
+
                 // Carb value with favorite icon aligned
                 HStack(alignment: .center, spacing: ResponsiveDesign.Spacing.small) {
                     // Carb value - extract just the number with monospaced digits
                     Text(carbs.replacingOccurrences(of: " gr Karb.", with: "gr"))
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(32), weight: .semibold, design: .rounded))
                         .monospacedDigit()
-                        .foregroundColor(.white)
+                        .foregroundColor(.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
 
                     Spacer()
-                    
+
                     // Favorite indicator - aligned with carb value
                     if isFavorite {
                         Image(systemName: "star.fill")
                             .font(.system(size: ResponsiveDesign.Font.scaledSize(20)))
-                            .foregroundColor(Color(red: 1, green: 0.85, blue: 0, opacity: 1))
+                            .foregroundColor(Color(hex: "FFB900"))
                     }
                 }
             }
         }
         .padding(ResponsiveDesign.height(20))
-        .frame(width: width ?? ResponsiveDesign.Components.productCardSize, 
-               height: height ?? width ?? ResponsiveDesign.Components.productCardSize, 
+        .frame(width: width ?? ResponsiveDesign.Components.productCardSize,
+               height: height ?? width ?? ResponsiveDesign.Components.productCardSize,
                alignment: .leading)
-        .background(
-            Group {
-                if colorScheme == .dark {
-                    Color.black
-                } else {
-                    AppTheme.adaptiveBalliGradient(for: colorScheme)
-                }
-            }
-        )
-        .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
-        .overlay(
-            colorScheme == .dark ?
-            RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous)
-                .stroke(AppTheme.primaryPurple.opacity(0.5), lineWidth: 1) : nil
-        )
-        .shadow(color: .black.opacity(0.15), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
+        .balliTintedGlass(cornerRadius: ResponsiveDesign.CornerRadius.card)
+        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
         .contextMenu {
             // Favorite toggle button
             Button(action: {

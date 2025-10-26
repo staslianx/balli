@@ -148,24 +148,17 @@ struct LoggedMealsView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.appBackground(for: colorScheme))
+            .background(Color(.systemBackground))
             .navigationTitle("Günlük Kayıtlar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    syncStatusButton
-                }
-
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.secondary)
-                            .frame(width: 28, height: 28)
-                            .background(Color.secondary.opacity(0.15))
-                            .clipShape(Circle())
                     }
                 }
             }
@@ -256,55 +249,6 @@ struct LoggedMealsView: View {
     }
 
     // MARK: - Meal Group Row
-
-    @ViewBuilder
-    // MARK: - Sync Status Button
-
-    private var syncStatusButton: some View {
-        Button {
-            Task {
-                await syncCoordinator.manualSync()
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: syncCoordinator.syncStatusIcon)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(syncStatusColor)
-                    .rotationEffect(.degrees(syncCoordinator.isSyncing ? 360 : 0))
-                    .animation(
-                        syncCoordinator.isSyncing ?
-                            .linear(duration: 1).repeatForever(autoreverses: false) :
-                            .default,
-                        value: syncCoordinator.isSyncing
-                    )
-
-                if syncCoordinator.pendingChangesCount > 0 {
-                    Text("\(syncCoordinator.pendingChangesCount)")
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(syncStatusColor)
-                        .clipShape(Capsule())
-                }
-            }
-            .frame(height: 28)
-            .padding(.horizontal, 10)
-            .background(syncStatusColor.opacity(0.15))
-            .clipShape(Capsule())
-        }
-        .disabled(syncCoordinator.isSyncing)
-    }
-
-    private var syncStatusColor: Color {
-        switch syncCoordinator.syncStatusColor {
-        case "blue": return .blue
-        case "red": return .red
-        case "orange": return .orange
-        case "green": return .green
-        default: return .gray
-        }
-    }
 
     // MARK: - Meal Row
 

@@ -22,7 +22,7 @@ public class Recipe: NSManagedObject, @unchecked Sendable {
         setPrimitiveValue(false, forKey: "isVerified")
         setPrimitiveValue(false, forKey: "isFavorite")
         setPrimitiveValue(Int32(0), forKey: "timesCooked")
-        setPrimitiveValue(Int16(0), forKey: "userRating")
+        setPrimitiveValue(Int16(1), forKey: "userRating")  // Set to 1 to satisfy Core Data validation
     }
     
     // MARK: - Computed Properties

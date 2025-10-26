@@ -518,7 +518,11 @@ public class RecipeViewModel: ObservableObject {
     /// Handles both base64 data URLs and HTTP/HTTPS URLs
     public func loadImageFromGeneratedURL() async {
         logger.info("🖼️ [LOAD-IMAGE] loadImageFromGeneratedURL() called")
-        logger.debug("📋 [LOAD-IMAGE] generatedPhotoURL: \(self.generatedPhotoURL != nil ? "present (\(self.generatedPhotoURL!.prefix(60))...)" : "nil")")
+        if let photoURL = self.generatedPhotoURL {
+            logger.debug("📋 [LOAD-IMAGE] generatedPhotoURL: present (\(photoURL.prefix(60))...)")
+        } else {
+            logger.debug("📋 [LOAD-IMAGE] generatedPhotoURL: nil")
+        }
 
         guard let imageURL = generatedPhotoURL else {
             logger.warning("⚠️ [LOAD-IMAGE] Cannot load image: missing URL")
@@ -585,7 +589,11 @@ public class RecipeViewModel: ObservableObject {
         logger.info("💾 [SAVE] saveRecipe() called")
         logger.debug("📋 [SAVE] Image state:")
         logger.debug("  - _recipeImageURL: \(self._recipeImageURL != nil ? "present" : "nil")")
-        logger.debug("  - _recipeImageData: \(self._recipeImageData != nil ? "\(self._recipeImageData!.count) bytes" : "nil")")
+        if let imageData = self._recipeImageData {
+            logger.debug("  - _recipeImageData: \(imageData.count) bytes")
+        } else {
+            logger.debug("  - _recipeImageData: nil")
+        }
         logger.debug("  - preparedImage: \(self.preparedImage != nil ? "present" : "nil")")
 
         Task {

@@ -58,13 +58,15 @@ final class DexcomShareService: ObservableObject {
     private let apiClient: DexcomShareAPIClient
     private let analytics = AnalyticsService.shared
     private let logger = AppLoggers.Health.glucose
+    private let glucoseRepository: GlucoseReadingRepository
 
     // MARK: - Initialization
 
-    init(server: DexcomShareServer = .international) {
+    init(server: DexcomShareServer = .international, glucoseRepository: GlucoseReadingRepository = GlucoseReadingRepository()) {
         self.server = server
         self.authManager = DexcomShareAuthManager(server: server)
         self.apiClient = DexcomShareAPIClient(server: server, authManager: authManager)
+        self.glucoseRepository = glucoseRepository
 
         Task {
             await checkConnectionStatus()
@@ -140,12 +142,33 @@ final class DexcomShareService: ObservableObject {
             // Update state
             latestReading = reading
             lastSync = Date()
+            connectionStatus = .connected // Ensure status is updated on successful sync
 
             let duration = Date().timeIntervalSince(startTime)
             logger.info("SHARE sync completed in \(String(format: "%.2f", duration))s")
 
             if let reading = reading {
                 logger.info("✅ SHARE sync complete: \(reading.Value) mg/dL at \(reading.displayTime)")
+
+                // Auto-save to CoreData with SHARE source identifier
+                Task {
+                    do {
+                        let healthReading = reading.toHealthGlucoseReading()
+                        self.logger.info("💾 SHARE API: Attempting to save reading to CoreData - \(healthReading.value) mg/dL at \(healthReading.timestamp)")
+                        let saved = try await self.glucoseRepository.saveReading(from: healthReading)
+                        if saved != nil {
+                            self.logger.info("✅ SHARE API: Saved to CoreData with source: dexcom_share")
+                        } else {
+                            self.logger.debug("⚠️ SHARE API: Reading already exists in CoreData (duplicate)")
+                        }
+                    } catch {
+                        self.logger.error("❌ SHARE API: Failed to save to CoreData: \(error.localizedDescription)")
+                        // Don't throw - CoreData save failure shouldn't block sync
+                    }
+                }
+
+                // Notify that new glucose data is available
+                NotificationCenter.default.post(name: .glucoseDataDidUpdate, object: nil)
             } else {
                 logger.info("✅ SHARE sync complete: No recent data")
             }
@@ -156,8 +179,49 @@ final class DexcomShareService: ObservableObject {
             latestReading = nil
             lastSync = Date()
             // Don't throw - this is a valid state
+        } catch DexcomShareError.sessionExpired {
+            // Session expired - try to re-authenticate automatically
+            logger.info("⚠️ SHARE session expired during sync, attempting automatic re-authentication...")
+
+            do {
+                // Get stored credentials and re-authenticate
+                let hasCredentials = await authManager.hasCredentials()
+                if hasCredentials {
+                    logger.info("Credentials found, re-authenticating...")
+                    // Clear session first
+                    await authManager.clearSession()
+                    // This will trigger re-authentication
+                    _ = try await authManager.getSessionId()
+
+                    // Retry the sync once
+                    logger.info("Re-authentication successful, retrying sync...")
+                    let reading = try await apiClient.fetchLatestGlucoseReading()
+                    latestReading = reading
+                    lastSync = Date()
+                    connectionStatus = .connected
+
+                    logger.info("✅ SHARE sync successful after re-authentication")
+
+                    // Notify that new glucose data is available
+                    if reading != nil {
+                        NotificationCenter.default.post(name: .glucoseDataDidUpdate, object: nil)
+                    }
+                    return
+                } else {
+                    logger.error("❌ No credentials available for re-authentication")
+                    isConnected = false
+                    connectionStatus = .error(.sessionExpired)
+                    throw DexcomShareError.sessionExpired
+                }
+            } catch {
+                logger.error("❌ Automatic re-authentication failed: \(error.localizedDescription)")
+                isConnected = false
+                connectionStatus = .error(error as? DexcomShareError ?? .serverError)
+                throw error
+            }
         } catch {
             logger.error("❌ SHARE sync failed: \(error.localizedDescription)")
+            connectionStatus = .error(error as? DexcomShareError ?? .serverError)
             throw error
         }
     }
@@ -182,11 +246,22 @@ final class DexcomShareService: ObservableObject {
 
             logger.info("Fetched \(readings.count) SHARE readings")
 
-            // Notify that new glucose data is available
+            // Auto-save batch readings to CoreData
             if !readings.isEmpty {
-                await MainActor.run {
-                    NotificationCenter.default.post(name: .glucoseDataDidUpdate, object: nil)
+                Task {
+                    do {
+                        let healthReadings = readings.map { $0.toHealthGlucoseReading() }
+                        let savedCount = try await self.glucoseRepository.saveReadings(from: healthReadings)
+                        self.logger.info("Auto-saved \(savedCount)/\(readings.count) readings to CoreData")
+                    } catch {
+                        self.logger.error("Failed to batch save readings to CoreData: \(error.localizedDescription)")
+                    }
                 }
+
+                // NOTE: DO NOT post .glucoseDataDidUpdate here!
+                // This method is called BY the ViewModel when loading data, which would create infinite loop:
+                // ViewModel gets notification → loads data → calls this → posts notification → LOOP
+                // Only syncData() should post notifications (background sync, not on-demand fetch)
             }
 
             return readings
@@ -253,7 +328,7 @@ final class DexcomShareService: ObservableObject {
 #if DEBUG
 extension DexcomShareService {
     static var preview: DexcomShareService {
-        let service = DexcomShareService(server: .international)
+        let service = DexcomShareService(server: .international, glucoseRepository: GlucoseReadingRepository())
         service.isConnected = true
         service.connectionStatus = .connected
         service.latestReading = DexcomShareGlucoseReading(
@@ -268,14 +343,14 @@ extension DexcomShareService {
     }
 
     static var previewDisconnected: DexcomShareService {
-        let service = DexcomShareService(server: .international)
+        let service = DexcomShareService(server: .international, glucoseRepository: GlucoseReadingRepository())
         service.isConnected = false
         service.connectionStatus = .disconnected
         return service
     }
 
     static var previewError: DexcomShareService {
-        let service = DexcomShareService(server: .international)
+        let service = DexcomShareService(server: .international, glucoseRepository: GlucoseReadingRepository())
         service.isConnected = false
         service.connectionStatus = .error(.invalidCredentials)
         return service

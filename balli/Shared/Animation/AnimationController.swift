@@ -99,11 +99,13 @@ public final class AnimationController: ObservableObject {
             }
             
             // Calculate FPS
-            if frameTimestamps.count > 1 {
-                let duration = frameTimestamps.last! - frameTimestamps.first!
+            if frameTimestamps.count > 1,
+               let lastTimestamp = frameTimestamps.last,
+               let firstTimestamp = frameTimestamps.first {
+                let duration = lastTimestamp - firstTimestamp
                 let fps = Double(frameTimestamps.count - 1) / duration
                 currentFPS = fps
-                
+
                 // Update performance mode
                 updatePerformanceMode(fps: fps)
             }

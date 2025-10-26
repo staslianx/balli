@@ -2,7 +2,8 @@
 //  MealEditSheet.swift
 //  balli
 //
-//  Sheet for editing meal entries
+//  iOS 26 Liquid Glass meal editing sheet
+//  Follows native design patterns with glass materials
 //
 
 import SwiftUI
@@ -12,8 +13,8 @@ struct MealEditSheet: View {
     let meal: MealEntry
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.colorScheme) private var colorScheme
 
     @State private var mealType: String
     @State private var timestamp: Date
@@ -23,9 +24,11 @@ struct MealEditSheet: View {
     @State private var consumedProtein: String
     @State private var consumedFat: String
     @State private var consumedCalories: String
+    @State private var consumedFiber: String
     @State private var notes: String
     @State private var showSaveError = false
     @State private var errorMessage = ""
+    @State private var isSaving = false
 
     init(meal: MealEntry) {
         self.meal = meal
@@ -39,6 +42,7 @@ struct MealEditSheet: View {
         _consumedProtein = State(initialValue: String(format: "%.1f", meal.consumedProtein))
         _consumedFat = State(initialValue: String(format: "%.1f", meal.consumedFat))
         _consumedCalories = State(initialValue: String(format: "%.0f", meal.consumedCalories))
+        _consumedFiber = State(initialValue: String(format: "%.1f", meal.consumedFiber))
         _notes = State(initialValue: meal.notes ?? "")
     }
 
@@ -61,6 +65,7 @@ struct MealEditSheet: View {
                Double(consumedProtein) != meal.consumedProtein ||
                Double(consumedFat) != meal.consumedFat ||
                Double(consumedCalories) != meal.consumedCalories ||
+               Double(consumedFiber) != meal.consumedFiber ||
                (trimmedNotes.isEmpty ? nil : trimmedNotes) != meal.notes
     }
 
@@ -74,167 +79,39 @@ struct MealEditSheet: View {
         NavigationStack {
             Form {
                 // Basic Information Section
-                Section("Öğün Bilgileri") {
-                    // Meal Type Picker
-                    Picker("Öğün Türü", selection: $mealType) {
-                        ForEach(mealTypeOptions, id: \.self) { type in
-                            Text(type).tag(type)
-                        }
-                    }
-                    .pickerStyle(.menu)
+                basicInfoSection
 
-                    // Timestamp
-                    DatePicker(
-                        "Tarih ve Saat",
-                        selection: $timestamp,
-                        displayedComponents: [.date, .hourAndMinute]
-                    )
-                    .datePickerStyle(.compact)
-                }
-
-                // Portion Information
-                Section("Porsiyon") {
-                    HStack {
-                        Image(systemName: "chart.bar.fill")
-                            .foregroundColor(AppTheme.primaryPurple)
-                            .frame(width: 24)
-
-                        TextField("Miktar", text: $quantity)
-                            .keyboardType(.decimalPad)
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-                    }
-
-                    HStack {
-                        Image(systemName: "scalemass")
-                            .foregroundColor(AppTheme.primaryPurple)
-                            .frame(width: 24)
-
-                        TextField("Birim (porsiyon, gr, ml)", text: $unit)
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-                    }
-                }
-
-                // Nutrition Information
-                Section("Besin Değerleri") {
-                    HStack {
-                        Image(systemName: "leaf.fill")
-                            .foregroundColor(AppTheme.primaryPurple)
-                            .frame(width: 24)
-
-                        Text("Karbonhidrat")
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-
-                        Spacer()
-
-                        TextField("0", text: $consumedCarbs)
-                            .keyboardType(.decimalPad)
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-
-                        Text("gr")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-                    }
-
-                    HStack {
-                        Image(systemName: "figure.walk")
-                            .foregroundColor(AppTheme.primaryPurple)
-                            .frame(width: 24)
-
-                        Text("Protein")
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-
-                        Spacer()
-
-                        TextField("0", text: $consumedProtein)
-                            .keyboardType(.decimalPad)
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-
-                        Text("gr")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-                    }
-
-                    HStack {
-                        Image(systemName: "drop.fill")
-                            .foregroundColor(AppTheme.primaryPurple)
-                            .frame(width: 24)
-
-                        Text("Yağ")
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-
-                        Spacer()
-
-                        TextField("0", text: $consumedFat)
-                            .keyboardType(.decimalPad)
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-
-                        Text("gr")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-                    }
-
-                    HStack {
-                        Image(systemName: "flame.fill")
-                            .foregroundColor(AppTheme.primaryPurple)
-                            .frame(width: 24)
-
-                        Text("Kalori")
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-
-                        Spacer()
-
-                        TextField("0", text: $consumedCalories)
-                            .keyboardType(.decimalPad)
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-
-                        Text("kcal")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 17, weight: .regular, design: .rounded))
-                    }
-                }
+                // Nutrition Section
+                nutritionSection
 
                 // Notes Section
-                Section("Notlar") {
-                    HStack(alignment: .top) {
-                        Image(systemName: "note.text")
-                            .foregroundColor(AppTheme.primaryPurple)
-                            .frame(width: 24)
-                            .padding(.top, 4)
-
-                        TextField(
-                            "Ek notlar (isteğe bağlı)",
-                            text: $notes,
-                            axis: .vertical
-                        )
-                        .font(.system(size: 17, weight: .regular, design: .rounded))
-                        .lineLimit(3...6)
-                    }
-                }
+                notesSection
             }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemBackground))
+            .tint(AppTheme.primaryPurple)
             .navigationTitle("Öğünü Düzenle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("İptal") {
                         dismiss()
                     }
-                    .font(.system(size: 17, weight: .regular, design: .rounded))
+                    .fontWeight(.regular)
                 }
 
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Kaydet") {
-                        saveChanges()
+                ToolbarItem(placement: .confirmationAction) {
+                    if isSaving {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Button("Kaydet") {
+                            Task { await saveChanges() }
+                        }
+                        .fontWeight(.semibold)
+                        .disabled(!canSave || !hasChanges)
                     }
-                    .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .disabled(!canSave || !hasChanges)
                 }
             }
             .alert("Kaydetme Hatası", isPresented: $showSaveError) {
@@ -245,13 +122,107 @@ struct MealEditSheet: View {
         }
     }
 
-    private func saveChanges() {
+    // MARK: - Section Views
+
+    private var basicInfoSection: some View {
+        Section {
+            // Meal Type Picker
+            HStack(spacing: 12) {
+                Image(systemName: "fork.knife")
+                    .foregroundStyle(AppTheme.primaryPurple)
+                    .frame(width: 24)
+
+                Picker("Öğün Türü", selection: $mealType) {
+                    ForEach(mealTypeOptions, id: \.self) { type in
+                        Text(type).tag(type)
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+            }
+            .padding(.vertical, 8)
+
+            // Timestamp
+            HStack(spacing: 12) {
+                Image(systemName: "clock.fill")
+                    .foregroundStyle(AppTheme.primaryPurple)
+                    .frame(width: 24)
+
+                DatePicker(
+                    "Tarih ve Saat",
+                    selection: $timestamp,
+                    displayedComponents: [.date, .hourAndMinute]
+                )
+                .datePickerStyle(.compact)
+                .labelsHidden()
+            }
+            .padding(.vertical, 8)
+        } header: {
+            Text("Öğün Bilgileri")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+        }
+        .listRowSeparator(.hidden)
+        .listSectionSpacing(20)
+    }
+
+    private var nutritionSection: some View {
+        Section {
+            // Carbohydrates only
+            NutritionFieldRow(
+                icon: "leaf.fill",
+                label: "Karbonhidrat",
+                value: $consumedCarbs,
+                unit: "gr"
+            )
+        } header: {
+            Text("Besin Değerleri")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+        }
+        .listRowSeparator(.hidden)
+        .listSectionSpacing(20)
+    }
+
+    private var notesSection: some View {
+        Section {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "note.text")
+                    .foregroundStyle(AppTheme.primaryPurple)
+                    .frame(width: 24)
+                    .padding(.top, 4)
+
+                TextEditor(text: $notes)
+                    .frame(minHeight: 80, maxHeight: 120)
+                    .scrollContentBackground(.hidden)
+                    .font(.body)
+            }
+            .padding(.vertical, 4)
+        } header: {
+            Text("Notlar")
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .foregroundStyle(.secondary)
+        }
+        .listRowSeparator(.hidden)
+        .listSectionSpacing(20)
+    }
+
+    // MARK: - Actions
+
+    @MainActor
+    private func saveChanges() async {
         guard let carbsValue = Double(consumedCarbs),
               let quantityValue = Double(quantity) else {
             errorMessage = "Lütfen geçerli sayısal değerler girin."
             showSaveError = true
             return
         }
+
+        isSaving = true
+        defer { isSaving = false }
 
         let trimmedMealType = mealType.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedUnit = unit.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -266,10 +237,16 @@ struct MealEditSheet: View {
         meal.consumedProtein = Double(consumedProtein) ?? 0
         meal.consumedFat = Double(consumedFat) ?? 0
         meal.consumedCalories = Double(consumedCalories) ?? 0
+        meal.consumedFiber = Double(consumedFiber) ?? 0
         meal.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
+        meal.lastModified = Date()
+
+        // Mark as pending sync
+        meal.markAsPendingSync()
 
         do {
             try viewContext.save()
+            logger.info("✅ Meal edited successfully: \(meal.id)")
             dismiss()
         } catch {
             errorMessage = "Değişiklikler kaydedilirken bir hata oluştu: \(error.localizedDescription)"
@@ -277,15 +254,49 @@ struct MealEditSheet: View {
 
             // Rollback to prevent invalid context state
             viewContext.rollback()
-            logger.error("Failed to save meal edit: \(error.localizedDescription)")
+            logger.error("❌ Failed to save meal edit: \(error.localizedDescription)")
         }
     }
 }
 
-#Preview {
+// MARK: - Nutrition Field Row
+
+private struct NutritionFieldRow: View {
+    let icon: String
+    let label: String
+    @Binding var value: String
+    let unit: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundStyle(AppTheme.primaryPurple)
+                .frame(width: 24)
+
+            Text(label)
+                .foregroundStyle(.primary)
+
+            Spacer()
+
+            TextField("0", text: $value)
+                .textFieldStyle(.plain)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 60)
+
+            Text(unit)
+                .foregroundStyle(.secondary)
+                .frame(width: 36, alignment: .leading)
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+// MARK: - Previews
+
+#Preview("Default State") {
     let context = PersistenceController.preview.container.viewContext
 
-    // Create a sample meal entry
     let meal = MealEntry(context: context)
     meal.id = UUID()
     meal.mealType = "Kahvaltı"
@@ -296,7 +307,93 @@ struct MealEditSheet: View {
     meal.consumedProtein = 12.0
     meal.consumedFat = 8.0
     meal.consumedCalories = 300.0
-    meal.notes = "Test öğünü"
+    meal.consumedFiber = 5.0
+    meal.notes = nil
+
+    return MealEditSheet(meal: meal)
+        .environment(\.managedObjectContext, context)
+}
+
+#Preview("Filled State") {
+    let context = PersistenceController.preview.container.viewContext
+
+    let meal = MealEntry(context: context)
+    meal.id = UUID()
+    meal.mealType = "Akşam Yemeği"
+    meal.timestamp = Date()
+    meal.quantity = 2.5
+    meal.unit = "porsiyon"
+    meal.consumedCarbs = 65.5
+    meal.consumedProtein = 28.3
+    meal.consumedFat = 15.7
+    meal.consumedCalories = 520.0
+    meal.consumedFiber = 8.2
+    meal.notes = "Izgara tavuk göğsü, pirinç pilavı ve salata ile birlikte. Çok doyurucu bir öğündü."
+
+    return MealEditSheet(meal: meal)
+        .environment(\.managedObjectContext, context)
+}
+
+#Preview("Dark Mode") {
+    let context = PersistenceController.preview.container.viewContext
+
+    let meal = MealEntry(context: context)
+    meal.id = UUID()
+    meal.mealType = "Ara Öğün"
+    meal.timestamp = Date()
+    meal.quantity = 1.0
+    meal.unit = "adet"
+    meal.consumedCarbs = 25.0
+    meal.consumedProtein = 5.0
+    meal.consumedFat = 3.0
+    meal.consumedCalories = 150.0
+    meal.consumedFiber = 3.0
+    meal.notes = "Elma ve badem"
+
+    return MealEditSheet(meal: meal)
+        .environment(\.managedObjectContext, context)
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Long Notes") {
+    let context = PersistenceController.preview.container.viewContext
+
+    let meal = MealEntry(context: context)
+    meal.id = UUID()
+    meal.mealType = "Kahvaltı"
+    meal.timestamp = Date()
+    meal.quantity = 1.0
+    meal.unit = "porsiyon"
+    meal.consumedCarbs = 45.0
+    meal.consumedProtein = 12.0
+    meal.consumedFat = 8.0
+    meal.consumedCalories = 300.0
+    meal.consumedFiber = 5.0
+    meal.notes = """
+    Tam tahıllı ekmek, peynir, domates, salatalık ve yeşil zeytin ile \
+    zengin bir kahvaltı yaptım. Yanında taze sıkılmış portakal suyu içtim. \
+    Çok doyurucu ve besleyiciydi. Sabah enerjisini sağladı.
+    """
+
+    return MealEditSheet(meal: meal)
+        .environment(\.managedObjectContext, context)
+}
+
+#Preview("Zero Values") {
+    let context = PersistenceController.preview.container.viewContext
+
+    let meal = MealEntry(context: context)
+    meal.id = UUID()
+    meal.mealType = "Kahvaltı"
+    meal.timestamp = Date()
+    meal.quantity = 0.0
+    meal.unit = ""
+    meal.consumedCarbs = 0.0
+    meal.consumedProtein = 0.0
+    meal.consumedFat = 0.0
+    meal.consumedCalories = 0.0
+    meal.consumedFiber = 0.0
+    meal.notes = nil
 
     return MealEditSheet(meal: meal)
         .environment(\.managedObjectContext, context)

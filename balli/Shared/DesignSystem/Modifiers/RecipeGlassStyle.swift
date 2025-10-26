@@ -13,6 +13,7 @@ enum RecipeGlassTint {
     case warm        // Golden/amber tint for general use
     case neutral     // Subtle warm white
     case transparent // Clear glass with minimal tint
+    case purple      // balli's signature purple tint (0.18 opacity)
 
     var color: Color {
         switch self {
@@ -22,6 +23,8 @@ enum RecipeGlassTint {
             return Color.white.opacity(0.15)
         case .transparent:
             return Color.white.opacity(0.05)
+        case .purple:
+            return AppTheme.primaryPurple.opacity(0.20)
         }
     }
 }
@@ -78,9 +81,10 @@ struct RecipeCircularGlass: ViewModifier {
 
 extension View {
     /// Apply recipe-specific glass effect with warm tint
+    /// Default corner radius: 28 for smooth, rounded cards
     func recipeGlass(
         tint: RecipeGlassTint = .warm,
-        cornerRadius: CGFloat = 16
+        cornerRadius: CGFloat = 28
     ) -> some View {
         modifier(RecipeGlassEffect(tint: tint, cornerRadius: cornerRadius))
     }
@@ -94,8 +98,39 @@ extension View {
     }
 
     /// Apply balli's signature colored glass effect (purple tint)
-    func balliColoredGlass(cornerRadius: CGFloat = 16) -> some View {
+    /// Default corner radius: 28 for smooth, rounded cards
+    func balliColoredGlass(cornerRadius: CGFloat = 28) -> some View {
         modifier(RecipeGlassEffect(tint: .warm, cornerRadius: cornerRadius))
+    }
+
+    /// Apply circular glass button style for general app use (with purple tint)
+    func balliCircularGlass(size: CGFloat = 32) -> some View {
+        modifier(RecipeCircularGlass(size: size, tint: .warm))
+    }
+
+    /// Apply balli's signature purple-tinted glass effect with edge glow
+    /// Uses AppTheme.primaryPurple.opacity(0.20) for tint for consistent branding
+    /// Default corner radius: 28 for smooth, rounded appearance
+    /// Includes subtle purple glow around edges for depth and shine
+    func balliTintedGlass(cornerRadius: CGFloat = 28) -> some View {
+        modifier(RecipeGlassEffect(tint: .purple, cornerRadius: cornerRadius))
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                AppTheme.primaryPurple.opacity(0.4),
+                                AppTheme.primaryPurple.opacity(0.2),
+                                AppTheme.primaryPurple.opacity(0.1)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+                    .blur(radius: 0.5)
+            )
     }
 }
 
@@ -107,10 +142,10 @@ struct RecipeImageGradient {
         LinearGradient(
             stops: [
                 .init(color: .clear, location: 0.0),
-                .init(color: .black.opacity(0.1), location: 0.2),
-                .init(color: .black.opacity(0.3), location: 0.5),
-                .init(color: .black.opacity(0.5), location: 0.75),
-                .init(color: .black.opacity(0.6), location: 1.0)
+                .init(color: .black.opacity(0.05), location: 0.2),
+                .init(color: .black.opacity(0.15), location: 0.5),
+                .init(color: .black.opacity(0.3), location: 0.75),
+                .init(color: .black.opacity(0.4), location: 1.0)
             ],
             startPoint: .top,
             endPoint: .bottom

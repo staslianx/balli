@@ -420,4 +420,39 @@ extension DexcomAuthManager {
             return false
         }
     }
+
+    /// Proactively refresh token if it's about to expire
+    /// Call this periodically (e.g., on app foreground) to prevent expiration
+    /// - Returns: True if refresh was performed, false if not needed
+    @discardableResult
+    func refreshIfNeeded() async throws -> Bool {
+        guard await needsRefreshSoon() else {
+            logger.debug("Token refresh not needed yet")
+            return false
+        }
+
+        logger.info("Token expiring soon, proactively refreshing...")
+        _ = try await refreshAccessToken()
+        logger.info("Proactive token refresh completed")
+        return true
+    }
+
+    /// Check if token will expire within a specific time window
+    /// - Parameter seconds: Time window in seconds
+    /// - Returns: True if token expires within the time window
+    func willExpireWithin(seconds: TimeInterval) async -> Bool {
+        do {
+            guard let tokenInfo = try await keychainStorage.getTokenInfo() else {
+                return true // No token = needs refresh
+            }
+
+            guard let timeUntilExpiry = tokenInfo.timeUntilExpiry else {
+                return true
+            }
+
+            return timeUntilExpiry < seconds
+        } catch {
+            return true // Error = assume needs refresh
+        }
+    }
 }

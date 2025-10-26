@@ -25,6 +25,7 @@ public struct RecipeGenerationResponse: Codable, Sendable {
     public let fat: String
     public let sugar: String
     public let glycemicLoad: String
+    public let extractedIngredients: [String]?  // NEW: Main ingredients extracted by Cloud Functions for memory system
 }
 
 /// Simple recent recipe for diversity tracking

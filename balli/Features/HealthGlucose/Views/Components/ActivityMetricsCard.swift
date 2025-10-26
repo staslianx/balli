@@ -71,15 +71,17 @@ struct ActivityMetricsCard: View {
             HStack {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(String(format: "%.0f", viewModel.todaySteps))
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .font(.system(size: 37, weight: .bold, design: .rounded))
                         .offset(y: 1)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
 
                     Text("adım")
                         .font(.system(size: 16, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
 
                     Image(systemName: "figure.walk")
-                        .font(.system(size: 36))
+                        .font(.system(size: 32))
                         .foregroundStyle(AppTheme.primaryPurple)
                         .alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
                         .offset(y: 3)
@@ -109,8 +111,10 @@ struct ActivityMetricsCard: View {
             HStack {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(String(format: "%.0f", viewModel.todayCalories))
-                        .font(.system(size: 42, weight: .bold, design: .rounded))
+                        .font(.system(size: 37, weight: .bold, design: .rounded))
                         .offset(y: 1)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
 
                     Text("kcal")
                         .font(.system(size: 16, weight: .medium, design: .rounded))

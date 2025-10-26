@@ -37,7 +37,13 @@ extension MealEntry {
     @NSManaged public var insulinUnits: Double
     @NSManaged public var notes: String?
     @NSManaged public var photoData: Data?
-    
+
+    // MARK: - Firestore Sync Metadata
+    @NSManaged public var lastModified: Date?
+    @NSManaged public var firestoreSyncStatus: String
+    @NSManaged public var lastSyncAttempt: Date?
+    @NSManaged public var deviceId: String?
+
     // MARK: - Relationships
     @NSManaged public var foodItem: FoodItem?
     @NSManaged public var glucoseReadings: Set<GlucoseReading>?

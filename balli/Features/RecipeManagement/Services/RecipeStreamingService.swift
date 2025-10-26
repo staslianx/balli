@@ -36,8 +36,7 @@ class RecipeStreamingService {
             "ingredients": ingredients,
             "mealType": mealType,
             "styleType": styleType,
-            "userId": userId,
-            "streamingEnabled": true
+            "userId": userId
         ]
 
         await performStreaming(
@@ -74,7 +73,6 @@ class RecipeStreamingService {
             "mealType": mealType,
             "styleType": styleType,
             "userId": userId,
-            "streamingEnabled": true,
             "recentRecipes": recentRecipesData
         ]
 
@@ -242,7 +240,8 @@ class RecipeStreamingService {
                     protein: getString("protein"),
                     fat: getString("fat"),
                     sugar: getString("sugar"),
-                    glycemicLoad: getString("glycemicLoad")
+                    glycemicLoad: getString("glycemicLoad"),
+                    extractedIngredients: getStringArray("extractedIngredients")
                 )
 
                 logger.info("✅ [STREAMING] Successfully parsed recipe: \(response.recipeName)")

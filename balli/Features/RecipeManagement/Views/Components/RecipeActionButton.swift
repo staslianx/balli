@@ -11,6 +11,7 @@ import SwiftUI
 /// Action type for recipe detail buttons
 enum RecipeAction {
     case save
+    case favorite
     case values
     case shopping
     case timer
@@ -19,6 +20,7 @@ enum RecipeAction {
     var icon: String {
         switch self {
         case .save: return "star"
+        case .favorite: return "star"
         case .values: return "checkmark.seal.text.page"
         case .shopping: return "basket"
         case .timer: return "timer"
@@ -29,6 +31,7 @@ enum RecipeAction {
     var filledIcon: String {
         switch self {
         case .save: return "star.fill"
+        case .favorite: return "star.fill"
         case .values: return "checkmark.seal.text.page.fill"
         case .shopping: return "basket.fill"
         case .timer: return "timer"
@@ -39,6 +42,7 @@ enum RecipeAction {
     var label: String {
         switch self {
         case .save: return "Kaydet"
+        case .favorite: return "Favorile"
         case .values: return "Değerler"
         case .shopping: return "Alışveriş"
         case .timer: return "Timer"

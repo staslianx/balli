@@ -3,7 +3,7 @@
 //  balli
 //
 //  Modal view for selecting recipe meal type and style
-//  40% screen height with meal/style pickers
+//  Two-step selection: categories first, then subcategories
 //
 
 import SwiftUI
@@ -17,89 +17,80 @@ struct RecipeMealSelectionView: View {
 
     let onGenerate: () -> Void
 
-    // Meal types from recipe_chef_assistant.prompt
-    private let mealTypes = [
-        "Kahvaltı",
-        "Akşam Yemeği",
-        "Salatalar",
-        "Tatlılar",
-        "Atıştırmalıklar"
-    ]
+    @State private var selectedCategory: RecipeCategory?
 
-    // Style types mapped by meal type
-    private var styleTypes: [String] {
-        switch selectedMealType {
-        case "Kahvaltı":
-            return ["Geleneksel", "Protein Ağırlıklı", "Hızlı", "Vejeteryan"]
-        case "Akşam Yemeği":
-            return ["Karbohidrat ve Protein Uyumu", "Tam Buğday Makarna", "Geleneksel", "Hafif"]
-        case "Salatalar":
-            return ["Doyurucu Salata", "Hafif Salata"]
-        case "Tatlılar":
-            return ["Sana Özel Tatlılar", "Dondurma", "Meyve Salatası"]
-        case "Atıştırmalıklar":
-            return ["Geleneksel", "Protein Ağırlıklı", "Hafif"]
-        default:
-            return []
+    // Category structure matching RecipeSubcategory
+    private enum RecipeCategory: String, CaseIterable {
+        case kahvalti = "Kahvaltı"
+        case salatalar = "Salatalar"
+        case aksamYemegi = "Akşam yemeği"
+        case tatlilar = "Tatlılar"
+        case atistirmalik = "Atıştırmalık"
+
+        var displayName: String {
+            rawValue
+        }
+
+        var icon: String {
+            switch self {
+            case .kahvalti: return "☀️"
+            case .salatalar: return "🥗"
+            case .aksamYemegi: return "🍽️"
+            case .tatlilar: return "🍰"
+            case .atistirmalik: return "🥜"
+            }
+        }
+
+        var subcategories: [String] {
+            switch self {
+            case .kahvalti:
+                return []  // No subcategories
+            case .salatalar:
+                return ["Doyurucu Salata", "Hafif Salata"]
+            case .aksamYemegi:
+                return ["Karbonhidrat ve Protein Uyumu", "Tam Buğday Makarna"]
+            case .tatlilar:
+                return ["Sana Özel Tatlılar", "Dondurma", "Meyve Salatası"]
+            case .atistirmalik:
+                return []  // No subcategories
+            }
+        }
+
+        var hasSubcategories: Bool {
+            !subcategories.isEmpty
         }
     }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                // Meal Type Picker
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Öğün Tipi")
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
-
-                    Picker("Öğün Tipi", selection: $selectedMealType) {
-                        ForEach(mealTypes, id: \.self) { type in
-                            Text(type).tag(type)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+            Group {
+                if selectedCategory == nil {
+                    // Step 1: Show category list
+                    categoryListView
+                } else {
+                    // Step 2: Show subcategory list (if applicable)
+                    subcategoryListView
                 }
-
-                // Style Type Picker
-                if !styleTypes.isEmpty {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Stil")
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .foregroundColor(.primary)
-
-                        Picker("Stil", selection: $selectedStyleType) {
-                            ForEach(styleTypes, id: \.self) { style in
-                                Text(style).tag(style)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                    }
-                }
-
-                Spacer()
-
-                // Generate Button
-                Button(action: {
-                    onGenerate()
-                    dismiss()
-                }) {
-                    Text("Tarif Oluştur")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(AppTheme.primaryPurple)
-                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .padding(.bottom, 20)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .navigationTitle("Tarif Seç")
+            .navigationTitle(selectedCategory == nil ? "Kategori Seç" : selectedCategory?.displayName ?? "")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    if selectedCategory != nil {
+                        Button(action: {
+                            withAnimation {
+                                selectedCategory = nil
+                            }
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.left")
+                                    .font(.system(size: 16, weight: .semibold))
+                                Text("Geri")
+                            }
+                        }
+                    }
+                }
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("İptal") {
                         dismiss()
@@ -107,23 +98,135 @@ struct RecipeMealSelectionView: View {
                 }
             }
         }
-        .onAppear {
-            // Ensure selectedStyleType is valid for the current mealType
-            if !styleTypes.contains(selectedStyleType) {
-                selectedStyleType = styleTypes.first ?? ""
+    }
+
+    // MARK: - Category List View
+
+    private var categoryListView: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                ForEach(RecipeCategory.allCases, id: \.self) { category in
+                    categoryCard(category)
+                }
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 40)
         }
-        .onChange(of: selectedMealType) { _, _ in
-            // Reset style type when meal type changes
-            selectedStyleType = styleTypes.first ?? ""
+    }
+
+    private func categoryCard(_ category: RecipeCategory) -> some View {
+        Button(action: {
+            if category.hasSubcategories {
+                // Has subcategories - show subcategory list
+                withAnimation {
+                    selectedCategory = category
+                }
+            } else {
+                // No subcategories - generate directly
+                selectedMealType = category.rawValue
+                selectedStyleType = ""
+                onGenerate()
+                dismiss()
+            }
+        }) {
+            HStack(spacing: 16) {
+                // Icon
+                Text(category.icon)
+                    .font(.system(size: 32))
+
+                // Category name
+                Text(category.displayName)
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .foregroundColor(.primary)
+
+                Spacer()
+
+                // Chevron indicator
+                if category.hasSubcategories {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.secondary)
+                } else {
+                    // Direct generation indicator
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(AppTheme.primaryPurple)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 20)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.clear)
+            )
+            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Subcategory List View
+
+    private var subcategoryListView: some View {
+        ScrollView {
+            VStack(spacing: 12) {
+                ForEach(selectedCategory?.subcategories ?? [], id: \.self) { subcategory in
+                    subcategoryCard(subcategory)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 20)
+            .padding(.bottom, 40)
+        }
+    }
+
+    private func subcategoryCard(_ subcategory: String) -> some View {
+        Button(action: {
+            selectedMealType = selectedCategory?.rawValue ?? ""
+            selectedStyleType = subcategory
+            onGenerate()
+            dismiss()
+        }) {
+            HStack(spacing: 16) {
+                // Subcategory name
+                Text(subcategory)
+                    .font(.system(size: 18, weight: .medium, design: .rounded))
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+
+                Spacer()
+
+                // Generate indicator
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(AppTheme.primaryPurple)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 20)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(.clear)
+            )
+            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 
-#Preview {
+#Preview("Category List") {
     RecipeMealSelectionView(
         selectedMealType: .constant("Kahvaltı"),
-        selectedStyleType: .constant("Geleneksel"),
+        selectedStyleType: .constant(""),
+        onGenerate: {
+            print("Generate tapped")
+        }
+    )
+}
+
+#Preview("Subcategory List - Tatlılar") {
+    RecipeMealSelectionView(
+        selectedMealType: .constant("Tatlılar"),
+        selectedStyleType: .constant("Sana Özel Tatlılar"),
         onGenerate: {
             print("Generate tapped")
         }

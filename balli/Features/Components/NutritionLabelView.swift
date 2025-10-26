@@ -166,10 +166,7 @@ struct NutritionLabelView: View {
             Spacer()
         }
         .frame(width: ResponsiveDesign.Components.foodLabelWidth, height: ResponsiveDesign.Components.foodLabelHeight)
-        .glassEffect(
-            .regular.interactive(),
-            in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.modal)
-        )
+        .recipeGlass(tint: .transparent, cornerRadius: ResponsiveDesign.CornerRadius.modal)
         .overlay(
             RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.modal)
                 .stroke(
@@ -184,7 +181,7 @@ struct NutritionLabelView: View {
                     lineWidth: 0.5
                 )
         )
-        .shadow(color: AppTheme.primaryPurple.opacity(0.08), radius: 8, x: 0, y: 3)
+        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
         .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
     }
     

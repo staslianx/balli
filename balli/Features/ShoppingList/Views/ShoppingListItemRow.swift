@@ -102,14 +102,11 @@ struct ShoppingListItemRow: View {
             .padding(ResponsiveDesign.Spacing.medium)
             .background(
                 RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.medium, style: .continuous)
-                    .fill(isCompleted ? 
-                          AppTheme.success.opacity(0.05) : 
-                          (colorScheme == .dark ? Color(.tertiarySystemBackground) : Color(.secondarySystemBackground))
-                    )
+                    .fill(isCompleted ? AppTheme.success.opacity(0.05) : .clear)
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.medium, style: .continuous)
-                    .stroke(isCompleted ? AppTheme.success.opacity(0.2) : Color.clear, lineWidth: 1)
+            .glassEffect(
+                isCompleted ? .regular : .regular.interactive(),
+                in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.medium, style: .continuous)
             )
             .opacity(isCompleted ? 0.8 : 1.0)
             .animation(.easeInOut(duration: 0.3), value: isCompleted)

@@ -12,18 +12,21 @@ import CoreData
 
 @MainActor
 struct CoreDataStackTests {
-    
+
     // MARK: - Test Setup
-    
-    private func createTestStack() -> PersistenceController {
-        return PersistenceController(inMemory: true)
+
+    private func createTestStack() async throws -> PersistenceController {
+        let stack = PersistenceController(inMemory: true, waitForReady: false)
+        // Give async initialization time to complete
+        try await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+        return stack
     }
     
     // MARK: - Initialization Tests
     
     @Test("Core Data stack initializes correctly")
     func testCoreDataStackInitialization() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         #expect(stack.viewContext != nil, "View context should be initialized")
         #expect(stack.container != nil, "Container should be initialized")
@@ -35,7 +38,7 @@ struct CoreDataStackTests {
     
     @Test("In-memory store is used for testing")
     func testInMemoryStore() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         let storeDescription = stack.container.persistentStoreDescriptions.first
         #expect(storeDescription?.url?.absoluteString.contains("/dev/null") == true, "Should use in-memory store for testing")
@@ -45,7 +48,7 @@ struct CoreDataStackTests {
     
     @Test("Context save operations work correctly")
     func testContextSaveOperations() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         // Test saving without changes (should complete without error)
         try await stack.save()
@@ -57,7 +60,7 @@ struct CoreDataStackTests {
     
     @Test("Fetch operations work correctly")
     func testFetchOperations() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         // Create a fetch request for a test entity
         let request = NSFetchRequest<NSManagedObject>(entityName: "FoodItem")
@@ -74,7 +77,7 @@ struct CoreDataStackTests {
     
     @Test("Background task operations execute correctly")
     func testBackgroundTaskOperations() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         let result = try await stack.performBackgroundTask { context in
             // Simulate some background work
@@ -86,7 +89,7 @@ struct CoreDataStackTests {
     
     @Test("Background task with error handling")
     func testBackgroundTaskErrorHandling() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         do {
             _ = try await stack.performBackgroundTask { context in
@@ -102,7 +105,7 @@ struct CoreDataStackTests {
     
     @Test("Batch delete operations work correctly")
     func testBatchDeleteOperations() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         // Test batch delete (should return 0 since no entities exist)
         let deleteCount = try await stack.batchDelete(
@@ -164,7 +167,7 @@ struct CoreDataStackTests {
     
     @Test("Memory pressure handling works correctly")
     func testMemoryPressureHandling() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         // Should complete without errors
         await stack.handleMemoryPressure()
@@ -174,7 +177,7 @@ struct CoreDataStackTests {
     
     @Test("Background preparation works correctly")
     func testBackgroundPreparation() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         // Should complete without errors
         await stack.prepareForBackground()
@@ -184,7 +187,7 @@ struct CoreDataStackTests {
     
     @Test("Error recovery handles different error types")
     func testErrorRecovery() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         // Test migration required error
         do {
@@ -210,7 +213,7 @@ struct CoreDataStackTests {
     
     @Test("Migration check works correctly")
     func testMigrationCheck() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         let needsMigration = try await stack.checkMigrationNeeded()
         #expect(needsMigration == false, "In-memory store should not need migration")
@@ -220,7 +223,7 @@ struct CoreDataStackTests {
     
     @Test("Concurrent operations execute safely")
     func testConcurrentOperations() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         // Test multiple concurrent saves
         await withTaskGroup(of: Void.self) { group in
@@ -245,7 +248,7 @@ struct CoreDataStackTests {
     
     @Test("Concurrent reads and writes work correctly")
     func testConcurrentReadsAndWrites() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         await withTaskGroup(of: Void.self) { group in
             // Multiple readers
@@ -282,7 +285,7 @@ struct CoreDataStackTests {
     
     @Test("Save operations complete within performance threshold")
     func testSavePerformance() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         let startTime = Date()
         try await stack.save()
@@ -293,7 +296,7 @@ struct CoreDataStackTests {
     
     @Test("Fetch operations complete within performance threshold")
     func testFetchPerformance() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         
         let request = NSFetchRequest<NSManagedObject>(entityName: "FoodItem")
         
@@ -308,7 +311,7 @@ struct CoreDataStackTests {
     
     @Test("Context saveWithRetry handles merge conflicts")
     func testContextSaveWithRetry() async throws {
-        let stack = createTestStack()
+        let stack = try await createTestStack()
         let context = stack.viewContext
         
         // Test successful save

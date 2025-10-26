@@ -99,7 +99,27 @@ actor AppLifecycleCoordinator {
             if !deliveredNotifications.isEmpty {
                 logger.info("Found \(deliveredNotifications.count) delivered notifications")
             }
+
+            // 🔐 DEXCOM TOKEN REFRESH: Proactively refresh token on foreground
+            // This prevents auto-logout by refreshing tokens before they expire
+            await refreshDexcomTokenIfNeeded()
         }
+    }
+
+    /// Proactively refresh Dexcom OAuth token when app comes to foreground
+    /// Prevents automatic logout by refreshing before expiration
+    @MainActor
+    private func refreshDexcomTokenIfNeeded() async {
+        let dexcomService = DependencyContainer.shared.dexcomService
+
+        // Only check if user is connected
+        guard dexcomService.isConnected else {
+            logger.debug("Dexcom not connected, skipping token refresh check")
+            return
+        }
+
+        logger.info("🔐 Checking Dexcom token status on foreground...")
+        await dexcomService.checkConnectionStatus()
     }
 
     func handleBackgroundTransition() {
@@ -332,6 +352,41 @@ actor AppLifecycleCoordinator {
         } catch {
             logger.error("❌ FTS5 migration failed: \(error.localizedDescription)")
             // Don't mark as complete so it will retry next launch
+        }
+    }
+
+    // MARK: - Glucose Data Cleanup
+
+    private static let lastCleanupKey = "GlucoseLastCleanupDate"
+    private static let cleanupIntervalDays = 7
+
+    /// Check and perform glucose data cleanup if needed (runs every 7 days)
+    /// Call this on app launch to maintain database hygiene
+    func checkAndCleanupGlucoseDataIfNeeded() async {
+        let lastCleanup = userDefaults.object(forKey: Self.lastCleanupKey) as? Date
+        let daysSinceCleanup = Calendar.current.dateComponents(
+            [.day],
+            from: lastCleanup ?? .distantPast,
+            to: Date()
+        ).day ?? Int.max
+
+        guard daysSinceCleanup >= Self.cleanupIntervalDays else {
+            logger.debug("Glucose cleanup not needed (last run \(daysSinceCleanup) days ago)")
+            return
+        }
+
+        logger.info("🧹 Running glucose data cleanup (last run \(daysSinceCleanup) days ago)...")
+
+        do {
+            let repository = GlucoseReadingRepository()
+            try await repository.cleanupOldReadings()
+
+            // Mark cleanup as complete
+            userDefaults.set(Date(), forKey: Self.lastCleanupKey)
+            logger.info("✅ Glucose cleanup completed successfully")
+        } catch {
+            logger.error("❌ Glucose cleanup failed: \(error.localizedDescription)")
+            // Don't update last cleanup date so it will retry next launch
         }
     }
 }

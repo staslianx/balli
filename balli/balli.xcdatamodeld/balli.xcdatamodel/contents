@@ -76,25 +76,31 @@
         <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="mealType" attributeType="String" defaultValueString="snack"/>
-        
+
         <!-- Portion Information -->
         <attribute name="quantity" attributeType="Double" defaultValueString="1.0" usesScalarValueType="YES"/>
         <attribute name="unit" attributeType="String" defaultValueString="serving"/>
         <attribute name="portionGrams" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
-        
+
         <!-- Calculated Nutrition (based on portion) -->
         <attribute name="consumedCarbs" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="consumedProtein" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="consumedFat" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="consumedCalories" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="consumedFiber" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
-        
+
         <!-- Context -->
         <attribute name="glucoseBefore" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="glucoseAfter" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="insulinUnits" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="notes" optional="YES" attributeType="String"/>
         <attribute name="photoData" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+
+        <!-- Firestore Sync Metadata -->
+        <attribute name="lastModified" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="firestoreSyncStatus" attributeType="String" defaultValueString="pending"/>
+        <attribute name="lastSyncAttempt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="deviceId" optional="YES" attributeType="String"/>
         
         <!-- Relationships -->
         <relationship name="foodItem" maxCount="1" deletionRule="Nullify" destinationEntity="FoodItem" inverseName="mealEntries" inverseEntity="FoodItem"/>
@@ -136,6 +142,10 @@
             <fetchIndexElement property="timestamp" type="Binary" order="descending"/>
         </fetchIndex>
         <fetchIndex name="bySourceIndex">
+            <fetchIndexElement property="source" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byTimestampSourceIndex">
+            <fetchIndexElement property="timestamp" type="Binary" order="descending"/>
             <fetchIndexElement property="source" type="Binary" order="ascending"/>
         </fetchIndex>
     </entity>

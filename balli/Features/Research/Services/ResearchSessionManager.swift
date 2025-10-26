@@ -209,8 +209,8 @@ final class ResearchSessionManager: ObservableObject {
         if activeSession == nil {
             logger.warning("⚠️ [SESSION-LIFECYCLE] No active session found, creating new one!")
             startNewSession()
-        } else {
-            logger.info("✅ [SESSION-LIFECYCLE] Active session exists: \(self.activeSession!.sessionId)")
+        } else if let session = activeSession {
+            logger.info("✅ [SESSION-LIFECYCLE] Active session exists: \(session.sessionId)")
         }
 
         guard var session = activeSession else {

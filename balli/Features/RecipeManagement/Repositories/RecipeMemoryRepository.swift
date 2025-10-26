@@ -34,12 +34,15 @@ actor RecipeMemoryRepository {
     /// - Returns: Array of memory entries, sorted by date (newest first)
     /// - Throws: RecipeMemoryError if storage read fails
     func fetchMemory(for subcategory: RecipeSubcategory) throws -> [RecipeMemoryEntry] {
-        logger.debug("Fetching memory for subcategory: \(subcategory.rawValue)")
+        logger.info("📖 [MEMORY-FETCH] Fetching memory for: \(subcategory.rawValue)")
 
         let storage = try loadStorage()
         let entries = storage[subcategory]
 
-        logger.debug("Found \(entries.count) entries for \(subcategory.rawValue)")
+        logger.info("📖 [MEMORY-FETCH] Found \(entries.count) entries (limit: \(subcategory.memoryLimit))")
+        if !entries.isEmpty {
+            logger.info("📖 [MEMORY-FETCH] Recent recipes: \(entries.prefix(5).compactMap { $0.recipeName }.joined(separator: " | "))")
+        }
         return entries.sorted(by: { $0.dateGenerated > $1.dateGenerated })
     }
 
@@ -61,10 +64,14 @@ actor RecipeMemoryRepository {
     ///   - subcategory: The subcategory to save to
     /// - Throws: RecipeMemoryError if storage write fails
     func saveEntry(_ entry: RecipeMemoryEntry, for subcategory: RecipeSubcategory) throws {
-        logger.info("Saving new memory entry for \(subcategory.rawValue): \(entry.recipeName ?? "Unknown")")
+        logger.info("📝 [MEMORY-SAVE] Starting save for '\(entry.recipeName ?? "Unknown")' in \(subcategory.rawValue)")
+        logger.info("📝 [MEMORY-SAVE] Ingredients: \(entry.mainIngredients.joined(separator: ", "))")
 
         var storage = try loadStorage()
         var entries = storage[subcategory]
+
+        let beforeCount = entries.count
+        logger.info("📝 [MEMORY-SAVE] Current memory count: \(beforeCount)/\(subcategory.memoryLimit)")
 
         // Add new entry
         entries.append(entry)
@@ -72,14 +79,15 @@ actor RecipeMemoryRepository {
         // Auto-trim if needed
         if entries.count > subcategory.memoryLimit {
             let trimCount = entries.count - subcategory.memoryLimit
+            logger.warning("📝 [MEMORY-SAVE] ⚠️ Memory limit exceeded! Trimming \(trimCount) oldest entries")
             entries = trimMemoryEntries(entries, removeCount: trimCount)
-            logger.debug("Auto-trimmed \(trimCount) old entries from \(subcategory.rawValue)")
         }
 
         storage[subcategory] = entries
         try saveStorage(storage)
 
-        logger.info("Successfully saved entry. Total entries for \(subcategory.rawValue): \(entries.count)")
+        logger.info("📝 [MEMORY-SAVE] ✅ Saved successfully. New count: \(entries.count)/\(subcategory.memoryLimit)")
+        logger.info("📝 [MEMORY-SAVE] Last 3 recipes in memory: \(entries.suffix(3).compactMap { $0.recipeName }.joined(separator: " | "))")
     }
 
     /// Trims old entries from a subcategory memory

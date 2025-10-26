@@ -59,8 +59,9 @@ extension ParsedIngredient {
         }
         
         // Initialize with proper values
+        let finalName = note.map { "\(name) (\($0))" } ?? name
         self.init(
-            name: note != nil ? "\(name) (\(note!))" : name,
+            name: finalName,
             quantity: quantityValue,
             unit: unit,
             displayQuantity: displayQty,

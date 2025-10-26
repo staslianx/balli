@@ -18,7 +18,7 @@ struct FoodItemPortionSyncTests {
 
     /// Creates an in-memory Core Data stack for isolated testing
     private func createTestController() -> Persistence.PersistenceController {
-        return Persistence.PersistenceController(inMemory: true)
+        return Persistence.PersistenceController(inMemory: true, waitForReady: true)
     }
 
     /// Creates a test FoodItem with specified properties

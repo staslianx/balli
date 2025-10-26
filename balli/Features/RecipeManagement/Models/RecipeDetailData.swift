@@ -40,7 +40,8 @@ struct RecipeDetailData {
         // Use first instruction as description (NOT AI notes - those go in story card)
         self.recipeDescription = recipeDescription ?? recipe.instructionsArray.first
         // Show AI notes in story card if available
-        self.storyTitle = storyTitle ?? (recipe.notes != nil && !recipe.notes!.isEmpty ? "balli'nin notu" : nil)
+        let hasNotes = recipe.notes.map { !$0.isEmpty } ?? false
+        self.storyTitle = storyTitle ?? (hasNotes ? "balli'nin notu" : nil)
         self.storyDescription = storyDescription ?? recipe.notes
         self.storyThumbnailURL = storyThumbnailURL
     }
@@ -106,7 +107,7 @@ extension RecipeDetailData {
         recipe.isVerified = false
         recipe.isFavorite = false
         recipe.timesCooked = 0
-        recipe.userRating = 0
+        recipe.userRating = 1
 
         return RecipeDetailData(
             recipe: recipe,

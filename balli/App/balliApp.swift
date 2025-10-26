@@ -142,6 +142,11 @@ struct balliApp: App {
                 }
             }
         }
+
+        // Schedule glucose data cleanup (runs every 7 days)
+        Task.detached(priority: .background) {
+            await AppLifecycleCoordinator.shared.checkAndCleanupGlucoseDataIfNeeded()
+        }
     }
 
     // MARK: - Scene Lifecycle

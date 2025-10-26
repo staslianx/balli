@@ -51,7 +51,8 @@ struct LaunchTransitionView: View {
             }
             
             // Trigger transition to main app after brief display
-            DispatchQueue.main.asyncAfter(deadline: .now() + transitionDelay + animationDuration) {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: UInt64((transitionDelay + animationDuration) * 1_000_000_000))
                 shouldTransition = true
             }
         }

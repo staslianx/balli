@@ -129,7 +129,8 @@ public final class AnimationTransaction: ObservableObject {
         }
 
         // Schedule completion
-        DispatchQueue.main.asyncAfter(deadline: .now() + Constants.animationCompletionDelaySeconds) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Constants.animationCompletionDelaySeconds * 1_000_000_000))
             self?.completeAnimation(id: id)
         }
     }
@@ -147,11 +148,12 @@ public final class AnimationTransaction: ObservableObject {
         }
 
         // Schedule completion
-        DispatchQueue.main.asyncAfter(deadline: .now() + Constants.animationCompletionDelaySeconds) { [weak self] in
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(Constants.animationCompletionDelaySeconds * 1_000_000_000))
             self?.completeAnimation(id: id)
         }
     }
-    
+
     /// Complete animation and cleanup
     private func completeAnimation(id: AnimationController.AnimationID) {
         controller.endAnimation(id)

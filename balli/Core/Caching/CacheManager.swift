@@ -69,10 +69,12 @@ actor CacheManager<Key: Hashable & Codable, Value: Codable> {
         self.configuration = configuration
 
         // Setup disk cache directory
-        let cacheDirectory = FileManager.default.urls(
+        guard let cacheDirectory = FileManager.default.urls(
             for: .cachesDirectory,
             in: .userDomainMask
-        ).first!
+        ).first else {
+            fatalError("Unable to access cache directory - this should never happen on iOS")
+        }
 
         self.diskCacheURL = cacheDirectory
             .appendingPathComponent("balli-cache")

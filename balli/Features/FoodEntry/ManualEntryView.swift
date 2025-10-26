@@ -72,9 +72,11 @@ struct ManualEntryView: View {
                                 .foregroundColor(.white)
                                 .frame(width: ResponsiveDesign.width(180))
                                 .frame(height: ResponsiveDesign.height(56))
-                                .background(AppTheme.adaptiveBalliGradient(for: colorScheme))
-                                .clipShape(Capsule())
-                                .shadow(color: AppTheme.primaryPurple.opacity(0.3), radius: ResponsiveDesign.height(4), x: 0, y: ResponsiveDesign.height(2))
+                                .background(
+                                    Capsule()
+                                        .fill(AppTheme.primaryPurple)
+                                )
+                                .glassEffect(.regular.interactive(), in: Capsule())
                         }
                         .padding(.bottom, ResponsiveDesign.height(30))
                     }
@@ -145,9 +147,10 @@ struct ManualEntryView: View {
         do {
             try viewContext.save()
             showingSaveConfirmation = true
-            
+
             // Reset the form after successful save
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1.0 seconds
                 productBrand = ""
                 productName = ""
                 calories = ""
