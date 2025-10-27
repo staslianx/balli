@@ -48,30 +48,54 @@ public enum ConfidenceLevel: String, CaseIterable {
 // MARK: - FoodItem Business Logic
 extension FoodItem {
     
-    /// Calculated net carbs (total - fiber - sugar alcohols)
+    /// Calculated net carbs (total - fiber)
+    /// Available carbohydrates after subtracting fiber (used in Nestlé formula)
     var netCarbs: Double {
-        // Only subtract fiber if it's greater than 5g per serving
-        let fiberDeduction = fiber > 5 ? fiber : 0
-        return max(0, totalCarbs - fiberDeduction - sugarAlcohols)
+        return max(0, totalCarbs - fiber)
     }
-    
-    /// Calculated impact score for blood glucose impact
-    /// Updated formula based on evidence-based research:
-    /// impactScore = (netCarbs × 1.0) + (sugars × 0.15) - (protein × 0.1) - (fat × 0.05)
-    /// Result is always rounded up to whole numbers
+
+    /// Calculated impact score using Nestlé Research validated glycemic load formula
+    /// Source: Nestlé Research (2019) - "Predicting Glycemic Index and Glycemic Load from Macronutrients"
+    /// Validation: r=0.90 correlation with in-vivo GI testing across 60 products
+    ///
+    /// Formula considers:
+    /// - Sugar vs starch carbohydrate composition (different GI values)
+    /// - Fiber effect (slows absorption, creates viscosity)
+    /// - Protein effect (slows gastric emptying via GLP-1)
+    /// - Fat effect (slows gastric emptying via CCK)
+    ///
+    /// Returns glycemic load (GL) score where:
+    /// - GL < 5.0: Very low impact (safe without insulin)
+    /// - GL 5.0-10.0: Moderate impact (caution advised)
+    /// - GL ≥ 10.0: High impact (requires insulin)
     var impactScore: Double {
-        let carbImpact = netCarbs * 1.0
-        let sugarImpact = sugars * 0.15  // Research-based sugar weighting
-        let proteinReduction = protein * 0.1
-        let fatReduction = totalFat * 0.05
-
-        let score = max(0, carbImpact + sugarImpact - proteinReduction - fatReduction)
-        return ceil(score)  // Always round up to whole numbers
+        return ImpactScoreCalculator.calculateForFullServing(
+            totalCarbs: totalCarbs,
+            fiber: fiber,
+            sugar: sugars,
+            protein: protein,
+            fat: totalFat
+        )
     }
 
-    /// Impact level based on calculated impact score
+    /// Impact level based on calculated impact score using Nestlé thresholds
+    /// Uses single-threshold evaluation (score only)
+    /// For three-threshold evaluation, use ImpactLevel.from(score:fat:protein:)
     var impactLevel: ImpactLevel {
         return ImpactLevel.from(score: impactScore)
+    }
+
+    /// Impact level using three-threshold Nestlé model (score + fat + protein)
+    /// ALL THREE must pass for LOW impact:
+    /// - Score < 5.0 (low glycemic load)
+    /// - Fat < 5.0g (minimal gastric delay)
+    /// - Protein < 10.0g (minimal gluconeogenesis)
+    var impactLevelDetailed: ImpactLevel {
+        return ImpactLevel.from(
+            score: impactScore,
+            fat: totalFat,
+            protein: protein
+        )
     }
     
     /// Localized name based on current locale

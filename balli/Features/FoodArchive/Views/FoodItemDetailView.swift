@@ -229,36 +229,43 @@ struct FoodItemDetailView: View {
     // Toast notification for save feedback
     @State private var toastMessage: ToastType? = nil
 
-    // Calculate current impact based on form state (same logic as NutritionFormState)
+    // Calculate current impact using Nestlé formula for the current portion
+    private var currentImpactResult: ImpactScoreResult? {
+        guard let baseCarbs = Double(carbohydrates),
+              let baseFiber = Double(fiber),
+              let baseSugars = Double(sugars),
+              let baseProtein = Double(protein),
+              let baseFat = Double(fat),
+              let baseServing = Double(servingSize),
+              baseServing > 0 else {
+            return nil
+        }
+
+        return ImpactScoreCalculator.calculate(
+            totalCarbs: baseCarbs,
+            fiber: baseFiber,
+            sugar: baseSugars,
+            protein: baseProtein,
+            fat: baseFat,
+            servingSize: baseServing,
+            portionGrams: portionGrams
+        )
+    }
+
     private var currentImpactScore: Double {
-        let baseServing = Double(servingSize) ?? 100.0
-        guard baseServing > 0 else { return 0.0 }
-
-        let adjustmentRatio = portionGrams / baseServing
-
-        // Get adjusted nutrition values
-        let adjustedCarbs = (Double(carbohydrates) ?? 0) * adjustmentRatio
-        let adjustedFiber = (Double(fiber) ?? 0) * adjustmentRatio
-        let adjustedSugars = (Double(sugars) ?? 0) * adjustmentRatio
-        let adjustedProtein = (Double(protein) ?? 0) * adjustmentRatio
-        let adjustedFat = (Double(fat) ?? 0) * adjustmentRatio
-
-        // Calculate net carbs
-        let fiberDeduction = adjustedFiber > 5 ? adjustedFiber : 0
-        let netCarbs = max(0, adjustedCarbs - fiberDeduction)
-
-        // Calculate impact score
-        let carbImpact = netCarbs * 1.0
-        let sugarImpact = adjustedSugars * 0.15
-        let proteinReduction = adjustedProtein * 0.1
-        let fatReduction = adjustedFat * 0.05
-
-        let score = max(0, carbImpact + sugarImpact - proteinReduction - fatReduction)
-        return ceil(score)  // Round up to match FoodItem.impactScore behavior
+        return currentImpactResult?.score ?? 0.0
     }
 
     private var currentImpactLevel: ImpactLevel {
-        return ImpactLevel.from(score: currentImpactScore)
+        guard let result = currentImpactResult else {
+            return .low
+        }
+        // Use three-threshold evaluation for accurate safety assessment
+        return ImpactLevel.from(
+            score: result.score,
+            fat: Double(fat) ?? 0.0,
+            protein: Double(protein) ?? 0.0
+        )
     }
 
     // MARK: - Actions

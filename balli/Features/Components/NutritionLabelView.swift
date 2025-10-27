@@ -39,6 +39,9 @@ struct NutritionLabelView: View {
     let showingValues: Bool
     let valuesAnimationProgress: [String: Bool]
 
+    // Haptic feedback state
+    @State private var previousColor: Color?
+
     // Default initializer for backward compatibility
     init(
         productBrand: Binding<String>,
@@ -136,6 +139,28 @@ struct NutritionLabelView: View {
         }
     }
 
+    /// Calculate real-time impact score for current portion using Nestlé formula
+    private var currentImpactResult: ImpactScoreResult? {
+        guard let baseCarbs = Double(carbohydrates),
+              let baseFiber = Double(fiber),
+              let baseSugars = Double(sugars),
+              let baseProtein = Double(protein),
+              let baseFat = Double(fat),
+              let baseServing = Double(servingSize) else {
+            return nil
+        }
+
+        return ImpactScoreCalculator.calculate(
+            totalCarbs: baseCarbs,
+            fiber: baseFiber,
+            sugar: baseSugars,
+            protein: baseProtein,
+            fat: baseFat,
+            servingSize: baseServing,
+            portionGrams: portionGrams
+        )
+    }
+
     // Helper method to determine if a value should be visible based on animation state
     private func shouldShowValue(_ fieldName: String) -> Bool {
         // Always show in editing mode
@@ -183,6 +208,27 @@ struct NutritionLabelView: View {
         )
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
         .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
+        .sensoryFeedback(trigger: currentImpactResult?.color) { oldValue, newValue in
+            // Trigger haptic feedback when crossing color thresholds
+            guard let newColor = newValue, previousColor != newColor else {
+                return nil
+            }
+
+            // Update previous color for next comparison
+            previousColor = newColor
+
+            // Play appropriate haptic based on new safety status
+            switch newColor {
+            case .green:
+                return .success  // Entering safe zone
+            case .yellow:
+                return .warning  // Entering caution zone
+            case .red:
+                return .error    // Entering danger zone
+            default:
+                return nil
+            }
+        }
     }
     
     private var headerSection: some View {
@@ -217,10 +263,24 @@ struct NutritionLabelView: View {
 
             Spacer()
 
-            // Show compact impact banner if available, otherwise show icon
-            if showImpactBanner, let impactLevel = impactLevel, let impactScore = impactScore {
-                CompactImpactBannerView(impactLevel: impactLevel, impactScore: impactScore)
+            // Show real-time impact badge based on current portion
+            if let result = currentImpactResult {
+                // Determine impact level using three-threshold evaluation with SCALED values
+                let scaledFat = (Double(fat) ?? 0.0) * adjustmentRatio
+                let scaledProtein = (Double(protein) ?? 0.0) * adjustmentRatio
+
+                let currentLevel = ImpactLevel.from(
+                    score: result.score,
+                    fat: scaledFat,
+                    protein: scaledProtein
+                )
+
+                CompactImpactBannerView(
+                    impactLevel: currentLevel,
+                    impactScore: result.score
+                )
             } else if showIcon {
+                // Fallback to icon if calculation fails
                 Image(systemName: iconName)
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(28), weight: .regular, design: .rounded))
                     .foregroundColor(iconColor)
@@ -349,7 +409,7 @@ struct NutritionLabelView: View {
     }
     
     private var sliderSection: some View {
-        // Logarithmic slider with tunable curvature for fine low-end control
+        // Logarithmic slider (keep original purple color - don't change)
         Slider(value: sliderPosition, in: 0...1, step: 0.01) { _ in
             // Update portionGrams based on logarithmic position
             portionGrams = gramsFromSliderPosition(sliderPosition.wrappedValue)

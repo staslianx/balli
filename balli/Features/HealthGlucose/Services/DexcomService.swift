@@ -27,11 +27,24 @@ final class DexcomService: ObservableObject {
 
     // MARK: - Connection Status
 
-    enum ConnectionStatus: Sendable {
+    enum ConnectionStatus: Sendable, Equatable {
         case disconnected
         case connecting
         case connected
         case error(DexcomError)
+
+        static func == (lhs: ConnectionStatus, rhs: ConnectionStatus) -> Bool {
+            switch (lhs, rhs) {
+            case (.disconnected, .disconnected),
+                 (.connecting, .connecting),
+                 (.connected, .connected):
+                return true
+            case (.error(let lhsError), .error(let rhsError)):
+                return lhsError.localizedDescription == rhsError.localizedDescription
+            default:
+                return false
+            }
+        }
 
         var description: String {
             switch self {
@@ -115,21 +128,49 @@ final class DexcomService: ObservableObject {
     /// Check if connected and update status
     /// Also proactively refreshes token if needed to prevent expiration
     func checkConnectionStatus() async {
+        logger.info("🔍 FORENSIC [DexcomService]: checkConnectionStatus() called")
+        await DexcomDiagnosticsLogger.shared.logConnection("checkConnectionStatus() called - current state: \(self.isConnected)", level: .debug)
+
+        logger.info("🔍 FORENSIC: Current isConnected state: \(self.isConnected)")
+
         let authenticated = await authManager.isAuthenticated()
+        logger.info("🔍 FORENSIC: Authentication check result: \(authenticated)")
+        await DexcomDiagnosticsLogger.shared.logConnection("Authentication check result: \(authenticated)", level: .info)
+
         isConnected = authenticated
         connectionStatus = authenticated ? .connected : .disconnected
 
+        logger.info("🔍 FORENSIC: Updated isConnected to: \(self.isConnected), status: \(self.connectionStatus.description)")
+        await DexcomDiagnosticsLogger.shared.logConnection("Updated connection state - isConnected: \(self.isConnected)", level: authenticated ? .success : .error)
+
         // Proactively refresh token if it's about to expire
         if authenticated {
+            logger.info("🔍 FORENSIC: User is authenticated, checking if token refresh needed...")
+            await DexcomDiagnosticsLogger.shared.logTokenRefresh("Checking if token refresh needed", level: .debug)
+
             do {
                 let didRefresh = try await authManager.refreshIfNeeded()
                 if didRefresh {
-                    logger.info("✅ Token proactively refreshed to prevent expiration")
+                    logger.info("✅ FORENSIC: Token proactively refreshed to prevent expiration")
+                    await DexcomDiagnosticsLogger.shared.logTokenRefresh("Token proactively refreshed successfully", level: .success)
+                } else {
+                    logger.info("ℹ️ FORENSIC: Token refresh not needed yet")
+                    await DexcomDiagnosticsLogger.shared.logTokenRefresh("Token refresh not needed - token still valid", level: .info)
                 }
             } catch {
-                logger.error("⚠️ Failed to proactively refresh token: \(error.localizedDescription)")
+                logger.error("❌ FORENSIC: Failed to proactively refresh token: \(error.localizedDescription)")
+                await DexcomDiagnosticsLogger.shared.logTokenRefresh("Token refresh FAILED: \(error.localizedDescription)", level: .error)
+
+                logger.error("❌ FORENSIC: Error type: \(type(of: error))")
+                if let dexcomError = error as? DexcomError {
+                    logger.error("❌ FORENSIC: Dexcom error details: \(dexcomError.logMessage)")
+                    await DexcomDiagnosticsLogger.shared.logTokenRefresh("Dexcom error: \(dexcomError.logMessage)", level: .error)
+                }
                 // Don't mark as disconnected yet - token might still be valid
             }
+        } else {
+            logger.error("❌ FORENSIC: User NOT authenticated - connection lost!")
+            await DexcomDiagnosticsLogger.shared.logConnection("User NOT authenticated - connection LOST", level: .error)
         }
     }
 
