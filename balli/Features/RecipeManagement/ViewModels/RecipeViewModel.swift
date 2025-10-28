@@ -49,8 +49,13 @@ public class RecipeViewModel: ObservableObject {
     private let imageService: RecipeImageService
     private let shoppingListService: ShoppingListIntegrationService
     private let dataManager: RecipeDataManager
+    private let nutritionRepository = RecipeNutritionRepository()
     private let viewContext: NSManagedObjectContext
     private let logger = AppLoggers.Recipe.generation
+
+    // MARK: - Nutrition Calculation State
+    @Published public var isCalculatingNutrition = false
+    @Published public var nutritionCalculationError: String?
 
     // MARK: - Combine
     private var cancellables = Set<AnyCancellable>()
@@ -583,6 +588,67 @@ public class RecipeViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Nutrition Calculation
+
+    /// Calculate nutrition values on-demand using Gemini 2.5 Pro
+    /// Called when user taps the nutrition values button
+    public func calculateNutrition() {
+        logger.info("🍽️ [NUTRITION] Starting on-demand nutrition calculation")
+
+        // Validate we have recipe data
+        guard !formState.recipeName.isEmpty else {
+            logger.error("❌ [NUTRITION] Cannot calculate - no recipe name")
+            nutritionCalculationError = "Recipe name is required"
+            return
+        }
+
+        guard !formState.recipeContent.isEmpty else {
+            logger.error("❌ [NUTRITION] Cannot calculate - no recipe content")
+            nutritionCalculationError = "Recipe content is required"
+            return
+        }
+
+        // Reset error state
+        nutritionCalculationError = nil
+        isCalculatingNutrition = true
+
+        Task {
+            do {
+                logger.info("🍽️ [NUTRITION] Calling Cloud Function...")
+                let nutritionData = try await nutritionRepository.calculateNutrition(
+                    recipeName: formState.recipeName,
+                    recipeContent: formState.recipeContent,
+                    servings: 4  // Default servings - could be made dynamic later
+                )
+
+                // Update form state with calculated values
+                await MainActor.run {
+                    let formattedValues = nutritionData.toFormState()
+                    formState.calories = formattedValues.calories
+                    formState.carbohydrates = formattedValues.carbohydrates
+                    formState.fiber = formattedValues.fiber
+                    formState.sugar = formattedValues.sugar
+                    formState.protein = formattedValues.protein
+                    formState.fat = formattedValues.fat
+                    formState.glycemicLoad = formattedValues.glycemicLoad
+
+                    isCalculatingNutrition = false
+
+                    logger.info("✅ [NUTRITION] Calculation complete and form state updated")
+                    logger.info("   Calories: \(formattedValues.calories) kcal/100g")
+                    logger.info("   Carbs: \(formattedValues.carbohydrates)g, Protein: \(formattedValues.protein)g")
+                }
+
+            } catch {
+                await MainActor.run {
+                    isCalculatingNutrition = false
+                    nutritionCalculationError = error.localizedDescription
+                    logger.error("❌ [NUTRITION] Calculation failed: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
     // MARK: - Save Recipe
 
     public func saveRecipe() {
@@ -686,10 +752,23 @@ public class RecipeViewModel: ObservableObject {
 
     private func addIngredientsToShoppingListInternal(ingredients: [String], recipeName: String) async {
         do {
-            let recipeId = UUID()
             let recipeNameToUse = recipeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 ? "Yeni Tarif"
                 : recipeName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            // Try to find existing saved recipe to use its real ID
+            let recipeId: UUID
+            let fetchRequest: NSFetchRequest<Recipe> = Recipe.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "name == %@ AND source == %@", recipeNameToUse, RecipeConstants.Source.ai)
+            fetchRequest.fetchLimit = 1
+
+            if let existingRecipe = try? viewContext.fetch(fetchRequest).first {
+                recipeId = existingRecipe.id
+                logger.debug("Found existing saved recipe with ID: \(recipeId)")
+            } else {
+                recipeId = UUID()
+                logger.debug("No saved recipe found, using temporary ID: \(recipeId)")
+            }
 
             let updatedSentIngredients = try await dataManager.addIngredientsToShoppingList(
                 ingredients: ingredients,

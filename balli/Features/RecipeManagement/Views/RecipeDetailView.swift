@@ -23,6 +23,7 @@ struct RecipeDetailView: View {
     @State private var isGeneratingPhoto = false
     @State private var generatedImageData: Data?
     @State private var showingShoppingConfirmation = false
+    @State private var isCalculatingNutrition = false
 
     // Inline editing state
     @State private var isEditing = false
@@ -30,6 +31,9 @@ struct RecipeDetailView: View {
     @State private var editedIngredients: [String] = []
     @State private var editedInstructions: [String] = []
     @State private var editedNotes: String = ""
+
+    // MARK: - Services
+    private let nutritionRepository = RecipeNutritionRepository()
 
     // MARK: - Data Manager
     private var dataManager: RecipeDataManager {
@@ -94,7 +98,9 @@ struct RecipeDetailView: View {
             }
             }
             .scrollIndicators(.hidden)
-            .ignoresSafeArea(edges: .top)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                Color.clear.frame(height: 0)
+            }
 
             // Shopping confirmation toast
             if showingShoppingConfirmation {
@@ -117,16 +123,31 @@ struct RecipeDetailView: View {
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingShoppingConfirmation)
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .ignoresSafeArea(edges: .top)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItem(placement: .navigationBarLeading) {
+                if isEditing {
+                    Button("İptal") {
+                        cancelEditing()
+                    }
+                    .foregroundStyle(ThemeColors.primaryPurple)
+                } else {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(ThemeColors.primaryPurple)
+                    }
+                }
+            }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
                 if isEditing {
                     Button("Kaydet") {
                         saveChanges()
                     }
-                    .foregroundColor(ThemeColors.primaryPurple)
-                    .fontWeight(.semibold)
+                    .foregroundStyle(ThemeColors.primaryPurple)
                 } else {
                     Menu {
                         Button {
@@ -152,29 +173,12 @@ struct RecipeDetailView: View {
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(ThemeColors.primaryPurple)
-                    }
-                }
-            }
-
-            ToolbarItem(placement: .topBarLeading) {
-                if isEditing {
-                    Button("İptal") {
-                        cancelEditing()
-                    }
-                    .foregroundColor(ThemeColors.primaryPurple)
-                    .fontWeight(.semibold)
-                } else {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundColor(ThemeColors.primaryPurple)
+                            .foregroundStyle(ThemeColors.primaryPurple)
                     }
                 }
             }
         }
+        .toolbarBackground(.hidden, for: .navigationBar)
         .sheet(isPresented: $showingNutritionalValues) {
             NutritionalValuesView(
                 recipeName: recipeData.recipeName,
@@ -194,6 +198,13 @@ struct RecipeDetailView: View {
             )
             .presentationDetents([.fraction(0.6)])
             .presentationDragIndicator(.visible)
+        }
+        .onChange(of: isCalculatingNutrition) { _, isCalculating in
+            // When calculation completes (isCalculating becomes false) and we have values, show modal
+            if !isCalculating && recipeData.recipe.calories > 0 {
+                logger.info("✅ [NUTRITION] Calculation complete - opening modal")
+                showingNutritionalValues = true
+            }
         }
     }
 
@@ -243,10 +254,8 @@ struct RecipeDetailView: View {
                 // Photo generation button or loading indicator (only if no image exists)
                 if recipeData.imageData == nil && recipeData.imageURL == nil && generatedImageData == nil {
                     if isGeneratingPhoto {
-                        // Show loading indicator while generating
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(1.5)
+                        // Show pulsing icon while generating
+                        PulsingPhotoIcon()
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
                         // Show photo generation button
@@ -294,7 +303,7 @@ struct RecipeDetailView: View {
                 Image("balli-text-logo-dark")
                     .resizable()
                     .scaledToFit()
-                    .frame(height: 20)
+                    .frame(height: 40)
             }
 
             // Author
@@ -338,10 +347,17 @@ struct RecipeDetailView: View {
     private var actionButtonsSection: some View {
         RecipeActionRow(
             actions: [.favorite, .values, .shopping],
-            activeStates: [recipeData.recipe.isFavorite, false, false]
+            activeStates: [recipeData.recipe.isFavorite, false, false],
+            loadingStates: [false, isCalculatingNutrition, false],
+            completedStates: [false, hasNutritionValues, false]
         ) { action in
             handleAction(action)
         }
+    }
+
+    /// Check if nutrition values have been calculated
+    private var hasNutritionValues: Bool {
+        recipeData.recipe.calories > 0 && recipeData.recipe.totalCarbs > 0 && recipeData.recipe.protein > 0
     }
 
     // MARK: - Recipe Content
@@ -382,15 +398,15 @@ struct RecipeDetailView: View {
             // Editable Ingredients Section
             VStack(alignment: .leading, spacing: 8) {
                 Text("Malzemeler")
-                    .font(.playfairDisplay(33, weight: .bold))
+                    .font(.custom("GalanoGrotesqueAlt-Bold", size: 33))
                     .foregroundColor(.primary)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 0)
 
                 ForEach(Array(editedIngredients.enumerated()), id: \.offset) { index, ingredient in
                     HStack(alignment: .top, spacing: 16) {
                         Text("•")
                             .font(.custom("Manrope", size: 20))
-                            .foregroundColor(.primary)
+                            .foregroundColor(AppTheme.primaryPurple)
                             .padding(.top, 8)
 
                         TextEditor(text: Binding(
@@ -412,15 +428,15 @@ struct RecipeDetailView: View {
             // Editable Instructions Section
             VStack(alignment: .leading, spacing: 8) {
                 Text("Yapілışі")
-                    .font(.playfairDisplay(33, weight: .bold))
+                    .font(.custom("GalanoGrotesqueAlt-Bold", size: 33))
                     .foregroundColor(.primary)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 0)
 
                 ForEach(Array(editedInstructions.enumerated()), id: \.offset) { index, instruction in
                     HStack(alignment: .top, spacing: 16) {
                         Text("\(index + 1).")
                             .font(.custom("Manrope", size: 20))
-                            .foregroundColor(.primary)
+                            .foregroundColor(AppTheme.primaryPurple)
                             .padding(.top, 8)
 
                         TextEditor(text: Binding(
@@ -653,7 +669,85 @@ struct RecipeDetailView: View {
     }
 
     private func handleValues() {
-        showingNutritionalValues = true
+        // Check if nutrition values are already calculated
+        let hasNutrition = recipeData.recipe.calories > 0 &&
+                          recipeData.recipe.totalCarbs > 0 &&
+                          recipeData.recipe.protein > 0
+
+        if hasNutrition {
+            // Nutrition already calculated, show modal immediately
+            logger.debug("🍽️ [NUTRITION] Values already present, showing modal")
+            showingNutritionalValues = true
+        } else {
+            // Start calculation - button will pulse, modal opens when complete
+            logger.info("🍽️ [NUTRITION] Starting calculation...")
+            calculateNutrition()
+            // Modal will open automatically via .onChange(of: isCalculatingNutrition)
+        }
+    }
+
+    private func calculateNutrition() {
+        isCalculatingNutrition = true
+
+        Task {
+            do {
+                // Get recipe content - prefer markdown format, fall back to arrays
+                var recipeContent = ""
+
+                if let ingredients = recipeData.recipe.ingredients as? [String],
+                   let instructions = recipeData.recipe.instructions as? [String] {
+                    // Build markdown from arrays
+                    recipeContent = "## Malzemeler\n---\n"
+                    for ingredient in ingredients {
+                        recipeContent += "- \(ingredient)\n"
+                    }
+                    recipeContent += "\n## Yapılışı\n---\n"
+                    for (index, instruction) in instructions.enumerated() {
+                        recipeContent += "\(index + 1). \(instruction)\n"
+                    }
+                }
+
+                guard !recipeContent.isEmpty else {
+                    logger.error("❌ [NUTRITION] No recipe content available")
+                    isCalculatingNutrition = false
+                    return
+                }
+
+                logger.info("🍽️ [NUTRITION] Calling Cloud Function...")
+                let nutritionData = try await nutritionRepository.calculateNutrition(
+                    recipeName: recipeData.recipe.name,
+                    recipeContent: recipeContent,
+                    servings: 4
+                )
+
+                // Update Core Data entity with calculated values
+                await MainActor.run {
+                    recipeData.recipe.calories = nutritionData.calories
+                    recipeData.recipe.totalCarbs = nutritionData.carbohydrates
+                    recipeData.recipe.fiber = nutritionData.fiber
+                    recipeData.recipe.sugars = nutritionData.sugar
+                    recipeData.recipe.protein = nutritionData.protein
+                    recipeData.recipe.totalFat = nutritionData.fat
+                    recipeData.recipe.glycemicLoad = nutritionData.glycemicLoad
+
+                    // Save to Core Data
+                    do {
+                        try viewContext.save()
+                        logger.info("✅ [NUTRITION] Calculation complete and saved to Core Data")
+                    } catch {
+                        logger.error("❌ [NUTRITION] Failed to save nutrition data: \(error.localizedDescription)")
+                    }
+
+                    isCalculatingNutrition = false
+                }
+
+            } catch {
+                await MainActor.run {
+                    isCalculatingNutrition = false
+                    logger.error("❌ [NUTRITION] Calculation failed: \(error.localizedDescription)")
+                }
+            }
+        }
     }
 
     private func handleShopping() {
@@ -661,15 +755,15 @@ struct RecipeDetailView: View {
 
         Task {
             do {
-                // Extract ingredients from recipe
-                let ingredients = recipeData.recipe.ingredientsArray
+                // Use edited ingredients if in edit mode, otherwise use saved ingredients
+                let ingredients = isEditing ? editedIngredients : recipeData.recipe.ingredientsArray
 
                 guard !ingredients.isEmpty else {
                     logger.warning("⚠️ [DETAIL] No ingredients found in recipe")
                     return
                 }
 
-                logger.debug("📦 [DETAIL] Processing \(ingredients.count) ingredients")
+                logger.debug("📦 [DETAIL] Processing \(ingredients.count) ingredients (isEditing: \(isEditing))")
 
                 // Add ingredients to shopping list with recipe context
                 let updatedSent = try await dataManager.addIngredientsToShoppingList(
@@ -708,23 +802,18 @@ struct RecipeDetailView: View {
     // MARK: - Photo Generation
 
     private func generatePhoto() async {
-        logger.info("🎬 [DETAIL] Photo generation button tapped for recipe: \(recipeData.recipeName)")
+        logger.info("🎬 [DETAIL] Photo generation started for recipe: \(recipeData.recipeName)")
 
         isGeneratingPhoto = true
 
         do {
-            logger.info("🌐 [DETAIL] Calling photo generation service...")
-
-            // Extract ingredients and directions from recipe
+            // Extract recipe data
             let ingredients = recipeData.recipe.ingredientsArray
             let directions = recipeData.recipe.instructionsArray
 
-            logger.debug("📋 [DETAIL] Recipe data:")
-            logger.debug("  - Name: \(recipeData.recipeName)")
-            logger.debug("  - Ingredients: \(ingredients.count)")
-            logger.debug("  - Directions: \(directions.count)")
+            logger.debug("📋 [DETAIL] Recipe data: \(ingredients.count) ingredients, \(directions.count) directions")
 
-            // Call photo generation service
+            // Generate photo using shared service
             let photoService = RecipePhotoGenerationService.shared
             let imageURL = try await photoService.generateRecipePhoto(
                 recipeName: recipeData.recipeName,
@@ -734,35 +823,16 @@ struct RecipeDetailView: View {
                 styleType: "Klasik"
             )
 
-            logger.info("✅ [DETAIL] Received imageURL from service")
-            logger.debug("🔍 [DETAIL] imageURL prefix: \(imageURL.prefix(60))...")
+            logger.info("✅ [DETAIL] Photo generated successfully")
 
-            // Convert base64 to Data
-            if imageURL.hasPrefix("data:image") {
-                logger.info("🖼️ [DETAIL] Converting base64 to image data...")
-                let base64String = imageURL.replacingOccurrences(of: "data:image/jpeg;base64,", with: "")
-                    .replacingOccurrences(of: "data:image/png;base64,", with: "")
+            // Convert base64 data URL to image data
+            if let imageData = extractImageData(from: imageURL) {
+                logger.info("✅ [DETAIL] Image data extracted (\(imageData.count) bytes)")
 
-                if let imageData = Data(base64Encoded: base64String) {
-                    logger.info("✅ [DETAIL] Successfully converted to image data (\(imageData.count) bytes)")
-                    generatedImageData = imageData
-
-                    // Save to Core Data
-                    logger.info("💾 [DETAIL] Saving image to Core Data...")
-                    await MainActor.run {
-                        recipeData.recipe.imageData = imageData
-                        recipeData.recipe.lastModified = Date()
-
-                        do {
-                            try viewContext.save()
-                            logger.info("✅ [DETAIL] Image saved to recipe successfully")
-                        } catch {
-                            logger.error("❌ [DETAIL] Failed to save image to Core Data: \(error.localizedDescription)")
-                        }
-                    }
-                } else {
-                    logger.error("❌ [DETAIL] Failed to decode base64 string")
-                }
+                // Update UI and save to Core Data
+                await saveGeneratedImage(imageData)
+            } else {
+                logger.error("❌ [DETAIL] Failed to extract image data from URL")
             }
 
             isGeneratingPhoto = false
@@ -771,33 +841,38 @@ struct RecipeDetailView: View {
         } catch {
             logger.error("❌ [DETAIL] Photo generation failed: \(error.localizedDescription)")
             isGeneratingPhoto = false
+            ErrorHandler.shared.handle(error)
         }
     }
-}
 
-// MARK: - Sheet Modifiers
+    /// Extract image data from base64 data URL
+    private func extractImageData(from imageURL: String) -> Data? {
+        guard imageURL.hasPrefix("data:image") else {
+            logger.warning("⚠️ [DETAIL] Image URL is not a data URL")
+            return nil
+        }
 
-extension RecipeDetailView {
-    func withSheets() -> some View {
-        self
-            .sheet(isPresented: $showingNutritionalValues) {
-                NutritionalValuesView(
-                    recipeName: recipeData.recipeName,
-                    calories: String(format: "%.0f", recipeData.recipe.calories),
-                    carbohydrates: String(format: "%.1f", recipeData.recipe.totalCarbs),
-                    fiber: String(format: "%.1f", recipeData.recipe.fiber),
-                    sugar: String(format: "%.1f", recipeData.recipe.sugars),
-                    protein: String(format: "%.1f", recipeData.recipe.protein),
-                    fat: String(format: "%.1f", recipeData.recipe.totalFat),
-                    glycemicLoad: String(format: "%.0f", recipeData.recipe.glycemicLoad)
-                )
-            }
-            .sheet(isPresented: $showingNoteDetail) {
-                RecipeNoteDetailView(
-                    title: recipeData.storyTitle ?? "balli'nin notu",
-                    note: recipeData.storyDescription ?? ""
-                )
-            }
+        let base64String = imageURL
+            .replacingOccurrences(of: "data:image/jpeg;base64,", with: "")
+            .replacingOccurrences(of: "data:image/png;base64,", with: "")
+
+        return Data(base64Encoded: base64String)
+    }
+
+    /// Save generated image to Core Data
+    @MainActor
+    private func saveGeneratedImage(_ imageData: Data) async {
+        generatedImageData = imageData
+        recipeData.recipe.imageData = imageData
+        recipeData.recipe.lastModified = Date()
+
+        do {
+            try viewContext.save()
+            logger.info("✅ [DETAIL] Image saved to recipe successfully")
+        } catch {
+            logger.error("❌ [DETAIL] Failed to save image: \(error.localizedDescription)")
+            ErrorHandler.shared.handle(error)
+        }
     }
 }
 

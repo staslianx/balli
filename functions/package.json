@@ -4,7 +4,7 @@
   "description": "Firebase Functions for Balli health app with Genkit and Gemini 2.5 Flash integration",
   "main": "lib/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp -r prompts lib/",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
@@ -16,7 +16,12 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "test:verbose": "jest --verbose"
+    "test:verbose": "jest --verbose",
+    "validate:edamam": "npx tsx src/validate-edamam.ts",
+    "validate:edamam:poc": "npx tsx src/validate-edamam.ts --proof-of-concept",
+    "validate:edamam:full": "npx tsx src/validate-edamam.ts --core-ingredients",
+    "validate:cooking-states": "npx tsx src/validate-cooking-states.ts",
+    "validate:gemini": "npx tsx src/validate-gemini-nutrition.ts"
   },
   "engines": {
     "node": "20"

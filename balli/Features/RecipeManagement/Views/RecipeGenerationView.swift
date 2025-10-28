@@ -34,6 +34,7 @@ struct RecipeGenerationView: View {
     @State private var isSaved = false
     @State private var isFavorited = false
     @State private var showingSaveConfirmation = false
+    @State private var showingShoppingConfirmation = false
     @State private var isAddingIngredient = false
     @State private var isAddingStep = false
     @State private var newIngredientText = ""
@@ -94,13 +95,13 @@ struct RecipeGenerationView: View {
                             .padding(.horizontal, 20)
                             .padding(.bottom, 24) // Minimum gap between name and story card
                     }
-                    .frame(height: UIScreen.main.bounds.height * 0.5 - 49) // Ends where story card begins
+                    .frame(height: max(UIScreen.main.bounds.height * 0.5, 350) - 49) // Ends where story card begins
 
                     // Story card - positioned absolutely at fixed offset
                     // This stays in place regardless of recipe name length
                     VStack {
                         Spacer()
-                            .frame(height: UIScreen.main.bounds.height * 0.5 - 49)
+                            .frame(height: max(UIScreen.main.bounds.height * 0.5, 350) - 49)
 
                         storyCardPlaceholder
                             .padding(.horizontal, 20)
@@ -111,9 +112,6 @@ struct RecipeGenerationView: View {
             }
             .scrollIndicators(.hidden)
             .background(Color(.secondarySystemBackground))
-
-            // MARK: - Navigation Overlay
-            navigationOverlay
 
             // MARK: - Save Confirmation Overlay
             if showingSaveConfirmation {
@@ -135,9 +133,68 @@ struct RecipeGenerationView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
                 .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingSaveConfirmation)
             }
+
+            // MARK: - Shopping Confirmation Overlay
+            if showingShoppingConfirmation {
+                VStack {
+                    Spacer()
+                    HStack(spacing: 12) {
+                        Image(systemName: "cart.fill.badge.plus")
+                            .font(.system(size: 20))
+                            .foregroundColor(ThemeColors.primaryPurple)
+                        Text("Alışveriş listesine eklendi!")
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    .recipeGlass(tint: .warm, cornerRadius: 100)
+                    .padding(.bottom, 100)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingShoppingConfirmation)
+            }
         }
-        .navigationBarHidden(true)
-        .ignoresSafeArea()
+        .ignoresSafeArea(edges: .top)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(ThemeColors.primaryPurple)
+                }
+            }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 12) {
+                    // Save button (only visible when recipe generated and not saved)
+                    if !viewModel.recipeName.isEmpty && !isSaved {
+                        Button {
+                            Task {
+                                await saveRecipe()
+                            }
+                        } label: {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundStyle(ThemeColors.primaryPurple)
+                        }
+                    }
+
+                    // Generate menu button (balli logo)
+                    Button {
+                        showingMealSelection = true
+                    } label: {
+                        Image("balli-logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
+                    }
+                }
+            }
+        }
+        .toolbarBackground(.hidden, for: .navigationBar)
         .sheet(isPresented: $showingMealSelection) {
             RecipeMealSelectionView(
                 selectedMealType: $selectedMealType,
@@ -163,13 +220,20 @@ struct RecipeGenerationView: View {
             )
             .presentationDetents([.fraction(0.7)])
         }
+        .onChange(of: viewModel.isCalculatingNutrition) { _, isCalculating in
+            // When calculation completes (isCalculating becomes false) and we have values, show modal
+            if !isCalculating && !viewModel.calories.isEmpty {
+                logger.info("✅ [NUTRITION] Calculation complete - opening modal")
+                showingNutritionModal = true
+            }
+        }
     }
 
     // MARK: - Hero Image Placeholder
 
     private var heroImagePlaceholder: some View {
         GeometryReader { geometry in
-            let imageHeight = UIScreen.main.bounds.height * 0.5
+            let imageHeight = max(UIScreen.main.bounds.height * 0.5, 350)
 
             ZStack(alignment: .top) {
                 // Show generated image if available, otherwise show placeholder gradient
@@ -205,17 +269,8 @@ struct RecipeGenerationView: View {
                 if !viewModel.recipeName.isEmpty {
                     if viewModel.isGeneratingPhoto {
                         // Show pulsing spatial.capture icon while generating
-                        VStack(spacing: 12) {
-                            Image(systemName: "spatial.capture")
-                                .font(.system(size: 64, weight: .light))
-                                .foregroundStyle(.white.opacity(0.8))
-                                .scaleEffect(viewModel.isGeneratingPhoto ? 1.2 : 1.0)
-                                .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: viewModel.isGeneratingPhoto)
-                            Text("Fotoğraf Oluşturuluyor...")
-                                .font(.system(size: 17, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.8))
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        PulsingPhotoIcon()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if viewModel.preparedImage == nil {
                         // Show photo generation button if no image yet
                         Button(action: {
@@ -238,61 +293,7 @@ struct RecipeGenerationView: View {
                 }
             }
         }
-        .frame(height: UIScreen.main.bounds.height * 0.5)
-    }
-
-    // MARK: - Navigation
-
-    private var navigationOverlay: some View {
-        VStack {
-            HStack {
-                // Back button
-                Button(action: { dismiss() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(RecipeButtonStyle())
-                .recipeCircularGlass(size: 44, tint: .warm)
-
-                Spacer()
-
-                // Save button (only visible when recipe generated and not saved)
-                if !viewModel.recipeName.isEmpty && !isSaved {
-                    Button(action: {
-                        Task {
-                            await saveRecipe()
-                        }
-                    }) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .foregroundColor(.primary)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(RecipeButtonStyle())
-                    .recipeCircularGlass(size: 44, tint: .warm)
-                }
-
-                // Generate menu button (balli logo)
-                Button(action: { showingMealSelection = true }) {
-                    Image("balli-logo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(8)
-                        .contentShape(Circle())
-                }
-                .buttonStyle(RecipeButtonStyle())
-                .recipeCircularGlass(size: 44, tint: .warm)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 60) // Account for status bar
-
-            Spacer()
-        }
+        .frame(height: max(UIScreen.main.bounds.height * 0.5, 350))
     }
 
     // MARK: - Metadata Placeholder
@@ -304,7 +305,7 @@ struct RecipeGenerationView: View {
                 Image("balli-text-logo-dark")
                     .resizable()
                     .scaledToFit()
-                    .frame(height: 20)
+                    .frame(height: 40)
             }
 
             // Recipe title
@@ -333,7 +334,7 @@ struct RecipeGenerationView: View {
                 Image("balli-text-logo-dark")
                     .resizable()
                     .scaledToFit()
-                    .frame(height: 20)
+                    .frame(height: 40)
             }
         }
     }
@@ -357,10 +358,17 @@ struct RecipeGenerationView: View {
     private var actionButtonsPlaceholder: some View {
         RecipeActionRow(
             actions: [.favorite, .values, .shopping],
-            activeStates: [isFavorited, false, false]
+            activeStates: [isFavorited, false, false],
+            loadingStates: [false, viewModel.isCalculatingNutrition, false],
+            completedStates: [false, hasNutritionValues, false]
         ) { action in
             handleAction(action)
         }
+    }
+
+    /// Check if nutrition values have been calculated
+    private var hasNutritionValues: Bool {
+        !viewModel.calories.isEmpty && !viewModel.carbohydrates.isEmpty && !viewModel.protein.isEmpty
     }
 
     private func handleAction(_ action: RecipeAction) {
@@ -368,11 +376,39 @@ struct RecipeGenerationView: View {
         case .favorite:
             toggleFavorite()
         case .values:
-            showingNutritionModal = true
+            handleNutritionValues()
         case .shopping:
             handleShopping()
         default:
             break
+        }
+    }
+
+    private func handleNutritionValues() {
+        // DEBUG: Log current state
+        logger.info("🔍 [DEBUG] handleNutritionValues() called")
+        logger.info("🔍 [DEBUG] recipeName: '\(viewModel.recipeName)'")
+        logger.info("🔍 [DEBUG] recipeContent length: \(viewModel.recipeContent.count)")
+        logger.info("🔍 [DEBUG] calories: '\(viewModel.calories)'")
+        logger.info("🔍 [DEBUG] carbohydrates: '\(viewModel.carbohydrates)'")
+        logger.info("🔍 [DEBUG] protein: '\(viewModel.protein)'")
+
+        // Check if nutrition values are already calculated
+        let hasNutrition = !viewModel.calories.isEmpty &&
+                          !viewModel.carbohydrates.isEmpty &&
+                          !viewModel.protein.isEmpty
+
+        logger.info("🔍 [DEBUG] hasNutrition: \(hasNutrition)")
+
+        if hasNutrition {
+            // Nutrition already calculated, show modal immediately
+            logger.debug("🍽️ [NUTRITION] Values already present, showing modal")
+            showingNutritionModal = true
+        } else {
+            // Start calculation - button will pulse, modal opens when complete
+            logger.info("🍽️ [NUTRITION] Starting calculation...")
+            viewModel.calculateNutrition()
+            // Modal will open automatically via .onChange(of: viewModel.isCalculatingNutrition)
         }
     }
 
@@ -394,6 +430,21 @@ struct RecipeGenerationView: View {
         Task {
             await viewModel.addIngredientsToShoppingList()
             logger.info("✅ [VIEW] Ingredients successfully added to shopping list")
+
+            // Show confirmation toast
+            await MainActor.run {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    showingShoppingConfirmation = true
+                }
+            }
+
+            // Hide confirmation after 2 seconds
+            try? await Task.sleep(for: .seconds(2))
+            await MainActor.run {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    showingShoppingConfirmation = false
+                }
+            }
         }
     }
 
@@ -562,7 +613,7 @@ struct ManualIngredientsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Malzemeler")
-                .font(.playfairDisplay(33.32, weight: .bold))
+                .font(.custom("GalanoGrotesqueAlt-Bold", size: 33.32))
                 .foregroundColor(.primary.opacity(0.3))
 
             // Show existing manual ingredients
@@ -640,7 +691,7 @@ struct ManualStepsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Yapılışı")
-                .font(.playfairDisplay(33.32, weight: .bold))
+                .font(.custom("GalanoGrotesqueAlt-Bold", size: 33.32))
                 .foregroundColor(.primary.opacity(0.3))
 
             // Show existing manual steps

@@ -55,30 +55,40 @@ enum RecipeAction {
 struct RecipeActionButton: View {
     let action: RecipeAction
     let isActive: Bool
+    let isLoading: Bool
+    let isCompleted: Bool  // NEW: Show checkmark when calculation completes
     let onTap: () -> Void
 
     @State private var isPressed = false
+    @State private var pulseOpacity: Double = 1.0
 
     init(
         action: RecipeAction,
         isActive: Bool = false,
+        isLoading: Bool = false,
+        isCompleted: Bool = false,  // NEW
         onTap: @escaping () -> Void
     ) {
         self.action = action
         self.isActive = isActive
+        self.isLoading = isLoading
+        self.isCompleted = isCompleted
         self.onTap = onTap
     }
 
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 6) {
-                Image(systemName: isActive ? action.filledIcon : action.icon)
+                Image(systemName: iconName)
                     .font(.system(size: 20, weight: .medium, design: .rounded))
                     .foregroundColor(.primary)
+                    .opacity(isLoading ? pulseOpacity : 1.0)
+                    .contentTransition(.symbolEffect(.replace.magic(fallback: .upUp.byLayer), options: .nonRepeating))
 
                 Text(action.label)
                     .font(.sfRounded(14, weight: .medium))
                     .foregroundColor(.primary)
+                    .opacity(isLoading ? pulseOpacity : 1.0)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
@@ -99,6 +109,43 @@ struct RecipeActionButton: View {
                     }
                 }
         )
+        .onAppear {
+            if isLoading {
+                startPulseAnimation()
+            }
+        }
+        .onChange(of: isLoading) { newValue in
+            if newValue {
+                startPulseAnimation()
+            } else {
+                stopPulseAnimation()
+            }
+        }
+    }
+
+    private func startPulseAnimation() {
+        withAnimation(
+            .easeInOut(duration: 0.8)
+            .repeatForever(autoreverses: true)
+        ) {
+            pulseOpacity = 0.3
+        }
+    }
+
+    private func stopPulseAnimation() {
+        withAnimation(.easeOut(duration: 0.3)) {
+            pulseOpacity = 1.0
+        }
+    }
+
+    // MARK: - Computed Properties
+
+    /// Returns checkmark when completed, otherwise the action's icon
+    private var iconName: String {
+        if isCompleted {
+            return "checkmark.circle.fill"
+        }
+        return isActive ? action.filledIcon : action.icon
     }
 }
 
@@ -108,15 +155,21 @@ struct RecipeActionButton: View {
 struct RecipeActionRow: View {
     let actions: [RecipeAction]
     let activeStates: [Bool]
+    let loadingStates: [Bool]
+    let completedStates: [Bool]
     let onTap: (RecipeAction) -> Void
 
     init(
         actions: [RecipeAction],
         activeStates: [Bool]? = nil,
+        loadingStates: [Bool]? = nil,
+        completedStates: [Bool]? = nil,
         onTap: @escaping (RecipeAction) -> Void
     ) {
         self.actions = actions
         self.activeStates = activeStates ?? Array(repeating: false, count: actions.count)
+        self.loadingStates = loadingStates ?? Array(repeating: false, count: actions.count)
+        self.completedStates = completedStates ?? Array(repeating: false, count: actions.count)
         self.onTap = onTap
     }
 
@@ -126,6 +179,8 @@ struct RecipeActionRow: View {
                 RecipeActionButton(
                     action: action,
                     isActive: activeStates[safe: index] ?? false,
+                    isLoading: loadingStates[safe: index] ?? false,
+                    isCompleted: completedStates[safe: index] ?? false,
                     onTap: { onTap(action) }
                 )
             }

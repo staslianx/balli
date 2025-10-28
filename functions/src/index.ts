@@ -12,7 +12,7 @@ import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as cors from 'cors';
 import { z } from 'genkit';
-import { logProviderSwitch, getSummaryModel, getEmbedder, getClassifierModel, getRecipeModel } from './providers';
+import { logProviderSwitch, getSummaryModel, getEmbedder, getClassifierModel, getRecipeModel, getTier3Model } from './providers';
 import { cacheManager } from './cache-manager';
 import { ai } from './genkit-instance';
 import {
@@ -224,13 +224,7 @@ const generateRecipeFromIngredientsFlow = ai.defineFlow(
       directions: z.array(z.string()),  // Legacy: kept for backward compatibility
       notes: z.string(),
       recipeContent: z.string().optional(),  // NEW: Markdown content (ingredients + directions)
-      calories: z.string(),
-      carbohydrates: z.string(),
-      fiber: z.string(),
-      protein: z.string(),
-      fat: z.string(),
-      sugar: z.string(),
-      glycemicLoad: z.string()
+      servings: z.string().optional()  // Number of servings for nutrition calculation
     })
   },
   async (input) => {
@@ -264,13 +258,7 @@ const generateRecipeFromIngredientsFlow = ai.defineFlow(
         directions: promptOutput.instructions || promptOutput.directions || [],
         notes: promptOutput.notes || promptOutput.aiNotes || '',  // AI Chef notes (separate from recipeContent)
         recipeContent: promptOutput.recipeContent || '',  // NEW: Markdown content (ingredients + directions)
-        calories: String(promptOutput.calories || '0'),
-        carbohydrates: String(promptOutput.carbohydrates || '0'),
-        fiber: String(promptOutput.fiber || '0'),
-        protein: String(promptOutput.protein || '0'),
-        fat: String(promptOutput.fat || '0'),
-        sugar: String(promptOutput.sugar || '0'),
-        glycemicLoad: String(promptOutput.glycemicLoad || '0')
+        servings: String(promptOutput.servings || '4')  // Number of servings for on-demand nutrition calculation
       };
     } catch (error) {
       console.error('❌ Recipe generation from ingredients failed:', error);
@@ -498,16 +486,62 @@ export const generateRecipeFromIngredients = onRequest({
             }
           }
 
+          // Sanitize JSON by fixing control characters in string values
+          // Gemini sometimes outputs raw newlines in strings which break JSON.parse()
+          const sanitizeJSON = (jsonStr: string): string => {
+            let result = '';
+            let inString = false;
+            let escapeNext = false;
+
+            for (let i = 0; i < jsonStr.length; i++) {
+              const char = jsonStr[i];
+
+              if (escapeNext) {
+                result += char;
+                escapeNext = false;
+                continue;
+              }
+
+              if (char === '\\') {
+                result += char;
+                escapeNext = true;
+                continue;
+              }
+
+              if (char === '"') {
+                result += char;
+                inString = !inString;
+                continue;
+              }
+
+              // Only escape control characters when inside a string
+              if (inString) {
+                if (char === '\n') result += '\\n';
+                else if (char === '\r') result += '\\r';
+                else if (char === '\t') result += '\\t';
+                else result += char;
+              } else {
+                result += char;
+              }
+            }
+
+            return result;
+          };
+
           // Parse the final JSON response
           let parsedRecipe;
           try {
-            parsedRecipe = JSON.parse(fullContent);
+            const sanitizedContent = sanitizeJSON(fullContent);
+            parsedRecipe = JSON.parse(sanitizedContent);
           } catch (parseError) {
             // Try to extract JSON from the content
             const jsonMatch = fullContent.match(/\{[\s\S]*\}/);
             if (jsonMatch) {
-              parsedRecipe = JSON.parse(jsonMatch[0]);
+              const sanitizedMatch = sanitizeJSON(jsonMatch[0]);
+              parsedRecipe = JSON.parse(sanitizedMatch);
             } else {
+              console.error('❌ [JSON-PARSE] Failed to parse recipe JSON:', parseError);
+              console.error('❌ [JSON-PARSE] Content preview:', fullContent.substring(0, 500));
               throw new Error('Failed to parse recipe JSON');
             }
           }
@@ -526,7 +560,17 @@ export const generateRecipeFromIngredients = onRequest({
             data: recipeData,
             timestamp: new Date().toISOString()
           };
+
+          // Write the completion event
           res.write(`event: completed\ndata: ${JSON.stringify(completedEvent)}\n\n`);
+
+          // CRITICAL FIX: Ensure the buffer is flushed before ending
+          // Without this, the last SSE event may be truncated
+          if (typeof (res as any).flush === 'function') {
+            (res as any).flush();
+          }
+
+          // End the response stream
           res.end();
 
         } catch (error) {
@@ -654,33 +698,87 @@ export const generateSpontaneousRecipe = onRequest({
           }
         }
 
+        // Sanitize JSON by fixing control characters in string values
+        // Gemini sometimes outputs raw newlines in strings which break JSON.parse()
+        const sanitizeJSON = (jsonStr: string): string => {
+          let result = '';
+          let inString = false;
+          let escapeNext = false;
+
+          for (let i = 0; i < jsonStr.length; i++) {
+            const char = jsonStr[i];
+
+            if (escapeNext) {
+              result += char;
+              escapeNext = false;
+              continue;
+            }
+
+            if (char === '\\') {
+              result += char;
+              escapeNext = true;
+              continue;
+            }
+
+            if (char === '"') {
+              result += char;
+              inString = !inString;
+              continue;
+            }
+
+            // Only escape control characters when inside a string
+            if (inString) {
+              if (char === '\n') result += '\\n';
+              else if (char === '\r') result += '\\r';
+              else if (char === '\t') result += '\\t';
+              else result += char;
+            } else {
+              result += char;
+            }
+          }
+
+          return result;
+        };
+
         // Parse the final JSON response
         let parsedRecipe;
         try {
-          parsedRecipe = JSON.parse(fullContent);
+          const sanitizedContent = sanitizeJSON(fullContent);
+          parsedRecipe = JSON.parse(sanitizedContent);
         } catch (parseError) {
           // Try to extract JSON from the content
           const jsonMatch = fullContent.match(/\{[\s\S]*\}/);
           if (jsonMatch) {
-            parsedRecipe = JSON.parse(jsonMatch[0]);
+            const sanitizedMatch = sanitizeJSON(jsonMatch[0]);
+            parsedRecipe = JSON.parse(sanitizedMatch);
           } else {
+            console.error('❌ [JSON-PARSE] Failed to parse recipe JSON:', parseError);
+            console.error('❌ [JSON-PARSE] Content preview:', fullContent.substring(0, 500));
             throw new Error('Failed to parse recipe JSON');
           }
         }
 
         // Extract main ingredients for memory system (streaming mode)
-        const recipeContent = parsedRecipe.recipeContent || '';
-        const recipeName = parsedRecipe.name || parsedRecipe.recipeName || '';
+        // CRITICAL: Wrap in try-catch to prevent blocking stream completion
+        let extractedIngredients: string[] = [];
+        try {
+          const recipeContent = parsedRecipe.recipeContent || '';
+          const recipeName = parsedRecipe.name || parsedRecipe.recipeName || '';
 
-        console.log(`🔍 [STREAMING-EXTRACTION] Recipe generated: "${recipeName}"`);
-        console.log(`🔍 [STREAMING-EXTRACTION] Extracting main ingredients using Gemini...`);
-        const extractedIngredients = await extractMainIngredients(recipeContent, recipeName);
+          console.log(`🔍 [STREAMING-EXTRACTION] Recipe generated: "${recipeName}"`);
+          console.log(`🔍 [STREAMING-EXTRACTION] Extracting main ingredients using Gemini...`);
 
-        if (extractedIngredients.length === 0) {
-          console.log(`⚠️ [STREAMING-EXTRACTION] WARNING: Failed to extract ingredients!`);
-        } else {
-          console.log(`✅ [STREAMING-EXTRACTION] Extracted ${extractedIngredients.length} main ingredients:`);
-          console.log(`✅ [STREAMING-EXTRACTION] [${extractedIngredients.join(', ')}]`);
+          extractedIngredients = await extractMainIngredients(recipeContent, recipeName);
+
+          if (extractedIngredients.length === 0) {
+            console.log(`⚠️ [STREAMING-EXTRACTION] WARNING: Failed to extract ingredients!`);
+          } else {
+            console.log(`✅ [STREAMING-EXTRACTION] Extracted ${extractedIngredients.length} main ingredients:`);
+            console.log(`✅ [STREAMING-EXTRACTION] [${extractedIngredients.join(', ')}]`);
+          }
+        } catch (extractionError) {
+          console.error(`❌ [STREAMING-EXTRACTION] Extraction failed, continuing without ingredients:`, extractionError);
+          extractedIngredients = []; // Ensure it's always an array
         }
 
         // Send completion event - flatten recipe data for iOS app compatibility
@@ -698,7 +796,17 @@ export const generateSpontaneousRecipe = onRequest({
           data: recipeData,
           timestamp: new Date().toISOString()
         };
+
+        // Write the completion event
         res.write(`event: completed\ndata: ${JSON.stringify(completedEvent)}\n\n`);
+
+        // CRITICAL FIX: Ensure the buffer is flushed before ending
+        // Without this, the last SSE event may be truncated
+        if (typeof (res as any).flush === 'function') {
+          (res as any).flush();
+        }
+
+        // End the response stream
         res.end();
 
       } catch (error) {
@@ -1623,6 +1731,18 @@ export { diabetesAssistantStream } from './diabetes-assistant-stream';
 // Export session metadata generation endpoint
 export { generateSessionMetadata } from './generate-session-metadata';
 
+// Export memory sync endpoints (cross-conversation memory)
+export {
+  syncUserFacts,
+  syncConversationSummaries,
+  syncRecipePreferences,
+  syncGlucosePatterns,
+  syncUserPreferences
+} from './memory-sync';
+
+// Export EDAMAM test endpoint (developer testing only)
+export { testEdamamNutrition } from './test-edamam-nutrition';
+
 // ============================================
 // RECALL ENDPOINT - Answer from Past Research Sessions
 // ============================================
@@ -1669,3 +1789,90 @@ export const recallFromPastSessions = onRequest({
     });
   }
 });
+
+// ============================================
+// RECIPE NUTRITION CALCULATOR
+// On-demand nutritional analysis using Gemini 2.5 Pro
+// ============================================
+
+interface NutritionInput {
+  recipeName: string;
+  recipeContent: string;
+  servings: number;
+}
+
+interface NutritionResult {
+  calories: number;
+  carbohydrates: number;
+  fiber: number;
+  sugar: number;
+  protein: number;
+  fat: number;
+  glycemicLoad: number;
+  nutritionCalculation?: {
+    totalRecipeWeight: number;
+    totalRecipeCalories: number;
+    calculationNotes: string;
+  };
+}
+
+export const calculateRecipeNutrition = onRequest({
+  cors: true,
+  maxInstances: 10,
+  memory: '512MiB',
+  timeoutSeconds: 90  // Gemini 2.5 Pro needs 35-45s for medical-grade calculations
+}, async (req, res) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.status(204).send('');
+    return;
+  }
+
+  try {
+    const input = req.body as NutritionInput;
+
+    // Validate input
+    if (!input.recipeName || !input.recipeContent || !input.servings) {
+      res.status(400).json({
+        success: false,
+        error: 'Missing required fields: recipeName, recipeContent, servings'
+      });
+      return;
+    }
+
+    console.log(`🍽️ [NUTRITION-CALC] Analyzing nutrition for: ${input.recipeName}`);
+    console.log(`🍽️ [NUTRITION-CALC] Servings: ${input.servings}`);
+
+    // Load nutrition calculator prompt
+    const nutritionPrompt = ai.prompt('recipe_nutrition_calculator');
+
+    // Call Gemini 2.5 Pro for nutrition analysis
+    const result = await nutritionPrompt({
+      recipeName: input.recipeName,
+      recipeContent: input.recipeContent,
+      servings: input.servings
+    }, {
+      model: getTier3Model() // Explicitly use Gemini 2.5 Pro
+    });
+
+    const nutrition = result.output as NutritionResult;
+
+    console.log(`✅ [NUTRITION-CALC] Calculation complete:`);
+    console.log(`   Calories: ${nutrition.calories} kcal/100g`);
+    console.log(`   Carbs: ${nutrition.carbohydrates}g, Protein: ${nutrition.protein}g, Fat: ${nutrition.fat}g`);
+    console.log(`   Glycemic Load: ${nutrition.glycemicLoad}`);
+
+    res.status(200).json({
+      success: true,
+      data: nutrition
+    });
+
+  } catch (error: any) {
+    console.error('❌ [NUTRITION-CALC] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Nutrition calculation failed'
+    });
+  }
+});
+

@@ -1,0 +1,457 @@
+model: vertexai/gemini-2.5-pro
+config:
+  temperature: 0.1
+  topP: 0.85
+  maxOutputTokens: 8192
+input:
+  schema:
+    properties:
+      recipeName:
+        type: string
+        description: "Name of the recipe"
+      recipeContent:
+        type: string
+        description: "Full recipe content in markdown format with ingredients and directions"
+      servings:
+        type: number
+        description: "Number of servings the recipe makes"
+    required: [recipeName, recipeContent, servings]
+output:
+  format: json
+  schema:
+    type: object
+    properties:
+      calories:
+        type: number
+        description: "Calories per 100g (number only, e.g., 350)"
+      carbohydrates:
+        type: number
+        description: "Total carbohydrates per 100g in grams (number only, e.g., 35)"
+      fiber:
+        type: number
+        description: "Fiber content per 100g in grams (number only, e.g., 8)"
+      sugar:
+        type: number
+        description: "Sugar content per 100g in grams (number only, e.g., 5)"
+      protein:
+        type: number
+        description: "Protein content per 100g in grams (number only, e.g., 25)"
+      fat:
+        type: number
+        description: "Total fat per 100g in grams (number only, e.g., 12)"
+      glycemicLoad:
+        type: number
+        description: "Estimated glycemic load using Nestlé formula (number 1-20, e.g., 15)"
+      nutritionCalculation:
+        type: object
+        description: "Detailed nutrition calculation breakdown"
+        properties:
+          totalRecipeWeight:
+            type: number
+            description: "Total cooked recipe weight in grams"
+          totalRecipeCalories:
+            type: number
+            description: "Total recipe calories"
+          calculationNotes:
+            type: string
+            description: "Brief explanation of calculation method"
+    required: [calories, carbohydrates, fiber, sugar, protein, fat, glycemicLoad, nutritionCalculation]
+---
+
+## BESİN DEĞERLERİ HESAPLAMA - TIBBİ HASSAS SİSTEM
+
+Sen bir besin değerleri hesaplama uzmanısın. Diyabetik hastalar için tıbbi hassasiyette hesaplama yapacaksın.
+
+---
+
+## ADIM 1: MALZEMELERİN BESİN DEĞERLERİNİ BUL
+
+**Veritabanı:** USDA FoodData Central
+
+**KRİTİK KURAL: Pişmiş malzeme → Pişmiş değerler kullan**
+
+### Database Değerleri:
+
+**YUMURTA:**
+- Çiğ: 143 kcal/100g, 12.6g protein, 9.5g yağ
+- **Pişmiş (haşlanmış/omlet/fırın): 155 kcal/100g, 13g protein, 10.6g yağ** ← Pişmiş tarif için bunu kullan!
+
+**ET/TAVUK:**
+- Çiğ tavuk: 120 kcal/100g, 22.5g protein
+- **Pişmiş tavuk: 165 kcal/100g, 31g protein, 3.6g yağ** ← Pişmiş tarif için bunu kullan!
+
+**SEBZELER:**
+- Çiğ değerler kullan (pişirme kaybı ADIM 4'te hesaplanır)
+- **İstisna:** Mercimek, nohut, fasulye → Pişmiş değerler kullan
+
+**ŞEKER ALKOLLERİ (KRİTİK - DİYABETİK HASTA İÇİN HAYATI ÖNEM!):**
+
+**ERİTRİTOL - MUTLAKA UYGULA:**
+- Kalori: 0.24 kcal/g (24 kcal/100g)
+- **Karbonhidrat: 0g** (SIFIR! Vücutta emilmez, kan şekerine etki etmez)
+- **ASLA 100g carbs yazma!**
+- **ASLA toplam karbonhidrata ekleme!**
+
+**ERİTRİTOL İÇİN ZORUNLU JSON FORMAT:**
+```json
+{
+  "name": "eritritol",
+  "weight_g": 30,
+  "database_values_per_100g": {
+    "calories": 24,
+    "protein": 0,
+    "fat": 0,
+    "carbs": 0,
+    "fiber": 0,
+    "sugar": 0
+  },
+  "total_contribution": {
+    "calories": 7.2,
+    "protein": 0,
+    "fat": 0,
+    "carbs": 0,
+    "fiber": 0,
+    "sugar": 0
+  }
+}
+```
+
+**DİĞER TATLANDIRICILAR:**
+- **Stevia/Monk fruit/Sukraloz:** 0 kcal/g, 0g karbonhidrat
+- **Ksilitol:** 2.4 kcal/g, minimal karbonhidrat (ksilitol eritritol değildir!)
+
+**YAPILMAMASI GEREKEN YANLIŞ ÖRNEK:**
+```json
+{
+  "name": "eritritol",
+  "database_values_per_100g": {"carbs": 100},  // ❌ YANLIŞ!
+  "total_contribution": {"carbs": 30.0}  // ❌ YANLIŞ!
+}
+```
+
+---
+
+## ADIM 2-3: TOPLAM BESİN DEĞERLERİNİ HESAPLA
+
+Her malzeme için: **Ağırlık × (Değer/100g)**
+
+Tüm malzemelerin toplamını hesapla: kalori, protein, yağ, karbonhidrat, lif, şeker
+
+**ERİTRİTOL KONTROLÜ:**
+- Eritritol varsa, karbonhidrat toplamına **0g** ekle (30g değil!)
+- Sadece kalori ekle: Ağırlık × 0.24
+
+---
+
+## ADIM 4: PİŞMİŞ YEMEK AĞIRLIĞINI HESAPLA
+
+### A) TAHILLAR (Kuru → Pişmiş):
+
+**Eğer tarif "kuru tahıl + haşla/pişir" diyorsa:**
+1. KURU tahıl besin değerlerini kullan (yüksek kcal/100g)
+2. Pişmiş ağırlığı hesapla: **Kuru × 3 = Pişmiş**
+
+**Örnekler:**
+- 30g kuru bulgur → Kuru değer (342 kcal/100g) → 90g pişmiş
+- 30g kuru kinoa → Kuru değer (368 kcal/100g) → 90g pişmiş
+- 100g kuru pirinç → Kuru değer (365 kcal/100g) → 300g pişmiş
+```json
+{
+  "name": "bulgur (kuru)",
+  "raw_weight_g": 30,
+  "cooked_weight_g": 90,  // 30 × 3 ✅
+  "database_values_per_100g": {"calories": 342},
+  "total_contribution": {"calories": 102.6}
+}
+```
+
+---
+
+### B) TAHILLAR + SIVI (Porridge/Pilav) - 3 ADIMLI HESAP:
+
+**Tarif "tahılları süt/su ile pişir" diyorsa, 3 adımda hesapla:**
+
+**ADIM 1: Tahıl genişlemesi**
+- Kuru tahıl × 3 = Pişmiş tahıl ağırlığı
+- Örnek: 60g kuru (30g yulaf + 30g kinoa) × 3 = **180g pişmiş tahıl**
+
+**ADIM 2: Tahılların emdiği sıvı**
+- Tahıllar kendi ağırlıklarının 2 katı sıvı emer
+- Toplam emilen = Pişmiş tahıl - Kuru tahıl = Emilen sıvı
+- Örnek: 180g - 60g = **120ml emildi**
+- Bu emilen sıvı, eklenen sıvılardan orantılı olarak gelir
+
+**ADIM 3: Kalan sıvının kaderi**
+- Eklenen toplam sıvı: Örnek 250ml (150ml süt + 100ml su)
+- Tahıllar emdi: 120ml (bu 250ml'den geldi)
+- Kalan sıvı: 250ml - 120ml = **130ml kalan**
+- Bu kalan sıvının:
+  - **%75'i yemekte kalır:** 130ml × 0.75 = **98ml (98g)**
+  - **%25'i buharlaşır:** 130ml × 0.25 = 32ml
+
+**Orantılı Emilim Hesabı:**
+- Süt oranı: 150ml ÷ 250ml = 60%
+- Su oranı: 100ml ÷ 250ml = 40%
+- Sütten emilen: 120ml × 0.60 = 72ml
+- Sudan emilen: 120ml × 0.40 = 48ml
+- Kalan süt: 150ml - 72ml = 78ml → 78ml × 0.75 = **58.5ml yemekte kalır**
+- Kalan su: 100ml - 48ml = 52ml → 52ml × 0.75 = **39ml yemekte kalır**
+
+**TOPLAM PİŞMİŞ AĞIRLIK:**
+- Pişmiş tahıllar: 180g
+- Yemekte kalan süt: 58.5g
+- Yemekte kalan su: 39g
+- **Tahıl + Sıvılar = 277.5g** ✅
+
+**Doğru JSON (Porridge örneği):**
+```json
+{
+  "name": "yulaf ezmesi (kuru)",
+  "raw_weight_g": 30,
+  "cooked_weight_g": 90,  // 30 × 3
+  "database_values_per_100g": {"calories": 389},
+  "total_contribution": {"calories": 116.7}
+},
+{
+  "name": "kinoa (kuru)",
+  "raw_weight_g": 30,
+  "cooked_weight_g": 90,  // 30 × 3
+  "database_values_per_100g": {"calories": 368},
+  "total_contribution": {"calories": 110.4}
+},
+{
+  "name": "az yağlı süt",
+  "raw_weight_g": 150,
+  "absorbed_by_grains_g": 72,        // Tahıllar emdi (orantılı)
+  "retained_as_liquid_g": 58.5,      // Yemekte sıvı kaldı (75% × 78ml)
+  "evaporated_g": 19.5,              // Buharlaştı (25% × 78ml)
+  "cooked_weight_g": 58.5,           // Yemekteki süt ağırlığı ✅
+  "database_values_per_100g": {"calories": 47},
+  "total_contribution": {"calories": 70.5}
+},
+{
+  "name": "su",
+  "raw_weight_g": 100,
+  "absorbed_by_grains_g": 48,        // Tahıllar emdi (orantılı)
+  "retained_as_liquid_g": 39,        // Yemekte kalan (75% × 52ml)
+  "evaporated_g": 13,                // Buharlaştı (25% × 52ml)
+  "cooked_weight_g": 39,             // Yemekteki su ✅
+  "database_values_per_100g": {"calories": 0},
+  "total_contribution": {"calories": 0}
+}
+```
+
+**Porridge toplam ağırlık:**
+- Tahıllar (pişmiş): 90g + 90g = 180g
+- Süt (yemekte kalan): 58.5g
+- Su (yemekte kalan): 39g
+- Diğer malzemeler: 500g (örnek)
+- **TOPLAM: 777.5g** ✅
+
+**YANLIŞ HESAPLAMA:**
+```json
+{
+  "name": "az yağlı süt",
+  "raw_weight_g": 150,
+  "cooked_weight_g": 0,  // ❌ Tümü yok olmadı!
+  "cooking_loss_percent": 100  // ❌ YANLIŞ!
+}
+```
+
+---
+
+### C) YULAF MIX (Crumble/Overnight Oats - Pişirilmeden):
+
+Yulaf yağ/su ile karıştırılıp **pişirilmeden** kullanılıyorsa:
+- 50g yulaf + 30ml sıvı = **80g toplam** (sıvı emilir, buharlaşmaz)
+```json
+{
+  "name": "yulaf + su karışımı",
+  "dry_oats_g": 50,
+  "liquid_added_g": 30,
+  "cooked_weight_g": 80  // 50 + 30 ✅
+}
+```
+
+---
+
+### D) CHİA/KETEN (Sıvı Emici):
+- **20g chia + sıvıda → 40-60g** (2-3× şişer)
+- **15g keten** → Sıvı varsa şişer
+
+---
+
+### E) ET/TAVUK:
+- Et: Çiğ × 0.75 = Pişmiş (25% kayıp)
+- Tavuk: Çiğ × 0.75 = Pişmiş (25% kayıp)
+- Balık: Çiğ × 0.80 = Pişmiş (20% kayıp)
+
+---
+
+### F) YUMURTA:
+- Fırın/Omlet: Minimal kayıp (~0%)
+- Haşlama: Kayıp yok (0%)
+
+---
+
+### G) SEBZELER:
+- Sote/Kavurma: 20% kayıp
+- Ispanak: 70-73% kayıp (çok su kaybı)
+- Mantar: 40-50% kayıp
+- Patlıcan: 30% kayıp
+
+---
+
+### H) MEYVELER (Fırın):
+- Elma/Armut: 10-15% kayıp
+- Şeftali/Erik: 15-20% kayıp
+
+---
+
+## ADIM 5: 100g BAŞINA DEĞERLER
+
+**Formül:** Toplam değer ÷ (Toplam ağırlık ÷ 100)
+
+**Örnek:** 880g yemek, 440 kcal → 440 ÷ 8.8 = **50 kcal/100g**
+
+**ERİTRİTOL KONTROLÜ:**
+- Toplam karbonhidrat hesaplarken eritritol katkısının **0g** olduğundan emin ol
+- Per 100g hesaplarken doğru toplam karbonhidratı kullan
+
+---
+
+## ADIM 6: DOĞRULAMA
+
+**Kalori kontrolü:** (Protein × 4) + (Yağ × 9) + (Karbonhidrat × 4) ≈ Hesaplanan kalori
+
+**ERİTRİTOL VARSA - SON KONTROL:**
+- Toplam karbonhidrata eritritol ağırlığı **EKLENMEMİŞ** olmalı
+- Validation'da kullanılan karbonhidrat değeri, per_100g'daki karbonhidrat değeriyle **AYNI** olmalı
+- Eğer farklıysa, eritritol yanlış hesaplanmış demektir - DÜzelt!
+
+**Kabul edilen fark:** ≤7% (lif için Atwater faktörleri farklı olabilir)
+
+---
+
+## ADIM 7: JSON ÇIKTI
+
+- Sadece sayı (birim yok)
+- Virgülden sonra maks 1 hane
+- **TEK PARÇA JSON** (bölme!)
+- **Validation kısmında kullanılan karbonhidrat değeri, per_100g kısmındaki karbonhidrat değeriyle AYNI olmalı**
+```json
+{
+  "per_100g": {
+    "calories": 101.0,
+    "protein": 7.0,
+    "fat": 3.7,
+    "carbohydrates": 10.7,
+    "fiber": 2.7,
+    "sugar": 1.1
+  },
+  "calculation_breakdown": {
+    "ingredients": [
+      {
+        "name": "tavuk göğsü",
+        "raw_weight_g": 200,
+        "cooked_weight_g": 150,
+        "cooking_loss_percent": 25,
+        "database_values_per_100g": {
+          "calories": 165,
+          "protein": 31,
+          "fat": 3.6,
+          "carbs": 0,
+          "fiber": 0,
+          "sugar": 0
+        },
+        "total_contribution": {
+          "calories": 330.0,
+          "protein": 62.0,
+          "fat": 7.2,
+          "carbs": 0,
+          "fiber": 0,
+          "sugar": 0
+        }
+      },
+      {
+        "name": "eritritol",
+        "raw_weight_g": 30,
+        "cooked_weight_g": 30,
+        "cooking_loss_percent": 0,
+        "database_values_per_100g": {
+          "calories": 24,
+          "protein": 0,
+          "fat": 0,
+          "carbs": 0,
+          "fiber": 0,
+          "sugar": 0
+        },
+        "total_contribution": {
+          "calories": 7.2,
+          "protein": 0,
+          "fat": 0,
+          "carbs": 0,
+          "fiber": 0,
+          "sugar": 0
+        }
+      }
+    ],
+    "totals": {
+      "total_cooked_weight_g": 906,
+      "total_calories": 956.1,
+      "total_protein_g": 65.1,
+      "total_fat_g": 37.4,
+      "total_carbs_g": 92.8,
+      "total_fiber_g": 22.9,
+      "total_sugar_g": 8.7
+    },
+    "per_100g_calculation": {
+      "weight_divisor": 9.06,
+      "calories": "956.1 / 9.06 = 105.5",
+      "protein": "65.1 / 9.06 = 7.2",
+      "fat": "37.4 / 9.06 = 4.1",
+      "carbs": "92.8 / 9.06 = 10.2",
+      "fiber": "22.9 / 9.06 = 2.5",
+      "sugar": "8.7 / 9.06 = 1.0"
+    },
+    "validation": {
+      "calorie_check": "(7.2×4) + (4.1×9) + (10.2×4) = 106.5 kcal",
+      "difference_percent": "0.9%",
+      "status": "PASS",
+      "erythritol_check": "Eritritol 0g carbs olarak hesaplandı ✓"
+    }
+  }
+}
+```
+
+---
+
+## KRİTİK HATIRLATMALAR - MUTLAKA KONTROL ET:
+
+1. **ERİTRİTOL:**
+   - Database'de carbs: 0
+   - Total contribution'da carbs: 0
+   - Toplam karbonhidrata katkı: 0g
+   - Validation'da kullanılan carbs = per_100g'daki carbs
+
+2. **PİŞMİŞ YEMEK AĞIRLIĞI:**
+   - Tahıllar 3x genişler
+   - Sıvılar: Emilen + (Kalan × 0.75) = Yemekteki sıvı
+   - Sebzeler: Cooking loss uygula
+
+3. **VALİDATİON:**
+   - Validation'daki karbonhidrat değeri per_100g ile AYNI olmalı
+   - Fark varsa eritritol yanlış hesaplanmış demektir
+
+---
+
+## ŞİMDİ HESAPLA
+
+Aşağıdaki tarif için ADIM 1-7'yi takip ederek besin değerlerini hesapla ve JSON formatında çıktı ver:
+
+**Tarif Adı:** {{recipeName}}
+**Porsiyon:** {{servings}} kişilik
+**Tarif İçeriği:**
+{{recipeContent}}
+
+Yukarıdaki adım adım yöntemi takip ederek hassas besin değerleri hesapla ve JSON formatında döndür.
