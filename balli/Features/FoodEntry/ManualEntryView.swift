@@ -30,9 +30,10 @@ struct ManualEntryView: View {
     
     // Portion slider
     @State private var portionGrams: Double = 100.0
-    
+
     @State private var showingSaveConfirmation = false
     @State private var isSaveInProgress = false // Prevent duplicate saves
+    @State private var savedProductName = "" // Store name for toast message
     
     var body: some View {
         NavigationStack {
@@ -64,25 +65,46 @@ struct ManualEntryView: View {
                         )
                         
                         Spacer(minLength: ResponsiveDesign.height(50))
-                        
-                        // Bottom controls
+
+                        // Bottom controls - Modern glass button
                         Button(action: saveFood) {
-                            Text("Kaydet")
+                            Text("Ardiye'ye Kaydet")
                                 .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold, design: .rounded))
                                 .foregroundColor(.white)
-                                .frame(width: ResponsiveDesign.width(180))
+                                .frame(width: ResponsiveDesign.width(240))
                                 .frame(height: ResponsiveDesign.height(56))
-                                .background(
-                                    Capsule()
-                                        .fill(AppTheme.primaryPurple)
-                                )
-                                .glassEffect(.regular.interactive(), in: Capsule())
+                                .background(AppTheme.primaryPurple)
+                                .clipShape(Capsule())
+                                .shadow(color: AppTheme.primaryPurple.opacity(0.3), radius: 12, x: 0, y: 6)
                         }
+                        .disabled(isSaveInProgress)
+                        .opacity(isSaveInProgress ? 0.6 : 1.0)
                         .padding(.bottom, ResponsiveDesign.height(30))
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .scrollDismissesKeyboard(.interactively)
+
+                // Save confirmation toast
+                if showingSaveConfirmation {
+                    VStack {
+                        Spacer()
+                        HStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(AppTheme.primaryPurple)
+                            Text("\(savedProductName) Ardiye'ye kaydedildi!")
+                                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .recipeGlass(tint: .warm, cornerRadius: 100)
+                        .padding(.bottom, 100)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingSaveConfirmation)
+                }
             }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
@@ -92,16 +114,10 @@ struct ManualEntryView: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(AppTheme.primaryPurple)
                     }
                 }
             }
-        }
-        .alert("Ardiye'ye Kaydedildi", isPresented: $showingSaveConfirmation) {
-            Button("Tamam") {
-                dismiss()
-            }
-        } message: {
-            Text("\(productName.isEmpty ? "Ürün" : productName) başarıyla Ardiye'ye kaydedildi.")
         }
     }
     
@@ -112,21 +128,24 @@ struct ManualEntryView: View {
             return
         }
         isSaveInProgress = true
-        
+
+        // Store product name for toast message
+        savedProductName = productName.isEmpty ? "Ürün" : productName
+
         // Create FoodItem in Core Data
         let foodItem = FoodItem(context: viewContext)
         foodItem.id = UUID()
         foodItem.name = productName.isEmpty ? "Bilinmeyen Ürün" : productName
         foodItem.brand = productBrand.isEmpty ? nil : productBrand
-        
+
         // Store the user's selected serving size
         foodItem.servingSize = portionGrams
         foodItem.servingUnit = "g"
-        
+
         // Calculate adjusted values based on portion
         let baseServing = Double(servingSize) ?? 100.0
         let adjustmentRatio = portionGrams / baseServing
-        
+
         // Save adjusted values based on the selected portion
         foodItem.calories = (Double(calories) ?? 0) * adjustmentRatio
         foodItem.totalCarbs = (Double(carbohydrates) ?? 0) * adjustmentRatio
@@ -135,38 +154,44 @@ struct ManualEntryView: View {
         foodItem.protein = (Double(protein) ?? 0) * adjustmentRatio
         foodItem.totalFat = (Double(fat) ?? 0) * adjustmentRatio
         foodItem.sodium = 0 // Not collected in manual entry
-        
+
         foodItem.source = "manual_entry"
         foodItem.dateAdded = Date()
         foodItem.lastModified = Date()
-        
+
         // Set high confidence for manual entry
         foodItem.carbsConfidence = 100.0
         foodItem.overallConfidence = 100.0
-        
+
         do {
             try viewContext.save()
-            showingSaveConfirmation = true
+            logger.info("Saved FoodItem: \(foodItem.name)")
 
-            // Reset the form after successful save
+            // Haptic feedback on successful save
+            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+            impactFeedback.impactOccurred()
+
+            // Show confirmation toast
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                showingSaveConfirmation = true
+            }
+
+            // Auto-dismiss toast and reset form
             Task { @MainActor in
-                try? await Task.sleep(nanoseconds: 1_000_000_000) // 1.0 seconds
-                productBrand = ""
-                productName = ""
-                calories = ""
-                servingSize = "100"  // Keep base as 100g
-                carbohydrates = ""
-                fiber = ""
-                sugars = ""
-                protein = ""
-                fat = ""
-                portionGrams = 100.0
-                isSaveInProgress = false // Reset save state
+                // Hide toast after 2 seconds
+                try? await Task.sleep(for: .seconds(2))
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    showingSaveConfirmation = false
+                }
+
+                // Wait a bit before dismissing to let animation complete
+                try? await Task.sleep(for: .milliseconds(500))
+                dismiss()
             }
         } catch {
             logger.error("Failed to save FoodItem: \(error.localizedDescription)")
-            isSaveInProgress = false // Reset save state on error
-            // Could add error alert here
+            isSaveInProgress = false
+            ErrorHandler.shared.handle(error)
         }
     }
 }

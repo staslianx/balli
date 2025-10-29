@@ -13,24 +13,18 @@ struct TimeBasedGreetingView: View {
     @State private var currentGreeting = GreetingType.current()
 
     var body: some View {
-        HStack(spacing: 8) {
-            Image(systemName: currentGreeting.icon)
-                .font(.system(size: 32))
-                .foregroundStyle(AppTheme.balliGradient)
-
-            Text("\(currentGreeting.text) \(userSession.displayName)")
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .foregroundStyle(AppTheme.balliGradient)
-        }
-        .multilineTextAlignment(.center)
-        .onAppear {
-            // Update greeting when view appears
-            currentGreeting = GreetingType.current()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-            // Update greeting when app becomes active
-            currentGreeting = GreetingType.current()
-        }
+        Text("\(currentGreeting.text) \(userSession.displayName)")
+            .font(.system(size: 28, weight: .semibold, design: .rounded))
+            .foregroundStyle(AppTheme.balliGradient)
+            .multilineTextAlignment(.center)
+            .onAppear {
+                // Update greeting when view appears
+                currentGreeting = GreetingType.current()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                // Update greeting when app becomes active
+                currentGreeting = GreetingType.current()
+            }
     }
 }
 
@@ -41,19 +35,6 @@ enum GreetingType {
     case afternoon  // 12:00-18:00
     case evening    // 18:00-22:00
     case night      // 22:00-06:00
-
-    var icon: String {
-        switch self {
-        case .morning:
-            return "cup.and.heat.waves.fill"
-        case .afternoon:
-            return "text.book.closed.fill"
-        case .evening:
-            return "sofa.fill"
-        case .night:
-            return "bed.double.fill"
-        }
-    }
 
     var text: String {
         switch self {
@@ -98,15 +79,9 @@ enum GreetingType {
 #Preview("All Time Periods - Dilara") {
     VStack(spacing: 32) {
         ForEach([GreetingType.morning, .afternoon, .evening, .night], id: \.text) { greeting in
-            HStack(spacing: 8) {
-                Image(systemName: greeting.icon)
-                    .font(.system(size: 32))
-                    .foregroundStyle(AppTheme.balliGradient)
-
-                Text("\(greeting.text) Dilara")
-                    .font(.system(size: 28, weight: .semibold, design: .rounded))
-                    .foregroundStyle(AppTheme.balliGradient)
-            }
+            Text("\(greeting.text) Dilara")
+                .font(.system(size: 28, weight: .semibold, design: .rounded))
+                .foregroundStyle(AppTheme.balliGradient)
         }
     }
     .padding()
@@ -116,15 +91,9 @@ enum GreetingType {
     let greeting = GreetingType.morning
     VStack {
         Spacer()
-        HStack(spacing: 8) {
-            Image(systemName: greeting.icon)
-                .font(.system(size: 32))
-                .foregroundStyle(AppTheme.balliGradient)
-
-            Text("\(greeting.text) Serhat")
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .foregroundStyle(AppTheme.balliGradient)
-        }
+        Text("\(greeting.text) Serhat")
+            .font(.system(size: 28, weight: .semibold, design: .rounded))
+            .foregroundStyle(AppTheme.balliGradient)
         Spacer()
     }
 }

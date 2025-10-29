@@ -95,6 +95,7 @@ public final class RecipePersistenceCoordinator: ObservableObject {
         recipe.notes = formState.notes.isEmpty ? nil : formState.notes
         recipe.recipeContent = formState.recipeContent.isEmpty ? nil : formState.recipeContent
 
+        // Per-100g nutrition values
         recipe.calories = Double(formState.calories) ?? recipe.calories
         recipe.totalCarbs = Double(formState.carbohydrates) ?? recipe.totalCarbs
         recipe.fiber = Double(formState.fiber) ?? recipe.fiber
@@ -102,6 +103,17 @@ public final class RecipePersistenceCoordinator: ObservableObject {
         recipe.totalFat = Double(formState.fat) ?? recipe.totalFat
         recipe.sugars = Double(formState.sugar) ?? recipe.sugars
         recipe.glycemicLoad = Double(formState.glycemicLoad) ?? recipe.glycemicLoad
+
+        // Per-serving nutrition values (entire recipe = 1 serving)
+        recipe.caloriesPerServing = Double(formState.caloriesPerServing) ?? recipe.caloriesPerServing
+        recipe.carbsPerServing = Double(formState.carbohydratesPerServing) ?? recipe.carbsPerServing
+        recipe.fiberPerServing = Double(formState.fiberPerServing) ?? recipe.fiberPerServing
+        recipe.proteinPerServing = Double(formState.proteinPerServing) ?? recipe.proteinPerServing
+        recipe.fatPerServing = Double(formState.fatPerServing) ?? recipe.fatPerServing
+        recipe.sugarsPerServing = Double(formState.sugarPerServing) ?? recipe.sugarsPerServing
+        recipe.glycemicLoadPerServing = Double(formState.glycemicLoadPerServing) ?? recipe.glycemicLoadPerServing
+        recipe.totalRecipeWeight = Double(formState.totalRecipeWeight) ?? recipe.totalRecipeWeight
+
         recipe.lastModified = Date()
 
         // Update image data
@@ -146,6 +158,7 @@ public final class RecipePersistenceCoordinator: ObservableObject {
             directions: formState.directions,
             notes: formState.notes,
             recipeContent: formState.recipeContent.isEmpty ? nil : formState.recipeContent,
+            // Per-100g nutrition values
             calories: formState.calories,
             carbohydrates: formState.carbohydrates,
             fiber: formState.fiber,
@@ -153,6 +166,15 @@ public final class RecipePersistenceCoordinator: ObservableObject {
             fat: formState.fat,
             sugar: formState.sugar,
             glycemicLoad: formState.glycemicLoad,
+            // Per-serving nutrition values
+            caloriesPerServing: formState.caloriesPerServing,
+            carbohydratesPerServing: formState.carbohydratesPerServing,
+            fiberPerServing: formState.fiberPerServing,
+            proteinPerServing: formState.proteinPerServing,
+            fatPerServing: formState.fatPerServing,
+            sugarPerServing: formState.sugarPerServing,
+            glycemicLoadPerServing: formState.glycemicLoadPerServing,
+            totalRecipeWeight: formState.totalRecipeWeight,
             imageURL: imageURL,
             imageData: imageData
         )

@@ -155,6 +155,8 @@ public class RecipeDataManager {
     private func updateExistingAIRecipe(_ recipe: Recipe, with data: RecipeSaveData) {
         recipe.isVerified = true
         recipe.lastModified = Date()
+
+        // Per-100g nutrition values
         recipe.calories = Double(data.calories) ?? recipe.calories
         recipe.totalCarbs = Double(data.carbohydrates) ?? recipe.totalCarbs
         recipe.fiber = Double(data.fiber) ?? recipe.fiber
@@ -162,7 +164,17 @@ public class RecipeDataManager {
         recipe.protein = Double(data.protein) ?? recipe.protein
         recipe.totalFat = Double(data.fat) ?? recipe.totalFat
         recipe.glycemicLoad = Double(data.glycemicLoad) ?? 0.0
-        
+
+        // Per-serving nutrition values (entire recipe = 1 serving)
+        recipe.caloriesPerServing = Double(data.caloriesPerServing) ?? recipe.caloriesPerServing
+        recipe.carbsPerServing = Double(data.carbohydratesPerServing) ?? recipe.carbsPerServing
+        recipe.fiberPerServing = Double(data.fiberPerServing) ?? recipe.fiberPerServing
+        recipe.sugarsPerServing = Double(data.sugarPerServing) ?? recipe.sugarsPerServing
+        recipe.proteinPerServing = Double(data.proteinPerServing) ?? recipe.proteinPerServing
+        recipe.fatPerServing = Double(data.fatPerServing) ?? recipe.fatPerServing
+        recipe.glycemicLoadPerServing = Double(data.glycemicLoadPerServing) ?? recipe.glycemicLoadPerServing
+        recipe.totalRecipeWeight = Double(data.totalRecipeWeight) ?? recipe.totalRecipeWeight
+
         // Update time fields
         recipe.prepTime = Int16(data.prepTime) ?? recipe.prepTime
         recipe.cookTime = Int16(data.cookTime) ?? recipe.cookTime
@@ -206,6 +218,7 @@ public class RecipeDataManager {
         recipe.instructions = data.directions.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } as NSObject
         recipe.servings = Int16(RecipeConstants.Defaults.servings)
         
+        // Per-100g nutrition values
         recipe.calories = Double(data.calories) ?? 0.0
         recipe.totalCarbs = Double(data.carbohydrates) ?? 0.0
         recipe.fiber = Double(data.fiber) ?? 0.0
@@ -213,7 +226,17 @@ public class RecipeDataManager {
         recipe.protein = Double(data.protein) ?? 0.0
         recipe.totalFat = Double(data.fat) ?? 0.0
         recipe.glycemicLoad = Double(data.glycemicLoad) ?? 0.0
-        
+
+        // Per-serving nutrition values (entire recipe = 1 serving)
+        recipe.caloriesPerServing = Double(data.caloriesPerServing) ?? 0.0
+        recipe.carbsPerServing = Double(data.carbohydratesPerServing) ?? 0.0
+        recipe.fiberPerServing = Double(data.fiberPerServing) ?? 0.0
+        recipe.sugarsPerServing = Double(data.sugarPerServing) ?? 0.0
+        recipe.proteinPerServing = Double(data.proteinPerServing) ?? 0.0
+        recipe.fatPerServing = Double(data.fatPerServing) ?? 0.0
+        recipe.glycemicLoadPerServing = Double(data.glycemicLoadPerServing) ?? 0.0
+        recipe.totalRecipeWeight = Double(data.totalRecipeWeight) ?? 0.0
+
         // Save time fields
         recipe.prepTime = Int16(data.prepTime) ?? 0
         recipe.cookTime = Int16(data.cookTime) ?? 0
@@ -275,6 +298,7 @@ public struct RecipeSaveData {
     let directions: [String]
     let notes: String
     let recipeContent: String?  // NEW: Markdown recipe content from streaming
+    // Per-100g nutrition values
     let calories: String
     let carbohydrates: String
     let fiber: String
@@ -282,6 +306,15 @@ public struct RecipeSaveData {
     let fat: String
     let sugar: String
     let glycemicLoad: String
+    // Per-serving nutrition values (entire recipe = 1 serving)
+    let caloriesPerServing: String
+    let carbohydratesPerServing: String
+    let fiberPerServing: String
+    let proteinPerServing: String
+    let fatPerServing: String
+    let sugarPerServing: String
+    let glycemicLoadPerServing: String
+    let totalRecipeWeight: String
     let imageURL: String?
     let imageData: Data?
 }

@@ -22,6 +22,7 @@ struct FavoritesSection: View {
     @State private var fetchError: Error?
     @State private var refreshID = UUID() // Force view refresh when data changes
     @State private var showingAllFavorites = false // Navigation to OnlyFavoritesView
+    @State private var selectedFoodItem: FoodItem? // For showing label details
 
     // Limit displayed items to avoid memory issues
     private let maxDisplayedItems = 6
@@ -172,6 +173,12 @@ struct FavoritesSection: View {
             OnlyFavoritesView()
                 .environment(\.managedObjectContext, viewContext)
         }
+        .fullScreenCover(item: $selectedFoodItem) { foodItem in
+            NavigationStack {
+                FoodItemDetailView(foodItem: foodItem)
+                    .environment(\.managedObjectContext, viewContext)
+            }
+        }
     }
 
     @ViewBuilder
@@ -203,18 +210,23 @@ struct FavoritesSection: View {
                     let wrappedItems = favoriteItems.prefix(maxDisplayedItems).map { FoodItemWrapper(item: $0) }
 
                     ForEach(wrappedItems) { wrapper in
-                        ProductCardView(
-                            brand: wrapper.item.brand ?? "Marka Yok",
-                            name: wrapper.item.name,
-                            portion: "\(Int(wrapper.item.servingSize))\(wrapper.item.servingUnit)'da",
-                            carbs: "\(Int(wrapper.item.totalCarbs)) gr Karb.",
-                            width: cardWidth,
-                            isFavorite: true,
-                            impactLevel: wrapper.item.impactLevel,
-                            onToggleFavorite: {
-                                toggleFavorite(wrapper.item)
-                            }
-                        )
+                        Button(action: {
+                            selectedFoodItem = wrapper.item
+                        }) {
+                            ProductCardView(
+                                brand: wrapper.item.brand ?? "Marka Yok",
+                                name: wrapper.item.name,
+                                portion: "\(Int(wrapper.item.servingSize))\(wrapper.item.servingUnit)'da",
+                                carbs: "\(Int(wrapper.item.totalCarbs)) gr Karb.",
+                                width: cardWidth,
+                                isFavorite: true,
+                                impactLevel: wrapper.item.impactLevel,
+                                onToggleFavorite: {
+                                    toggleFavorite(wrapper.item)
+                                }
+                            )
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
                 .padding(.horizontal, horizontalPadding)

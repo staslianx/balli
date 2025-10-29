@@ -203,9 +203,16 @@ final class MemorySyncCoordinator {
 
     /// Get current user ID from authentication service
     private func getCurrentUserId() async -> String {
-        // TODO: Replace with actual user ID from AuthenticationService
-        // For now, return a placeholder
-        return "test-user-id"
+        // Get user ID from UserSession
+        if let user = UserSession.shared.currentUser {
+            // Use email as the userId for Firestore paths (consistent with firestoreUserId)
+            return user.firestoreUserId
+        }
+
+        // Fallback: If no user is logged in, use a default identifier
+        // This should rarely happen as the app should always have a user
+        logger.warning("⚠️ No user logged in, using fallback userId")
+        return "anonymous-user"
     }
 
     /// Check if sync is currently in progress

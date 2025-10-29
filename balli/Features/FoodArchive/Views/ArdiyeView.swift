@@ -44,21 +44,16 @@ struct ArdiyeView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.colorScheme) private var colorScheme
     private let logger = AppLoggers.Food.archive
+    @Binding var searchText: String
     @State private var selectedRecipe: Recipe? = nil
     @State private var selectedFoodItem: FoodItem? = nil
     @State private var showingShoppingList = false
     @State private var selectedFilter: ArdiyeFilter = .recipes
-    @Binding var isSearchActivated: Bool
-    @Binding var searchText: String
     @State private var showingSettings = false
 
     // Cache for items to prevent recreation
     @State private var cachedItems: [ArdiyeItem] = []
     @State private var lastRefreshDate = Date()
-
-    // PERFORMANCE: Debounced filtering to reduce expensive filter operations
-    @State private var filteredItems: [ArdiyeItem] = []
-    @State private var searchDebounceTask: Task<Void, Never>?
 
     // Toast notification for save feedback
     @State private var toastMessage: ToastType? = nil
@@ -137,14 +132,11 @@ struct ArdiyeView: View {
         }
 
         lastRefreshDate = Date()
-
-        // PERFORMANCE: Trigger immediate filter update when cached items change
-        updateFilteredItems()
     }
 
-    // PERFORMANCE: Debounced filtering to reduce expensive operations
-    private func updateFilteredItems() {
-        // First filter by type (Tarifler or Ürünler - scanned labels only, exclude voice-logged items)
+    // Get filtered items based on selected filter and search text
+    private var displayedItems: [ArdiyeItem] {
+        // First filter by type (recipes or products)
         let typeFilteredItems: [ArdiyeItem]
         switch selectedFilter {
         case .recipes:
@@ -156,13 +148,12 @@ struct ArdiyeView: View {
 
         // Then apply search filter if needed
         if searchText.isEmpty {
-            filteredItems = typeFilteredItems
-            return
+            return typeFilteredItems
         }
 
         let lowercasedSearch = searchText.lowercased()
 
-        filteredItems = typeFilteredItems.filter { item in
+        return typeFilteredItems.filter { item in
             // Search by name
             let itemName = item.name.lowercased()
             let nameMatches = itemName.contains(lowercasedSearch)
@@ -180,9 +171,7 @@ struct ArdiyeView: View {
             }
 
             // Also match if searching with "gr" or "karb" keywords
-            if !carbMatches
-                && (lowercasedSearch.contains("gr") || lowercasedSearch.contains("karb"))
-            {
+            if !carbMatches && (lowercasedSearch.contains("gr") || lowercasedSearch.contains("karb")) {
                 let carbText = "\(Int(carbAmount)) gr Karb."
                 carbMatches = carbText.lowercased().contains(lowercasedSearch)
             }
@@ -191,35 +180,19 @@ struct ArdiyeView: View {
         }
     }
 
-    // PERFORMANCE: Debounce search text changes to reduce filter operations by 80%
-    private func scheduleFilterUpdate() {
-        // Cancel previous debounce task
-        searchDebounceTask?.cancel()
-
-        // Schedule new debounced update
-        searchDebounceTask = Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(300)) // 300ms debounce
-
-            guard !Task.isCancelled else { return }
-
-            updateFilteredItems()
-        }
-    }
-
     // MARK: - Save Helper
 
-    /// Save viewContext silently - ArdiyeView is read-only, saves are for internal state only
-    /// Errors are logged but not shown to users (save errors should appear in generation/edit views)
+    /// Save viewContext with proper error handling and user feedback
     private func saveContext() {
         guard viewContext.hasChanges else { return }
 
         do {
             try viewContext.save()
+            toastMessage = .success("Kaydedildi")
             logger.debug("Successfully saved food archive changes")
         } catch {
             logger.error("Failed to save food archive: \(error.localizedDescription)")
-            // Don't show error toast in Ardiye - this is a read-only view
-            // Save errors should be handled in RecipeGenerationView or edit views
+            toastMessage = .error("Kaydetme başarısız oldu")
         }
     }
 
@@ -236,24 +209,21 @@ struct ArdiyeView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.automatic, for: .navigationBar)
         .toolbar {
+            // Logo with long-press gesture for settings
             ToolbarItem(placement: .principal) {
                 Image("balli-text-logo")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(height: 28)
+                    .onLongPressGesture(minimumDuration: 0.5) {
+                        showingSettings = true
+                    }
             }
 
-            // Settings — top-left
+            // Shopping basket — top-left
             ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { showingSettings = true }) {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 18, weight: .medium, design: .rounded))
-                        .foregroundColor(AppTheme.primaryPurple)
-                }
-            }
-
-            ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     showingShoppingList = true
                 }) {
@@ -262,54 +232,31 @@ struct ArdiyeView: View {
                         .foregroundColor(AppTheme.primaryPurple)
                 }
             }
-        }
-        .toolbarBackground(.hidden, for: .navigationBar)
-        .searchable(text: $searchText, prompt: "Ara...")
-        .overlay(alignment: .bottomTrailing) {
-            // FAB to switch between filters
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    selectedFilter = selectedFilter == .recipes ? .products : .recipes
-                }
-            }) {
-                VStack(spacing: 6) {
-                    // Target filter icon (what you're switching TO)
-                    Image(systemName: selectedFilter == .recipes ? "laser.burst" : "book.closed.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(AppTheme.primaryPurple)
 
-                    // Arrow indicating direction
-                    Image(systemName: selectedFilter == .recipes ? "arrow.right" : "arrow.left")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(AppTheme.primaryPurple)
+            // Filter button — top-right
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    withAnimation {
+                        selectedFilter = selectedFilter == .recipes ? .products : .recipes
+                    }
+                }) {
+                    Image(systemName: selectedFilter == .recipes ? "book.closed.fill" : "laser.burst")
+                        .font(.system(size: 18, weight: .medium, design: .rounded))
+                        .foregroundColor(AppTheme.primaryPurple)
                 }
-                .frame(width: 70, height: 70)
-                .balliTintedGlass(cornerRadius: 35)
             }
-            .padding(.trailing, 16)
-            .padding(.bottom, 16)
         }
         .onAppear {
             // Add demo products on first appearance
             addDemoProductsIfNeeded()
             // Initial load of cached items - preserve data operations
             updateCachedItems()
-            // PERFORMANCE: Initial filter update
-            updateFilteredItems()
         }
         .onChange(of: recipes.count) { _, _ in
             updateCachedItems()
         }
         .onChange(of: foodItems.count) { _, _ in
             updateCachedItems()
-        }
-        // PERFORMANCE: Debounce search text changes (80% fewer filter operations)
-        .onChange(of: searchText) { _, _ in
-            scheduleFilterUpdate()
-        }
-        // PERFORMANCE: Immediate filter update when switching tabs (no debounce needed)
-        .onChange(of: selectedFilter) { _, _ in
-            updateFilteredItems()
         }
         .onReceive(
             NotificationCenter.default.publisher(for: NSNotification.Name.NSManagedObjectContextDidSave),
@@ -322,11 +269,7 @@ struct ArdiyeView: View {
                         logger.info("  - Inserted objects: \(inserted.count)")
                         for obj in inserted {
                             if let recipe = obj as? Recipe {
-                                if let imageData = recipe.imageData {
-                                    logger.info("    • Recipe inserted: '\(recipe.name)' - imageData: \(imageData.count) bytes")
-                                } else {
-                                    logger.info("    • Recipe inserted: '\(recipe.name)' - imageData: nil")
-                                }
+                                logger.info("    • Recipe inserted: '\(recipe.name)' - imageData: \(recipe.imageData != nil ? "\(recipe.imageData!.count) bytes" : "nil")")
                             }
                         }
                     }
@@ -335,11 +278,7 @@ struct ArdiyeView: View {
                         logger.info("  - Updated objects: \(updated.count)")
                         for obj in updated {
                             if let recipe = obj as? Recipe {
-                                if let imageData = recipe.imageData {
-                                    logger.info("    • Recipe updated: '\(recipe.name)' - imageData: \(imageData.count) bytes")
-                                } else {
-                                    logger.info("    • Recipe updated: '\(recipe.name)' - imageData: nil")
-                                }
+                                logger.info("    • Recipe updated: '\(recipe.name)' - imageData: \(recipe.imageData != nil ? "\(recipe.imageData!.count) bytes" : "nil")")
                             } else if let foodItem = obj as? FoodItem {
                                 logger.info("    • FoodItem: \(foodItem.name) - \(foodItem.servingSize)g")
                             }
@@ -362,12 +301,8 @@ struct ArdiyeView: View {
         .fullScreenCover(item: $selectedRecipe) { recipe in
             NavigationStack {
                 RecipeDetailView(
-                    recipeData: RecipeDetailData(
-                        recipe: recipe,
-                        author: recipe.source == RecipeConstants.Source.manual ? getUserName() : nil
-                    )
+                    recipeData: RecipeDetailData(recipe: recipe)
                 )
-                .withSheets()
             }
         }
         .fullScreenCover(item: $selectedFoodItem) { foodItem in
@@ -385,7 +320,7 @@ struct ArdiyeView: View {
     @ViewBuilder
     private var recipeListView: some View {
         List {
-            ForEach(filteredItems) { item in
+            ForEach(displayedItems) { item in
                 recipeCard(for: item)
                     .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                     .listRowBackground(Color.clear)
@@ -412,10 +347,12 @@ struct ArdiyeView: View {
                         }
                     }
             }
+            .onDelete { indexSet in
+                deleteItems(at: indexSet)
+            }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(Color(.systemBackground))
     }
 
     @ViewBuilder
@@ -427,7 +364,7 @@ struct ArdiyeView: View {
 
         ScrollView {
             LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(filteredItems) { item in
+                ForEach(displayedItems) { item in
                     if let foodItem = item.foodItem {
                         Button(action: {
                             selectedFoodItem = foodItem
@@ -461,7 +398,6 @@ struct ArdiyeView: View {
             .padding(16)
         }
         .scrollContentBackground(.hidden)
-        .background(Color(.systemBackground))
     }
 
     // MARK: - Card View
@@ -510,22 +446,22 @@ struct ArdiyeView: View {
         HStack(spacing: 0) {
             // Left side - Text content
             VStack(alignment: .leading, spacing: 8) {
-                // Recipe name (largest)
+                // Recipe name
                 Text(item.name)
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .font(.system(size: 18, weight: .semibold, design: .rounded))
                     .fixedSize(horizontal: false, vertical: true)
                     .foregroundColor(.primary)
 
                 Spacer()
 
-                // Serving size (smaller)
+                // Serving size
                 Text("\(Int(item.servingSize)) \(item.servingUnit)")
                     .font(.system(size: 14, weight: .regular, design: .rounded))
                     .foregroundColor(.primary.opacity(0.7))
 
-                // Carb amount (medium-large)
+                // Carb amount
                 Text("\(Int(item.totalCarbs)) gr Karb.")
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
                     .foregroundColor(.primary)
             }
             .padding(.vertical, 16)
@@ -549,7 +485,12 @@ struct ArdiyeView: View {
             }
         }
         .frame(height: 140)
-        .balliTintedGlass(cornerRadius: 32)
+        .background(.clear)
+        .glassEffect(
+            .regular.interactive(),
+            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
         .contentShape(Rectangle())
     }
@@ -592,6 +533,23 @@ struct ArdiyeView: View {
 
             saveContext()
             // Update cache after save
+            updateCachedItems()
+        }
+    }
+
+    private func deleteItems(at offsets: IndexSet) {
+        withAnimation(.easeOut(duration: 0.3)) {
+            for index in offsets {
+                let item = displayedItems[index]
+                if let recipe = item.recipe {
+                    viewContext.delete(recipe)
+                } else if let foodItem = item.foodItem {
+                    viewContext.delete(foodItem)
+                }
+            }
+
+            saveContext()
+            // Update cache after delete
             updateCachedItems()
         }
     }
@@ -713,17 +671,6 @@ struct ArdiyeView: View {
         saveContext()
         updateCachedItems()
     }
-
-    // MARK: - Helper Functions
-
-    private func getUserName() -> String {
-        // Get the user's display name from UserProfileSelector
-        if let currentUser = UserProfileSelector.shared.currentUser {
-            return currentUser.displayName
-        }
-        // Final fallback
-        return "Kullanıcı"
-    }
 }
 
 // MARK: - Interactive Card Button Style
@@ -747,7 +694,7 @@ struct ArdiyeView_Previews: PreviewProvider {
         addDemoProducts(to: controller.viewContext)
 
         return NavigationStack {
-            ArdiyeView(isSearchActivated: .constant(false), searchText: .constant(""))
+            ArdiyeView(searchText: .constant(""))
                 .environment(\.managedObjectContext, controller.viewContext)
         }
     }

@@ -194,7 +194,7 @@ struct RecipeGenerationView: View {
                 }
             }
         }
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarBackground(.automatic, for: .navigationBar)
         .sheet(isPresented: $showingMealSelection) {
             RecipeMealSelectionView(
                 selectedMealType: $selectedMealType,
@@ -210,22 +210,25 @@ struct RecipeGenerationView: View {
         .sheet(isPresented: $showingNutritionModal) {
             NutritionalValuesView(
                 recipeName: viewModel.recipeName,
+                // Per-100g values
                 calories: viewModel.calories,
                 carbohydrates: viewModel.carbohydrates,
                 fiber: viewModel.fiber,
                 sugar: viewModel.sugar,
                 protein: viewModel.protein,
                 fat: viewModel.fat,
-                glycemicLoad: viewModel.glycemicLoad
+                glycemicLoad: viewModel.glycemicLoad,
+                // Per-serving values
+                caloriesPerServing: viewModel.caloriesPerServing,
+                carbohydratesPerServing: viewModel.carbohydratesPerServing,
+                fiberPerServing: viewModel.fiberPerServing,
+                sugarPerServing: viewModel.sugarPerServing,
+                proteinPerServing: viewModel.proteinPerServing,
+                fatPerServing: viewModel.fatPerServing,
+                glycemicLoadPerServing: viewModel.glycemicLoadPerServing,
+                totalRecipeWeight: viewModel.totalRecipeWeight
             )
-            .presentationDetents([.fraction(0.7)])
-        }
-        .onChange(of: viewModel.isCalculatingNutrition) { _, isCalculating in
-            // When calculation completes (isCalculating becomes false) and we have values, show modal
-            if !isCalculating && !viewModel.calories.isEmpty {
-                logger.info("✅ [NUTRITION] Calculation complete - opening modal")
-                showingNutritionModal = true
-            }
+            .presentationDetents([.large])
         }
     }
 
@@ -360,7 +363,8 @@ struct RecipeGenerationView: View {
             actions: [.favorite, .values, .shopping],
             activeStates: [isFavorited, false, false],
             loadingStates: [false, viewModel.isCalculatingNutrition, false],
-            completedStates: [false, hasNutritionValues, false]
+            completedStates: [false, hasNutritionValues, false],
+            progressStates: [0, viewModel.nutritionCalculationProgress, 0]
         ) { action in
             handleAction(action)
         }

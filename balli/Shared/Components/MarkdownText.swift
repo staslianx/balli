@@ -54,7 +54,7 @@ struct MarkdownText: View {
         lineSpacing: CGFloat = 4,
         headerFontSize: CGFloat = 30,
         headerTopPadding: CGFloat = 8,
-        headerBottomPadding: CGFloat = 4,
+        headerBottomPadding: CGFloat = 0,
         fontName: String = "Playfair Display",
         headerFontName: String = "PlayfairDisplay"
     ) {

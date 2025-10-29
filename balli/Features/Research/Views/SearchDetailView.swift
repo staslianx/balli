@@ -42,11 +42,9 @@ struct SearchDetailView: View {
                         .frame(height: 30)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background {
-                            Capsule()
-                                .fill(Color(.systemBackground))
-                        }
+                        .background(Color(.secondarySystemBackground))
                         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                         .transition(.scale.combined(with: .opacity))
                         .layoutPriority(1)
                     }

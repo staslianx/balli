@@ -65,25 +65,37 @@ actor DexcomShareAuthManager {
 
     /// Check if currently authenticated with valid session
     func isAuthenticated() async -> Bool {
+        logger.info("🔍 FORENSIC [DexcomShareAuthManager]: isAuthenticated() called")
         // Check if we have a session ID
         if currentSessionId == nil {
+            logger.info("🔍 FORENSIC: No session ID in memory, checking keychain...")
             // Try to load from keychain
             do {
                 if let session = try await keychainStorage.getSessionInfo() {
                     currentSessionId = session.sessionId
                     sessionExpiry = session.expiry
+                    logger.info("🔍 FORENSIC: Loaded session from keychain - expires: \(session.expiry)")
+                } else {
+                    logger.error("❌ FORENSIC: No session found in keychain - user logged out")
                 }
             } catch {
+                logger.error("❌ FORENSIC: Keychain error: \(error.localizedDescription)")
                 return false
             }
+        } else {
+            logger.info("🔍 FORENSIC: Session ID exists in memory")
         }
 
         // Check if session is still valid
         guard let expiry = sessionExpiry else {
+            logger.error("❌ FORENSIC: No session expiry - session invalid")
             return false
         }
 
-        return Date() < expiry
+        let isValid = Date() < expiry
+        let timeRemaining = expiry.timeIntervalSinceNow
+        logger.info("🔍 FORENSIC: Session valid: \(isValid), time remaining: \(timeRemaining, format: .fixed(precision: 1)) seconds")
+        return isValid
     }
 
     /// Get current session ID (authenticates if needed)
@@ -272,14 +284,15 @@ actor DexcomShareAuthManager {
 
     /// Clear current session (force re-authentication)
     func clearSession() async {
+        logger.info("🔍 FORENSIC [DexcomShareAuthManager]: clearSession() called")
         currentSessionId = nil
         sessionExpiry = nil
 
         do {
             try await keychainStorage.clearSession()
-            logger.info("SHARE session cleared")
+            logger.info("✅ FORENSIC: SHARE session cleared successfully")
         } catch {
-            logger.error("Failed to clear SHARE session: \(error.localizedDescription)")
+            logger.error("❌ FORENSIC: Failed to clear SHARE session: \(error.localizedDescription)")
         }
     }
 

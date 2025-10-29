@@ -31,29 +31,32 @@ actor GlucoseReadingRepository {
     /// - Parameter reading: The HealthGlucoseReading to save
     /// - Returns: The saved CoreData GlucoseReading, or nil if duplicate or invalid
     func saveReading(from healthReading: HealthGlucoseReading) async throws -> GlucoseReading? {
-        logger.info("Saving glucose reading: \(healthReading.value) mg/dL at \(healthReading.timestamp)")
+        logger.info("🔍 FORENSIC [GlucoseReadingRepository]: saveReading called")
+        logger.info("🔍 FORENSIC: Value: \(healthReading.value) mg/dL, Timestamp: \(healthReading.timestamp), Source: \(healthReading.source ?? "nil")")
 
         // Validate glucose value range
         guard isValidGlucoseValue(healthReading.value) else {
-            logger.warning("⚠️ Skipping invalid glucose value: \(healthReading.value) mg/dL (out of physiological range \(Self.minPhysiologicalGlucose)-\(Self.maxPhysiologicalGlucose))")
+            logger.warning("⚠️ FORENSIC: Rejecting invalid glucose value: \(healthReading.value) mg/dL (out of physiological range \(Self.minPhysiologicalGlucose)-\(Self.maxPhysiologicalGlucose))")
             return nil
         }
 
         // Validate timestamp
         guard isValidTimestamp(healthReading.timestamp) else {
-            logger.warning("⚠️ Skipping reading with future timestamp: \(healthReading.timestamp)")
+            logger.warning("⚠️ FORENSIC: Rejecting reading with future timestamp: \(healthReading.timestamp)")
             return nil
         }
 
         // Map bundle identifier to CoreData source enum value
         let coreDataSource = mapSourceToCoreData(healthReading.source)
-        logger.debug("Mapped source '\(healthReading.source ?? "nil")' -> '\(coreDataSource)'")
+        logger.info("🔍 FORENSIC: Mapped source '\(healthReading.source ?? "nil")' -> '\(coreDataSource)'")
 
         // Check for duplicates
         if try await isDuplicate(timestamp: healthReading.timestamp, source: coreDataSource) {
-            logger.debug("Skipping duplicate reading at \(healthReading.timestamp)")
+            logger.warning("⚠️ FORENSIC: DUPLICATE DETECTED - reading already exists at \(healthReading.timestamp) from source '\(coreDataSource)'")
             return nil
         }
+
+        logger.info("✅ FORENSIC: No duplicate found, proceeding to save...")
 
         // Create in background context
         let reading = try await persistenceController.performBackgroundTask { context in
@@ -69,7 +72,7 @@ actor GlucoseReadingRepository {
             return reading
         }
 
-        logger.info("✅ Saved glucose reading: \(reading.id) with source '\(coreDataSource)'")
+        logger.info("✅ FORENSIC: Successfully saved reading: \(reading.id) with source '\(coreDataSource)'")
         return reading
     }
 
@@ -176,17 +179,17 @@ actor GlucoseReadingRepository {
 
     // MARK: - Fetch Operations
 
-    /// Fetch glucose readings for a specific time range
+    /// Fetch glucose readings for a specific time range as value types
     /// - Parameters:
     ///   - startDate: Start of time range
     ///   - endDate: End of time range
     ///   - source: Optional source filter
-    /// - Returns: Array of GlucoseReading entities
+    /// - Returns: Array of HealthGlucoseReading value types (safe to use across threads)
     func fetchReadings(
         startDate: Date,
         endDate: Date,
         source: String? = nil
-    ) async throws -> [GlucoseReading] {
+    ) async throws -> [HealthGlucoseReading] {
         let request = GlucoseReading.fetchRequest()
 
         var predicates: [NSPredicate] = [
@@ -204,15 +207,33 @@ actor GlucoseReadingRepository {
         request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
         request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
 
-        let readings = try await persistenceController.fetch(request)
-        logger.debug("Fetched \(readings.count) glucose readings from \(startDate) to \(endDate)")
-        return readings
+        // CRITICAL: Extract values inside background context to prevent threading crashes
+        return try await persistenceController.performBackgroundTask { context in
+            let coreDataReadings = try context.fetch(request)
+
+            // Convert to value types INSIDE the context to avoid crashes
+            return coreDataReadings.compactMap { reading -> HealthGlucoseReading? in
+                // Safety check: ensure valid object
+                guard !reading.isFault, !reading.isDeleted else {
+                    return nil
+                }
+
+                // Extract all properties while we're still in the context
+                return HealthGlucoseReading(
+                    id: reading.id,
+                    value: reading.value,
+                    timestamp: reading.timestamp,
+                    device: reading.deviceName,
+                    source: reading.source
+                )
+            }
+        }
     }
 
-    /// Fetch the most recent glucose reading
+    /// Fetch the most recent glucose reading as value type
     /// - Parameter source: Optional source filter
-    /// - Returns: Most recent GlucoseReading, or nil if none exist
-    func fetchLatestReading(source: String? = nil) async throws -> GlucoseReading? {
+    /// - Returns: Most recent HealthGlucoseReading value type, or nil if none exist
+    func fetchLatestReading(source: String? = nil) async throws -> HealthGlucoseReading? {
         let request = GlucoseReading.fetchRequest()
 
         if let source = source {
@@ -222,8 +243,25 @@ actor GlucoseReadingRepository {
         request.sortDescriptors = [NSSortDescriptor(key: "timestamp", ascending: false)]
         request.fetchLimit = 1
 
-        let readings = try await persistenceController.fetch(request)
-        return readings.first
+        // CRITICAL: Extract values inside background context to prevent threading crashes
+        return try await persistenceController.performBackgroundTask { context in
+            let coreDataReadings = try context.fetch(request)
+
+            guard let reading = coreDataReadings.first,
+                  !reading.isFault,
+                  !reading.isDeleted else {
+                return nil
+            }
+
+            // Convert to value type INSIDE the context
+            return HealthGlucoseReading(
+                id: reading.id,
+                value: reading.value,
+                timestamp: reading.timestamp,
+                device: reading.deviceName,
+                source: reading.source
+            )
+        }
     }
 
     /// Fetch all glucose readings count for statistics

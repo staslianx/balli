@@ -158,7 +158,7 @@ struct MarkdownRenderer {
                     // Bullet outdented to the left
                     Text("•")
                         .font(.custom("Manrope", size: fontSize).weight(.heavy))
-                        .foregroundStyle(.primary)
+                        .foregroundStyle(AppTheme.primaryPurple)
                         .frame(width: 14, alignment: .trailing)
                         .offset(x: -20) // Outdent bullet to the left
 
@@ -203,7 +203,7 @@ struct MarkdownRenderer {
                     // Number outdented to the left
                     Text("\(index + 1).")
                         .font(.custom("Manrope", size: fontSize).weight(.bold))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppTheme.primaryPurple)
                         .frame(width: 24, alignment: .trailing)
                         .offset(x: -30) // Outdent number to the left
 
@@ -310,7 +310,7 @@ struct MarkdownRenderer {
     @ViewBuilder
     private func renderHorizontalRule() -> some View {
         Rectangle()
-            .fill(Color.secondary.opacity(0.3))
+            .fill(AppTheme.primaryPurple.opacity(0.5))
             .frame(height: 1)
             .padding(.vertical, 12)
     }

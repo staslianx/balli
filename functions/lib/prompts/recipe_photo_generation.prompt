@@ -1,0 +1,62 @@
+---
+model: vertexai/imagen-4.0-ultra-generate-001
+config:
+  addWatermark: false
+  outputOptions:
+    mimeType: image/jpeg
+    compressionQuality: 95
+  sampleCount: 1
+  includeSafetyAttributes: false
+  outputImageWidth: 2048
+  outputImageHeight: 2048
+input:
+  schema:
+    properties:
+      recipeName:
+        type: string
+        description: "Name of the recipe to photograph"
+      ingredients:
+        type: array
+        items:
+          type: string
+        description: "List of ingredients in the recipe"
+      directions:
+        type: array
+        items:
+          type: string
+        description: "Cooking instructions for reference"
+      mealType:
+        type: string
+        description: "Type of meal (Kahvaltı, Akşam Yemeği, Salatalar, Tatlılar, Atıştırmalıklar)"
+      aspectRatio:
+        type: string
+        description: "Aspect ratio for the image (16:9, 4:3, 1:1, 9:16)"
+        default: "1:1"
+    required: [recipeName, ingredients, directions, mealType]
+output:
+  format: media
+---
+
+You are an expert food photographer, produce an ultra high quality professional photography of the following recipe's final state according to the style rules described.
+
+Recipe to photograph: {{recipeName}}
+
+Ingredients (for reference only):
+{{#each ingredients}}
+- {{this}}
+{{/each}}
+
+Cooking instructions (for reference only):
+{{#each directions}}
+{{@index}}. {{this}}
+{{/each}}
+
+<style_rules>
+Professional food photography of {{recipeName}} in cozy home studio setting. Michelin-star quality plating and presentation as if prepared by a world-class chef in their own home.
+
+Style: Ultra-hyper-realistic with intricate ingredient details, shallow depth of field with beautifully blurred background, natural lighting with food magazine cover quality.
+
+Composition: {{aspectRatio}} format, close up shot, centered in frame, sharp focus entirely on the finished dish with restaurant-quality plating.
+
+Requirements: No alcohol visible, no steam or smoke, no people or living things.
+</style_rules>

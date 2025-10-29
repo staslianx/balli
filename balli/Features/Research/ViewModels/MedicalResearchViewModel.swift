@@ -283,16 +283,29 @@ class MedicalResearchViewModel: ObservableObject {
     /// Start a new conversation - saves current answers to library and clears the view
     func startNewConversation() async {
         logger.info("💬 Starting new conversation - saving current conversation to library")
+        logger.info("Current answers count: \(self.answers.count)")
 
+        // Save and end current session
         await syncAnswersToPersistence()
         await endCurrentSession()
 
+        // Clear all state
         answers.removeAll()
         answerIndexLookup.removeAll()
+        searchingSourcesForAnswer.removeAll()
 
+        // Clear stage coordinator state
+        stageCoordinator.clearAllState()
+
+        // Start fresh session
         sessionManager.startNewSession()
 
+        // Reset search state
+        searchState = .idle
+        currentSearchTier = nil
+
         logger.info("✅ New conversation started - previous conversation saved to library")
+        logger.info("New answers count: \(self.answers.count)")
     }
 
     /// Cancel streaming response for the currently active search
@@ -350,7 +363,7 @@ class MedicalResearchViewModel: ObservableObject {
             sources: [],
             timestamp: Date(),
             tokenCount: nil,
-            tier: .recall
+            tier: .model  // Show "Hızlı" badge during recall
         )
 
         answers.insert(placeholderAnswer, at: 0)
@@ -361,6 +374,23 @@ class MedicalResearchViewModel: ObservableObject {
 
         do {
             let finalAnswer = try await recallHandler.handleRecallRequest(query, answerId: answerId)
+
+            // Check if no sessions were found - auto-fallback to regular search
+            if finalAnswer.content.contains("Bu konuda daha önce bir araştırma kaydı bulamadım") {
+                logger.info("📚 No recall matches found - auto-fallback to regular search")
+
+                // Remove the recall placeholder answer
+                if let index = answerIndexLookup[answerId] {
+                    answers.remove(at: index)
+                    rebuildAnswerIndexLookup()
+                }
+
+                // Trigger regular T1/T2 search with the same query
+                await search(query: query)
+                return
+            }
+
+            // Normal recall success - update with final answer
             if let index = answerIndexLookup[answerId] {
                 answers[index] = finalAnswer
             }

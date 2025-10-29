@@ -350,7 +350,7 @@
         <attribute name="cookTime" optional="YES" attributeType="Integer 16" usesScalarValueType="YES"/>
         <attribute name="servings" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
         
-        <!-- Nutrition Information -->
+        <!-- Nutrition Information (per 100g) -->
         <attribute name="calories" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="totalCarbs" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="fiber" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
@@ -358,6 +358,16 @@
         <attribute name="protein" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="totalFat" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="glycemicLoad" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+
+        <!-- Nutrition Information (per serving / entire recipe) -->
+        <attribute name="caloriesPerServing" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="carbsPerServing" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="fiberPerServing" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="sugarsPerServing" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="proteinPerServing" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="fatPerServing" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="glycemicLoadPerServing" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="totalRecipeWeight" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         
         <!-- Recipe Metadata -->
         <attribute name="source" attributeType="String" defaultValueString="manual"/>

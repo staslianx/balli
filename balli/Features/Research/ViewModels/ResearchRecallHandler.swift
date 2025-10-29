@@ -113,7 +113,7 @@ final class ResearchRecallHandler {
             sources: [],
             timestamp: Date(),
             tokenCount: nil,
-            tier: .recall
+            tier: .model  // Show "Hızlı" badge, not "Hafıza"
         )
 
         logger.info("📚 No recall matches - suggesting new research")
@@ -162,7 +162,7 @@ final class ResearchRecallHandler {
                 sources: [],
                 timestamp: Date(),
                 tokenCount: nil,
-                tier: .recall
+                tier: .model  // Show "Hızlı" badge, not "Hafıza" (Flash model answers from memory)
             )
 
             logger.info("📚 Displayed LLM-generated recall answer from: \(sessionRef.title)")
@@ -198,7 +198,7 @@ final class ResearchRecallHandler {
             sources: [],
             timestamp: Date(),
             tokenCount: nil,
-            tier: .recall
+            tier: .model  // Show "Hızlı" badge, not "Hafıza"
         )
 
         logger.info("📚 Displayed \(results.count) recall matches")

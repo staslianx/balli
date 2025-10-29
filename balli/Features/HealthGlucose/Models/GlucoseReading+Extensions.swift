@@ -30,7 +30,7 @@ public enum GlucoseSource: String, CaseIterable {
         switch self {
         case .manual: return "pencil"
         case .healthKit: return "heart.text.square"
-        case .cgm, .dexcomOfficial, .dexcomShare: return "wave.3.right"
+        case .cgm, .dexcomOfficial, .dexcomShare: return "sensor.tag.radiowaves.forward.fill"
         }
     }
 }

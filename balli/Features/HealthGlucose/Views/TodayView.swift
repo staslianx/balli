@@ -25,6 +25,7 @@ struct TodayView: View {
 
     // Sheet state
     @State private var showingMealHistory = false
+    @State private var showingSettings = false
 
     // MARK: - Initialization
 
@@ -95,7 +96,9 @@ struct TodayView: View {
                     ManualEntryView()
                 }
                 .fullScreenCover(isPresented: $viewModel.showingRecipeEntry) {
-                    RecipeGenerationView(viewContext: viewContext)
+                    NavigationStack {
+                        RecipeGenerationView(viewContext: viewContext)
+                    }
                 }
                 .sheet(isPresented: $viewModel.showingVoiceInput) {
                     VoiceInputView()
@@ -106,12 +109,19 @@ struct TodayView: View {
                 .sheet(isPresented: $showingMealHistory) {
                     LoggedMealsView()
                 }
+                .sheet(isPresented: $showingSettings) {
+                    AppSettingsView()
+                }
                 .toolbar {
+                    // Logo with long-press gesture for settings
                     ToolbarItem(placement: .principal) {
                         Image("balli-text-logo")
                             .resizable()
                             .scaledToFit()
                             .frame(height: 28)
+                            .onLongPressGesture(minimumDuration: 0.5) {
+                                showingSettings = true
+                            }
                     }
 
                     ToolbarItem(placement: .topBarLeading) {
@@ -161,7 +171,9 @@ struct TodayView: View {
                                 healthKitPermissions: healthKitPermissions
                             )
                             .padding(.vertical, 24)
-                            .balliTintedGlass(cornerRadius: ResponsiveDesign.CornerRadius.card)
+                            .background(.clear)
+                            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
                             .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
                             .frame(width: geometry.size.width - ResponsiveDesign.Spacing.medium * 2)
                             .id(0)
@@ -174,7 +186,9 @@ struct TodayView: View {
                             // Glucose Card
                             GlucoseChartCard(viewModel: viewModel.glucoseChartViewModel)
                                 .padding(.vertical, 24)
-                                .balliTintedGlass(cornerRadius: ResponsiveDesign.CornerRadius.card)
+                                .background(.clear)
+                                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                                .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
                                 .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
                                 .frame(width: geometry.size.width - ResponsiveDesign.Spacing.medium * 2)
                                 .id(1)

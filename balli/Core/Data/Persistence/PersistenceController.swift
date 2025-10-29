@@ -178,22 +178,26 @@ public final class PersistenceController: @unchecked Sendable {
             logger.warning("Fetch attempted before Core Data is ready")
             throw CoreDataError.contextUnavailable
         }
-        
+
         request.returnsObjectsAsFaults = false
         request.includesPropertyValues = true
-        
-        // CRITICAL FIX: Use background context for async operations to prevent threading crashes
-        // This prevents EXC_BAD_ACCESS when called from background threads (e.g., after AI API)
-        return try await performBackgroundTask { context in
+
+        // CRITICAL FIX: Fetch in background context but return objects faulted into viewContext
+        // This prevents EXC_BAD_ACCESS when objects are accessed after the background context is deallocated
+        let objectIDs = try await performBackgroundTask { context in
             // Execute fetch in the background context
             let results = try context.fetch(request)
-            
-            // Convert to object IDs for thread safety
-            let objectIDs = results.map { $0.objectID }
-            
-            // Return the objects by fetching them in the background context
-            // This ensures they're properly registered with the context
-            return objectIDs.compactMap { context.object(with: $0) as? T }
+
+            // Extract object IDs for thread-safe transfer
+            return results.map { $0.objectID }
+        }
+
+        // Fault objects into viewContext on main thread so they remain valid
+        return await MainActor.run {
+            return objectIDs.compactMap { objectID in
+                // Get object in viewContext - this ensures objects remain valid
+                viewContext.object(with: objectID) as? T
+            }
         }
     }
     

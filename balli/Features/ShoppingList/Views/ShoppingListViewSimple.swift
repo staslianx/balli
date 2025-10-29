@@ -71,7 +71,7 @@ struct ShoppingListViewSimple: View {
                             onItemSave: { item, text, quantity in saveItem(item, newText: text, newQuantity: quantity) },
                             onNoteUpdate: { item, note in updateItemNote(item, note: note) }
                         )
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                     }
@@ -295,7 +295,7 @@ struct EditableItemRow: View {
     @MainActor
     var body: some View {
         HStack(spacing: ResponsiveDesign.Spacing.medium) {
-            // Checkbox with Liquid Glass effect
+            // Checkbox
             Button(action: onToggle) {
                 Circle()
                     .strokeBorder(Color.gray.opacity(0.5), lineWidth: 1.5)
@@ -406,16 +406,16 @@ struct EditableItemRow: View {
                         Button(action: { startEditingQuantity() }) {
                             Text(quantity)
                                 .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                .foregroundColor(AppTheme.primaryPurple)
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.borderedProminent)
+                        .tint(AppTheme.primaryPurple)
                     }
                 }
             }
         }
         .padding(.vertical, ResponsiveDesign.Spacing.medium)
         .padding(.horizontal, ResponsiveDesign.Spacing.medium)
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive, action: onDelete) {
                 Label("Sil", systemImage: "trash")

@@ -12,10 +12,12 @@ struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var userManager = UserProfileSelector.shared
     @State private var selectedTab = 1 // Start with Hoşgeldin tab
-    @State private var searchText = "" // Search text for Ardiye
-    @State private var isSearchActivated = false // For Ardiye search activation
     @State private var calendarIcon = "calendar" // Dynamic calendar icon
     @State private var hasConfiguredTabBar = false
+
+    // Search state for Ardiye view
+    @State private var ardiyeSearchText = ""
+    @State private var isArdiyeSearchPresented = false
 
     init() {
         // NOTE: Sync happens in balliApp.swift BEFORE ContentView is created
@@ -86,7 +88,7 @@ struct ContentView: View {
             // Ardiye Tab
             Tab("Ardiye", systemImage: "archivebox.fill", value: 0) {
                 NavigationStack {
-                    ArdiyeView(isSearchActivated: $isSearchActivated, searchText: $searchText)
+                    ArdiyeView(searchText: .constant(""))
                 }
             }
 
@@ -102,6 +104,19 @@ struct ContentView: View {
             Tab("Araştır", systemImage: "gyroscope", value: 2) {
                 NavigationStack {
                     InformationRetrievalView()
+                }
+            }
+
+            // Search Tab - appears in tab bar
+            Tab(value: 3, role: .search) {
+                NavigationStack {
+                    ArdiyeSearchView(searchText: $ardiyeSearchText)
+                        .navigationBarTitleDisplayMode(.inline)
+                        .searchable(
+                            text: $ardiyeSearchText,
+                            placement: .navigationBarDrawer(displayMode: .always),
+                            prompt: "Tarif veya ürün ara..."
+                        )
                 }
             }
         }

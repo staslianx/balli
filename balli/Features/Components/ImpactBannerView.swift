@@ -62,24 +62,14 @@ struct CompactImpactBannerView: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        HStack(alignment: .center, spacing: ResponsiveDesign.Spacing.small) {
-            // Impact level symbol - using semantic card symbols, larger size
-            Image(systemName: impactLevel.cardSymbolName)
-                .font(.system(size: ResponsiveDesign.Font.scaledSize(26), weight: .semibold))
-                .foregroundColor(impactLevel.color)
-                .frame(height: ResponsiveDesign.Font.scaledSize(26), alignment: .center)
-                .accessibilityHidden(true)
-
-            // Score only - no text label, monospaced digits
-            Text("\(Int(ceil(impactScore)))")
-                .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .foregroundColor(impactLevel.color)
-        }
-        .frame(maxWidth: .infinity, alignment: .trailing)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("Etki skoru \(Int(ceil(impactScore))), \(impactLevel.accessibilityLabel)")
-        .accessibilityAddTraits(.isStaticText)
+        // Impact level symbol only - no score number, bigger size, aligned with brand/name
+        Image(systemName: impactLevel.cardSymbolName)
+            .font(.system(size: ResponsiveDesign.Font.scaledSize(45), weight: .regular, design: .rounded))
+            .foregroundColor(impactLevel.color)
+            .frame(width: ResponsiveDesign.Font.scaledSize(45), height: ResponsiveDesign.Font.scaledSize(36), alignment: .center)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(impactLevel.accessibilityLabel)
+            .accessibilityAddTraits(.isStaticText)
     }
 }
 

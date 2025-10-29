@@ -23,7 +23,7 @@ public final class RecipeFormState: ObservableObject {
     @Published public var recipeContent = ""  // Markdown content for streaming (ingredients + directions)
     @Published public var isFavorite = false  // Recipe favorite status
 
-    // MARK: - Nutrition Information
+    // MARK: - Nutrition Information (per 100g)
     @Published public var calories = ""
     @Published public var carbohydrates = ""
     @Published public var fiber = ""
@@ -31,6 +31,16 @@ public final class RecipeFormState: ObservableObject {
     @Published public var fat = ""
     @Published public var sugar = ""
     @Published public var glycemicLoad = ""
+
+    // MARK: - Nutrition Information (per serving / entire recipe)
+    @Published public var caloriesPerServing = ""
+    @Published public var carbohydratesPerServing = ""
+    @Published public var fiberPerServing = ""
+    @Published public var proteinPerServing = ""
+    @Published public var fatPerServing = ""
+    @Published public var sugarPerServing = ""
+    @Published public var glycemicLoadPerServing = ""
+    @Published public var totalRecipeWeight = ""
 
     // MARK: - Serving Size
     // Note: Nutrition values from AI are per 100g (standard)
@@ -114,6 +124,14 @@ public final class RecipeFormState: ObservableObject {
         fat = ""
         sugar = ""
         glycemicLoad = ""
+        caloriesPerServing = ""
+        carbohydratesPerServing = ""
+        fiberPerServing = ""
+        proteinPerServing = ""
+        fatPerServing = ""
+        sugarPerServing = ""
+        glycemicLoadPerServing = ""
+        totalRecipeWeight = ""
         portionGrams = 100.0  // Reset to 100g default
     }
 
@@ -145,6 +163,14 @@ public final class RecipeFormState: ObservableObject {
             fat = recipe.totalFat > 0 ? String(Int(recipe.totalFat)) : ""
             sugar = recipe.sugars > 0 ? String(Int(recipe.sugars)) : ""
             glycemicLoad = recipe.glycemicLoad > 0 ? String(Int(recipe.glycemicLoad)) : ""
+            caloriesPerServing = recipe.caloriesPerServing > 0 ? String(Int(recipe.caloriesPerServing)) : ""
+            carbohydratesPerServing = recipe.carbsPerServing > 0 ? String(Int(recipe.carbsPerServing)) : ""
+            fiberPerServing = recipe.fiberPerServing > 0 ? String(Int(recipe.fiberPerServing)) : ""
+            proteinPerServing = recipe.proteinPerServing > 0 ? String(Int(recipe.proteinPerServing)) : ""
+            fatPerServing = recipe.fatPerServing > 0 ? String(Int(recipe.fatPerServing)) : ""
+            sugarPerServing = recipe.sugarsPerServing > 0 ? String(Int(recipe.sugarsPerServing)) : ""
+            glycemicLoadPerServing = recipe.glycemicLoadPerServing > 0 ? String(Int(recipe.glycemicLoadPerServing)) : ""
+            totalRecipeWeight = recipe.totalRecipeWeight > 0 ? String(Int(recipe.totalRecipeWeight)) : ""
             portionGrams = 100.0  // Nutrition values are per 100g (standard)
         }
     }

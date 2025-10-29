@@ -58,7 +58,7 @@ struct RecipeShoppingSection: View {
                             .opacity(allItemsCompleted ? 1 : 0)
                     )
             }
-            .liquidGlassButton(style: .thin, tint: AppTheme.primaryPurple)
+            .buttonStyle(.plain)
 
             // Recipe name display (like ingredient) - tappable to open sheet
             Button(action: { showIngredientsSheet = true }) {
@@ -94,7 +94,7 @@ struct RecipeShoppingSection: View {
         }
         .padding(.vertical, ResponsiveDesign.Spacing.medium)
         .padding(.horizontal, ResponsiveDesign.Spacing.medium)
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .sheet(isPresented: $showIngredientsSheet) {
             RecipeIngredientsSheet(
                 recipeName: recipeName,
@@ -144,7 +144,7 @@ struct RecipeIngredientsSheet: View {
                             onSave: { text, quantity in onItemSave(item, text, quantity) },
                             onNoteUpdate: { note in onNoteUpdate(item, note) }
                         )
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
                         .transition(.asymmetric(
@@ -165,7 +165,7 @@ struct RecipeIngredientsSheet: View {
                                     onNoteUpdate: { note in onNoteUpdate(item, note) }
                                 )
                                 .opacity(0.6)
-                                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
                                 .transition(.asymmetric(
@@ -249,7 +249,7 @@ struct RecipeItemRow: View {
 
     var body: some View {
         HStack(spacing: ResponsiveDesign.Spacing.medium) {
-            // Checkbox with Liquid Glass effect
+            // Checkbox
             Button(action: onToggle) {
                 Circle()
                     .strokeBorder(Color.gray.opacity(0.5), lineWidth: 1.5)
@@ -265,7 +265,7 @@ struct RecipeItemRow: View {
                             .opacity(item.isCompleted ? 1 : 0)
                     )
             }
-            .liquidGlassButton(style: .thin, tint: AppTheme.primaryPurple)
+            .buttonStyle(.plain)
 
             // Text/TextField with quantity support and glass effects
             if isEditing {
@@ -352,7 +352,7 @@ struct RecipeItemRow: View {
         }
         .padding(.vertical, ResponsiveDesign.Spacing.medium)
         .padding(.horizontal, ResponsiveDesign.Spacing.medium)
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
     }
 
     private func startEditing() {

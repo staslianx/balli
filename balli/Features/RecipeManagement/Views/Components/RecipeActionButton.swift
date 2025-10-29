@@ -57,6 +57,7 @@ struct RecipeActionButton: View {
     let isActive: Bool
     let isLoading: Bool
     let isCompleted: Bool  // NEW: Show checkmark when calculation completes
+    let progress: Int  // NEW: Progress percentage (0-100) for loading state
     let onTap: () -> Void
 
     @State private var isPressed = false
@@ -67,12 +68,14 @@ struct RecipeActionButton: View {
         isActive: Bool = false,
         isLoading: Bool = false,
         isCompleted: Bool = false,  // NEW
+        progress: Int = 0,  // NEW
         onTap: @escaping () -> Void
     ) {
         self.action = action
         self.isActive = isActive
         self.isLoading = isLoading
         self.isCompleted = isCompleted
+        self.progress = progress
         self.onTap = onTap
     }
 
@@ -85,10 +88,19 @@ struct RecipeActionButton: View {
                     .opacity(isLoading ? pulseOpacity : 1.0)
                     .contentTransition(.symbolEffect(.replace.magic(fallback: .upUp.byLayer), options: .nonRepeating))
 
-                Text(action.label)
-                    .font(.sfRounded(14, weight: .medium))
-                    .foregroundColor(.primary)
-                    .opacity(isLoading ? pulseOpacity : 1.0)
+                // Show percentage if loading and action is .values, otherwise show label
+                if isLoading && action == .values {
+                    Text("%\(progress)")
+                        .font(.sfRounded(14, weight: .semiBold))
+                        .foregroundColor(.primary)
+                        .opacity(pulseOpacity)
+                        .contentTransition(.numericText(value: Double(progress)))
+                } else {
+                    Text(action.label)
+                        .font(.sfRounded(14, weight: .medium))
+                        .foregroundColor(.primary)
+                        .opacity(isLoading ? pulseOpacity : 1.0)
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
@@ -157,6 +169,7 @@ struct RecipeActionRow: View {
     let activeStates: [Bool]
     let loadingStates: [Bool]
     let completedStates: [Bool]
+    let progressStates: [Int]  // NEW: Progress percentages
     let onTap: (RecipeAction) -> Void
 
     init(
@@ -164,12 +177,14 @@ struct RecipeActionRow: View {
         activeStates: [Bool]? = nil,
         loadingStates: [Bool]? = nil,
         completedStates: [Bool]? = nil,
+        progressStates: [Int]? = nil,  // NEW
         onTap: @escaping (RecipeAction) -> Void
     ) {
         self.actions = actions
         self.activeStates = activeStates ?? Array(repeating: false, count: actions.count)
         self.loadingStates = loadingStates ?? Array(repeating: false, count: actions.count)
         self.completedStates = completedStates ?? Array(repeating: false, count: actions.count)
+        self.progressStates = progressStates ?? Array(repeating: 0, count: actions.count)  // NEW
         self.onTap = onTap
     }
 
@@ -181,6 +196,7 @@ struct RecipeActionRow: View {
                     isActive: activeStates[safe: index] ?? false,
                     isLoading: loadingStates[safe: index] ?? false,
                     isCompleted: completedStates[safe: index] ?? false,
+                    progress: progressStates[safe: index] ?? 0,  // NEW
                     onTap: { onTap(action) }
                 )
             }

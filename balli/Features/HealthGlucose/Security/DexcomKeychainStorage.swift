@@ -101,9 +101,17 @@ actor DexcomKeychainStorage {
 
     /// Delete all stored tokens (on logout or disconnect)
     func clearAllTokens() throws {
+        let logger = AppLoggers.Security.keychain
+        logger.info("🔍 FORENSIC [DexcomKeychainStorage]: clearAllTokens() called")
+
         try delete(for: .accessToken)
+        logger.info("🔍 FORENSIC: Deleted accessToken")
+
         try delete(for: .refreshToken)
+        logger.info("🔍 FORENSIC: Deleted refreshToken")
+
         try delete(for: .tokenExpiry)
+        logger.info("✅ FORENSIC: Deleted tokenExpiry - all tokens cleared")
     }
 
     /// Delete all credentials (complete cleanup)
@@ -210,13 +218,26 @@ actor DexcomKeychainStorage {
 extension DexcomKeychainStorage {
     /// Get comprehensive token information
     func getTokenInfo() async throws -> TokenInfo? {
-        guard let accessToken = try getAccessToken(),
-              let refreshToken = try getRefreshToken() else {
+        let logger = AppLoggers.Security.keychain
+        logger.info("🔍 FORENSIC [DexcomKeychainStorage]: getTokenInfo() called")
+
+        guard let accessToken = try getAccessToken() else {
+            logger.error("❌ FORENSIC: No access token in keychain")
+            return nil
+        }
+
+        guard let refreshToken = try getRefreshToken() else {
+            logger.error("❌ FORENSIC: No refresh token in keychain")
             return nil
         }
 
         let expiry = try getTokenExpiry()
         let isExpired = try isTokenExpired()
+
+        logger.info("🔍 FORENSIC: Token info retrieved - isExpired: \(isExpired)")
+        if let expiry = expiry {
+            logger.info("🔍 FORENSIC: Token expiry: \(expiry)")
+        }
 
         return TokenInfo(
             accessToken: accessToken,

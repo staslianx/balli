@@ -13,6 +13,7 @@ struct InformationRetrievalView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var searchQuery = ""
     @State private var showLibrary = false
+    @State private var showingSettings = false
     @State private var displayedAnswerIds: Set<String> = []
     @State private var showScrollPadding = false // Smart padding for scroll-to-top
 
@@ -96,6 +97,7 @@ struct InformationRetrievalView: View {
                 }
             }
 
+            // Logo with long-press gesture for settings
             ToolbarItem(placement: .principal) {
                 HStack(spacing: 8) {
                     Image("balli-text-logo")
@@ -103,7 +105,9 @@ struct InformationRetrievalView: View {
                         .renderingMode(.original)
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 28, height: 28)
-
+                        .onLongPressGesture(minimumDuration: 0.5) {
+                            showingSettings = true
+                        }
                 }
             }
 
@@ -114,6 +118,8 @@ struct InformationRetrievalView: View {
                     Task {
                         await viewModel.startNewConversation()
                         searchQuery = ""
+                        displayedAnswerIds.removeAll()
+                        showScrollPadding = false
                     }
                 } label: {
                     Image(systemName: "plus.message")
@@ -139,6 +145,9 @@ struct InformationRetrievalView: View {
         }
         .sheet(isPresented: $showLibrary) {
             SearchLibraryView()
+        }
+        .sheet(isPresented: $showingSettings) {
+            AppSettingsView()
         }
     }
 

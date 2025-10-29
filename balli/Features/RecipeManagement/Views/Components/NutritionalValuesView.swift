@@ -2,18 +2,20 @@
 //  NutritionalValuesView.swift
 //  balli
 //
-//  Modal view displaying nutritional JSON values
-//  Glass morphism design with copy functionality
+//  Modal view displaying nutritional values with segmented picker
+//  Supports both per-100g and per-serving views
 //
 
 import SwiftUI
 
-/// Modal sheet displaying nutritional values in JSON format
+/// Modal sheet displaying nutritional values with tab switching
 struct NutritionalValuesView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
     let recipeName: String
+
+    // Per-100g values
     let calories: String
     let carbohydrates: String
     let fiber: String
@@ -22,57 +24,90 @@ struct NutritionalValuesView: View {
     let fat: String
     let glycemicLoad: String
 
+    // Per-serving values
+    let caloriesPerServing: String
+    let carbohydratesPerServing: String
+    let fiberPerServing: String
+    let sugarPerServing: String
+    let proteinPerServing: String
+    let fatPerServing: String
+    let glycemicLoadPerServing: String
+    let totalRecipeWeight: String
+
+    @State private var selectedTab = 0  // 0 = Porsiyon, 1 = 100g
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Recipe Name Header
-                    Text(recipeName)
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
+                    // Segmented Picker
+                    Picker("Nutrition Mode", selection: $selectedTab) {
+                        Text("Porsiyon").tag(0)
+                        Text("100g").tag(1)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.bottom, 8)
+
+                    // Info Text
+                    infoText
+                        .font(.system(size: 15, weight: .regular, design: .rounded))
+                        .foregroundColor(.secondary)
                         .padding(.bottom, 8)
+
+                    // Insulin-Glucose Curve Warning (only for Porsiyon tab)
+                    if selectedTab == 0 && shouldShowCurveWarning {
+                        InsulinGlucoseCurveWarningView(
+                            fatPerServing: Double(fatPerServing) ?? 0,
+                            proteinPerServing: Double(proteinPerServing) ?? 0,
+                            carbsPerServing: Double(carbohydratesPerServing) ?? 0,
+                            sugarPerServing: Double(sugarPerServing) ?? 0,
+                            fiberPerServing: Double(fiberPerServing) ?? 0,
+                            glycemicLoadPerServing: Double(glycemicLoadPerServing) ?? 0
+                        )
+                        .padding(.bottom, 12)
+                    }
 
                     // Nutritional Values Cards
                     VStack(spacing: 12) {
                         nutritionRow(
                             label: "Kalori",
-                            value: calories,
+                            value: displayedCalories,
                             unit: "kcal"
                         )
 
                         nutritionRow(
                             label: "Karbonhidrat",
-                            value: carbohydrates,
+                            value: displayedCarbohydrates,
                             unit: "g"
                         )
 
                         nutritionRow(
                             label: "Lif",
-                            value: fiber,
+                            value: displayedFiber,
                             unit: "g"
                         )
 
                         nutritionRow(
                             label: "Şeker",
-                            value: sugar,
+                            value: displayedSugar,
                             unit: "g"
                         )
 
                         nutritionRow(
                             label: "Protein",
-                            value: protein,
+                            value: displayedProtein,
                             unit: "g"
                         )
 
                         nutritionRow(
                             label: "Yağ",
-                            value: fat,
+                            value: displayedFat,
                             unit: "g"
                         )
 
                         nutritionRow(
                             label: "Glisemik Yük",
-                            value: glycemicLoad,
+                            value: displayedGlycemicLoad,
                             unit: ""
                         )
                     }
@@ -80,7 +115,7 @@ struct NutritionalValuesView: View {
                 .padding(20)
             }
             .background(Color(.systemBackground))
-            .navigationTitle("Besin Değerleri")
+            .navigationTitle(recipeName)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -91,6 +126,60 @@ struct NutritionalValuesView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Computed Properties
+
+    /// Check if we should show the curve warning
+    /// Only show when we have valid per-serving nutrition values
+    private var shouldShowCurveWarning: Bool {
+        // Need non-zero values for meaningful calculation
+        guard let fat = Double(fatPerServing), fat > 0 else { return false }
+        guard let carbs = Double(carbohydratesPerServing), carbs > 0 else { return false }
+        guard let gl = Double(glycemicLoadPerServing), gl > 0 else { return false }
+        return true
+    }
+
+    private var infoText: Text {
+        if selectedTab == 0 {
+            // Porsiyon tab
+            if !totalRecipeWeight.isEmpty && totalRecipeWeight != "0" {
+                return Text("1 porsiyon: ") + Text("\(totalRecipeWeight)g").fontWeight(.semibold)
+            } else {
+                return Text("1 porsiyon")
+            }
+        } else {
+            // 100g tab
+            return Text("Per 100g")
+        }
+    }
+
+    private var displayedCalories: String {
+        selectedTab == 0 ? caloriesPerServing : calories
+    }
+
+    private var displayedCarbohydrates: String {
+        selectedTab == 0 ? carbohydratesPerServing : carbohydrates
+    }
+
+    private var displayedFiber: String {
+        selectedTab == 0 ? fiberPerServing : fiber
+    }
+
+    private var displayedSugar: String {
+        selectedTab == 0 ? sugarPerServing : sugar
+    }
+
+    private var displayedProtein: String {
+        selectedTab == 0 ? proteinPerServing : protein
+    }
+
+    private var displayedFat: String {
+        selectedTab == 0 ? fatPerServing : fat
+    }
+
+    private var displayedGlycemicLoad: String {
+        selectedTab == 0 ? glycemicLoadPerServing : glycemicLoad
     }
 
     // MARK: - Components
@@ -120,23 +209,56 @@ struct NutritionalValuesView: View {
             }
         }
         .padding(16)
-        .balliTintedGlass(cornerRadius: 28)
-        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
+        .recipeGlass(tint: .warm, cornerRadius: 30)
+        .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
     }
 }
 
 // MARK: - Preview
 
-#Preview("With Values") {
+#Preview("With Both Values - Low Warning") {
     NutritionalValuesView(
         recipeName: "Izgara Tavuk Salatası",
+        // Per-100g
         calories: "165",
         carbohydrates: "8",
         fiber: "3",
         sugar: "2",
         protein: "31",
         fat: "3.6",
-        glycemicLoad: "4"
+        glycemicLoad: "4",
+        // Per-serving (assuming 350g total)
+        caloriesPerServing: "578",
+        carbohydratesPerServing: "28",
+        fiberPerServing: "10.5",
+        sugarPerServing: "7",
+        proteinPerServing: "108.5",
+        fatPerServing: "12.6",
+        glycemicLoadPerServing: "14",
+        totalRecipeWeight: "350"
+    )
+}
+
+#Preview("High Fat Recipe - Danger Warning") {
+    NutritionalValuesView(
+        recipeName: "Carbonara Makarna",
+        // Per-100g
+        calories: "180",
+        carbohydrates: "12",
+        fiber: "2",
+        sugar: "1",
+        protein: "8",
+        fat: "12",
+        glycemicLoad: "8",
+        // Per-serving (high fat = danger warning)
+        caloriesPerServing: "720",
+        carbohydratesPerServing: "48",
+        fiberPerServing: "8",
+        sugarPerServing: "4",
+        proteinPerServing: "32",
+        fatPerServing: "35",  // High fat triggers danger warning
+        glycemicLoadPerServing: "20",
+        totalRecipeWeight: "400"
     )
 }
 
@@ -149,6 +271,14 @@ struct NutritionalValuesView: View {
         sugar: "",
         protein: "",
         fat: "",
-        glycemicLoad: ""
+        glycemicLoad: "",
+        caloriesPerServing: "",
+        carbohydratesPerServing: "",
+        fiberPerServing: "",
+        sugarPerServing: "",
+        proteinPerServing: "",
+        fatPerServing: "",
+        glycemicLoadPerServing: "",
+        totalRecipeWeight: ""
     )
 }

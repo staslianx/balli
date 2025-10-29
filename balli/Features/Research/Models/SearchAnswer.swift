@@ -107,7 +107,7 @@ enum ResponseTier: String, Codable, Sendable {
         case .recall:
             return "clock.arrow.circlepath"
         case .model:
-            return "chevron.forward.dotted.chevron.forward"
+            return "bolt.fill"
         case .search:
             return "globe"
         case .research:

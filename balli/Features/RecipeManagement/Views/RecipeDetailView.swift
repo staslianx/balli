@@ -24,6 +24,7 @@ struct RecipeDetailView: View {
     @State private var generatedImageData: Data?
     @State private var showingShoppingConfirmation = false
     @State private var isCalculatingNutrition = false
+    @State private var nutritionCalculationProgress = 0  // NEW: Progress percentage (0-100)
 
     // Inline editing state
     @State private var isEditing = false
@@ -178,18 +179,29 @@ struct RecipeDetailView: View {
                 }
             }
         }
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarBackground(.automatic, for: .navigationBar)
         .sheet(isPresented: $showingNutritionalValues) {
             NutritionalValuesView(
                 recipeName: recipeData.recipeName,
+                // Per-100g values
                 calories: String(format: "%.0f", recipeData.recipe.calories),
                 carbohydrates: String(format: "%.1f", recipeData.recipe.totalCarbs),
                 fiber: String(format: "%.1f", recipeData.recipe.fiber),
                 sugar: String(format: "%.1f", recipeData.recipe.sugars),
                 protein: String(format: "%.1f", recipeData.recipe.protein),
                 fat: String(format: "%.1f", recipeData.recipe.totalFat),
-                glycemicLoad: String(format: "%.0f", recipeData.recipe.glycemicLoad)
+                glycemicLoad: String(format: "%.0f", recipeData.recipe.glycemicLoad),
+                // Per-serving values
+                caloriesPerServing: String(format: "%.0f", recipeData.recipe.caloriesPerServing),
+                carbohydratesPerServing: String(format: "%.1f", recipeData.recipe.carbsPerServing),
+                fiberPerServing: String(format: "%.1f", recipeData.recipe.fiberPerServing),
+                sugarPerServing: String(format: "%.1f", recipeData.recipe.sugarsPerServing),
+                proteinPerServing: String(format: "%.1f", recipeData.recipe.proteinPerServing),
+                fatPerServing: String(format: "%.1f", recipeData.recipe.fatPerServing),
+                glycemicLoadPerServing: String(format: "%.0f", recipeData.recipe.glycemicLoadPerServing),
+                totalRecipeWeight: String(format: "%.0f", recipeData.recipe.totalRecipeWeight)
             )
+            .presentationDetents([.large])
         }
         .sheet(isPresented: $showingNoteDetail) {
             RecipeNoteDetailView(
@@ -198,13 +210,6 @@ struct RecipeDetailView: View {
             )
             .presentationDetents([.fraction(0.6)])
             .presentationDragIndicator(.visible)
-        }
-        .onChange(of: isCalculatingNutrition) { _, isCalculating in
-            // When calculation completes (isCalculating becomes false) and we have values, show modal
-            if !isCalculating && recipeData.recipe.calories > 0 {
-                logger.info("✅ [NUTRITION] Calculation complete - opening modal")
-                showingNutritionalValues = true
-            }
         }
     }
 
@@ -349,7 +354,8 @@ struct RecipeDetailView: View {
             actions: [.favorite, .values, .shopping],
             activeStates: [recipeData.recipe.isFavorite, false, false],
             loadingStates: [false, isCalculatingNutrition, false],
-            completedStates: [false, hasNutritionValues, false]
+            completedStates: [false, hasNutritionValues, false],
+            progressStates: [0, nutritionCalculationProgress, 0]
         ) { action in
             handleAction(action)
         }
@@ -688,6 +694,10 @@ struct RecipeDetailView: View {
 
     private func calculateNutrition() {
         isCalculatingNutrition = true
+        nutritionCalculationProgress = 1  // Start at 1%
+
+        // Start progress animation (1% to 100% over ~30 seconds)
+        startProgressAnimation()
 
         Task {
             do {
@@ -722,6 +732,7 @@ struct RecipeDetailView: View {
 
                 // Update Core Data entity with calculated values
                 await MainActor.run {
+                    // Per-100g values
                     recipeData.recipe.calories = nutritionData.calories
                     recipeData.recipe.totalCarbs = nutritionData.carbohydrates
                     recipeData.recipe.fiber = nutritionData.fiber
@@ -730,22 +741,59 @@ struct RecipeDetailView: View {
                     recipeData.recipe.totalFat = nutritionData.fat
                     recipeData.recipe.glycemicLoad = nutritionData.glycemicLoad
 
+                    // Per-serving values (entire recipe = 1 serving)
+                    recipeData.recipe.caloriesPerServing = nutritionData.caloriesPerServing
+                    recipeData.recipe.carbsPerServing = nutritionData.carbohydratesPerServing
+                    recipeData.recipe.fiberPerServing = nutritionData.fiberPerServing
+                    recipeData.recipe.sugarsPerServing = nutritionData.sugarPerServing
+                    recipeData.recipe.proteinPerServing = nutritionData.proteinPerServing
+                    recipeData.recipe.fatPerServing = nutritionData.fatPerServing
+                    recipeData.recipe.glycemicLoadPerServing = nutritionData.glycemicLoadPerServing
+                    recipeData.recipe.totalRecipeWeight = nutritionData.totalRecipeWeight
+
                     // Save to Core Data
                     do {
                         try viewContext.save()
                         logger.info("✅ [NUTRITION] Calculation complete and saved to Core Data")
+                        logger.info("   Per-100g: \(nutritionData.calories) kcal")
+                        logger.info("   Per-serving: \(nutritionData.caloriesPerServing) kcal, \(nutritionData.totalRecipeWeight)g total")
                     } catch {
                         logger.error("❌ [NUTRITION] Failed to save nutrition data: \(error.localizedDescription)")
                     }
 
                     isCalculatingNutrition = false
+                    nutritionCalculationProgress = 100  // Set to 100% on completion
                 }
 
             } catch {
                 await MainActor.run {
                     isCalculatingNutrition = false
+                    nutritionCalculationProgress = 0  // Reset on error
                     logger.error("❌ [NUTRITION] Calculation failed: \(error.localizedDescription)")
                 }
+            }
+        }
+    }
+
+    /// Animate progress from 1% to 100% over time
+    private func startProgressAnimation() {
+        Task { @MainActor in
+            // Increment progress smoothly over ~66 seconds (typical API call duration: 60-70s)
+            for i in 1...100 {
+                guard isCalculatingNutrition else { break }  // Stop if calculation completes early
+
+                nutritionCalculationProgress = i
+
+                // Variable speed: faster at start (excitement), slower near end (anticipation)
+                let delay: TimeInterval = if i < 30 {
+                    0.4  // Fast (30% in 12s)
+                } else if i < 70 {
+                    0.6  // Medium (40% in 24s)
+                } else {
+                    1.0  // Slow (30% in 30s)
+                }
+
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             }
         }
     }

@@ -56,6 +56,8 @@ const error_logger_1 = require("./utils/error-logger");
 const research_prompts_1 = require("./research-prompts");
 // Research helper functions
 const research_helpers_1 = require("./utils/research-helpers");
+// Memory context helper
+const memory_context_1 = require("./utils/memory-context");
 // ===== THINKING TRIGGERS (Currently Disabled for Cost Optimization) =====
 // These patterns were used to conditionally enable extended thinking for complex queries
 // Commenting out since thinking is now disabled across all tiers for cost savings
@@ -173,23 +175,35 @@ async function streamTier1(res, question, userId, diabetesProfile, conversationH
     if (conversationHistory && conversationHistory.length > 0) {
         console.log(`🧠 [TIER1-MEMORY] Using conversation history: ${conversationHistory.length} messages`);
     }
-    // ===== STEP 1: Build system prompt =====
+    // ===== STEP 1: Fetch cross-conversation memory context =====
+    writeSSE(res, { type: 'searching_memory', message: 'Önceki konuşmalar kontrol ediliyor...' });
+    const memoryContext = await (0, memory_context_1.getMemoryContext)(userId);
+    const formattedMemory = (0, memory_context_1.formatMemoryContext)(memoryContext);
+    if (formattedMemory) {
+        console.log(`🧠 [TIER1-MEMORY] Using cross-conversation memory: ${memoryContext.factCount} facts, ${memoryContext.summaryCount} summaries`);
+    }
+    // ===== STEP 2: Build system prompt =====
     let systemPrompt = (0, research_prompts_1.buildResearchSystemPrompt)({ tier: 1 });
-    // ===== STEP 2: Build prompt with conversation history =====
-    let prompt = question;
-    // If conversation history exists, prepend it to the prompt
+    // ===== STEP 3: Build prompt with memory + conversation history =====
+    let prompt = '';
+    // Add cross-conversation memory first (long-term context)
+    if (formattedMemory) {
+        prompt += formattedMemory;
+    }
+    // Add in-conversation history (session context)
     if (conversationHistory && conversationHistory.length > 0) {
-        let conversationContext = '\n\n--- CONVERSATION HISTORY ---\n';
+        prompt += '\n--- ŞU ANKİ KONUŞMA ---\n';
         for (const msg of conversationHistory) {
             const roleLabel = msg.role === 'user' ? 'Kullanıcı' : 'Asistan';
-            conversationContext += `\n${roleLabel}: ${msg.content}\n`;
+            prompt += `\n${roleLabel}: ${msg.content}\n`;
         }
-        conversationContext += '\n--- CURRENT QUESTION ---\n';
-        prompt = conversationContext + question;
+        prompt += '\n--- YENİ SORU ---\n';
     }
+    // Add current question
+    prompt += question;
     writeSSE(res, { type: 'generating', message: 'Yanıt oluşturuluyor...' });
     // ===== STEP 3: Call ai.generate() with full conversation context =====
-    const { stream } = await genkit_instance_1.ai.generateStream({
+    const { stream, response } = await genkit_instance_1.ai.generateStream({
         model: (0, providers_1.getTier1Model)(),
         system: systemPrompt,
         prompt: prompt,
@@ -210,8 +224,12 @@ async function streamTier1(res, question, userId, diabetesProfile, conversationH
     });
     // ===== STEP 3: Stream response word-by-word =====
     let fullText = '';
+    let chunkCount = 0;
     for await (const chunk of stream) {
         if (chunk.text) {
+            chunkCount++;
+            // LOG EVERY CHUNK from Gemini
+            console.log(`🔍 [T1-CHUNK-${chunkCount}] Length: ${chunk.text.length}, Starts: "${chunk.text.slice(0, 20)}", Ends: "${chunk.text.slice(-20)}"`);
             const words = chunk.text.split(/(\s+)/);
             for (const word of words) {
                 if (word.length > 0) {
@@ -223,7 +241,18 @@ async function streamTier1(res, question, userId, diabetesProfile, conversationH
             }
         }
     }
-    console.log(`✅ [TIER1-STATELESS] Completed. Response: ${fullText.length} chars`);
+    // AFTER stream completes - CHECK FINISH REASON
+    const finalResponse = await response;
+    const finishReason = finalResponse?.candidates?.[0]?.finishReason || 'unknown';
+    const finishMessage = finalResponse?.candidates?.[0]?.finishMessage || 'none';
+    console.log(`✅ [TIER1-STATELESS] Completed. Response: ${fullText.length} chars, Chunks: ${chunkCount}`);
+    console.log(`🔍 [TIER1-FINISH] Finish Reason: ${finishReason}`);
+    console.log(`🔍 [TIER1-FINISH] Finish Message: ${finishMessage}`);
+    console.log(`🔍 [TIER1-FINISH] Last 100 chars: "${fullText.slice(-100)}"`);
+    // If not natural stop, log warning
+    if (finishReason !== 'STOP') {
+        console.error(`🚨 [TIER1-ABNORMAL] Stream ended with reason: ${finishReason} - ${finishMessage}`);
+    }
 }
 /**
  * Stream Tier 2 Web Search response with conversation history
@@ -239,6 +268,13 @@ async function streamTier2Hybrid(res, question, userId, diabetesProfile, convers
     console.log(`🔵 [T2] Processing web search for user ${userId}`);
     if (conversationHistory && conversationHistory.length > 0) {
         console.log(`🧠 [T2-MEMORY] Using conversation history: ${conversationHistory.length} messages`);
+    }
+    // ===== STEP 0.5: Fetch cross-conversation memory context =====
+    writeSSE(res, { type: 'searching_memory', message: 'Önceki konuşmalar kontrol ediliyor...' });
+    const memoryContext = await (0, memory_context_1.getMemoryContext)(userId);
+    const formattedMemory = (0, memory_context_1.formatMemoryContext)(memoryContext);
+    if (formattedMemory) {
+        console.log(`🧠 [T2-MEMORY] Using cross-conversation memory: ${memoryContext.factCount} facts, ${memoryContext.summaryCount} summaries`);
     }
     // ===== STEP 1: Build static system prompt =====
     const systemPrompt = (0, research_prompts_1.buildResearchSystemPrompt)({ tier: 2 });
@@ -283,11 +319,15 @@ async function streamTier2Hybrid(res, question, userId, diabetesProfile, convers
     if (exaResults.length > 0) {
         researchContext += formatExaForAI(exaResults, true) + '\n\n';
     }
-    // ===== STEP 5: Build prompt with research context and conversation history =====
+    // ===== STEP 5: Build prompt with memory + research context + conversation history =====
     let userPrompt = '';
+    // Add cross-conversation memory first (long-term context)
+    if (formattedMemory) {
+        userPrompt += formattedMemory;
+    }
     // If conversation history exists, prepend it
     if (conversationHistory && conversationHistory.length > 0) {
-        userPrompt += '\n\n--- CONVERSATION HISTORY ---\n';
+        userPrompt += '\n--- ŞU ANKİ KONUŞMA ---\n';
         for (const msg of conversationHistory) {
             const roleLabel = msg.role === 'user' ? 'Kullanıcı' : 'Asistan';
             userPrompt += `\n${roleLabel}: ${msg.content}\n`;
@@ -352,8 +392,12 @@ async function streamTier2Hybrid(res, question, userId, diabetesProfile, convers
     // ===== STEP 7: Stream the synthesis =====
     let fullText = '';
     let tokenCount = 0;
+    let chunkCount = 0;
     for await (const chunk of stream) {
         if (chunk.text) {
+            chunkCount++;
+            // LOG EVERY CHUNK from Gemini
+            console.log(`🔍 [T2-CHUNK-${chunkCount}] Length: ${chunk.text.length}, Starts: "${chunk.text.slice(0, 20)}", Ends: "${chunk.text.slice(-20)}"`);
             const words = chunk.text.split(/(\s+)/);
             for (const word of words) {
                 if (word.length > 0) {
@@ -371,7 +415,17 @@ async function streamTier2Hybrid(res, question, userId, diabetesProfile, convers
     }
     const finalResponse = await response;
     const thinkingSummary = extractReasoningFromGenerateResponse(finalResponse);
-    console.log(`✅ [T2-STATELESS] Stream completed. Tokens: ${tokenCount}`);
+    // CHECK FINISH REASON (using existing finalResponse variable)
+    const finishReason = finalResponse?.candidates?.[0]?.finishReason || 'unknown';
+    const finishMessage = finalResponse?.candidates?.[0]?.finishMessage || 'none';
+    console.log(`✅ [T2-STATELESS] Stream completed. Response: ${fullText.length} chars, Chunks: ${chunkCount}, Tokens: ${tokenCount}`);
+    console.log(`🔍 [T2-FINISH] Finish Reason: ${finishReason}`);
+    console.log(`🔍 [T2-FINISH] Finish Message: ${finishMessage}`);
+    console.log(`🔍 [T2-FINISH] Last 100 chars: "${fullText.slice(-100)}"`);
+    // If not natural stop, log warning
+    if (finishReason !== 'STOP') {
+        console.error(`🚨 [T2-ABNORMAL] Stream ended with reason: ${finishReason} - ${finishMessage}`);
+    }
     // Flush tokens before complete event
     res.write(': flush-tokens\n\n');
     await new Promise((resolve) => {
@@ -422,6 +476,13 @@ async function streamDeepResearch(res, question, userId, diabetesProfile, conver
     if (conversationHistory && conversationHistory.length > 0) {
         console.log(`🧠 [T3-MEMORY] Using conversation history: ${conversationHistory.length} messages`);
     }
+    // ===== STEP 0.5: Fetch cross-conversation memory context =====
+    writeSSE(res, { type: 'searching_memory', message: 'Önceki konuşmalar kontrol ediliyor...' });
+    const memoryContext = await (0, memory_context_1.getMemoryContext)(userId);
+    const formattedMemory = (0, memory_context_1.formatMemoryContext)(memoryContext);
+    if (formattedMemory) {
+        console.log(`🧠 [T3-MEMORY] Using cross-conversation memory: ${memoryContext.factCount} facts, ${memoryContext.summaryCount} summaries`);
+    }
     // ===== STEP 1: Build static system prompt =====
     const systemPrompt = (0, research_prompts_1.buildResearchSystemPrompt)({ tier: 3 });
     // ===== STEP 2: Execute deep research V2 =====
@@ -431,12 +492,16 @@ async function streamDeepResearch(res, question, userId, diabetesProfile, conver
         `${researchResults.totalSources} sources`);
     // ===== STEP 3: Format sources =====
     const formattedSources = (0, research_helpers_1.formatSourcesWithTypes)(researchResults.allSources.exa, researchResults.allSources.pubmed, researchResults.allSources.medrxiv, researchResults.allSources.clinicalTrials);
-    // ===== STEP 4: Build prompt with research context and conversation history =====
+    // ===== STEP 4: Build prompt with memory + research context + conversation history =====
     const researchContext = formatResearchForSynthesis(researchResults);
     let userPrompt = '';
+    // Add cross-conversation memory first (long-term context)
+    if (formattedMemory) {
+        userPrompt += formattedMemory;
+    }
     // If conversation history exists, prepend it
     if (conversationHistory && conversationHistory.length > 0) {
-        userPrompt += '\n\n--- CONVERSATION HISTORY ---\n';
+        userPrompt += '\n--- ŞU ANKİ KONUŞMA ---\n';
         for (const msg of conversationHistory) {
             const roleLabel = msg.role === 'user' ? 'Kullanıcı' : 'Asistan';
             userPrompt += `\n${roleLabel}: ${msg.content}\n`;
@@ -476,8 +541,12 @@ async function streamDeepResearch(res, question, userId, diabetesProfile, conver
     let fullText = '';
     let tokenCount = 0;
     let firstChunk = true;
+    let chunkCount = 0;
     for await (const chunk of stream) {
         if (chunk.text) {
+            chunkCount++;
+            // LOG EVERY CHUNK from Gemini
+            console.log(`🔍 [T3-CHUNK-${chunkCount}] Length: ${chunk.text.length}, Starts: "${chunk.text.slice(0, 20)}", Ends: "${chunk.text.slice(-20)}"`);
             if (firstChunk) {
                 writeSSE(res, { type: 'generating', message: 'Derinlemesine araştırma sentezleniyor...' });
                 firstChunk = false;
@@ -498,7 +567,18 @@ async function streamDeepResearch(res, question, userId, diabetesProfile, conver
             }
         }
     }
-    console.log(`✅ [T3-STATELESS] Stream completed. Tokens: ${tokenCount}`);
+    // CHECK FINISH REASON (await response to get finish reason)
+    const finalT3Response = await response;
+    const finishReason = finalT3Response?.candidates?.[0]?.finishReason || 'unknown';
+    const finishMessage = finalT3Response?.candidates?.[0]?.finishMessage || 'none';
+    console.log(`✅ [T3-STATELESS] Stream completed. Response: ${fullText.length} chars, Chunks: ${chunkCount}, Tokens: ${tokenCount}`);
+    console.log(`🔍 [T3-FINISH] Finish Reason: ${finishReason}`);
+    console.log(`🔍 [T3-FINISH] Finish Message: ${finishMessage}`);
+    console.log(`🔍 [T3-FINISH] Last 100 chars: "${fullText.slice(-100)}"`);
+    // If not natural stop, log warning
+    if (finishReason !== 'STOP') {
+        console.error(`🚨 [T3-ABNORMAL] Stream ended with reason: ${finishReason} - ${finishMessage}`);
+    }
     // Flush tokens before complete event
     res.write(': flush-tokens\n\n');
     await new Promise((resolve) => {

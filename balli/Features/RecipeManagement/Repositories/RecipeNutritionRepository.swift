@@ -124,7 +124,26 @@ struct RecipeNutritionData: Codable {
     let glycemicLoad: Double
     let nutritionCalculation: NutritionCalculationDetails?
 
-    /// Convert to string values for RecipeFormState compatibility
+    /// Calculate per-serving values (entire recipe = 1 serving)
+    /// Multiplier = (totalRecipeWeight / 100) to convert from per-100g to per-serving
+    private var multiplier: Double {
+        guard let weight = nutritionCalculation?.totalRecipeWeight, weight > 0 else {
+            return 1.0
+        }
+        return weight / 100.0
+    }
+
+    /// Per-serving nutrition values (entire recipe)
+    var caloriesPerServing: Double { calories * multiplier }
+    var carbohydratesPerServing: Double { carbohydrates * multiplier }
+    var fiberPerServing: Double { fiber * multiplier }
+    var sugarPerServing: Double { sugar * multiplier }
+    var proteinPerServing: Double { protein * multiplier }
+    var fatPerServing: Double { fat * multiplier }
+    var glycemicLoadPerServing: Double { glycemicLoad * multiplier }
+    var totalRecipeWeight: Double { nutritionCalculation?.totalRecipeWeight ?? 0 }
+
+    /// Convert to string values for RecipeFormState compatibility (per-100g values)
     func toFormState() -> (
         calories: String,
         carbohydrates: String,
@@ -142,6 +161,29 @@ struct RecipeNutritionData: Codable {
             protein: String(format: "%.1f", protein),
             fat: String(format: "%.1f", fat),
             glycemicLoad: String(format: "%.0f", glycemicLoad)
+        )
+    }
+
+    /// Convert per-serving values to strings for display
+    func toFormStatePerServing() -> (
+        calories: String,
+        carbohydrates: String,
+        fiber: String,
+        sugar: String,
+        protein: String,
+        fat: String,
+        glycemicLoad: String,
+        totalRecipeWeight: String
+    ) {
+        return (
+            calories: String(format: "%.0f", caloriesPerServing),
+            carbohydrates: String(format: "%.1f", carbohydratesPerServing),
+            fiber: String(format: "%.1f", fiberPerServing),
+            sugar: String(format: "%.1f", sugarPerServing),
+            protein: String(format: "%.1f", proteinPerServing),
+            fat: String(format: "%.1f", fatPerServing),
+            glycemicLoad: String(format: "%.0f", glycemicLoadPerServing),
+            totalRecipeWeight: String(format: "%.0f", totalRecipeWeight)
         )
     }
 }

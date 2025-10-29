@@ -279,6 +279,7 @@ struct NutritionLabelView: View {
                     impactLevel: currentLevel,
                     impactScore: result.score
                 )
+                .offset(x:-13,y:9)
             } else if showIcon {
                 // Fallback to icon if calculation fails
                 Image(systemName: iconName)

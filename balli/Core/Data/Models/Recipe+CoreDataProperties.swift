@@ -27,7 +27,7 @@ extension Recipe: Identifiable {
     @NSManaged public var cookTime: Int16
     @NSManaged public var servings: Int16
 
-    // MARK: - Nutrition Information
+    // MARK: - Nutrition Information (per 100g)
     @NSManaged public var calories: Double
     @NSManaged public var totalCarbs: Double
     @NSManaged public var fiber: Double
@@ -35,6 +35,16 @@ extension Recipe: Identifiable {
     @NSManaged public var protein: Double
     @NSManaged public var totalFat: Double
     @NSManaged public var glycemicLoad: Double
+
+    // MARK: - Nutrition Information (per serving / entire recipe)
+    @NSManaged public var caloriesPerServing: Double
+    @NSManaged public var carbsPerServing: Double
+    @NSManaged public var fiberPerServing: Double
+    @NSManaged public var sugarsPerServing: Double
+    @NSManaged public var proteinPerServing: Double
+    @NSManaged public var fatPerServing: Double
+    @NSManaged public var glycemicLoadPerServing: Double
+    @NSManaged public var totalRecipeWeight: Double
 
     // MARK: - Recipe Metadata
     @NSManaged public var source: String

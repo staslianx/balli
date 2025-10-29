@@ -184,14 +184,14 @@ final class GlucoseChartViewModel: ObservableObject {
             dataSource = nil
             lastLoadTime = Date()
 
-            // Calculate 6am-6am time range (24 hours)
+            // Calculate last 6 hours time range
             guard let timeRange = calculateTimeRange() else {
                 errorMessage = "Tarih hesaplama hatası"
                 isLoading = false
                 return
             }
 
-            logger.debug("Time range: \(timeRange.start) to \(timeRange.end) (24 hours, 6am-6am)")
+            logger.debug("Time range: \(timeRange.start) to \(timeRange.end) (last 6 hours)")
             logger.debug("Current time: \(Date())")
 
             // Debug: Log data source decision
@@ -251,31 +251,16 @@ final class GlucoseChartViewModel: ObservableObject {
         }
     }
 
-    /// Calculate chart time range (6am to 6am, 24 hours)
+    /// Calculate chart time range (last 6 hours)
     func calculateTimeRange() -> (start: Date, end: Date)? {
-        let calendar = Calendar.current
         let now = Date()
+        let calendar = Calendar.current
 
-        var components = calendar.dateComponents([.year, .month, .day], from: now)
-        components.hour = 6
-        components.minute = 0
-        components.second = 0
-
-        guard let today6am = calendar.date(from: components) else {
+        guard let startTime = calendar.date(byAdding: .hour, value: -6, to: now) else {
             return nil
         }
 
-        let startTime: Date
-        if now < today6am {
-            // Before 6am today, show yesterday 6am to today 6am
-            startTime = calendar.date(byAdding: .day, value: -1, to: today6am) ?? today6am
-        } else {
-            // After 6am today, show today 6am to tomorrow 6am
-            startTime = today6am
-        }
-
-        let endTime = calendar.date(byAdding: .day, value: 1, to: startTime) ?? startTime
-        return (startTime, endTime)
+        return (startTime, now)
     }
 
     /// Calculate average glucose value from current data
@@ -339,16 +324,11 @@ final class GlucoseChartViewModel: ObservableObject {
 
             logger.info("📦 Fetched \(readings.count) readings from CoreData")
 
-            // Convert CoreData readings to chart data points with safety checks
+            // Convert readings to chart data points
+            // Note: readings are now HealthGlucoseReading value types (safe across threads)
             let points = readings
-                .compactMap { reading -> GlucoseDataPoint? in
-                    // Safety check: ensure the object is valid and not a fault
-                    guard !reading.isFault,
-                          !reading.isDeleted else {
-                        logger.warning("⚠️ Skipping invalid/deleted reading")
-                        return nil
-                    }
-                    return GlucoseDataPoint(time: reading.timestamp, value: reading.value)
+                .map { reading in
+                    GlucoseDataPoint(time: reading.timestamp, value: reading.value)
                 }
                 .sorted { $0.time < $1.time }
 
@@ -558,7 +538,7 @@ final class GlucoseChartViewModel: ObservableObject {
             if !glucoseData.isEmpty {
                 dataSource = "HealthKit"
             } else {
-                errorMessage = "Son 24 saatte kan şekeri verisi bulunamadı"
+                errorMessage = "Son 6 saatte kan şekeri verisi bulunamadı"
             }
         } catch let error as HealthKitError {
             // Handle actor-level debouncing/reentrancy gracefully

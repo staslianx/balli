@@ -85,21 +85,12 @@ const T2_TRIGGER_PATTERNS: RegExp[] = [
   /doğru\s+mu/i, /kontrol\s+eder\s+misin/i
 ];
 
-// T3 Deep Research triggers - disabled while T3 is deactivated
-// const T3_EXPLICIT_TRIGGERS: RegExp[] = [
-//   /derinlemesine\s+araştır/i,
-//   /derinlemesine\s+.*araştırma/i,
-//   /dikkatlice\s+araştır/i,
-//   /kapsamlı\s+araştır/i,
-//   /kapsamlı\s+.*araştırma/i,
-//   /detaylı\s+araştır/i,
-//   /detaylı\s+.*araştırma/i,
-//   /thoroughly\s+research/i,
-//   /comprehensive\s+research/i,
-//   /in-depth\s+research/i,
-//   /deep\s+research/i,
-//   /deep\s+dive/i
-// ];
+// T3 Deep Research triggers - activated with "derinleş" keyword
+const T3_EXPLICIT_TRIGGERS: RegExp[] = [
+  /derinleş/i  // Primary trigger: "derinleş", "derinleşin", "derinleştirelim" etc.
+  // Kept simple - user just says "derinleş" to activate T3
+  // Future: can add more patterns if needed
+];
 
 /**
  * Detects if user query is asking about past research sessions
@@ -138,10 +129,10 @@ function extractSearchTerms(question: string): string {
 //   return T2_TRIGGER_PATTERNS.some((re) => re.test(text));
 // }
 
-// T3 trigger matching - disabled while T3 is deactivated
-// function matchesT3Triggers(text: string): boolean {
-//   return T3_EXPLICIT_TRIGGERS.some((re) => re.test(text));
-// }
+// T3 trigger matching - activated
+function matchesT3Triggers(text: string): boolean {
+  return T3_EXPLICIT_TRIGGERS.some((re) => re.test(text));
+}
 
 /**
  * Few-shot examples for 3-tier classification (Turkish examples)
@@ -221,9 +212,9 @@ ExplicitDeepRequest: true
 Gerekçe: "detaylı araştırma" ifadesi açık bir deep research isteği.
 `;
 
-const SYSTEM_PROMPT = `You are routing a diabetes question for Dilara using the 2-TIER SYSTEM.
+const SYSTEM_PROMPT = `You are routing a diabetes question for Dilara using the 3-TIER SYSTEM.
 
-TIER SELECTION LOGIC (T3 CURRENTLY DISABLED):
+TIER SELECTION LOGIC:
 
 T1 (MODEL - DEFAULT):
 - Definitions, facts, how things work
@@ -239,15 +230,19 @@ T2 (HYBRID RESEARCH - Only when user explicitly says "araştır"):
 - User asks to verify information online
 - Model: Gemini 2.5 Flash + thinking + 10 sources (5 Exa + 5 API)
 
-NOTE: T3 (DEEP RESEARCH) is currently DISABLED. Do NOT select tier 3 - only choose tier 1 or tier 2.
+T3 (DEEP RESEARCH - Only when user explicitly says "derinleş"):
+- When user explicitly says "derinleş" (deep research)
+- Complex medical topics requiring comprehensive analysis
+- User wants maximum depth with 25+ sources
+- Model: Gemini 2.5 Pro + multi-round research + 25 sources
 
-KEY PRINCIPLE: Default to T1 (MODEL) for all questions. ONLY use T2 when user explicitly says "araştır" or clearly requests web research.
+KEY PRINCIPLE: Default to T1 (MODEL) for all questions. ONLY use T2 when user says "araştır", ONLY use T3 when user says "derinleş".
 
 ${FEW_SHOT_EXAMPLES}
 
 Respond with ONLY valid JSON in this format:
 {
-  "tier": 1 or 2 (DO NOT USE 3 - T3 is disabled),
+  "tier": 1, 2, or 3,
   "reasoning": "Why you chose this tier (Turkish)",
   "confidence": 0.0 to 1.0
 }`;
@@ -345,22 +340,17 @@ export async function routeQuestion(input: RouterInput): Promise<RouterOutput> {
         classification.tier = 1;
       }
 
-      // Guardrail 1: T3 DEACTIVATED - Always downgrade to T2
-      // T3 code remains for future reactivation but is currently disabled
+      // Guardrail 1: T3 validation - only allow if user said "derinleş"
       if (classification.tier === 3) {
-        console.log('🔽 [ROUTER] T3 DEACTIVATED: Downgrading T3 → T2 (T3 currently disabled)');
-        classification.tier = 2;
-        classification.explicitDeepRequest = false;
-        // Original T3 logic (commented for future reactivation):
-        // const hasExplicitTrigger = matchesT3Triggers(input.question);
-        // if (!hasExplicitTrigger) {
-        //   console.log('🔽 [ROUTER] Downgrading T3 → T2: No explicit deep research request found');
-        //   classification.tier = 2;
-        //   classification.explicitDeepRequest = false;
-        // } else {
-        //   classification.explicitDeepRequest = true;
-        //   console.log('✅ [ROUTER] T3 approved: Explicit deep research request detected');
-        // }
+        const hasExplicitTrigger = matchesT3Triggers(input.question);
+        if (!hasExplicitTrigger) {
+          console.log('🔽 [ROUTER] Downgrading T3 → T2: User did not say "derinleş"');
+          classification.tier = 2;
+          classification.explicitDeepRequest = false;
+        } else {
+          classification.explicitDeepRequest = true;
+          console.log('✅ [ROUTER] T3 approved: User said "derinleş" - activating deep research');
+        }
       }
 
       // Guardrail 2: Downgrade T2 to T1 if user didn't say "araştır"

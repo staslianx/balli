@@ -64,7 +64,7 @@ if (!admin.apps.length) {
 // Chat API (sessions, multi-turn) available through beta import
 exports.ai = (0, beta_1.genkit)({
     plugins: [(0, providers_1.getProviderConfig)()],
-    promptDir: './prompts'
+    promptDir: './prompts' // Works in both dev (src/genkit-instance.ts) and prod (lib/genkit-instance.js with lib/prompts/)
 });
 // Export Firestore instance for database operations (safe now after initialization)
 exports.db = (0, firestore_1.getFirestore)();

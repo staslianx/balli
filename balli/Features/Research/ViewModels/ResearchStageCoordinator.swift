@@ -136,4 +136,14 @@ final class ResearchStageCoordinator {
         currentPlans.removeValue(forKey: answerId)
         // Note: Don't remove completedRounds - they're preserved for the final answer
     }
+
+    /// Clear all state when starting a new conversation
+    func clearAllState() {
+        currentStages.removeAll()
+        shouldHoldStream.removeAll()
+        stageManagers.removeAll()
+        currentPlans.removeAll()
+        completedRounds.removeAll()
+        logger.info("✅ Cleared all stage coordinator state")
+    }
 }

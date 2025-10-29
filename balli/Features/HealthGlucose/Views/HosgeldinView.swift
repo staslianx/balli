@@ -95,7 +95,9 @@ struct HosgeldinView: View {
                     ManualEntryView()
                 }
                 .fullScreenCover(isPresented: $viewModel.showingRecipeEntry) {
-                    RecipeGenerationView(viewContext: viewContext)
+                    NavigationStack {
+                        RecipeGenerationView(viewContext: viewContext)
+                    }
                 }
                 .sheet(isPresented: $viewModel.showingVoiceInput) {
                     VoiceInputView()
@@ -161,7 +163,9 @@ struct HosgeldinView: View {
                                 healthKitPermissions: healthKitPermissions
                             )
                             .padding(.vertical, 24)
-                            .balliTintedGlass(cornerRadius: ResponsiveDesign.CornerRadius.card)
+                            .background(Color(.systemBackground))
+                            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                            .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
                             .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
                             .frame(width: geometry.size.width - ResponsiveDesign.Spacing.medium * 2)
                             .id(0)
@@ -174,7 +178,9 @@ struct HosgeldinView: View {
                             // Glucose Card
                             GlucoseChartCard(viewModel: viewModel.glucoseChartViewModel)
                                 .padding(.vertical, 24)
-                                .balliTintedGlass(cornerRadius: ResponsiveDesign.CornerRadius.card)
+                                .background(Color(.systemBackground))
+                                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                                .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
                                 .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
                                 .frame(width: geometry.size.width - ResponsiveDesign.Spacing.medium * 2)
                                 .id(1)

@@ -56,6 +56,7 @@ public class RecipeViewModel: ObservableObject {
     // MARK: - Nutrition Calculation State
     @Published public var isCalculatingNutrition = false
     @Published public var nutritionCalculationError: String?
+    @Published public var nutritionCalculationProgress = 0  // NEW: Progress percentage (0-100)
 
     // MARK: - Combine
     private var cancellables = Set<AnyCancellable>()
@@ -131,6 +132,48 @@ public class RecipeViewModel: ObservableObject {
     public var glycemicLoad: String {
         get { formState.glycemicLoad }
         set { formState.glycemicLoad = newValue }
+    }
+
+    // MARK: - Per-Serving Nutrition Values
+
+    public var caloriesPerServing: String {
+        get { formState.caloriesPerServing }
+        set { formState.caloriesPerServing = newValue }
+    }
+
+    public var carbohydratesPerServing: String {
+        get { formState.carbohydratesPerServing }
+        set { formState.carbohydratesPerServing = newValue }
+    }
+
+    public var fiberPerServing: String {
+        get { formState.fiberPerServing }
+        set { formState.fiberPerServing = newValue }
+    }
+
+    public var proteinPerServing: String {
+        get { formState.proteinPerServing }
+        set { formState.proteinPerServing = newValue }
+    }
+
+    public var fatPerServing: String {
+        get { formState.fatPerServing }
+        set { formState.fatPerServing = newValue }
+    }
+
+    public var sugarPerServing: String {
+        get { formState.sugarPerServing }
+        set { formState.sugarPerServing = newValue }
+    }
+
+    public var glycemicLoadPerServing: String {
+        get { formState.glycemicLoadPerServing }
+        set { formState.glycemicLoadPerServing = newValue }
+    }
+
+    public var totalRecipeWeight: String {
+        get { formState.totalRecipeWeight }
+        set { formState.totalRecipeWeight = newValue }
     }
 
     // MARK: - Adjusted Nutrition Values (Performance Optimized with Caching)
@@ -611,6 +654,10 @@ public class RecipeViewModel: ObservableObject {
         // Reset error state
         nutritionCalculationError = nil
         isCalculatingNutrition = true
+        nutritionCalculationProgress = 1  // Start at 1%
+
+        // Start progress animation
+        startNutritionProgressAnimation()
 
         Task {
             do {
@@ -623,6 +670,7 @@ public class RecipeViewModel: ObservableObject {
 
                 // Update form state with calculated values
                 await MainActor.run {
+                    // Per-100g values
                     let formattedValues = nutritionData.toFormState()
                     formState.calories = formattedValues.calories
                     formState.carbohydrates = formattedValues.carbohydrates
@@ -632,19 +680,55 @@ public class RecipeViewModel: ObservableObject {
                     formState.fat = formattedValues.fat
                     formState.glycemicLoad = formattedValues.glycemicLoad
 
+                    // Per-serving values (entire recipe = 1 serving)
+                    let servingValues = nutritionData.toFormStatePerServing()
+                    formState.caloriesPerServing = servingValues.calories
+                    formState.carbohydratesPerServing = servingValues.carbohydrates
+                    formState.fiberPerServing = servingValues.fiber
+                    formState.sugarPerServing = servingValues.sugar
+                    formState.proteinPerServing = servingValues.protein
+                    formState.fatPerServing = servingValues.fat
+                    formState.glycemicLoadPerServing = servingValues.glycemicLoad
+                    formState.totalRecipeWeight = servingValues.totalRecipeWeight
+
                     isCalculatingNutrition = false
+                    nutritionCalculationProgress = 100  // Set to 100% on completion
 
                     logger.info("✅ [NUTRITION] Calculation complete and form state updated")
-                    logger.info("   Calories: \(formattedValues.calories) kcal/100g")
-                    logger.info("   Carbs: \(formattedValues.carbohydrates)g, Protein: \(formattedValues.protein)g")
+                    logger.info("   Per-100g: \(formattedValues.calories) kcal, \(formattedValues.carbohydrates)g carbs")
+                    logger.info("   Per-serving: \(servingValues.calories) kcal, \(servingValues.carbohydrates)g carbs, \(servingValues.totalRecipeWeight)g total")
                 }
 
             } catch {
                 await MainActor.run {
                     isCalculatingNutrition = false
+                    nutritionCalculationProgress = 0  // Reset on error
                     nutritionCalculationError = error.localizedDescription
                     logger.error("❌ [NUTRITION] Calculation failed: \(error.localizedDescription)")
                 }
+            }
+        }
+    }
+
+    /// Animate nutrition calculation progress from 1% to 100% over time
+    private func startNutritionProgressAnimation() {
+        Task { @MainActor in
+            // Increment progress smoothly over ~66 seconds (typical API call duration: 60-70s)
+            for i in 1...100 {
+                guard isCalculatingNutrition else { break }  // Stop if calculation completes early
+
+                nutritionCalculationProgress = i
+
+                // Variable speed: faster at start (excitement), slower near end (anticipation)
+                let delay: TimeInterval = if i < 30 {
+                    0.4  // Fast (30% in 12s)
+                } else if i < 70 {
+                    0.6  // Medium (40% in 24s)
+                } else {
+                    1.0  // Slow (30% in 30s)
+                }
+
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
             }
         }
     }

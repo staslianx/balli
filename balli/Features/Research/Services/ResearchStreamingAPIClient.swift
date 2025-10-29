@@ -494,6 +494,17 @@ class ResearchStreamingAPIClient {
                     streamingLogger.critical("⚠️ Last word: '\(trimmed.split(separator: " ").last ?? "empty")'")
                 }
 
+                // NEW: Check for anomaly - very short answer with many tokens
+                if accumulatedAnswer.count < 200 && tokenCount > 10 {
+                    streamingLogger.critical("🚨 ANOMALY: Very short answer (\(accumulatedAnswer.count) chars) but received \(tokenCount) tokens")
+                    streamingLogger.critical("🚨 ANOMALY: This suggests content was received but not all accumulated")
+                }
+
+                // NEW: Log last 3 words to detect mid-word truncation
+                let lastWords = trimmed.split(separator: " ").suffix(3).map(String.init).joined(separator: " ")
+                streamingLogger.critical("🔍 Last 3 words: '\(lastWords)'")
+                streamingLogger.critical("🔍 Total accumulated: \(accumulatedAnswer.count) chars from \(tokenCount) SSE tokens")
+
                 let response = ResearchSearchResponse(
                     answer: accumulatedAnswer,
                     tier: detectedTier,

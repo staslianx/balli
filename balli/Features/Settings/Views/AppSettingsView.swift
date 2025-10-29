@@ -12,6 +12,7 @@ struct AppSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.userManager) private var userManager
+    @Environment(\.managedObjectContext) private var viewContext
 
     private let logger = Logger(subsystem: "com.anaxoniclabs.balli", category: "settings")
 
@@ -79,7 +80,7 @@ struct AppSettingsView: View {
                         dismiss()
                     }) {
                         HStack {
-                            Image(systemName: "person.2.circle.fill")
+                            Image(systemName: "person.fill")
                                 .foregroundColor(AppTheme.primaryPurple)
                                 .frame(width: 24)
 
@@ -107,7 +108,7 @@ struct AppSettingsView: View {
                             dismiss()
                         }
                     }) {
-                        Label("Çıkış Yap", systemImage: "rectangle.portrait.and.arrow.right.fill")
+                        Label("Çıkış Yap", systemImage: "door.left.hand.open")
                     }
                     .foregroundStyle(.red)
                 }
@@ -120,7 +121,17 @@ struct AppSettingsView: View {
                     .tint(AppTheme.primaryPurple)
 
                     NavigationLink(destination: DexcomConnectionView()) {
-                        Label("Dexcom CGM", systemImage: "wave.3.right")
+                        Label {
+                            Text("Dexcom CGM")
+                        } icon: {
+                            Image(systemName: "sensor.tag.radiowaves.forward.fill")
+                                .rotationEffect(.degrees(-90))
+                        }
+                    }
+                    .tint(AppTheme.primaryPurple)
+
+                    NavigationLink(destination: DexcomDiagnosticsView()) {
+                        Label("Dexcom Diagnostics", systemImage: "stethoscope")
                     }
                     .tint(AppTheme.primaryPurple)
 

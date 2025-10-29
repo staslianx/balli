@@ -24,6 +24,11 @@ actor DexcomAuthManager: NSObject {
     private var isRefreshing = false
     private var refreshContinuations: [CheckedContinuation<String, Error>] = []
 
+    // Prevent polling loops during authentication checks
+    private var isCheckingAuth = false
+    private var authCheckResult: Bool?
+    private var authCheckExpiry: Date?
+
     // Retain authentication session during auth flow
     // nonisolated(unsafe) since ASWebAuthenticationSession must be used from main thread
     // and we carefully manage the lifecycle within @MainActor context
@@ -45,14 +50,86 @@ actor DexcomAuthManager: NSObject {
     // MARK: - Authentication Status
 
     /// Check if user is authenticated with valid token
+    /// Automatically refreshes expired tokens for seamless user experience
+    /// Only returns false if refresh token is also invalid (requires re-authentication)
+    /// Prevents polling loops by caching result for 2 seconds
     func isAuthenticated() async -> Bool {
+        // 🛑 ANTI-POLLING: Return cached result if checked within last 2 seconds
+        if let cachedExpiry = authCheckExpiry, Date() < cachedExpiry,
+           let cachedResult = authCheckResult {
+            return cachedResult
+        }
+
+        // 🛑 ANTI-POLLING: If already checking auth, wait for the ongoing check
+        if isCheckingAuth {
+            // Wait a bit and return cached result if available
+            try? await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
+            return authCheckResult ?? false
+        }
+
+        isCheckingAuth = true
+        defer {
+            isCheckingAuth = false
+            // Cache result for 2 seconds to prevent immediate re-checks
+            authCheckExpiry = Date().addingTimeInterval(2)
+        }
+
+        logger.info("🔍 [DexcomAuthManager]: isAuthenticated() called")
+        await DexcomDiagnosticsLogger.shared.logAuth("isAuthenticated() called", level: .debug)
+
         do {
             guard let tokenInfo = try await keychainStorage.getTokenInfo() else {
+                logger.info("ℹ️ No tokens in keychain - user needs to authenticate")
+                await DexcomDiagnosticsLogger.shared.logAuth("No tokens found - needs authentication", level: .info)
+                authCheckResult = false
                 return false
             }
+
+            logger.info("🔍 Token found - isExpired: \(tokenInfo.isExpired), isValid: \(tokenInfo.isValid)")
+            await DexcomDiagnosticsLogger.shared.logAuth("Token found - isExpired: \(tokenInfo.isExpired), isValid: \(tokenInfo.isValid)", level: .info)
+
+            if let expiry = tokenInfo.expiry {
+                let timeUntilExpiry = expiry.timeIntervalSinceNow
+                logger.info("🔍 Token expires in \(timeUntilExpiry, format: .fixed(precision: 1)) seconds")
+                await DexcomDiagnosticsLogger.shared.logAuth("Token expires in \(String(format: "%.0f", timeUntilExpiry)) seconds", level: .info)
+
+                // 🔧 FIX: Automatically refresh expired tokens for continuous connection
+                if tokenInfo.isExpired {
+                    logger.info("🔄 Access token EXPIRED - attempting automatic refresh...")
+                    await DexcomDiagnosticsLogger.shared.logAuth("Access token expired - attempting auto-refresh", level: .info)
+
+                    do {
+                        // Try to refresh the access token using the refresh token
+                        _ = try await refreshAccessToken()
+                        logger.info("✅ Token automatically refreshed - user remains connected")
+                        await DexcomDiagnosticsLogger.shared.logAuth("Token auto-refresh SUCCESS - seamless connection maintained", level: .success)
+                        authCheckResult = true
+                        return true // Successfully refreshed - user is authenticated
+                    } catch {
+                        logger.error("❌ Token refresh failed: \(error.localizedDescription)")
+                        await DexcomDiagnosticsLogger.shared.logAuth("Token refresh FAILED: \(error.localizedDescription)", level: .error)
+
+                        // Only disconnect if refresh token is also invalid (401/403)
+                        if let dexcomError = error as? DexcomError,
+                           case .tokenRefreshFailed = dexcomError {
+                            logger.warning("⚠️ Refresh token invalid - user needs to re-authenticate")
+                            await DexcomDiagnosticsLogger.shared.logAuth("Refresh token invalid - disconnecting", level: .warning)
+                            try? await disconnect()
+                        }
+
+                        authCheckResult = false
+                        return false // Refresh failed - user not authenticated
+                    }
+                }
+            }
+
+            // Token is still valid - user is authenticated
+            authCheckResult = tokenInfo.isValid
             return tokenInfo.isValid
         } catch {
-            logger.error("Failed to check authentication status: \(error.localizedDescription)")
+            logger.error("❌ Failed to check authentication status: \(error.localizedDescription)")
+            await DexcomDiagnosticsLogger.shared.logAuth("Failed to check authentication: \(error.localizedDescription)", level: .error)
+            authCheckResult = false
             return false
         }
     }
@@ -352,12 +429,16 @@ actor DexcomAuthManager: NSObject {
 
     /// Disconnect from Dexcom (clear all tokens)
     func disconnect() async throws {
-        logger.info("Disconnecting from Dexcom...")
+        logger.info("🔍 FORENSIC [DexcomAuthManager]: disconnect() called")
+        await DexcomDiagnosticsLogger.shared.logAuth("disconnect() called - clearing all tokens", level: .info)
+
+        logger.info("🔍 FORENSIC: Clearing all tokens from keychain...")
 
         // Clear all tokens from keychain
         try await keychainStorage.clearAllTokens()
 
-        logger.info("Successfully disconnected from Dexcom")
+        logger.info("✅ FORENSIC: Successfully disconnected from Dexcom - all tokens cleared")
+        await DexcomDiagnosticsLogger.shared.logAuth("Successfully disconnected - all tokens cleared", level: .success)
     }
 
     // MARK: - Complete Authorization Flow

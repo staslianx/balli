@@ -110,16 +110,34 @@ actor AppLifecycleCoordinator {
     /// Prevents automatic logout by refreshing before expiration
     @MainActor
     private func refreshDexcomTokenIfNeeded() async {
+        logger.info("🔍 FORENSIC [AppLifecycleCoordinator]: refreshDexcomTokenIfNeeded() called")
+        await DexcomDiagnosticsLogger.shared.logLifecycle("App entered foreground - checking Dexcom token", level: .info)
+
         let dexcomService = DependencyContainer.shared.dexcomService
 
-        // Only check if user is connected
+        logger.info("🔍 FORENSIC: Current Dexcom connection state (cached): \(dexcomService.isConnected)")
+        await DexcomDiagnosticsLogger.shared.logLifecycle("Current connection state (cached): \(dexcomService.isConnected)", level: .debug)
+
+        // 🔧 FIX: ALWAYS check connection status on foreground
+        // Don't trust cached isConnected - it may be stale after app restart
+        // Keychain may still have valid tokens even if cached state says "disconnected"
+        logger.info("🔐 FORENSIC: Checking actual token status in keychain (ignoring cached state)...")
+        await DexcomDiagnosticsLogger.shared.logLifecycle("Checking actual token status in keychain", level: .info)
+
+        await dexcomService.checkConnectionStatus()
+
+        logger.info("✅ FORENSIC: After checkConnectionStatus - isConnected: \(dexcomService.isConnected)")
+        await DexcomDiagnosticsLogger.shared.logLifecycle("After check - isConnected: \(dexcomService.isConnected)", level: dexcomService.isConnected ? .success : .error)
+
+        // Now check if we're actually connected and need refresh
         guard dexcomService.isConnected else {
-            logger.debug("Dexcom not connected, skipping token refresh check")
+            logger.debug("❌ FORENSIC: Dexcom not connected after status check - no tokens in keychain")
+            await DexcomDiagnosticsLogger.shared.logLifecycle("Dexcom not connected after status check - no valid tokens", level: .warning)
             return
         }
 
-        logger.info("🔐 Checking Dexcom token status on foreground...")
-        await dexcomService.checkConnectionStatus()
+        logger.info("✅ FORENSIC: Dexcom is connected - token refresh will be handled by checkConnectionStatus if needed")
+        await DexcomDiagnosticsLogger.shared.logLifecycle("Dexcom connected - refresh handled if needed", level: .success)
     }
 
     func handleBackgroundTransition() {

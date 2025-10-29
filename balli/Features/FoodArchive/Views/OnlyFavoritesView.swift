@@ -15,6 +15,7 @@ struct OnlyFavoritesView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var favoriteItems: [FoodItem] = []
     @State private var refreshID = UUID()
+    @State private var selectedFoodItem: FoodItem? // For showing label details
     private let logger = AppLoggers.UI.rendering
 
     let columns = [
@@ -42,7 +43,7 @@ struct OnlyFavoritesView: View {
                         LazyVGrid(columns: columns, spacing: 16) {
                             ForEach(favoriteItems) { item in
                                 Button(action: {
-                                    // Navigate to product detail if needed in future
+                                    selectedFoodItem = item
                                 }) {
                                     ProductCardView(
                                         brand: item.brand ?? "Marka Yok",
@@ -91,6 +92,12 @@ struct OnlyFavoritesView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name.NSManagedObjectContextDidSave)) { _ in
             Task {
                 await fetchAllFavorites()
+            }
+        }
+        .fullScreenCover(item: $selectedFoodItem) { foodItem in
+            NavigationStack {
+                FoodItemDetailView(foodItem: foodItem)
+                    .environment(\.managedObjectContext, viewContext)
             }
         }
     }

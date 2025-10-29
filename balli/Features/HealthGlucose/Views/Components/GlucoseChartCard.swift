@@ -138,7 +138,7 @@ struct GlucoseChartCard: View {
             .chartXScale(domain: timeRange.start...timeRange.end)
             .chartYScale(domain: 60...310)
             .chartXAxis {
-                AxisMarks(values: .stride(by: .hour, count: 3)) { value in
+                AxisMarks(values: .stride(by: .hour, count: 1)) { value in
                     AxisGridLine()
                         .foregroundStyle(Color.gray.opacity(0.2))
                     AxisTick()
