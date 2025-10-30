@@ -184,6 +184,9 @@ struct balliApp: App {
                 await AppLifecycleCoordinator.shared.handleBackgroundTransition()
                 await AppLifecycleCoordinator.shared.saveContext()
 
+                // Schedule Dexcom background refresh (checks connection in 4 hours)
+                DexcomBackgroundRefreshManager.shared.scheduleBackgroundRefresh()
+
                 // End background task
                 await UIApplication.shared.endBackgroundTask(backgroundTaskID)
             }

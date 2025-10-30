@@ -21,7 +21,9 @@ final class ResearchStageCoordinator {
     /// Stage display manager for user-friendly progress (answerId -> Manager)
     private var stageManagers: [String: ResearchStageDisplayManager] = [:]
 
-    /// Current display stage for answer (answerId -> Stage message)
+    /// Current display stage for each answer (answerId -> current stage message)
+    /// This is the SINGLE stage currently being displayed to the user
+    /// NOT an array - only one stage is visible at a time with smooth transitions
     @Published var currentStages: [String: String] = [:]
 
     /// Flag to hold stream display until "writing report" stage completes (answerId -> Bool)
@@ -33,72 +35,107 @@ final class ResearchStageCoordinator {
     /// Completed research rounds (answerId -> [ResearchRound])
     @Published var completedRounds: [String: [ResearchRound]] = [:]
 
+    /// Signals when a view is ready to display stages for an answer
+    @Published var viewReadySignals: [String: Bool] = [:]
+
     // MARK: - Stage Management
+
+    /// Signal that view is ready to display stages
+    func signalViewReady(for answerId: String) {
+        logger.info("📺 View ready signal received for answer: \(answerId)")
+        viewReadySignals[answerId] = true
+    }
 
     /// Process stage transition from SSE event
     func processStageTransition(event: ResearchSSEEvent, answerId: String) async {
         // Get or create stage manager for this answer
-        let manager = stageManagers[answerId] ?? ResearchStageDisplayManager()
-        stageManagers[answerId] = manager
+        let manager: ResearchStageDisplayManager
+        let isNewManager: Bool
+        if let existing = stageManagers[answerId] {
+            manager = existing
+            isNewManager = false
+        } else {
+            manager = ResearchStageDisplayManager()
+            stageManagers[answerId] = manager
+            isNewManager = true
+        }
 
         // Map event to stage
         guard let newStage = manager.mapEventToStage(event) else {
             return // Event doesn't map to a stage change
         }
 
-        // 🎯 SYNTHESIS STAGE TIMING FIX: Split time between gathering and writing stages
-        // User wants to see BOTH stages before stream appears
-        // Solution: When gatheringInfo arrives, show it for HALF the normal time,
-        // then auto-switch to writingReport for the other half
+        logger.info("📨 Received stage event: \(newStage.userMessage)")
 
-        if newStage == .gatheringInfo {
-            // Hold stream during BOTH synthesis stages
-            shouldHoldStream[answerId] = true
-            logger.info("🚫 Stream display HELD - starting synthesis sequence")
+        // Don't hold stream for any stages - let content appear naturally
+        shouldHoldStream[answerId] = false
 
-            // Show "Bilgileri bir araya getiriyorum" for 1.0 seconds
-            currentStages[answerId] = "Bilgileri bir araya getiriyorum"
-            logger.info("📊 Stage 1/2: Bilgileri bir araya getiriyorum (1.0s)")
-            try? await Task.sleep(for: .seconds(1.0))
+        // Queue stage for display with enforced minimum duration
+        // The manager will display stages sequentially with proper timing
+        await manager.transitionToStage(newStage, coordinator: self, answerId: answerId)
 
-            // Auto-switch to "Kapsamlı bir rapor yazıyorum" and keep it visible
-            // The stage will stay visible until the first token arrives and triggers fade
-            currentStages[answerId] = "Kapsamlı bir rapor yazıyorum"
-            logger.info("📊 Stage 2/2: Kapsamlı bir rapor yazıyorum (staying until first token arrives)")
-
-            // DON'T fade out here - the onToken callback will fade it out when the first token arrives!
-            // This ensures the progress card stays visible until content is actually ready
-            logger.info("⏳ Waiting for first token to trigger fade & release...")
-
-            // Don't process stage transition normally - we handled it above
-            return
+        // Start observing AFTER first stage is queued to avoid race condition
+        // This ensures the observer is active when the stage actually displays
+        if isNewManager {
+            logger.info("🔍 Starting stage observer for new answer: \(answerId)")
+            startObservingStageChanges(for: answerId, manager: manager)
         }
-
-        // For writingReport event (if it arrives), just ignore it since we already handled it
-        if newStage == .writingReport {
-            logger.info("⏩ Skipping writingReport event - already handled in gatheringInfo")
-            return
-        }
-
-        // Normal stage transition for all other stages
-        await manager.transitionToStage(newStage)
-        currentStages[answerId] = manager.stageMessage
     }
 
-    /// Handle first token arrival - triggers stage fade and releases hold
+    /// Start observing stage changes from manager and updating UI
+    private func startObservingStageChanges(for answerId: String, manager: ResearchStageDisplayManager) {
+        // Create a repeating timer to poll manager's currentStage
+        // This is necessary because ResearchStageDisplayManager doesn't use @Published
+        Task { @MainActor in
+            logger.info("👀 Observer started for answer: \(answerId)")
+            var pollCount = 0
+
+            while stageManagers[answerId] != nil {
+                pollCount += 1
+
+                // Check if manager has a stage to display
+                if let currentStageMessage = manager.stageMessage {
+                    // Update UI if stage changed
+                    if currentStages[answerId] != currentStageMessage {
+                        logger.info("📊 Stage displayed: \(currentStageMessage) (poll #\(pollCount))")
+                        currentStages[answerId] = currentStageMessage
+                    }
+                } else if pollCount % 10 == 0 {
+                    // Log every 1 second when no stage is available
+                    logger.debug("⏳ Observer polling: no stage yet (poll #\(pollCount))")
+                }
+
+                // Poll every 100ms for smooth updates
+                try? await Task.sleep(nanoseconds: 100_000_000)
+
+                // Exit if task is cancelled
+                if Task.isCancelled {
+                    logger.info("🛑 Observer cancelled for answer: \(answerId)")
+                    break
+                }
+            }
+
+            logger.info("👋 Observer stopped for answer: \(answerId)")
+        }
+    }
+
+    /// Handle first token arrival - triggers stage fade and stops queue processing
     func handleFirstTokenArrival(answerId: String) async {
-        guard shouldHoldStream[answerId] == true else { return }
+        guard currentStages[answerId] != nil else { return }
 
-        logger.info("🎬 First token arrived - fading out progress card")
+        logger.info("🎬 First token arrived - clearing stages to show content")
 
-        // Clear stage to trigger fade out animation
+        // Stop queue processing - no more stages needed
+        if let manager = stageManagers[answerId] {
+            manager.stopProcessing()
+            logger.info("🛑 Stopped stage queue processing (content started)")
+        }
+
+        // Clear stages immediately to trigger fade out animation
+        // SwiftUI's transition handles the visual fade
         currentStages[answerId] = nil
 
-        // Small delay for fade animation to complete (0.3s)
-        try? await Task.sleep(for: .seconds(0.3))
-
-        logger.info("🚀 Releasing hold - showing content!")
-        shouldHoldStream[answerId] = false
+        logger.info("✅ Stages cleared, content is now visible")
     }
 
     // MARK: - Plan & Round Management
@@ -130,20 +167,32 @@ final class ResearchStageCoordinator {
 
     /// Cleanup state for completed search
     func cleanupSearchState(for answerId: String) {
+        // Stop queue processing before removing manager
+        if let manager = stageManagers[answerId] {
+            manager.stopProcessing()
+        }
+
         currentStages.removeValue(forKey: answerId)
         shouldHoldStream.removeValue(forKey: answerId)
         stageManagers.removeValue(forKey: answerId)
         currentPlans.removeValue(forKey: answerId)
+        viewReadySignals.removeValue(forKey: answerId)
         // Note: Don't remove completedRounds - they're preserved for the final answer
     }
 
     /// Clear all state when starting a new conversation
     func clearAllState() {
+        // Stop all queue processing tasks
+        for (_, manager) in stageManagers {
+            manager.stopProcessing()
+        }
+
         currentStages.removeAll()
         shouldHoldStream.removeAll()
         stageManagers.removeAll()
         currentPlans.removeAll()
         completedRounds.removeAll()
+        viewReadySignals.removeAll()
         logger.info("✅ Cleared all stage coordinator state")
     }
 }

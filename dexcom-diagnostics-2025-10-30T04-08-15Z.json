@@ -1,0 +1,3328 @@
+{
+  "deviceInfo" : {
+    "appVersion" : "1.0",
+    "model" : "iPhone",
+    "systemVersion" : "26.1"
+  },
+  "exportDate" : "2025-10-30T04:08:15Z",
+  "logs" : [
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "ℹ️",
+      "message" : "App entered foreground - checking Dexcom token",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "🔍",
+      "message" : "Current connection state (cached): false",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "ℹ️",
+      "message" : "Checking actual token status in keychain",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7192 seconds",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7192 seconds",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7192 seconds",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7192 seconds",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "✅",
+      "message" : "After check - isConnected: true",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "✅",
+      "message" : "Dexcom connected - refresh handled if needed",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:03:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7176 seconds",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7176 seconds",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7176 seconds",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7176 seconds",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:11Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: true",
+      "timestamp" : "2025-10-30T04:04:12Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:12Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:12Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:12Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:12Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7164 seconds",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7164 seconds",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:23Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "ℹ️",
+      "message" : "App entered foreground - checking Dexcom token",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7163 seconds",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "🔍",
+      "message" : "Current connection state (cached): true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7163 seconds",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7163 seconds",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7163 seconds",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7163 seconds",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7163 seconds",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "ℹ️",
+      "message" : "Checking actual token status in keychain",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7163 seconds",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7163 seconds",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7163 seconds",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "✅",
+      "message" : "After check - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "✅",
+      "message" : "Dexcom connected - refresh handled if needed",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7163 seconds",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:04:25Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7013 seconds",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7013 seconds",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7013 seconds",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7013 seconds",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:06:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "ℹ️",
+      "message" : "App entered foreground - checking Dexcom token",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "🔍",
+      "message" : "Current connection state (cached): true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "ℹ️",
+      "message" : "Checking actual token status in keychain",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7013 seconds",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7013 seconds",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7013 seconds",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "✅",
+      "message" : "After check - isConnected: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "✅",
+      "message" : "Dexcom connected - refresh handled if needed",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7013 seconds",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 7012 seconds",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:06:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6967 seconds",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6967 seconds",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:40Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "ℹ️",
+      "message" : "App entered foreground - checking Dexcom token",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6965 seconds",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6965 seconds",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6965 seconds",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6965 seconds",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "🔍",
+      "message" : "Current connection state (cached): true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "ℹ️",
+      "message" : "Checking actual token status in keychain",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6965 seconds",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6965 seconds",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6965 seconds",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6965 seconds",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6965 seconds",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "✅",
+      "message" : "After check - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "✅",
+      "message" : "Dexcom connected - refresh handled if needed",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6965 seconds",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:42Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6954 seconds",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6954 seconds",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6954 seconds",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6954 seconds",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:53Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "ℹ️",
+      "message" : "App entered foreground - checking Dexcom token",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "🔍",
+      "message" : "Current connection state (cached): true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "ℹ️",
+      "message" : "Checking actual token status in keychain",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6954 seconds",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6954 seconds",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6954 seconds",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "✅",
+      "message" : "After check - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "✅",
+      "message" : "Dexcom connected - refresh handled if needed",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6954 seconds",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6954 seconds",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6954 seconds",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:54Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6952 seconds",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6952 seconds",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6952 seconds",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6952 seconds",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6952 seconds",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:07:55Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6935 seconds",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6935 seconds",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6935 seconds",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6935 seconds",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6934 seconds",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6934 seconds",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "ℹ️",
+      "message" : "App entered foreground - checking Dexcom token",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "🔍",
+      "message" : "Current connection state (cached): true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "ℹ️",
+      "message" : "Checking actual token status in keychain",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6934 seconds",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "✅",
+      "message" : "After check - isConnected: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "♻️ Lifecycle",
+      "level" : "✅",
+      "message" : "Dexcom connected - refresh handled if needed",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "🔍",
+      "message" : "checkConnectionStatus() called - current state: false",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "🔍",
+      "message" : "isAuthenticated() called",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token found - isExpired: false, isValid: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔐 Auth",
+      "level" : "ℹ️",
+      "message" : "Token expires in 6934 seconds",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "ℹ️",
+      "message" : "Authentication check result: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔌 Connection",
+      "level" : "✅",
+      "message" : "Updated connection state - isConnected: true",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "🔍",
+      "message" : "Checking if token refresh needed",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    },
+    {
+      "category" : "🔄 Token Refresh",
+      "level" : "ℹ️",
+      "message" : "Token refresh not needed - token still valid",
+      "timestamp" : "2025-10-30T04:08:13Z"
+    }
+  ],
+  "statistics" : {
+    "durationSeconds" : 257.8099089860916,
+    "errorCount" : 0,
+    "totalLogs" : 552,
+    "warningCount" : 0
+  }
+}

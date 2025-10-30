@@ -230,16 +230,20 @@ struct FoodItemDetailView: View {
     @State private var toastMessage: ToastType? = nil
 
     // Calculate current impact using Nestlé formula for the current portion
+    // Handles missing/zero nutritional values gracefully by defaulting to 0.0
     private var currentImpactResult: ImpactScoreResult? {
+        // Require only carbs and serving size - other nutrients can be zero
         guard let baseCarbs = Double(carbohydrates),
-              let baseFiber = Double(fiber),
-              let baseSugars = Double(sugars),
-              let baseProtein = Double(protein),
-              let baseFat = Double(fat),
               let baseServing = Double(servingSize),
               baseServing > 0 else {
             return nil
         }
+
+        // Parse optional nutrients - default to 0.0 if missing/empty/invalid
+        let baseFiber = Double(fiber) ?? 0.0
+        let baseSugars = Double(sugars) ?? 0.0
+        let baseProtein = Double(protein) ?? 0.0
+        let baseFat = Double(fat) ?? 0.0
 
         return ImpactScoreCalculator.calculate(
             totalCarbs: baseCarbs,

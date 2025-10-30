@@ -23,8 +23,8 @@ struct DualCurveChartView: View {
     private let lineWidth: CGFloat = 3.5
 
     // Curve colors
-    private let insulinColor = Color(hex: "#FF6B35")  // Orange
-    private let glucoseColor = Color(hex: "#9333EA")  // Purple
+    private let insulinColor = Color(hex: "#FF6B35")  // Orange (NovoRapid)
+    private let glucoseColor = ThemeColors.primaryPurple  // Custom purple (meal)
     private let mismatchColor = Color.red.opacity(0.6)
 
     var body: some View {
@@ -147,7 +147,7 @@ struct DualCurveChartView: View {
         }
     }
 
-    /// Draw smooth curve through points
+    /// Draw smooth curve through points using Catmull-Rom spline interpolation
     private func drawCurve(context: GraphicsContext, points: [(time: Int, intensity: Double)], color: Color, size: CGSize) {
         guard points.count >= 2 else { return }
 
@@ -167,16 +167,28 @@ struct DualCurveChartView: View {
         // Start path
         path.move(to: screenPoints[0])
 
-        // Draw smooth curve using quadratic curves
-        for i in 1..<screenPoints.count {
-            let current = screenPoints[i]
-            let previous = screenPoints[i - 1]
+        // Draw smooth curve using Catmull-Rom spline
+        // For each segment, use neighboring points to calculate control points
+        for i in 0..<(screenPoints.count - 1) {
+            let p0 = i > 0 ? screenPoints[i - 1] : screenPoints[i]
+            let p1 = screenPoints[i]
+            let p2 = screenPoints[i + 1]
+            let p3 = i + 2 < screenPoints.count ? screenPoints[i + 2] : p2
 
-            // Calculate control point for smooth curve
-            let controlX = (previous.x + current.x) / 2
-            let controlY = (previous.y + current.y) / 2
+            // Calculate smooth control points using Catmull-Rom
+            let tension: CGFloat = 0.5  // 0.5 = standard Catmull-Rom
 
-            path.addQuadCurve(to: current, control: CGPoint(x: controlX, y: controlY))
+            let cp1x = p1.x + (p2.x - p0.x) / (6.0 / tension)
+            let cp1y = p1.y + (p2.y - p0.y) / (6.0 / tension)
+
+            let cp2x = p2.x - (p3.x - p1.x) / (6.0 / tension)
+            let cp2y = p2.y - (p3.y - p1.y) / (6.0 / tension)
+
+            let cp1 = CGPoint(x: cp1x, y: cp1y)
+            let cp2 = CGPoint(x: cp2x, y: cp2y)
+
+            // Draw cubic curve for smooth interpolation
+            path.addCurve(to: p2, control1: cp1, control2: cp2)
         }
 
         // Draw the curve

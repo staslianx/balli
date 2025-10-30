@@ -274,7 +274,7 @@ class ResearchStreamingAPIClient {
 
                             // Check if the answer appears truncated
                             let trimmed = accumulatedAnswer.trimmingCharacters(in: .whitespacesAndNewlines)
-                            let endsWithPunctuation = trimmed.last.map { ".!?:;".contains($0) } ?? false
+                            let endsWithPunctuation = trimmed.last.map { ".!?:;)".contains($0) } ?? false
                             if !endsWithPunctuation && accumulatedAnswer.count > 100 {
                                 streamingLogger.critical("⚠️ WARNING: Answer doesn't end with punctuation - likely truncated!")
                                 streamingLogger.critical("⚠️ Last word: '\(trimmed.split(separator: " ").last ?? "empty")'")
@@ -282,10 +282,10 @@ class ResearchStreamingAPIClient {
 
                             streamComplete = true
 
-                            // 🔧 CRITICAL WORKAROUND: Don't immediately complete!
-                            // The backend sends 'complete' prematurely while still streaming tokens.
-                            // Store the complete event data but continue reading the stream.
-                            streamingLogger.warning("⚠️ WORKAROUND: Received 'complete' but will continue reading for more tokens")
+                            // 🔧 CRITICAL FIX: Don't immediately fire onComplete
+                            // The backend sometimes sends the 'complete' event just before final tokens
+                            // Store the complete event data and continue reading the stream
+                            streamingLogger.warning("⏸️ Received 'complete' - storing data but continuing stream")
 
                             // Store complete event data for later use
                             pendingCompleteData = (
@@ -296,7 +296,8 @@ class ResearchStreamingAPIClient {
                                 thinkingSummary: thinkingSummary
                             )
 
-                            // DON'T fire onComplete here - wait for stream to actually end!
+                            // DON'T fire onComplete here - wait for stream to actually end
+                            // The loop will handle firing it after all bytes are read
 
                         case .searchComplete(let count, let source):
                             streamingLogger.info("Search complete: \(count, privacy: .public) results from \(source, privacy: .public)")

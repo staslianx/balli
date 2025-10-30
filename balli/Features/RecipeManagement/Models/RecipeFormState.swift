@@ -42,6 +42,10 @@ public final class RecipeFormState: ObservableObject {
     @Published public var glycemicLoadPerServing = ""
     @Published public var totalRecipeWeight = ""
 
+    // MARK: - Digestion Timing Insights
+    // API-provided insights about insulin-glucose curve mismatch
+    @Published public var digestionTiming: DigestionTiming? = nil
+
     // MARK: - Serving Size
     // Note: Nutrition values from AI are per 100g (standard)
     // We store the actual gram amount directly for precise slider control
@@ -132,6 +136,7 @@ public final class RecipeFormState: ObservableObject {
         sugarPerServing = ""
         glycemicLoadPerServing = ""
         totalRecipeWeight = ""
+        digestionTiming = nil
         portionGrams = 100.0  // Reset to 100g default
     }
 

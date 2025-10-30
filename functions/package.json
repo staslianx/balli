@@ -21,7 +21,8 @@
     "validate:edamam:poc": "npx tsx src/validate-edamam.ts --proof-of-concept",
     "validate:edamam:full": "npx tsx src/validate-edamam.ts --core-ingredients",
     "validate:cooking-states": "npx tsx src/validate-cooking-states.ts",
-    "validate:gemini": "npx tsx src/validate-gemini-nutrition.ts"
+    "validate:gemini": "npx tsx src/validate-gemini-nutrition.ts",
+    "compare-t3": "npx tsx src/scripts/compare-t3-models.ts"
   },
   "engines": {
     "node": "20"

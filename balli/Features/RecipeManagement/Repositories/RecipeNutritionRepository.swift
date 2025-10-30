@@ -113,8 +113,9 @@ actor RecipeNutritionRepository {
 
 // MARK: - Data Models
 
-/// Nutrition data returned from the Cloud Function
-struct RecipeNutritionData: Codable {
+/// Per-portion nutrition values from API
+struct PerPortionNutrition: Codable, Sendable {
+    let weight: Double
     let calories: Double
     let carbohydrates: Double
     let fiber: Double
@@ -122,9 +123,70 @@ struct RecipeNutritionData: Codable {
     let protein: Double
     let fat: Double
     let glycemicLoad: Double
+}
+
+/// Digestion timing insights from API (insulin-glucose curve mismatch)
+public struct DigestionTiming: Codable, Sendable {
+    public let hasMismatch: Bool
+    public let mismatchHours: Double
+    public let severity: String  // "low", "medium", "high"
+    public let glucosePeakTime: Double  // Hours after meal
+    public let timingInsight: String  // Markdown formatted insight
+}
+
+/// Nutrition data returned from the Cloud Function
+struct RecipeNutritionData: Codable, Sendable {
+    // Per-100g values
+    let calories: Double
+    let carbohydrates: Double
+    let fiber: Double
+    let sugar: Double
+    let protein: Double
+    let fat: Double
+    let glycemicLoad: Double  // This is per-portion GL
+
+    // Per-portion values (direct from API)
+    let perPortion: PerPortionNutrition?
     let nutritionCalculation: NutritionCalculationDetails?
 
-    /// Calculate per-serving values (entire recipe = 1 serving)
+    // Digestion timing insights (insulin-glucose curve analysis)
+    let digestionTiming: DigestionTiming?
+
+    /// Per-serving nutrition values (use API values if available, otherwise calculate)
+    var caloriesPerServing: Double {
+        perPortion?.calories ?? (calories * multiplier)
+    }
+
+    var carbohydratesPerServing: Double {
+        perPortion?.carbohydrates ?? (carbohydrates * multiplier)
+    }
+
+    var fiberPerServing: Double {
+        perPortion?.fiber ?? (fiber * multiplier)
+    }
+
+    var sugarPerServing: Double {
+        perPortion?.sugar ?? (sugar * multiplier)
+    }
+
+    var proteinPerServing: Double {
+        perPortion?.protein ?? (protein * multiplier)
+    }
+
+    var fatPerServing: Double {
+        perPortion?.fat ?? (fat * multiplier)
+    }
+
+    /// Glycemic Load is already per-portion from API (NOT per-100g)
+    var glycemicLoadPerServing: Double {
+        perPortion?.glycemicLoad ?? glycemicLoad
+    }
+
+    var totalRecipeWeight: Double {
+        perPortion?.weight ?? nutritionCalculation?.totalRecipeWeight ?? 0
+    }
+
+    /// Calculate per-serving values (fallback when perPortion is not available)
     /// Multiplier = (totalRecipeWeight / 100) to convert from per-100g to per-serving
     private var multiplier: Double {
         guard let weight = nutritionCalculation?.totalRecipeWeight, weight > 0 else {
@@ -132,16 +194,6 @@ struct RecipeNutritionData: Codable {
         }
         return weight / 100.0
     }
-
-    /// Per-serving nutrition values (entire recipe)
-    var caloriesPerServing: Double { calories * multiplier }
-    var carbohydratesPerServing: Double { carbohydrates * multiplier }
-    var fiberPerServing: Double { fiber * multiplier }
-    var sugarPerServing: Double { sugar * multiplier }
-    var proteinPerServing: Double { protein * multiplier }
-    var fatPerServing: Double { fat * multiplier }
-    var glycemicLoadPerServing: Double { glycemicLoad * multiplier }
-    var totalRecipeWeight: Double { nutritionCalculation?.totalRecipeWeight ?? 0 }
 
     /// Convert to string values for RecipeFormState compatibility (per-100g values)
     func toFormState() -> (
@@ -188,7 +240,7 @@ struct RecipeNutritionData: Codable {
     }
 }
 
-struct NutritionCalculationDetails: Codable {
+struct NutritionCalculationDetails: Codable, Sendable {
     let totalRecipeWeight: Double
     let totalRecipeCalories: Double
     let calculationNotes: String

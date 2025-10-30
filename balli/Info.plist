@@ -41,6 +41,7 @@
 	<array>
 		<string>com.anaxoniclabs.balli.healthsync</string>
 		<string>com.anaxoniclabs.balli.memory-sync</string>
+		<string>com.anaxoniclabs.balli.dexcom-refresh</string>
 	</array>
 	<key>PICOVOICE_ACCESS_KEY</key>
 	<string>$(PICOVOICE_ACCESS_KEY)</string>

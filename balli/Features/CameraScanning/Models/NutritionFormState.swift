@@ -71,15 +71,15 @@ struct NutritionFormState: Sendable {
         self.servingSize = String(format: "%.0f", serving.value)
         self.portionGrams = serving.value
 
-        // Nutrients
+        // Nutrients - use "0" for missing optional nutrients instead of empty string
         let nutrients = result.nutrients
         self.calories = String(format: "%.0f", nutrients.calories.value)
         self.carbohydrates = String(format: "%.1f", nutrients.totalCarbohydrates.value)
-        self.fiber = nutrients.dietaryFiber.map { String(format: "%.1f", $0.value) } ?? ""
-        self.sugars = nutrients.sugars.map { String(format: "%.1f", $0.value) } ?? ""
+        self.fiber = nutrients.dietaryFiber.map { String(format: "%.1f", $0.value) } ?? "0"
+        self.sugars = nutrients.sugars.map { String(format: "%.1f", $0.value) } ?? "0"
         self.protein = String(format: "%.1f", nutrients.protein.value)
         self.fat = String(format: "%.1f", nutrients.totalFat.value)
-        self.sodium = nutrients.sodium.map { String(format: "%.0f", $0.value) } ?? ""
+        self.sodium = nutrients.sodium.map { String(format: "%.0f", $0.value) } ?? "0"
 
         // Confidence scores
         let confidence = Int(result.metadata.confidence)
@@ -125,36 +125,51 @@ struct NutritionFormState: Sendable {
         return Double(sum) / Double(confidences.count)
     }
 
-    /// Calculate impact score based on portion-adjusted values
+    /// Calculate impact score using Nestlé validated formula
+    /// Handles missing/zero values gracefully by defaulting to 0.0
     func calculateImpactScore() -> Double {
         guard let baseServing = Double(servingSize), baseServing > 0 else {
             return 0.0
         }
 
-        let adjustmentRatio = portionGrams / baseServing
+        // Parse values with 0.0 fallback for missing data
+        let baseCarbs = Double(carbohydrates) ?? 0.0
+        let baseFiber = Double(fiber) ?? 0.0
+        let baseSugars = Double(sugars) ?? 0.0
+        let baseProtein = Double(protein) ?? 0.0
+        let baseFat = Double(fat) ?? 0.0
 
-        // Get adjusted nutrition values
-        let adjustedCarbs = (Double(carbohydrates) ?? 0) * adjustmentRatio
-        let adjustedFiber = (Double(fiber) ?? 0) * adjustmentRatio
-        let adjustedSugars = (Double(sugars) ?? 0) * adjustmentRatio
-        let adjustedProtein = (Double(protein) ?? 0) * adjustmentRatio
-        let adjustedFat = (Double(fat) ?? 0) * adjustmentRatio
+        // Use the validated Nestlé formula instead of old custom calculation
+        let result = ImpactScoreCalculator.calculate(
+            totalCarbs: baseCarbs,
+            fiber: baseFiber,
+            sugar: baseSugars,
+            protein: baseProtein,
+            fat: baseFat,
+            servingSize: baseServing,
+            portionGrams: portionGrams
+        )
 
-        // Calculate net carbs
-        let fiberDeduction = adjustedFiber > 5 ? adjustedFiber : 0
-        let netCarbs = max(0, adjustedCarbs - fiberDeduction)
-
-        // Calculate impact score
-        let carbImpact = netCarbs * 1.0
-        let sugarImpact = adjustedSugars * 0.15
-        let proteinReduction = adjustedProtein * 0.1
-        let fatReduction = adjustedFat * 0.05
-
-        return max(0, carbImpact + sugarImpact - proteinReduction - fatReduction)
+        return result.score
     }
 
-    /// Get impact level based on current score
+    /// Get impact level based on current score using three-threshold evaluation
     var impactLevel: ImpactLevel {
-        return ImpactLevel.from(score: calculateImpactScore())
+        let score = calculateImpactScore()
+
+        // Calculate scaled fat and protein for current portion
+        guard let baseServing = Double(servingSize), baseServing > 0 else {
+            return .low
+        }
+
+        let adjustmentRatio = portionGrams / baseServing
+        let scaledFat = (Double(fat) ?? 0.0) * adjustmentRatio
+        let scaledProtein = (Double(protein) ?? 0.0) * adjustmentRatio
+
+        return ImpactLevel.from(
+            score: score,
+            fat: scaledFat,
+            protein: scaledProtein
+        )
     }
 }

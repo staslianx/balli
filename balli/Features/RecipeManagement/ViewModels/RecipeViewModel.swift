@@ -176,6 +176,11 @@ public class RecipeViewModel: ObservableObject {
         set { formState.totalRecipeWeight = newValue }
     }
 
+    public var digestionTiming: DigestionTiming? {
+        get { formState.digestionTiming }
+        set { formState.digestionTiming = newValue }
+    }
+
     // MARK: - Adjusted Nutrition Values (Performance Optimized with Caching)
 
     // Cache for adjusted values - invalidated when portionGrams or nutrition values change
@@ -665,7 +670,7 @@ public class RecipeViewModel: ObservableObject {
                 let nutritionData = try await nutritionRepository.calculateNutrition(
                     recipeName: formState.recipeName,
                     recipeContent: formState.recipeContent,
-                    servings: 4  // Default servings - could be made dynamic later
+                    servings: 1  // Always 1 = entire recipe as one portion
                 )
 
                 // Update form state with calculated values
@@ -691,12 +696,18 @@ public class RecipeViewModel: ObservableObject {
                     formState.glycemicLoadPerServing = servingValues.glycemicLoad
                     formState.totalRecipeWeight = servingValues.totalRecipeWeight
 
+                    // Store digestion timing insights
+                    formState.digestionTiming = nutritionData.digestionTiming
+
                     isCalculatingNutrition = false
                     nutritionCalculationProgress = 100  // Set to 100% on completion
 
                     logger.info("✅ [NUTRITION] Calculation complete and form state updated")
                     logger.info("   Per-100g: \(formattedValues.calories) kcal, \(formattedValues.carbohydrates)g carbs")
                     logger.info("   Per-serving: \(servingValues.calories) kcal, \(servingValues.carbohydrates)g carbs, \(servingValues.totalRecipeWeight)g total")
+                    if let insights = nutritionData.digestionTiming {
+                        logger.info("   Digestion timing: \(insights.hasMismatch ? "mismatch detected" : "no mismatch"), peak at \(insights.glucosePeakTime)h")
+                    }
                 }
 
             } catch {

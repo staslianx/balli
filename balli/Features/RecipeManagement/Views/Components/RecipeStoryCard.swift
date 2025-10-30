@@ -13,19 +13,29 @@ struct RecipeStoryCard: View {
     let title: String
     let description: String?
     let thumbnailURL: String?
+    let isLoading: Bool
+    let loadingStep: String?
+    let loadingProgress: Double
     let onTap: () -> Void
 
     @State private var isPressed = false
+    @State private var pulseOpacity: Double = 1.0
 
     init(
         title: String,
         description: String? = nil,
         thumbnailURL: String? = nil,
+        isLoading: Bool = false,
+        loadingStep: String? = nil,
+        loadingProgress: Double = 0,
         onTap: @escaping () -> Void
     ) {
         self.title = title
         self.description = description
         self.thumbnailURL = thumbnailURL
+        self.isLoading = isLoading
+        self.loadingStep = loadingStep
+        self.loadingProgress = loadingProgress
         self.onTap = onTap
     }
 
@@ -56,9 +66,9 @@ struct RecipeStoryCard: View {
 
                 // Content
                 VStack(alignment: .leading, spacing: 4) {
-                    // Use custom font combination for "balli'nin notu", otherwise regular text
-                    if title == "balli'nin notu" {
-                        BalliNoteTitle(size: 16)
+                    // Use custom font combination for "balli'nin Tarif Analizi", otherwise regular text
+                    if title == "balli'nin Tarif Analizi" {
+                        BalliNoteTitle(size: 16, customText: "balli'nin Tarif Analizi")
                             .foregroundColor(.primary)
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)
@@ -70,7 +80,39 @@ struct RecipeStoryCard: View {
                             .multilineTextAlignment(.leading)
                     }
 
-                    if let description = description {
+                    // Description or loading state
+                    if isLoading, let step = loadingStep {
+                        // Loading animation
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(step)
+                                .font(.sfRounded(14, weight: .regular))
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                                .opacity(pulseOpacity)
+                                .onAppear {
+                                    withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                                        pulseOpacity = 0.5
+                                    }
+                                }
+
+                            // Progress bar
+                            GeometryReader { geometry in
+                                ZStack(alignment: .leading) {
+                                    // Background track
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(Color.secondary.opacity(0.2))
+                                        .frame(height: 4)
+
+                                    // Progress fill
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(ThemeColors.primaryPurple)
+                                        .frame(width: geometry.size.width * (loadingProgress / 100.0), height: 4)
+                                }
+                            }
+                            .frame(height: 4)
+                        }
+                    } else if let description = description {
                         Text(description)
                             .font(.sfRounded(14, weight: .regular))
                             .foregroundColor(.secondary)

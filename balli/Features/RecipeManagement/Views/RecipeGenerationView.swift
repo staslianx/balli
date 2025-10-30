@@ -28,6 +28,7 @@ struct RecipeGenerationView: View {
     @StateObject private var viewModel: RecipeViewModel
     @State private var showingMealSelection = false
     @State private var showingNutritionModal = false
+    @State private var showingNotesModal = false
     @State private var selectedMealType = "Kahvaltı"
     @State private var selectedStyleType = ""  // Empty for categories without subcategories
     @State private var isGenerating = false
@@ -41,10 +42,28 @@ struct RecipeGenerationView: View {
     @State private var newStepText = ""
     @State private var manualIngredients: [RecipeItem] = []
     @State private var manualSteps: [RecipeItem] = []
-    @State private var storyCardTitle = "Tarif notu"  // Default title for user-created recipes
+    @State private var storyCardTitle = "balli'nin Tarif Analizi"
+    @State private var currentLoadingStep: String?
+    @State private var userNotes: String = ""
     @FocusState private var focusedField: FocusField?
 
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeGenerationView")
+
+    // Loading animation steps for nutrition calculation (total ~82 seconds to match API)
+    private let loadingSteps: [(label: String, duration: TimeInterval, progress: Int)] = [
+        ("Tarife tekrar bakıyorum", 5.0, 6),
+        ("Malzemeleri inceliyorum", 6.0, 13),
+        ("Ağırlıkları belirliyorum", 7.0, 21),
+        ("Ham besin değerlerini hesaplıyorum", 7.0, 30),
+        ("Pişirme yöntemlerini analiz ediyorum", 7.0, 39),
+        ("Pişirme etkilerini belirliyorum", 7.0, 48),
+        ("Pişirme kayıplarını hesaplıyorum", 7.0, 57),
+        ("Sıvı emilimini hesaplıyorum", 7.0, 66),
+        ("100g için değerleri hesaplıyorum", 7.0, 75),
+        ("1 porsiyon için değerleri hesaplıyorum", 7.0, 84),
+        ("Glisemik yükü hesaplıyorum", 7.0, 92),
+        ("Sağlamasını yapıyorum", 8.0, 100)
+    ]
 
     enum FocusField {
         case ingredient
@@ -226,9 +245,30 @@ struct RecipeGenerationView: View {
                 proteinPerServing: viewModel.proteinPerServing,
                 fatPerServing: viewModel.fatPerServing,
                 glycemicLoadPerServing: viewModel.glycemicLoadPerServing,
-                totalRecipeWeight: viewModel.totalRecipeWeight
+                totalRecipeWeight: viewModel.totalRecipeWeight,
+                // API insights
+                digestionTiming: viewModel.digestionTiming
             )
             .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showingNotesModal) {
+            UserNotesModalView(notes: $userNotes) { newNotes in
+                logger.info("💬 [NOTES] User saved notes: '\(newNotes.prefix(50))...'")
+                userNotes = newNotes
+                // Notes will be saved when user saves the recipe
+            }
+        }
+        .onChange(of: viewModel.isCalculatingNutrition) { oldValue, newValue in
+            if oldValue && !newValue {
+                // Calculation just completed
+                logger.info("✅ [NUTRITION] Calculation completed, showing modal")
+                currentLoadingStep = nil  // Clear loading state
+                showingNutritionModal = true
+            } else if !oldValue && newValue {
+                // Calculation just started
+                logger.info("🔄 [NUTRITION] Calculation started, beginning loading animation")
+                startLoadingAnimation()
+            }
         }
     }
 
@@ -347,12 +387,13 @@ struct RecipeGenerationView: View {
     private var storyCardPlaceholder: some View {
         RecipeStoryCard(
             title: storyCardTitle,
-            description: viewModel.notes.isEmpty
-                ? "Tarif oluşturulduğunda notlar burada görünecek"
-                : viewModel.notes,
-            thumbnailURL: nil
+            description: "Besin değeri analizi",
+            thumbnailURL: nil,
+            isLoading: viewModel.isCalculatingNutrition,
+            loadingStep: currentLoadingStep,
+            loadingProgress: Double(viewModel.nutritionCalculationProgress)
         ) {
-            // No action for placeholder
+            handleStoryCardTap()
         }
     }
 
@@ -360,59 +401,26 @@ struct RecipeGenerationView: View {
 
     private var actionButtonsPlaceholder: some View {
         RecipeActionRow(
-            actions: [.favorite, .values, .shopping],
+            actions: [.favorite, .notes, .shopping],
             activeStates: [isFavorited, false, false],
-            loadingStates: [false, viewModel.isCalculatingNutrition, false],
-            completedStates: [false, hasNutritionValues, false],
-            progressStates: [0, viewModel.nutritionCalculationProgress, 0]
+            loadingStates: [false, false, false],
+            completedStates: [false, false, false],
+            progressStates: [0, 0, 0]
         ) { action in
             handleAction(action)
         }
-    }
-
-    /// Check if nutrition values have been calculated
-    private var hasNutritionValues: Bool {
-        !viewModel.calories.isEmpty && !viewModel.carbohydrates.isEmpty && !viewModel.protein.isEmpty
     }
 
     private func handleAction(_ action: RecipeAction) {
         switch action {
         case .favorite:
             toggleFavorite()
-        case .values:
-            handleNutritionValues()
+        case .notes:
+            showingNotesModal = true
         case .shopping:
             handleShopping()
         default:
             break
-        }
-    }
-
-    private func handleNutritionValues() {
-        // DEBUG: Log current state
-        logger.info("🔍 [DEBUG] handleNutritionValues() called")
-        logger.info("🔍 [DEBUG] recipeName: '\(viewModel.recipeName)'")
-        logger.info("🔍 [DEBUG] recipeContent length: \(viewModel.recipeContent.count)")
-        logger.info("🔍 [DEBUG] calories: '\(viewModel.calories)'")
-        logger.info("🔍 [DEBUG] carbohydrates: '\(viewModel.carbohydrates)'")
-        logger.info("🔍 [DEBUG] protein: '\(viewModel.protein)'")
-
-        // Check if nutrition values are already calculated
-        let hasNutrition = !viewModel.calories.isEmpty &&
-                          !viewModel.carbohydrates.isEmpty &&
-                          !viewModel.protein.isEmpty
-
-        logger.info("🔍 [DEBUG] hasNutrition: \(hasNutrition)")
-
-        if hasNutrition {
-            // Nutrition already calculated, show modal immediately
-            logger.debug("🍽️ [NUTRITION] Values already present, showing modal")
-            showingNutritionModal = true
-        } else {
-            // Start calculation - button will pulse, modal opens when complete
-            logger.info("🍽️ [NUTRITION] Starting calculation...")
-            viewModel.calculateNutrition()
-            // Modal will open automatically via .onChange(of: viewModel.isCalculatingNutrition)
         }
     }
 
@@ -603,6 +611,58 @@ struct RecipeGenerationView: View {
         }
 
         logger.info("🏁 [VIEW] generatePhoto() completed")
+    }
+
+    // MARK: - Story Card Tap Handler
+
+    private func handleStoryCardTap() {
+        logger.info("🔍 [STORY] Story card tapped")
+
+        // Check if nutrition values are already calculated
+        let hasNutrition = !viewModel.calories.isEmpty &&
+                          !viewModel.carbohydrates.isEmpty &&
+                          !viewModel.protein.isEmpty
+
+        if hasNutrition {
+            // Nutrition already calculated, show modal immediately
+            logger.info("✅ [STORY] Nutrition data exists, showing modal")
+            showingNutritionModal = true
+        } else {
+            // Start calculation - loading animation will show in card
+            logger.info("🔄 [STORY] Starting nutrition calculation")
+            viewModel.calculateNutrition()
+            // Modal will open automatically via .onChange(of: viewModel.isCalculatingNutrition)
+        }
+    }
+
+    // MARK: - Loading Animation
+
+    private func startLoadingAnimation() {
+        Task {
+            for step in loadingSteps {
+                // Check if calculation is still in progress
+                guard await MainActor.run(body: { viewModel.isCalculatingNutrition }) else {
+                    logger.info("⏹️ [LOADING] Calculation completed early, stopping animation")
+                    return
+                }
+
+                // Update current step
+                await MainActor.run {
+                    currentLoadingStep = step.label
+                }
+
+                logger.debug("📝 [LOADING] Step: '\(step.label)' (target: \(step.progress)%)")
+
+                // Wait for step duration
+                try? await Task.sleep(for: .seconds(step.duration))
+            }
+
+            // Clear loading step when done
+            await MainActor.run {
+                currentLoadingStep = nil
+            }
+            logger.info("✅ [LOADING] Animation sequence completed")
+        }
     }
 }
 

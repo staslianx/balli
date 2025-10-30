@@ -19,12 +19,14 @@ struct RecipeDetailView: View {
 
     @State private var showingShareSheet = false
     @State private var showingNutritionalValues = false
-    @State private var showingNoteDetail = false
+    @State private var showingNotesModal = false
     @State private var isGeneratingPhoto = false
     @State private var generatedImageData: Data?
     @State private var showingShoppingConfirmation = false
     @State private var isCalculatingNutrition = false
-    @State private var nutritionCalculationProgress = 0  // NEW: Progress percentage (0-100)
+    @State private var nutritionCalculationProgress = 0
+    @State private var currentLoadingStep: String?
+    @State private var digestionTimingInsights: DigestionTiming? = nil
 
     // Inline editing state
     @State private var isEditing = false
@@ -32,6 +34,7 @@ struct RecipeDetailView: View {
     @State private var editedIngredients: [String] = []
     @State private var editedInstructions: [String] = []
     @State private var editedNotes: String = ""
+    @State private var userNotes: String = ""
 
     // MARK: - Services
     private let nutritionRepository = RecipeNutritionRepository()
@@ -42,6 +45,23 @@ struct RecipeDetailView: View {
     }
 
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeDetailView")
+
+    // Loading animation steps for nutrition calculation
+    // Loading animation steps for nutrition calculation (total ~82 seconds to match API)
+    private let loadingSteps: [(label: String, duration: TimeInterval, progress: Int)] = [
+        ("Tarife tekrar bakıyorum", 5.0, 6),
+        ("Malzemeleri inceliyorum", 6.0, 13),
+        ("Ağırlıkları belirliyorum", 7.0, 21),
+        ("Ham besin değerlerini hesaplıyorum", 7.0, 30),
+        ("Pişirme yöntemlerini analiz ediyorum", 7.0, 39),
+        ("Pişirme etkilerini belirliyorum", 7.0, 48),
+        ("Pişirme kayıplarını hesaplıyorum", 7.0, 57),
+        ("Sıvı emilimini hesaplıyorum", 7.0, 66),
+        ("100g için değerleri hesaplıyorum", 7.0, 75),
+        ("1 porsiyon için değerleri hesaplıyorum", 7.0, 84),
+        ("Glisemik yükü hesaplıyorum", 7.0, 92),
+        ("Sağlamasını yapıyorum", 8.0, 100)
+    ]
 
     var body: some View {
         ZStack {
@@ -199,17 +219,35 @@ struct RecipeDetailView: View {
                 proteinPerServing: String(format: "%.1f", recipeData.recipe.proteinPerServing),
                 fatPerServing: String(format: "%.1f", recipeData.recipe.fatPerServing),
                 glycemicLoadPerServing: String(format: "%.0f", recipeData.recipe.glycemicLoadPerServing),
-                totalRecipeWeight: String(format: "%.0f", recipeData.recipe.totalRecipeWeight)
+                totalRecipeWeight: String(format: "%.0f", recipeData.recipe.totalRecipeWeight),
+                // API insights
+                digestionTiming: digestionTimingInsights
             )
             .presentationDetents([.large])
         }
-        .sheet(isPresented: $showingNoteDetail) {
-            RecipeNoteDetailView(
-                title: recipeData.storyTitle ?? "balli'nin notu",
-                note: recipeData.storyDescription ?? ""
-            )
-            .presentationDetents([.fraction(0.6)])
-            .presentationDragIndicator(.visible)
+        .sheet(isPresented: $showingNotesModal) {
+            UserNotesModalView(notes: $userNotes) { newNotes in
+                logger.info("💬 [NOTES] User saved notes: '\(newNotes.prefix(50))...'")
+                userNotes = newNotes
+                // Save notes to recipe
+                saveUserNotes(newNotes)
+            }
+        }
+        .onChange(of: isCalculatingNutrition) { oldValue, newValue in
+            if oldValue && !newValue {
+                // Calculation just completed
+                logger.info("✅ [NUTRITION] Calculation completed, showing modal")
+                currentLoadingStep = nil
+                showingNutritionalValues = true
+            } else if !oldValue && newValue {
+                // Calculation just started
+                logger.info("🔄 [NUTRITION] Calculation started, beginning loading animation")
+                startLoadingAnimation()
+            }
+        }
+        .onAppear {
+            // Load existing user notes
+            userNotes = recipeData.recipe.notes ?? ""
         }
     }
 
@@ -339,11 +377,14 @@ struct RecipeDetailView: View {
 
     private var storyCardSection: some View {
         RecipeStoryCard(
-            title: recipeData.storyTitle ?? "",
-            description: recipeData.storyDescription,
-            thumbnailURL: recipeData.storyThumbnailURL
+            title: "balli'nin Tarif Analizi",
+            description: "Besin değeri analizi",
+            thumbnailURL: nil,
+            isLoading: isCalculatingNutrition,
+            loadingStep: currentLoadingStep,
+            loadingProgress: Double(nutritionCalculationProgress)
         ) {
-            handleStoryTap()
+            handleStoryCardTap()
         }
     }
 
@@ -351,19 +392,14 @@ struct RecipeDetailView: View {
 
     private var actionButtonsSection: some View {
         RecipeActionRow(
-            actions: [.favorite, .values, .shopping],
+            actions: [.favorite, .notes, .shopping],
             activeStates: [recipeData.recipe.isFavorite, false, false],
-            loadingStates: [false, isCalculatingNutrition, false],
-            completedStates: [false, hasNutritionValues, false],
-            progressStates: [0, nutritionCalculationProgress, 0]
+            loadingStates: [false, false, false],
+            completedStates: [false, false, false],
+            progressStates: [0, 0, 0]
         ) { action in
             handleAction(action)
         }
-    }
-
-    /// Check if nutrition values have been calculated
-    private var hasNutritionValues: Bool {
-        recipeData.recipe.calories > 0 && recipeData.recipe.totalCarbs > 0 && recipeData.recipe.protein > 0
     }
 
     // MARK: - Recipe Content
@@ -640,20 +676,12 @@ struct RecipeDetailView: View {
         return markdown
     }
 
-    private func handleStoryTap() {
-        print("🔍 Story tapped!")
-        print("🔍 Story title: \(recipeData.storyTitle ?? "nil")")
-        print("🔍 Story description: \(recipeData.storyDescription ?? "nil")")
-        print("🔍 Recipe notes: \(recipeData.recipe.notes ?? "nil")")
-        showingNoteDetail = true
-    }
-
     private func handleAction(_ action: RecipeAction) {
         switch action {
         case .favorite:
             handleFavorite()
-        case .values:
-            handleValues()
+        case .notes:
+            showingNotesModal = true
         case .shopping:
             handleShopping()
         default:
@@ -671,130 +699,6 @@ struct RecipeDetailView: View {
             logger.info("✅ Recipe favorite status toggled: \(recipeData.recipe.isFavorite)")
         } catch {
             logger.error("❌ Failed to toggle favorite status: \(error.localizedDescription)")
-        }
-    }
-
-    private func handleValues() {
-        // Check if nutrition values are already calculated
-        let hasNutrition = recipeData.recipe.calories > 0 &&
-                          recipeData.recipe.totalCarbs > 0 &&
-                          recipeData.recipe.protein > 0
-
-        if hasNutrition {
-            // Nutrition already calculated, show modal immediately
-            logger.debug("🍽️ [NUTRITION] Values already present, showing modal")
-            showingNutritionalValues = true
-        } else {
-            // Start calculation - button will pulse, modal opens when complete
-            logger.info("🍽️ [NUTRITION] Starting calculation...")
-            calculateNutrition()
-            // Modal will open automatically via .onChange(of: isCalculatingNutrition)
-        }
-    }
-
-    private func calculateNutrition() {
-        isCalculatingNutrition = true
-        nutritionCalculationProgress = 1  // Start at 1%
-
-        // Start progress animation (1% to 100% over ~30 seconds)
-        startProgressAnimation()
-
-        Task {
-            do {
-                // Get recipe content - prefer markdown format, fall back to arrays
-                var recipeContent = ""
-
-                if let ingredients = recipeData.recipe.ingredients as? [String],
-                   let instructions = recipeData.recipe.instructions as? [String] {
-                    // Build markdown from arrays
-                    recipeContent = "## Malzemeler\n---\n"
-                    for ingredient in ingredients {
-                        recipeContent += "- \(ingredient)\n"
-                    }
-                    recipeContent += "\n## Yapılışı\n---\n"
-                    for (index, instruction) in instructions.enumerated() {
-                        recipeContent += "\(index + 1). \(instruction)\n"
-                    }
-                }
-
-                guard !recipeContent.isEmpty else {
-                    logger.error("❌ [NUTRITION] No recipe content available")
-                    isCalculatingNutrition = false
-                    return
-                }
-
-                logger.info("🍽️ [NUTRITION] Calling Cloud Function...")
-                let nutritionData = try await nutritionRepository.calculateNutrition(
-                    recipeName: recipeData.recipe.name,
-                    recipeContent: recipeContent,
-                    servings: 4
-                )
-
-                // Update Core Data entity with calculated values
-                await MainActor.run {
-                    // Per-100g values
-                    recipeData.recipe.calories = nutritionData.calories
-                    recipeData.recipe.totalCarbs = nutritionData.carbohydrates
-                    recipeData.recipe.fiber = nutritionData.fiber
-                    recipeData.recipe.sugars = nutritionData.sugar
-                    recipeData.recipe.protein = nutritionData.protein
-                    recipeData.recipe.totalFat = nutritionData.fat
-                    recipeData.recipe.glycemicLoad = nutritionData.glycemicLoad
-
-                    // Per-serving values (entire recipe = 1 serving)
-                    recipeData.recipe.caloriesPerServing = nutritionData.caloriesPerServing
-                    recipeData.recipe.carbsPerServing = nutritionData.carbohydratesPerServing
-                    recipeData.recipe.fiberPerServing = nutritionData.fiberPerServing
-                    recipeData.recipe.sugarsPerServing = nutritionData.sugarPerServing
-                    recipeData.recipe.proteinPerServing = nutritionData.proteinPerServing
-                    recipeData.recipe.fatPerServing = nutritionData.fatPerServing
-                    recipeData.recipe.glycemicLoadPerServing = nutritionData.glycemicLoadPerServing
-                    recipeData.recipe.totalRecipeWeight = nutritionData.totalRecipeWeight
-
-                    // Save to Core Data
-                    do {
-                        try viewContext.save()
-                        logger.info("✅ [NUTRITION] Calculation complete and saved to Core Data")
-                        logger.info("   Per-100g: \(nutritionData.calories) kcal")
-                        logger.info("   Per-serving: \(nutritionData.caloriesPerServing) kcal, \(nutritionData.totalRecipeWeight)g total")
-                    } catch {
-                        logger.error("❌ [NUTRITION] Failed to save nutrition data: \(error.localizedDescription)")
-                    }
-
-                    isCalculatingNutrition = false
-                    nutritionCalculationProgress = 100  // Set to 100% on completion
-                }
-
-            } catch {
-                await MainActor.run {
-                    isCalculatingNutrition = false
-                    nutritionCalculationProgress = 0  // Reset on error
-                    logger.error("❌ [NUTRITION] Calculation failed: \(error.localizedDescription)")
-                }
-            }
-        }
-    }
-
-    /// Animate progress from 1% to 100% over time
-    private func startProgressAnimation() {
-        Task { @MainActor in
-            // Increment progress smoothly over ~66 seconds (typical API call duration: 60-70s)
-            for i in 1...100 {
-                guard isCalculatingNutrition else { break }  // Stop if calculation completes early
-
-                nutritionCalculationProgress = i
-
-                // Variable speed: faster at start (excitement), slower near end (anticipation)
-                let delay: TimeInterval = if i < 30 {
-                    0.4  // Fast (30% in 12s)
-                } else if i < 70 {
-                    0.6  // Medium (40% in 24s)
-                } else {
-                    1.0  // Slow (30% in 30s)
-                }
-
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-            }
         }
     }
 
@@ -919,6 +823,138 @@ struct RecipeDetailView: View {
             logger.info("✅ [DETAIL] Image saved to recipe successfully")
         } catch {
             logger.error("❌ [DETAIL] Failed to save image: \(error.localizedDescription)")
+            ErrorHandler.shared.handle(error)
+        }
+    }
+
+    // MARK: - Story Card Tap Handler
+
+    private func handleStoryCardTap() {
+        logger.info("🔍 [STORY] Story card tapped")
+
+        // Check if nutrition values are already calculated
+        let hasNutrition = recipeData.recipe.calories > 0 &&
+                          recipeData.recipe.totalCarbs > 0 &&
+                          recipeData.recipe.protein > 0
+
+        if hasNutrition {
+            // Nutrition already calculated, show modal immediately
+            logger.info("✅ [STORY] Nutrition data exists, showing modal")
+            showingNutritionalValues = true
+        } else {
+            // Start calculation - loading animation will show in card
+            logger.info("🔄 [STORY] Starting nutrition calculation")
+            Task {
+                await calculateNutritionValues()
+            }
+        }
+    }
+
+    // MARK: - Loading Animation
+
+    private func startLoadingAnimation() {
+        Task {
+            for step in loadingSteps {
+                // Check if calculation is still in progress
+                guard await MainActor.run(body: { isCalculatingNutrition }) else {
+                    logger.info("⏹️ [LOADING] Calculation completed early, stopping animation")
+                    return
+                }
+
+                // Update current step
+                await MainActor.run {
+                    currentLoadingStep = step.label
+                }
+
+                logger.debug("📝 [LOADING] Step: '\(step.label)' (target: \(step.progress)%)")
+
+                // Wait for step duration
+                try? await Task.sleep(for: .seconds(step.duration))
+            }
+
+            // Clear loading step when done
+            await MainActor.run {
+                currentLoadingStep = nil
+            }
+            logger.info("✅ [LOADING] Animation sequence completed")
+        }
+    }
+
+    // MARK: - Calculate Nutrition
+
+    @MainActor
+    private func calculateNutritionValues() async {
+        guard let recipeContent = recipeData.recipe.recipeContent,
+              !recipeData.recipeName.isEmpty else {
+            logger.error("❌ [NUTRITION] Missing recipe data for calculation")
+            return
+        }
+
+        isCalculatingNutrition = true
+        nutritionCalculationProgress = 1
+
+        do {
+            logger.info("🍽️ [NUTRITION] Calling nutrition repository...")
+
+            let result = try await nutritionRepository.calculateNutrition(
+                recipeName: recipeData.recipeName,
+                recipeContent: recipeContent,
+                servings: 1  // Always 1 = entire recipe as one portion
+            )
+
+            logger.info("✅ [NUTRITION] Received response from API")
+
+            // Update recipe with nutrition values
+            recipeData.recipe.calories = result.calories
+            recipeData.recipe.totalCarbs = result.carbohydrates
+            recipeData.recipe.fiber = result.fiber
+            recipeData.recipe.sugars = result.sugar
+            recipeData.recipe.protein = result.protein
+            recipeData.recipe.totalFat = result.fat
+            recipeData.recipe.glycemicLoad = result.glycemicLoad
+
+            // Per-serving values (computed properties from result)
+            recipeData.recipe.caloriesPerServing = result.caloriesPerServing
+            recipeData.recipe.carbsPerServing = result.carbohydratesPerServing
+            recipeData.recipe.fiberPerServing = result.fiberPerServing
+            recipeData.recipe.sugarsPerServing = result.sugarPerServing
+            recipeData.recipe.proteinPerServing = result.proteinPerServing
+            recipeData.recipe.fatPerServing = result.fatPerServing
+            recipeData.recipe.glycemicLoadPerServing = result.glycemicLoadPerServing
+            recipeData.recipe.totalRecipeWeight = result.totalRecipeWeight
+
+            // Store digestion timing insights for modal
+            digestionTimingInsights = result.digestionTiming
+
+            // Save to Core Data
+            try viewContext.save()
+
+            isCalculatingNutrition = false
+            nutritionCalculationProgress = 100
+
+            logger.info("✅ [NUTRITION] Values saved successfully")
+            if let insights = result.digestionTiming {
+                logger.info("   Digestion timing: \(insights.hasMismatch ? "mismatch detected" : "no mismatch"), peak at \(insights.glucosePeakTime)h")
+            }
+        } catch {
+            logger.error("❌ [NUTRITION] Calculation failed: \(error.localizedDescription)")
+            isCalculatingNutrition = false
+            nutritionCalculationProgress = 0
+            ErrorHandler.shared.handle(error)
+        }
+    }
+
+    // MARK: - Save User Notes
+
+    @MainActor
+    private func saveUserNotes(_ notes: String) {
+        recipeData.recipe.notes = notes
+
+        do {
+            try viewContext.save()
+            logger.info("✅ [NOTES] User notes saved successfully")
+        } catch {
+            logger.error("❌ [NOTES] Failed to save notes: \(error.localizedDescription)")
             ErrorHandler.shared.handle(error)
         }
     }

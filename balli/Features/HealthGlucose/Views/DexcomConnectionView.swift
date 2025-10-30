@@ -68,9 +68,9 @@ struct DexcomConnectionView: View {
         } message: {
             Text(errorMessage)
         }
-        .task {
-            await dexcomService.checkConnectionStatus()
-        }
+        // REMOVED: .task { await checkConnectionStatus() }
+        // REASON: DexcomService already checks on init AND this caused 7-8 redundant checks per second
+        // Connection status is updated automatically when service state changes via @Published
         .captureWindow() // Capture window for OAuth flow - ensures window is available even when pushed via NavigationLink
         .onAppear {
             logger.debug("🔍 DexcomConnectionView appeared")

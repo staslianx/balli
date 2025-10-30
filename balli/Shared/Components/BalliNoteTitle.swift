@@ -9,12 +9,14 @@
 
 import SwiftUI
 
-/// Title text that combines Galano and Playfair fonts for "balli'nin notu"
+/// Title text that combines Galano and Playfair fonts for "balli'nin notu" or custom text
 struct BalliNoteTitle: View {
     let size: CGFloat
+    let customText: String?
 
-    init(size: CGFloat = 17) {
+    init(size: CGFloat = 17, customText: String? = nil) {
         self.size = size
+        self.customText = customText
     }
 
     var body: some View {
@@ -23,10 +25,18 @@ struct BalliNoteTitle: View {
                 .font(.custom("GalanoGrotesqueAlt-SemiBold", size: size))
                 .offset(y:1.4)
 
-            Text("'nin notu")
-                .font(.custom("Playfair Display", size: size))
-                .fontWeight(.bold)
-                .italic()
+            // Use custom text if provided, otherwise default to "'nin notu"
+            if let customText = customText, customText == "balli'nin Tarif Analizi" {
+                Text("'nin Tarif Analizi")
+                    .font(.custom("Playfair Display", size: size))
+                    .fontWeight(.bold)
+                    .italic()
+            } else {
+                Text("'nin notu")
+                    .font(.custom("Playfair Display", size: size))
+                    .fontWeight(.bold)
+                    .italic()
+            }
         }
     }
 }

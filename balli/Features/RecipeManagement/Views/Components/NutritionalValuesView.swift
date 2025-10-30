@@ -34,6 +34,9 @@ struct NutritionalValuesView: View {
     let glycemicLoadPerServing: String
     let totalRecipeWeight: String
 
+    // API insights (optional - from nutrition calculation)
+    let digestionTiming: DigestionTiming?
+
     @State private var selectedTab = 0  // 0 = Porsiyon, 1 = 100g
 
     var body: some View {
@@ -53,19 +56,6 @@ struct NutritionalValuesView: View {
                         .font(.system(size: 15, weight: .regular, design: .rounded))
                         .foregroundColor(.secondary)
                         .padding(.bottom, 8)
-
-                    // Insulin-Glucose Curve Warning (only for Porsiyon tab)
-                    if selectedTab == 0 && shouldShowCurveWarning {
-                        InsulinGlucoseCurveWarningView(
-                            fatPerServing: Double(fatPerServing) ?? 0,
-                            proteinPerServing: Double(proteinPerServing) ?? 0,
-                            carbsPerServing: Double(carbohydratesPerServing) ?? 0,
-                            sugarPerServing: Double(sugarPerServing) ?? 0,
-                            fiberPerServing: Double(fiberPerServing) ?? 0,
-                            glycemicLoadPerServing: Double(glycemicLoadPerServing) ?? 0
-                        )
-                        .padding(.bottom, 12)
-                    }
 
                     // Nutritional Values Cards
                     VStack(spacing: 12) {
@@ -105,11 +95,14 @@ struct NutritionalValuesView: View {
                             unit: "g"
                         )
 
-                        nutritionRow(
-                            label: "Glisemik Yük",
-                            value: displayedGlycemicLoad,
-                            unit: ""
-                        )
+                        // Only show Glycemic Load in Porsiyon tab (it's a per-portion metric)
+                        if selectedTab == 0 {
+                            nutritionRow(
+                                label: "Glisemik Yük",
+                                value: displayedGlycemicLoad,
+                                unit: ""
+                            )
+                        }
                     }
                 }
                 .padding(20)
@@ -129,16 +122,6 @@ struct NutritionalValuesView: View {
     }
 
     // MARK: - Computed Properties
-
-    /// Check if we should show the curve warning
-    /// Only show when we have valid per-serving nutrition values
-    private var shouldShowCurveWarning: Bool {
-        // Need non-zero values for meaningful calculation
-        guard let fat = Double(fatPerServing), fat > 0 else { return false }
-        guard let carbs = Double(carbohydratesPerServing), carbs > 0 else { return false }
-        guard let gl = Double(glycemicLoadPerServing), gl > 0 else { return false }
-        return true
-    }
 
     private var infoText: Text {
         if selectedTab == 0 {
@@ -235,7 +218,8 @@ struct NutritionalValuesView: View {
         proteinPerServing: "108.5",
         fatPerServing: "12.6",
         glycemicLoadPerServing: "14",
-        totalRecipeWeight: "350"
+        totalRecipeWeight: "350",
+        digestionTiming: nil
     )
 }
 
@@ -258,7 +242,8 @@ struct NutritionalValuesView: View {
         proteinPerServing: "32",
         fatPerServing: "35",  // High fat triggers danger warning
         glycemicLoadPerServing: "20",
-        totalRecipeWeight: "400"
+        totalRecipeWeight: "400",
+        digestionTiming: nil
     )
 }
 
@@ -279,6 +264,7 @@ struct NutritionalValuesView: View {
         proteinPerServing: "",
         fatPerServing: "",
         glycemicLoadPerServing: "",
-        totalRecipeWeight: ""
+        totalRecipeWeight: "",
+        digestionTiming: nil
     )
 }

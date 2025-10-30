@@ -140,15 +140,20 @@ struct NutritionLabelView: View {
     }
 
     /// Calculate real-time impact score for current portion using Nestlé formula
+    /// Treats empty or invalid nutritional values as 0.0 to handle products with missing data
     private var currentImpactResult: ImpactScoreResult? {
+        // Require only carbs and serving size - other nutrients can be zero
         guard let baseCarbs = Double(carbohydrates),
-              let baseFiber = Double(fiber),
-              let baseSugars = Double(sugars),
-              let baseProtein = Double(protein),
-              let baseFat = Double(fat),
-              let baseServing = Double(servingSize) else {
+              let baseServing = Double(servingSize),
+              baseServing > 0 else {
             return nil
         }
+
+        // Parse optional nutrients - default to 0.0 if missing/empty/invalid
+        let baseFiber = Double(fiber) ?? 0.0
+        let baseSugars = Double(sugars) ?? 0.0
+        let baseProtein = Double(protein) ?? 0.0
+        let baseFat = Double(fat) ?? 0.0
 
         return ImpactScoreCalculator.calculate(
             totalCarbs: baseCarbs,

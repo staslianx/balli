@@ -8,6 +8,9 @@
 
 import SwiftUI
 
+// Type alias for API insights
+typealias DigestionTimingInsights = DigestionTiming
+
 /// Main warning view with expandable dual-curve chart
 struct InsulinGlucoseCurveWarningView: View {
     // Nutrition data (per-serving values)
@@ -18,12 +21,15 @@ struct InsulinGlucoseCurveWarningView: View {
     let fiberPerServing: Double
     let glycemicLoadPerServing: Double
 
+    // API insights (optional - if provided, use instead of programmatic calculation)
+    let apiInsights: DigestionTimingInsights?
+
     @State private var isExpanded = false
 
-    // Calculator
+    // Calculator (used as fallback if API insights not available)
     private let calculator = InsulinCurveCalculator.shared
 
-    // Computed nutrition data
+    // Computed nutrition data (for fallback calculation)
     private var nutrition: InsulinCurveCalculator.RecipeNutrition {
         InsulinCurveCalculator.RecipeNutrition(
             carbohydrates: carbsPerServing,
@@ -35,21 +41,44 @@ struct InsulinGlucoseCurveWarningView: View {
         )
     }
 
-    // Curve calculations
+    // Curve calculations (use API if available, otherwise calculate)
     private var glucosePeakTime: Int {
-        calculator.calculateGlucosePeakTime(nutrition: nutrition)
+        if let insights = apiInsights {
+            return Int(insights.glucosePeakTime * 60)  // Convert hours to minutes
+        }
+        return calculator.calculateGlucosePeakTime(nutrition: nutrition)
     }
 
     private var mismatchMinutes: Int {
-        calculator.calculateMismatch(glucosePeakTime: glucosePeakTime)
+        if let insights = apiInsights {
+            return Int(insights.mismatchHours * 60)  // Convert hours to minutes
+        }
+        return calculator.calculateMismatch(glucosePeakTime: glucosePeakTime)
     }
 
     private var warningLevel: CurveWarningLevel {
-        calculator.determineWarning(nutrition: nutrition).level
+        if let insights = apiInsights {
+            return mapAPISeverityToWarningLevel(severity: insights.severity, hasMismatch: insights.hasMismatch)
+        }
+        return calculator.determineWarning(nutrition: nutrition).level
     }
 
     private var shouldShow: Bool {
-        warningLevel != .none
+        if let insights = apiInsights {
+            return insights.hasMismatch
+        }
+        return warningLevel != .none
+    }
+
+    // Map API severity to CurveWarningLevel
+    private func mapAPISeverityToWarningLevel(severity: String, hasMismatch: Bool) -> CurveWarningLevel {
+        guard hasMismatch else { return .none }
+        switch severity.lowercased() {
+        case "low": return .info
+        case "medium": return .warning
+        case "high": return .danger
+        default: return .none
+        }
     }
 
     var body: some View {
@@ -96,7 +125,7 @@ struct InsulinGlucoseCurveWarningView: View {
                 .buttonStyle(.plain)
             }
             .padding(16)
-            .background(warningLevel.backgroundColor)
+            .background(Color(.secondarySystemBackground))
             .overlay(
                 RoundedRectangle(cornerRadius: 16)
                     .stroke(warningLevel.borderColor, lineWidth: 2)
@@ -190,7 +219,8 @@ struct InsulinGlucoseCurveWarningView: View {
                 carbsPerServing: 50,
                 sugarPerServing: 10,
                 fiberPerServing: 3,
-                glycemicLoadPerServing: 20
+                glycemicLoadPerServing: 20,
+                apiInsights: nil
             )
         }
         .padding()
@@ -207,7 +237,8 @@ struct InsulinGlucoseCurveWarningView: View {
                 carbsPerServing: 45,
                 sugarPerServing: 15,
                 fiberPerServing: 5,
-                glycemicLoadPerServing: 18
+                glycemicLoadPerServing: 18,
+                apiInsights: nil
             )
         }
         .padding()
@@ -224,7 +255,8 @@ struct InsulinGlucoseCurveWarningView: View {
                 carbsPerServing: 40,
                 sugarPerServing: 25,
                 fiberPerServing: 4,
-                glycemicLoadPerServing: 12
+                glycemicLoadPerServing: 12,
+                apiInsights: nil
             )
         }
         .padding()
@@ -241,7 +273,8 @@ struct InsulinGlucoseCurveWarningView: View {
                 carbsPerServing: 30,
                 sugarPerServing: 20,
                 fiberPerServing: 2,
-                glycemicLoadPerServing: 15
+                glycemicLoadPerServing: 15,
+                apiInsights: nil
             )
 
             Text("⬆️ No warning shown (good alignment)")

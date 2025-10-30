@@ -23,6 +23,11 @@ enum AnalyticsEvent: String, Sendable {
     case dexcomRateLimitHit = "dexcom_rate_limit_hit"
     case dexcomDisconnected = "dexcom_disconnected"
 
+    // Dexcom Share API Events
+    case dexcomShareAutoRecovery = "dexcom_share_auto_recovery"
+    case dexcomShareAutoRecoveryFailed = "dexcom_share_auto_recovery_failed"
+    case dexcomShareCredentialsInvalid = "dexcom_share_credentials_invalid"
+
     // General Health Events
     case healthDataFetched = "health_data_fetched"
     case healthDataSaved = "health_data_saved"

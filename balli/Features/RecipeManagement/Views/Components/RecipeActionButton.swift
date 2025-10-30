@@ -13,6 +13,7 @@ enum RecipeAction {
     case save
     case favorite
     case values
+    case notes
     case shopping
     case timer
     case edit
@@ -22,6 +23,7 @@ enum RecipeAction {
         case .save: return "star"
         case .favorite: return "star"
         case .values: return "checkmark.seal.text.page"
+        case .notes: return "note.text"
         case .shopping: return "basket"
         case .timer: return "timer"
         case .edit: return "pencil"
@@ -33,6 +35,7 @@ enum RecipeAction {
         case .save: return "star.fill"
         case .favorite: return "star.fill"
         case .values: return "checkmark.seal.text.page.fill"
+        case .notes: return "note.text"
         case .shopping: return "basket.fill"
         case .timer: return "timer"
         case .edit: return "pencil"
@@ -44,6 +47,7 @@ enum RecipeAction {
         case .save: return "Kaydet"
         case .favorite: return "Favorile"
         case .values: return "Değerler"
+        case .notes: return "Notlarım"
         case .shopping: return "Alışveriş"
         case .timer: return "Timer"
         case .edit: return "Edit"

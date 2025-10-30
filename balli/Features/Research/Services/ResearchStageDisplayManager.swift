@@ -53,7 +53,7 @@ enum ResearchDisplayStage: Sendable {
     }
 }
 
-/// Manages research stage display with minimum duration enforcement
+/// Manages research stage display with minimum duration enforcement using a queue
 @MainActor
 class ResearchStageDisplayManager {
 
@@ -63,9 +63,20 @@ class ResearchStageDisplayManager {
 
     // MARK: - State
 
-    private var currentStage: ResearchDisplayStage?
+    /// Currently displayed stage (UI reads this)
+    private(set) var currentStage: ResearchDisplayStage?
+
+    /// When current stage started displaying
     private var currentStageStartTime: Date?
-    private var isTransitioning = false
+
+    /// Queue of pending stages waiting to be displayed
+    private var pendingStages: [ResearchDisplayStage] = []
+
+    /// Processing task for stage queue
+    private var queueProcessingTask: Task<Void, Never>?
+
+    /// Flag to indicate if queue is being processed
+    private var isProcessingQueue = false
 
     // MARK: - Public API
 
@@ -79,38 +90,84 @@ class ResearchStageDisplayManager {
         currentStage?.userMessage
     }
 
-    /// Transition to new stage with minimum duration enforcement
-    /// - Parameter newStage: The new stage to transition to
-    /// - Note: Enforces minimum display duration for previous stage
-    func transitionToStage(_ newStage: ResearchDisplayStage) async {
-        // Prevent concurrent transitions
-        guard !isTransitioning else {
-            logger.warning("Stage transition already in progress, skipping: \(String(describing: newStage))")
-            return
+    /// Queue a new stage for display with minimum duration enforcement
+    /// - Parameter newStage: The new stage to queue
+    /// - Parameter coordinator: The stage coordinator to check view readiness
+    /// - Parameter answerId: The answer ID for view readiness check
+    /// - Note: Stages are displayed sequentially with enforced minimum durations
+    func transitionToStage(_ newStage: ResearchDisplayStage, coordinator: ResearchStageCoordinator, answerId: String) async {
+        logger.info("🔄 Queuing stage: \(newStage.userMessage)")
+
+        // Add stage to queue
+        pendingStages.append(newStage)
+
+        // Start processing queue if not already running
+        if !isProcessingQueue {
+            startQueueProcessing(answerId: answerId, coordinator: coordinator)
         }
+    }
 
-        isTransitioning = true
-        defer { isTransitioning = false }
+    /// Start processing the stage queue
+    private func startQueueProcessing(answerId: String, coordinator: ResearchStageCoordinator) {
+        // Cancel any existing processing task
+        queueProcessingTask?.cancel()
 
-        // Ensure current stage displayed for minimum duration
-        if let currentStage = currentStage,
-           let startTime = currentStageStartTime {
-            let elapsed = Date().timeIntervalSince(startTime)
-            let minDuration = currentStage.minimumDisplayDuration
-            let remaining = max(0, minDuration - elapsed)
+        // Create new processing task
+        queueProcessingTask = Task { @MainActor in
+            isProcessingQueue = true
+            defer { isProcessingQueue = false }
 
-            if remaining > 0 {
-                logger.info("Holding stage '\(currentStage.userMessage)' for \(String(format: "%.1f", remaining))s more")
+            logger.info("▶️ Starting stage queue processing")
 
-                // Hold current stage for remaining time
-                try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+            // 🔧 CRITICAL FIX: Wait for view to signal it's ready
+            logger.info("⏸️ Waiting for view to be ready...")
+
+            while coordinator.viewReadySignals[answerId] != true {
+                try? await Task.sleep(nanoseconds: 50_000_000)  // Check every 50ms
             }
-        }
 
-        // Update to new stage
-        logger.info("Transitioning to stage: \(newStage.userMessage)")
-        self.currentStage = newStage
-        self.currentStageStartTime = Date()
+            logger.info("✅ View is ready, starting stage display")
+
+            while !pendingStages.isEmpty {
+                // Check if task was cancelled
+                if Task.isCancelled {
+                    logger.info("⏹️ Stage queue processing cancelled")
+                    break
+                }
+
+                // Ensure current stage displayed for minimum duration
+                if let currentStage = currentStage,
+                   let startTime = currentStageStartTime {
+                    let elapsed = Date().timeIntervalSince(startTime)
+                    let minDuration = currentStage.minimumDisplayDuration
+                    let remaining = max(0, minDuration - elapsed)
+
+                    if remaining > 0 {
+                        logger.info("⏳ Holding '\(currentStage.userMessage)' for \(String(format: "%.1f", remaining))s more")
+                        try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+                    }
+                }
+
+                // Get next stage from queue
+                let nextStage = pendingStages.removeFirst()
+
+                // Display next stage
+                logger.info("✅ Now displaying: \(nextStage.userMessage)")
+                self.currentStage = nextStage
+                self.currentStageStartTime = Date()
+            }
+
+            logger.info("⏸️ Stage queue empty, pausing processing")
+        }
+    }
+
+    /// Stop queue processing and clear all pending stages
+    func stopProcessing() {
+        logger.info("🛑 Stopping stage queue processing")
+        queueProcessingTask?.cancel()
+        queueProcessingTask = nil
+        pendingStages.removeAll()
+        isProcessingQueue = false
     }
 
     /// Map backend SSE event to user-facing stage
@@ -155,8 +212,8 @@ class ResearchStageDisplayManager {
     /// Reset manager state (for new search)
     func reset() {
         logger.info("Resetting stage display manager")
+        stopProcessing()
         currentStage = nil
         currentStageStartTime = nil
-        isTransitioning = false
     }
 }

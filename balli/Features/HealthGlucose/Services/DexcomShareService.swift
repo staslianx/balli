@@ -60,6 +60,15 @@ final class DexcomShareService: ObservableObject {
     private let logger = AppLoggers.Health.glucose
     private let glucoseRepository: GlucoseReadingRepository
 
+    // ANTI-SPAM: Prevent excessive connection checks
+    private var lastConnectionCheck: Date?
+    private let connectionCheckDebounceInterval: TimeInterval = 2.0 // 2 seconds
+
+    // RETRY LOGIC: Exponential backoff for auto-recovery
+    private var recoveryAttempts: Int = 0
+    private var lastRecoveryAttempt: Date?
+    private let maxRecoveryAttempts: Int = 3
+
     // MARK: - Initialization
 
     init(server: DexcomShareServer = .international, glucoseRepository: GlucoseReadingRepository = GlucoseReadingRepository()) {
@@ -116,11 +125,123 @@ final class DexcomShareService: ObservableObject {
     }
 
     /// Check if connected and update status
+    /// ENHANCED: Auto-recovers expired sessions using stored credentials
+    /// ENHANCED: Debounced to prevent excessive checks (max once per 2 seconds)
+    /// This ensures users stay connected without re-entering credentials
     func checkConnectionStatus() async {
+        // ANTI-SPAM: Debounce connection checks to prevent 7-8 checks per second
+        if let lastCheck = lastConnectionCheck {
+            let timeSinceLastCheck = Date().timeIntervalSince(lastCheck)
+            if timeSinceLastCheck < connectionCheckDebounceInterval {
+                logger.debug("⏭️ Skipping Share connection check - debounced (checked \(String(format: "%.1f", timeSinceLastCheck))s ago)")
+                return
+            }
+        }
+
+        lastConnectionCheck = Date()
+
+        logger.info("🔍 [DexcomShareService]: checkConnectionStatus() called")
+
+        // Check if we have stored credentials
         let hasCredentials = await authManager.hasCredentials()
+
+        if !hasCredentials {
+            // No credentials stored - truly disconnected
+            logger.info("ℹ️ No Share credentials stored - user needs to connect")
+            isConnected = false
+            connectionStatus = .disconnected
+            return
+        }
+
+        logger.info("✅ Share credentials found in keychain")
+
+        // Check if session is still valid
         let authenticated = await authManager.isAuthenticated()
-        isConnected = hasCredentials && authenticated
-        connectionStatus = isConnected ? .connected : .disconnected
+
+        if authenticated {
+            // Session still valid - we're good
+            logger.info("✅ Share session is valid")
+            isConnected = true
+            connectionStatus = .connected
+            return
+        }
+
+        // Session expired but we have credentials - AUTO-RECOVER WITH RETRY
+        logger.info("⚠️ Share session expired, attempting automatic recovery...")
+
+        // Check if we should apply backoff
+        if let lastAttempt = lastRecoveryAttempt {
+            let timeSinceLastAttempt = Date().timeIntervalSince(lastAttempt)
+            let backoffInterval = calculateBackoffInterval(attempt: recoveryAttempts)
+
+            if timeSinceLastAttempt < backoffInterval {
+                logger.warning("⏱️ Recovery backoff active - wait \(String(format: "%.0f", backoffInterval - timeSinceLastAttempt))s more")
+                isConnected = false
+                connectionStatus = .error(.serverError)
+                return
+            }
+        }
+
+        // Increment recovery attempt counter
+        recoveryAttempts += 1
+        lastRecoveryAttempt = Date()
+
+        if recoveryAttempts > maxRecoveryAttempts {
+            logger.error("❌ Max recovery attempts exceeded (\(self.maxRecoveryAttempts)) - giving up")
+            isConnected = false
+            connectionStatus = .error(.serverError)
+            await analytics.trackError(.dexcomShareAutoRecoveryFailed, error: DexcomShareError.serverError)
+            return
+        }
+
+        logger.info("🔄 Recovery attempt \(self.recoveryAttempts)/\(self.maxRecoveryAttempts)")
+        connectionStatus = .connecting
+
+        do {
+            // Clear expired session
+            await authManager.clearSession()
+            logger.info("🔄 Cleared expired session, re-authenticating...")
+
+            // Trigger re-authentication using stored credentials
+            // This calls DexcomShareAuthManager.authenticate() internally
+            _ = try await authManager.getSessionId()
+
+            // Success - session recovered
+            isConnected = true
+            connectionStatus = .connected
+            recoveryAttempts = 0 // Reset counter on success
+            lastRecoveryAttempt = nil
+            logger.info("✅ Share session automatically recovered - user stays connected")
+
+            // Track successful auto-recovery
+            await analytics.track(.dexcomShareAutoRecovery)
+
+        } catch DexcomShareError.invalidCredentials {
+            // Credentials are no longer valid (password changed, account disabled)
+            logger.error("❌ Auto-recovery failed: Credentials invalid (password changed?)")
+            isConnected = false
+            connectionStatus = .error(.invalidCredentials)
+
+            // Track credential failure
+            await analytics.trackError(.dexcomShareCredentialsInvalid, error: DexcomShareError.invalidCredentials)
+
+        } catch DexcomShareError.serverError {
+            // Server error - keep credentials, try again later
+            logger.error("⚠️ Auto-recovery failed: Server error (will retry)")
+            isConnected = false
+            connectionStatus = .error(.serverError)
+
+            // Don't delete credentials - might be temporary server issue
+
+        } catch {
+            // Other error - log but keep credentials for retry
+            logger.error("❌ Auto-recovery failed: \(error.localizedDescription)")
+            isConnected = false
+            connectionStatus = .error(error as? DexcomShareError ?? .serverError)
+
+            // Track auto-recovery failure
+            await analytics.trackError(.dexcomShareAutoRecoveryFailed, error: error)
+        }
     }
 
     // MARK: - Data Fetching
@@ -320,6 +441,20 @@ final class DexcomShareService: ObservableObject {
     /// Convert SHARE readings to app's HealthGlucoseReading format
     func convertToHealthReadings(_ shareReadings: [DexcomShareGlucoseReading]) -> [HealthGlucoseReading] {
         shareReadings.map { $0.toHealthGlucoseReading() }
+    }
+
+    // MARK: - Retry Logic
+
+    /// Calculate exponential backoff interval for retry attempts
+    /// Attempt 1: 30 seconds
+    /// Attempt 2: 60 seconds
+    /// Attempt 3: 120 seconds
+    private func calculateBackoffInterval(attempt: Int) -> TimeInterval {
+        let baseInterval: TimeInterval = 30.0 // 30 seconds
+        let maxInterval: TimeInterval = 120.0 // 2 minutes
+
+        let interval = baseInterval * pow(2.0, Double(attempt - 1))
+        return min(interval, maxInterval)
     }
 }
 

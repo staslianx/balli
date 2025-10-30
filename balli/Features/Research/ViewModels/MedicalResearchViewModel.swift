@@ -33,8 +33,9 @@ class MedicalResearchViewModel: ObservableObject {
     // MARK: - Multi-Round Research State (delegated to stageCoordinator)
 
     /// Current display stage for answer (exposed from stageCoordinator)
-    var currentStages: [String: String] {
-        stageCoordinator.currentStages
+    /// Returns the current stage being displayed for each answer
+    var currentStages: [String: String?] {
+        stageCoordinator.currentStages.mapValues { $0 as String? }
     }
 
     /// Flag to hold stream display (exposed from stageCoordinator)
@@ -57,6 +58,10 @@ class MedicalResearchViewModel: ObservableObject {
     /// O(1) lookup dictionary for answer index (answerId -> array index)
     /// Eliminates O(n) linear search called 5-15x per response
     private var answerIndexLookup: [String: Int] = [:]
+
+    /// Track which answers have already triggered first token arrival
+    /// Prevents handleFirstTokenArrival from being called multiple times per answer
+    private var firstTokenProcessed: Set<String> = []
 
     // MARK: - Convenience Properties
 
@@ -252,6 +257,9 @@ class MedicalResearchViewModel: ObservableObject {
 
         let answerId = placeholderAnswer.id
 
+        // Ensure flag is cleared for this new answer (should already be clear, but be explicit)
+        firstTokenProcessed.remove(answerId)
+
         // Initialize stream processor
         _ = streamProcessor.initializeCancellationToken(for: answerId)
         await streamProcessor.resetEventTracker()
@@ -272,6 +280,7 @@ class MedicalResearchViewModel: ObservableObject {
     func clearHistory() async {
         answers.removeAll()
         answerIndexLookup.removeAll()
+        firstTokenProcessed.removeAll() // Clear first token tracking
 
         do {
             try await persistenceManager.clearHistory()
@@ -341,6 +350,11 @@ class MedicalResearchViewModel: ObservableObject {
     /// Submit feedback for an answer
     func submitFeedback(rating: String, answer: SearchAnswer) async {
         await searchCoordinator.submitFeedback(rating: rating, answer: answer)
+    }
+
+    /// Signal that view is ready to display stages
+    func signalViewReady(for answerId: String) {
+        stageCoordinator.signalViewReady(for: answerId)
     }
 
     // MARK: - Private Helpers
@@ -506,8 +520,10 @@ class MedicalResearchViewModel: ObservableObject {
 
                 let currentAnswer = self.answers[index]
 
-                // Handle first token arrival
-                if currentAnswer.content.isEmpty {
+                // Handle first token arrival - only once per answer
+                // Check if this is genuinely the first content AND we haven't already processed it
+                if currentAnswer.content.isEmpty && !self.firstTokenProcessed.contains(answerId) {
+                    self.firstTokenProcessed.insert(answerId)
                     await self.stageCoordinator.handleFirstTokenArrival(answerId: answerId)
                 }
 

@@ -73,6 +73,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             }
             self.handleHealthSyncTask(processingTask)
         }
+
+        // Register Dexcom background refresh
+        Task { @MainActor in
+            DexcomBackgroundRefreshManager.shared.registerBackgroundTask()
+        }
     }
 
     private func handleHealthSyncTask(_ task: BGProcessingTask) {

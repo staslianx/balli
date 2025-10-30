@@ -68,6 +68,10 @@ final class DexcomService: ObservableObject {
     private let analytics = AnalyticsService.shared
     private let logger = AppLoggers.Health.glucose
 
+    // ANTI-SPAM: Prevent excessive connection checks
+    private var lastConnectionCheck: Date?
+    private let connectionCheckDebounceInterval: TimeInterval = 2.0 // 2 seconds
+
     // MARK: - Initialization
 
     init(configuration: DexcomConfiguration = .default()) {
@@ -127,49 +131,67 @@ final class DexcomService: ObservableObject {
 
     /// Check if connected and update status
     /// Also proactively refreshes token if needed to prevent expiration
+    /// FIX: Always checks authentication and updates state, but debounces expensive token refresh
     func checkConnectionStatus() async {
-        logger.info("🔍 FORENSIC [DexcomService]: checkConnectionStatus() called")
-        await DexcomDiagnosticsLogger.shared.logConnection("checkConnectionStatus() called - current state: \(self.isConnected)", level: .debug)
+        // 🔍 FORENSIC LOG: Entry point
+        logger.info("🔍 FORENSIC [checkConnectionStatus]: ENTRY - current cached isConnected=\(self.isConnected)")
+        await DexcomDiagnosticsLogger.shared.logConnection("checkConnectionStatus() ENTRY - cached state: \(self.isConnected)", level: .debug)
 
-        logger.info("🔍 FORENSIC: Current isConnected state: \(self.isConnected)")
+        // Determine if we should refresh token (expensive operation) or just check auth status (cheap)
+        var shouldRefreshToken = true
+        if let lastCheck = lastConnectionCheck {
+            let timeSinceLastCheck = Date().timeIntervalSince(lastCheck)
+            if timeSinceLastCheck < connectionCheckDebounceInterval {
+                logger.debug("⏭️ [checkConnectionStatus]: Within debounce window (\(String(format: "%.1f", timeSinceLastCheck))s ago) - will check auth but SKIP token refresh")
+                await DexcomDiagnosticsLogger.shared.logConnection("Within debounce window - checking auth but skipping refresh", level: .debug)
+                shouldRefreshToken = false
+            }
+        }
+
+        // 🔧 FIX: ALWAYS check authentication status and update isConnected
+        // This ensures callers never see stale cached values
+        logger.info("🔍 FORENSIC [checkConnectionStatus]: Checking authentication status (always runs)")
+        await DexcomDiagnosticsLogger.shared.logConnection("Checking authentication status", level: .debug)
 
         let authenticated = await authManager.isAuthenticated()
-        logger.info("🔍 FORENSIC: Authentication check result: \(authenticated)")
+        logger.info("✅ FORENSIC [checkConnectionStatus]: Auth check complete - authenticated=\(authenticated)")
         await DexcomDiagnosticsLogger.shared.logConnection("Authentication check result: \(authenticated)", level: .info)
 
+        // Update state immediately - no more stale cached values!
+        let oldState = isConnected
         isConnected = authenticated
         connectionStatus = authenticated ? .connected : .disconnected
 
-        logger.info("🔍 FORENSIC: Updated isConnected to: \(self.isConnected), status: \(self.connectionStatus.description)")
-        await DexcomDiagnosticsLogger.shared.logConnection("Updated connection state - isConnected: \(self.isConnected)", level: authenticated ? .success : .error)
+        logger.info("✅ FORENSIC [checkConnectionStatus]: State updated - OLD=\(oldState) → NEW=\(self.isConnected)")
+        logger.info("📢 FORENSIC: Callers will now see isConnected=\(self.isConnected) on their next read")
+        await DexcomDiagnosticsLogger.shared.logConnection("Updated connection state - OLD=\(oldState) → NEW=\(self.isConnected)", level: authenticated ? .success : .error)
 
-        // Proactively refresh token if it's about to expire
-        if authenticated {
-            logger.info("🔍 FORENSIC: User is authenticated, checking if token refresh needed...")
+        // Only refresh token if NOT within debounce window
+        if authenticated && shouldRefreshToken {
+            lastConnectionCheck = Date() // Update timestamp only when we actually refresh
+
+            logger.debug("Checking if token refresh needed...")
             await DexcomDiagnosticsLogger.shared.logTokenRefresh("Checking if token refresh needed", level: .debug)
 
             do {
                 let didRefresh = try await authManager.refreshIfNeeded()
                 if didRefresh {
-                    logger.info("✅ FORENSIC: Token proactively refreshed to prevent expiration")
+                    logger.info("✅ Token proactively refreshed to prevent expiration")
                     await DexcomDiagnosticsLogger.shared.logTokenRefresh("Token proactively refreshed successfully", level: .success)
                 } else {
-                    logger.info("ℹ️ FORENSIC: Token refresh not needed yet")
+                    logger.debug("Token refresh not needed - token still valid")
                     await DexcomDiagnosticsLogger.shared.logTokenRefresh("Token refresh not needed - token still valid", level: .info)
                 }
             } catch {
-                logger.error("❌ FORENSIC: Failed to proactively refresh token: \(error.localizedDescription)")
+                logger.error("❌ Failed to proactively refresh token: \(error.localizedDescription)")
                 await DexcomDiagnosticsLogger.shared.logTokenRefresh("Token refresh FAILED: \(error.localizedDescription)", level: .error)
-
-                logger.error("❌ FORENSIC: Error type: \(type(of: error))")
-                if let dexcomError = error as? DexcomError {
-                    logger.error("❌ FORENSIC: Dexcom error details: \(dexcomError.logMessage)")
-                    await DexcomDiagnosticsLogger.shared.logTokenRefresh("Dexcom error: \(dexcomError.logMessage)", level: .error)
-                }
                 // Don't mark as disconnected yet - token might still be valid
             }
+        } else if authenticated {
+            logger.debug("⏭️ Skipped token refresh (within debounce window) - will check again later")
+            await DexcomDiagnosticsLogger.shared.logTokenRefresh("Token refresh skipped - within debounce window", level: .debug)
         } else {
-            logger.error("❌ FORENSIC: User NOT authenticated - connection lost!")
+            logger.error("❌ User NOT authenticated - connection lost")
             await DexcomDiagnosticsLogger.shared.logConnection("User NOT authenticated - connection LOST", level: .error)
         }
     }

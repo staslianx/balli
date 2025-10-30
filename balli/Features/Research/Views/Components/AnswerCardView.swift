@@ -21,6 +21,7 @@ struct AnswerCardView: View {
     let isSearchingSources: Bool
     let currentStage: String? // User-friendly research stage message
     let shouldHoldStream: Bool // Flag to delay stream display until stage completes
+    let onViewReady: ((String) -> Void)? // Callback to signal view is ready for stages
     let onFeedback: ((String, SearchAnswer) -> Void)? // Callback for feedback
     let onQuestionSelect: ((String) -> Void)? // Callback for follow-up question selection
 
@@ -39,6 +40,7 @@ struct AnswerCardView: View {
         isSearchingSources: Bool = false,
         currentStage: String? = nil,
         shouldHoldStream: Bool = false,
+        onViewReady: ((String) -> Void)? = nil,
         onFeedback: ((String, SearchAnswer) -> Void)? = nil,
         onQuestionSelect: ((String) -> Void)? = nil
     ) {
@@ -48,6 +50,7 @@ struct AnswerCardView: View {
         self.isSearchingSources = isSearchingSources
         self.currentStage = currentStage
         self.shouldHoldStream = shouldHoldStream
+        self.onViewReady = onViewReady
         self.onFeedback = onFeedback
         self.onQuestionSelect = onQuestionSelect
     }
@@ -132,6 +135,8 @@ struct AnswerCardView: View {
                 .padding(.top, 12) // Increased spacing from badge row
                 .transition(.opacity.animation(.easeInOut(duration: 0.4)))
                 .onAppear {
+                    logger.debug("🎬 [UI-RENDER] Stage card appeared: \(stageMessage)")
+
                     // When progress card appears, permanently hide task summary
                     showTaskSummary = false
 
@@ -141,19 +146,30 @@ struct AnswerCardView: View {
                         maxProgressReached = currentProgress
                     }
                 }
-                .onChange(of: stageMessage) { _, newStage in
+                .onChange(of: stageMessage) { oldStage, newStage in
+                    logger.debug("🔄 [UI-RENDER] Stage changed: \(oldStage) → \(newStage)")
+
                     // Update max progress when stage changes (only if higher)
                     let newProgress = calculateProgress(for: newStage)
                     if newProgress > maxProgressReached {
                         maxProgressReached = newProgress
                     }
                 }
+            } else {
+                // Debug logging for when stage card is NOT displayed
+                let _ = {
+                    if currentStage == nil {
+                        logger.debug("❌ [UI-RENDER] Stage card hidden: currentStage is nil")
+                    } else if isStreamingComplete {
+                        logger.debug("✅ [UI-RENDER] Stage card hidden: streaming complete")
+                    }
+                }()
             }
 
 
             // Answer content - markdown rendered with smooth streaming
-            // Hold display if shouldHoldStream flag is true (during "writing report" stage)
-            if !answer.content.isEmpty && !shouldHoldStream {
+            // 🔧 FIX: Always display content when available (no holding)
+            if !answer.content.isEmpty {
                 StreamingAnswerView(
                     content: answer.content,
                     isStreaming: !isStreamingComplete,
@@ -191,6 +207,10 @@ struct AnswerCardView: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 16)
         .onAppear {
+            // Signal that view is ready to display stages
+            onViewReady?(answer.id)
+            logger.debug("📺 [UI-RENDER] View ready signal sent for: \(answer.id)")
+
             // Animate badge appearance on initial load
             if shouldShowBadge, answer.tier != nil {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7).delay(0.1)) {
