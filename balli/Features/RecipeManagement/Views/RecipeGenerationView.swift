@@ -75,106 +75,108 @@ struct RecipeGenerationView: View {
     }
 
     var body: some View {
-        ZStack {
-            // MARK: - Scrollable Content
-            ScrollView {
-                ZStack(alignment: .top) {
-                    VStack(spacing: 0) {
-                        // Hero image placeholder
-                        heroImagePlaceholder
-
-                        // Spacer to accommodate story card overlap
-                        // Story card is 82px tall + 16px padding = 98px
-                        // We want it half-over image, so subtract half its height
-                        Spacer()
-                            .frame(height: 49)
-
-                        // All content below story card
+        GeometryReader { geometry in
+            ZStack {
+                // MARK: - Scrollable Content
+                ScrollView {
+                    ZStack(alignment: .top) {
                         VStack(spacing: 0) {
-                            // Action buttons
-                            actionButtonsPlaceholder
-                                .padding(.horizontal, 20)
-                                .padding(.top, 16)
-                                .padding(.bottom, 32)
+                            // Hero image placeholder
+                            heroImagePlaceholder(geometry: geometry)
 
-                            // Recipe content (markdown)
-                            recipeContentSection
-                                .padding(.horizontal, 20)
-                                .padding(.bottom, 40)
+                            // Spacer to accommodate story card overlap
+                            // Story card is 82px tall + 16px padding = 98px
+                            // We want it half-over image, so subtract half its height
+                            Spacer()
+                                .frame(height: 49)
+
+                            // All content below story card
+                            VStack(spacing: 0) {
+                                // Action buttons
+                                actionButtonsPlaceholder
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 16)
+                                    .padding(.bottom, 32)
+
+                                // Recipe content (markdown)
+                                recipeContentSection
+                                    .padding(.horizontal, 20)
+                                    .padding(.bottom, 40)
+                            }
+                            .background(Color(.secondarySystemBackground))
                         }
-                        .background(Color(.secondarySystemBackground))
+
+                        // Recipe metadata - positioned absolutely over hero image
+                        // Uses bottom alignment to grow upward when text is longer
+                        VStack(spacing: 0) {
+                            Spacer(minLength: 0)
+
+                            metadataPlaceholder
+                                .padding(.horizontal, 20)
+                                .padding(.bottom, 24) // Minimum gap between name and story card
+                        }
+                        .frame(height: max(geometry.size.height * 0.5, 350) - 49) // Ends where story card begins
+
+                        // Story card - positioned absolutely at fixed offset
+                        // This stays in place regardless of recipe name length
+                        VStack {
+                            Spacer()
+                                .frame(height: max(geometry.size.height * 0.5, 350) - 49)
+
+                            storyCardPlaceholder
+                                .padding(.horizontal, 20)
+
+                            Spacer()
+                        }
                     }
+                }
+                .scrollIndicators(.hidden)
+                .background(Color(.secondarySystemBackground))
 
-                    // Recipe metadata - positioned absolutely over hero image
-                    // Uses bottom alignment to grow upward when text is longer
-                    VStack(spacing: 0) {
-                        Spacer(minLength: 0)
-
-                        metadataPlaceholder
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 24) // Minimum gap between name and story card
-                    }
-                    .frame(height: max(UIScreen.main.bounds.height * 0.5, 350) - 49) // Ends where story card begins
-
-                    // Story card - positioned absolutely at fixed offset
-                    // This stays in place regardless of recipe name length
+                // MARK: - Save Confirmation Overlay
+                if showingSaveConfirmation {
                     VStack {
                         Spacer()
-                            .frame(height: max(UIScreen.main.bounds.height * 0.5, 350) - 49)
+                        HStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(ThemeColors.primaryPurple)
+                            Text("Tarif kaydedildi!")
+                                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .recipeGlass(tint: .warm, cornerRadius: 100) // Pill-shaped with very large corner radius
+                        .padding(.bottom, 100)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingSaveConfirmation)
+                }
 
-                        storyCardPlaceholder
-                            .padding(.horizontal, 20)
-
+                // MARK: - Shopping Confirmation Overlay
+                if showingShoppingConfirmation {
+                    VStack {
                         Spacer()
+                        HStack(spacing: 12) {
+                            Image(systemName: "cart.fill.badge.plus")
+                                .font(.system(size: 20))
+                                .foregroundColor(ThemeColors.primaryPurple)
+                            Text("Alışveriş listesine eklendi!")
+                                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .recipeGlass(tint: .warm, cornerRadius: 100)
+                        .padding(.bottom, 100)
                     }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingShoppingConfirmation)
                 }
             }
-            .scrollIndicators(.hidden)
-            .background(Color(.secondarySystemBackground))
-
-            // MARK: - Save Confirmation Overlay
-            if showingSaveConfirmation {
-                VStack {
-                    Spacer()
-                    HStack(spacing: 12) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(ThemeColors.primaryPurple)
-                        Text("Tarif kaydedildi!")
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .foregroundColor(.primary)
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 16)
-                    .recipeGlass(tint: .warm, cornerRadius: 100) // Pill-shaped with very large corner radius
-                    .padding(.bottom, 100)
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingSaveConfirmation)
-            }
-
-            // MARK: - Shopping Confirmation Overlay
-            if showingShoppingConfirmation {
-                VStack {
-                    Spacer()
-                    HStack(spacing: 12) {
-                        Image(systemName: "cart.fill.badge.plus")
-                            .font(.system(size: 20))
-                            .foregroundColor(ThemeColors.primaryPurple)
-                        Text("Alışveriş listesine eklendi!")
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .foregroundColor(.primary)
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 16)
-                    .recipeGlass(tint: .warm, cornerRadius: 100)
-                    .padding(.bottom, 100)
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingShoppingConfirmation)
-            }
+            .ignoresSafeArea(edges: .top)
         }
-        .ignoresSafeArea(edges: .top)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {
@@ -274,69 +276,68 @@ struct RecipeGenerationView: View {
 
     // MARK: - Hero Image Placeholder
 
-    private var heroImagePlaceholder: some View {
-        GeometryReader { geometry in
-            let imageHeight = max(UIScreen.main.bounds.height * 0.5, 350)
+    @ViewBuilder
+    private func heroImagePlaceholder(geometry: GeometryProxy) -> some View {
+        let imageHeight = max(geometry.size.height * 0.5, 350)
 
-            ZStack(alignment: .top) {
-                // Show generated image if available, otherwise show placeholder gradient
-                if let image = viewModel.preparedImage {
-                    // Display generated image
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: geometry.size.width, height: imageHeight)
-                        .clipped()
-
-                    // Dark gradient overlay for text readability
-                    RecipeImageGradient.textOverlay
-                        .frame(width: geometry.size.width, height: imageHeight)
-                } else {
-                    // Placeholder gradient (purple like recipe detail view)
-                    LinearGradient(
-                        colors: [
-                            ThemeColors.primaryPurple,
-                            ThemeColors.lightPurple
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
+        ZStack(alignment: .top) {
+            // Show generated image if available, otherwise show placeholder gradient
+            if let image = viewModel.preparedImage {
+                // Display generated image
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
                     .frame(width: geometry.size.width, height: imageHeight)
+                    .clipped()
 
-                    // Dark gradient overlay
-                    RecipeImageGradient.textOverlay
-                        .frame(width: geometry.size.width, height: imageHeight)
-                }
+                // Dark gradient overlay for text readability
+                RecipeImageGradient.textOverlay
+                    .frame(width: geometry.size.width, height: imageHeight)
+            } else {
+                // Placeholder gradient (purple like recipe detail view)
+                LinearGradient(
+                    colors: [
+                        ThemeColors.primaryPurple,
+                        ThemeColors.lightPurple
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .frame(width: geometry.size.width, height: imageHeight)
 
-                // Photo generation button or loading indicator
-                if !viewModel.recipeName.isEmpty {
-                    if viewModel.isGeneratingPhoto {
-                        // Show pulsing spatial.capture icon while generating
-                        PulsingPhotoIcon()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if viewModel.preparedImage == nil {
-                        // Show photo generation button if no image yet
-                        Button(action: {
-                            Task {
-                                await generatePhoto()
-                            }
-                        }) {
-                            VStack(spacing: 12) {
-                                Image(systemName: "spatial.capture")
-                                    .font(.system(size: 64, weight: .light))
-                                    .foregroundStyle(.white.opacity(0.8))
-                                Text("Fotoğraf Oluştur")
-                                    .font(.system(size: 17, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white.opacity(0.8))
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Dark gradient overlay
+                RecipeImageGradient.textOverlay
+                    .frame(width: geometry.size.width, height: imageHeight)
+            }
+
+            // Photo generation button or loading indicator
+            if !viewModel.recipeName.isEmpty {
+                if viewModel.isGeneratingPhoto {
+                    // Show pulsing spatial.capture icon while generating
+                    PulsingPhotoIcon()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if viewModel.preparedImage == nil {
+                    // Show photo generation button if no image yet
+                    Button(action: {
+                        Task {
+                            await generatePhoto()
                         }
-                        .buttonStyle(.plain)
+                    }) {
+                        VStack(spacing: 12) {
+                            Image(systemName: "spatial.capture")
+                                .font(.system(size: 64, weight: .light))
+                                .foregroundStyle(.white.opacity(0.8))
+                            Text("Fotoğraf Oluştur")
+                                .font(.system(size: 17, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .frame(height: max(UIScreen.main.bounds.height * 0.5, 350))
+        .frame(height: imageHeight)
     }
 
     // MARK: - Metadata Placeholder

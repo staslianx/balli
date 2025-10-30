@@ -165,23 +165,23 @@ public final class TransactionContext {
                 }
 
                 // Use undo manager to rollback to savepoint
-                // Access undoManager on main queue to avoid main actor issues
-                DispatchQueue.main.sync {
+                // Access undoManager asynchronously to avoid deadlock
+                Task { @MainActor in
                     while context.undoManager?.canUndo == true {
                         context.undoManager?.undo()
                     }
-                }
 
-                // Remove savepoints after the target on PersistenceActor
-                Task { @PersistenceActor [weak self] in
-                    guard let self = self else { return }
-                    if savepointIndex + 1 < self.savepoints.count {
-                        self.savepoints.removeSubrange((savepointIndex + 1)...)
+                    // Remove savepoints after the target on PersistenceActor
+                    Task { @PersistenceActor [weak self] in
+                        guard let self = self else { return }
+                        if savepointIndex + 1 < self.savepoints.count {
+                            self.savepoints.removeSubrange((savepointIndex + 1)...)
+                        }
                     }
-                }
 
-                logger.info("Rolled back to savepoint: \(name)")
-                continuation.resume()
+                    logger.info("Rolled back to savepoint: \(name)")
+                    continuation.resume()
+                }
             }
         }
     }

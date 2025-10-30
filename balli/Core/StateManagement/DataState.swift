@@ -34,7 +34,7 @@ final class DataState: ObservableObject {
     private func setupObservers() {
         // Data update observer
         NotificationCenter.default.publisher(for: .balliDataUpdated)
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.refreshData()
             }

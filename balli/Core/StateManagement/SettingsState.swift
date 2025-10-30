@@ -32,14 +32,14 @@ final class SettingsState: ObservableObject {
     private func setupObservers() {
         // Settings observer
         $appSettings
-            .debounce(for: .seconds(0.5), scheduler: DispatchQueue.main)
+            .debounce(for: .seconds(0.5), scheduler: RunLoop.main)
             .sink { settings in
                 settings.save()
             }
             .store(in: &cancellables)
 
         $notificationSettings
-            .debounce(for: .seconds(0.5), scheduler: DispatchQueue.main)
+            .debounce(for: .seconds(0.5), scheduler: RunLoop.main)
             .sink { settings in
                 settings.save()
             }

@@ -269,7 +269,11 @@ struct ArdiyeView: View {
                         logger.info("  - Inserted objects: \(inserted.count)")
                         for obj in inserted {
                             if let recipe = obj as? Recipe {
-                                logger.info("    • Recipe inserted: '\(recipe.name)' - imageData: \(recipe.imageData != nil ? "\(recipe.imageData!.count) bytes" : "nil")")
+                                if let imageData = recipe.imageData {
+                                    logger.info("    • Recipe inserted: '\(recipe.name)' - imageData: \(imageData.count) bytes")
+                                } else {
+                                    logger.info("    • Recipe inserted: '\(recipe.name)' - imageData: nil")
+                                }
                             }
                         }
                     }
@@ -278,7 +282,11 @@ struct ArdiyeView: View {
                         logger.info("  - Updated objects: \(updated.count)")
                         for obj in updated {
                             if let recipe = obj as? Recipe {
-                                logger.info("    • Recipe updated: '\(recipe.name)' - imageData: \(recipe.imageData != nil ? "\(recipe.imageData!.count) bytes" : "nil")")
+                                if let imageData = recipe.imageData {
+                                    logger.info("    • Recipe updated: '\(recipe.name)' - imageData: \(imageData.count) bytes")
+                                } else {
+                                    logger.info("    • Recipe updated: '\(recipe.name)' - imageData: nil")
+                                }
                             } else if let foodItem = obj as? FoodItem {
                                 logger.info("    • FoodItem: \(foodItem.name) - \(foodItem.servingSize)g")
                             }

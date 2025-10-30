@@ -34,19 +34,19 @@ final class NetworkState: ObservableObject {
         // Network status observer (legacy)
         NotificationCenter.default.publisher(for: .balliNetworkStatusChanged)
             .compactMap { $0.object as? NetworkStatus }
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .assign(to: &$networkStatus)
 
         // New network reachability observer
         NotificationCenter.default.publisher(for: .networkDidBecomeReachable)
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.handleNetworkReconnection()
             }
             .store(in: &cancellables)
 
         NotificationCenter.default.publisher(for: .networkDidBecomeUnreachable)
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.handleNetworkDisconnection()
             }
@@ -56,7 +56,7 @@ final class NetworkState: ObservableObject {
     private func setupNetworkMonitoring() {
         // Observe network monitor's isConnected property
         networkMonitor.$isConnected
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] isConnected in
                 self?.isOnline = isConnected
                 self?.isOfflineMode = !isConnected

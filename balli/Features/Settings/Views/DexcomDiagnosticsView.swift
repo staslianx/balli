@@ -8,6 +8,7 @@
 
 import SwiftUI
 import UniformTypeIdentifiers
+import OSLog
 
 struct DexcomDiagnosticsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -19,6 +20,11 @@ struct DexcomDiagnosticsView: View {
     @State private var exportURL: URL?
     @State private var showingClearConfirmation = false
     @State private var isRefreshing = false
+
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.balli",
+        category: "Settings"
+    )
 
     enum TimeRange: String, CaseIterable {
         case last1Hour = "Last Hour"
@@ -249,8 +255,7 @@ struct DexcomDiagnosticsView: View {
             exportURL = url
             showingShareSheet = true
         } catch {
-            // Handle error - could show alert
-            print("Failed to export logs: \(error)")
+            logger.error("Failed to export logs: \(error.localizedDescription)")
         }
     }
 

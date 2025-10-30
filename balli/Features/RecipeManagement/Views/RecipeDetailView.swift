@@ -64,87 +64,89 @@ struct RecipeDetailView: View {
     ]
 
     var body: some View {
-        ZStack {
-            ScrollView {
-            ZStack(alignment: .top) {
-                VStack(spacing: 0) {
-                    // Hero image that scrolls with content
-                    heroImageSection
-
-                    // Spacer to accommodate story card overlap
-                    // Story card is 82px tall + 16px padding = 98px
-                    // We want it half-over image, so subtract half its height
-                    Spacer()
-                        .frame(height: 49)
-
-                    // All content below story card
+        GeometryReader { geometry in
+            ZStack {
+                ScrollView {
+                ZStack(alignment: .top) {
                     VStack(spacing: 0) {
-                        // Action buttons
-                        actionButtonsSection
-                            .padding(.horizontal, 20)
-                            .padding(.top, 16)
-                            .padding(.bottom, 32)
+                        // Hero image that scrolls with content
+                        heroImageSection(geometry: geometry)
 
-                        // Recipe Content (Ingredients + Instructions)
-                        recipeContentSection
+                        // Spacer to accommodate story card overlap
+                        // Story card is 82px tall + 16px padding = 98px
+                        // We want it half-over image, so subtract half its height
+                        Spacer()
+                            .frame(height: 49)
+
+                        // All content below story card
+                        VStack(spacing: 0) {
+                            // Action buttons
+                            actionButtonsSection
+                                .padding(.horizontal, 20)
+                                .padding(.top, 16)
+                                .padding(.bottom, 32)
+
+                            // Recipe Content (Ingredients + Instructions)
+                            recipeContentSection
+                                .padding(.horizontal, 20)
+                                .padding(.bottom, 40)
+                        }
+                    }
+
+                    // Recipe metadata - positioned absolutely over hero image
+                    // Uses bottom alignment to grow upward when text is longer
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
+
+                        recipeMetadataSection
                             .padding(.horizontal, 20)
-                            .padding(.bottom, 40)
+                            .padding(.bottom, 24) // Minimum gap between name and story card
+                    }
+                    .frame(height: geometry.size.height * 0.5 - 49) // Ends where story card begins
+
+                    // Story card - positioned absolutely at fixed offset
+                    // This stays in place regardless of recipe name length
+                    if recipeData.hasStory {
+                        VStack {
+                            Spacer()
+                                .frame(height: geometry.size.height * 0.5 - 49)
+
+                            storyCardSection
+                                .padding(.horizontal, 20)
+
+                            Spacer()
+                        }
                     }
                 }
-
-                // Recipe metadata - positioned absolutely over hero image
-                // Uses bottom alignment to grow upward when text is longer
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
-
-                    recipeMetadataSection
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 24) // Minimum gap between name and story card
                 }
-                .frame(height: UIScreen.main.bounds.height * 0.5 - 49) // Ends where story card begins
+                .scrollIndicators(.hidden)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    Color.clear.frame(height: 0)
+                }
 
-                // Story card - positioned absolutely at fixed offset
-                // This stays in place regardless of recipe name length
-                if recipeData.hasStory {
+                // Shopping confirmation toast
+                if showingShoppingConfirmation {
                     VStack {
                         Spacer()
-                            .frame(height: UIScreen.main.bounds.height * 0.5 - 49)
-
-                        storyCardSection
-                            .padding(.horizontal, 20)
-
-                        Spacer()
+                        HStack(spacing: 12) {
+                            Image(systemName: "cart.fill.badge.plus")
+                                .font(.system(size: 20))
+                                .foregroundColor(ThemeColors.primaryPurple)
+                            Text("Alışveriş listesine eklendi!")
+                                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .recipeGlass(tint: .warm, cornerRadius: 100)
+                        .padding(.bottom, 100)
                     }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingShoppingConfirmation)
                 }
             }
-            }
-            .scrollIndicators(.hidden)
-            .safeAreaInset(edge: .top, spacing: 0) {
-                Color.clear.frame(height: 0)
-            }
-
-            // Shopping confirmation toast
-            if showingShoppingConfirmation {
-                VStack {
-                    Spacer()
-                    HStack(spacing: 12) {
-                        Image(systemName: "cart.fill.badge.plus")
-                            .font(.system(size: 20))
-                            .foregroundColor(ThemeColors.primaryPurple)
-                        Text("Alışveriş listesine eklendi!")
-                            .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .foregroundColor(.primary)
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 16)
-                    .recipeGlass(tint: .warm, cornerRadius: 100)
-                    .padding(.bottom, 100)
-                }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingShoppingConfirmation)
-            }
+            .ignoresSafeArea(edges: .top)
         }
-        .ignoresSafeArea(edges: .top)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 if isEditing {
@@ -253,76 +255,75 @@ struct RecipeDetailView: View {
 
     // MARK: - Hero Image Section
 
-    private var heroImageSection: some View {
-        GeometryReader { geometry in
-            let imageHeight = UIScreen.main.bounds.height * 0.5
+    @ViewBuilder
+    private func heroImageSection(geometry: GeometryProxy) -> some View {
+        let imageHeight = geometry.size.height * 0.5
 
-            ZStack(alignment: .top) {
-                // Show generated image if available, otherwise show existing or placeholder
-                if let generatedData = generatedImageData,
-                   let uiImage = UIImage(data: generatedData) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: geometry.size.width, height: imageHeight)
-                        .clipped()
-                } else if let imageData = recipeData.imageData,
-                   let uiImage = UIImage(data: imageData) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: geometry.size.width, height: imageHeight)
-                        .clipped()
-                } else if let imageURL = recipeData.imageURL, let url = URL(string: imageURL) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(width: geometry.size.width, height: imageHeight)
-                                .clipped()
-                        default:
-                            placeholderImage(width: geometry.size.width, height: imageHeight)
-                        }
-                    }
-                } else {
-                    placeholderImage(width: geometry.size.width, height: imageHeight)
-                }
-
-                // Dark gradient overlay for text readability
-                RecipeImageGradient.textOverlay
+        ZStack(alignment: .top) {
+            // Show generated image if available, otherwise show existing or placeholder
+            if let generatedData = generatedImageData,
+               let uiImage = UIImage(data: generatedData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
                     .frame(width: geometry.size.width, height: imageHeight)
-
-                // Photo generation button or loading indicator (only if no image exists)
-                if recipeData.imageData == nil && recipeData.imageURL == nil && generatedImageData == nil {
-                    if isGeneratingPhoto {
-                        // Show pulsing icon while generating
-                        PulsingPhotoIcon()
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        // Show photo generation button
-                        Button(action: {
-                            Task {
-                                await generatePhoto()
-                            }
-                        }) {
-                            VStack(spacing: 12) {
-                                Image(systemName: "spatial.capture")
-                                    .font(.system(size: 64, weight: .light))
-                                    .foregroundStyle(.white.opacity(0.8))
-                                Text("Fotoğraf Oluştur")
-                                    .font(.system(size: 17, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white.opacity(0.8))
-                            }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        }
-                        .buttonStyle(.plain)
+                    .clipped()
+            } else if let imageData = recipeData.imageData,
+               let uiImage = UIImage(data: imageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: geometry.size.width, height: imageHeight)
+                    .clipped()
+            } else if let imageURL = recipeData.imageURL, let url = URL(string: imageURL) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geometry.size.width, height: imageHeight)
+                            .clipped()
+                    default:
+                        placeholderImage(width: geometry.size.width, height: imageHeight)
                     }
+                }
+            } else {
+                placeholderImage(width: geometry.size.width, height: imageHeight)
+            }
+
+            // Dark gradient overlay for text readability
+            RecipeImageGradient.textOverlay
+                .frame(width: geometry.size.width, height: imageHeight)
+
+            // Photo generation button or loading indicator (only if no image exists)
+            if recipeData.imageData == nil && recipeData.imageURL == nil && generatedImageData == nil {
+                if isGeneratingPhoto {
+                    // Show pulsing icon while generating
+                    PulsingPhotoIcon()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    // Show photo generation button
+                    Button(action: {
+                        Task {
+                            await generatePhoto()
+                        }
+                    }) {
+                        VStack(spacing: 12) {
+                            Image(systemName: "spatial.capture")
+                                .font(.system(size: 64, weight: .light))
+                                .foregroundStyle(.white.opacity(0.8))
+                            Text("Fotoğraf Oluştur")
+                                .font(.system(size: 17, weight: .medium, design: .rounded))
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
-        .frame(height: UIScreen.main.bounds.height * 0.5)
+        .frame(height: imageHeight)
     }
 
     private func placeholderImage(width: CGFloat, height: CGFloat) -> some View {

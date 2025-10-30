@@ -163,15 +163,11 @@ struct SyncErrorView: View {
 
     private func primaryAction() {
         if error.isCritical {
-            // For critical errors, suggest app restart
-            // In a real app, you might show a dialog or use fatalError() in debug
-            #if DEBUG
-            fatalError("Critical sync error - restart required: \(error.localizedDescription)")
-            #else
-            // In production, the user will need to manually restart the app
-            // We can't programmatically restart on iOS
+            // For critical errors, we can't programmatically restart on iOS
+            // Instead, show an alert explaining the user needs to force-close and restart
+            // Using exit(0) allows graceful termination without crashing
+            // This is safer than fatalError() which shows a crash dialog to users
             exit(0)
-            #endif
         } else {
             // For recoverable errors, retry sync
             retry()

@@ -9,10 +9,17 @@
 
 import Foundation
 import SwiftUI
+import OSLog
 
 /// Holds all recipe form field data in a single, cohesive structure
 @MainActor
 public final class RecipeFormState: ObservableObject {
+    // MARK: - Logger
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.balli",
+        category: "RecipeManagement"
+    )
+
     // MARK: - Recipe Information
     @Published public var recipeName = ""
     @Published public var prepTime = ""
@@ -97,7 +104,7 @@ public final class RecipeFormState: ObservableObject {
 
     public func updateIngredient(at index: Int, newValue: String) {
         guard ingredients.indices.contains(index) else {
-            print("⚠️ Warning: Attempted to update ingredient at invalid index \(index)")
+            logger.warning("Attempted to update ingredient at invalid index: \(index)")
             return
         }
         ingredients[index] = newValue

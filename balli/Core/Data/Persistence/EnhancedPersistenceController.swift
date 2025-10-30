@@ -44,28 +44,28 @@ public final class EnhancedPersistenceController: ObservableObject {
     /// Setup property binding from core to this controller's published properties
     private func setupPropertyBinding() {
         core.$isPerformingBackgroundWork
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] value in
                 self?.isPerformingBackgroundWork = value
             }
             .store(in: &cancellables)
-        
+
         core.$lastSyncDate
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] value in
                 self?.lastSyncDate = value
             }
             .store(in: &cancellables)
-        
+
         core.$dataHealth
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] value in
                 self?.dataHealth = value
             }
             .store(in: &cancellables)
-        
+
         core.$cacheStatistics
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] value in
                 self?.cacheStatistics = value
             }

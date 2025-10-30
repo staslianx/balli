@@ -210,7 +210,7 @@ public class RecipeDataManager {
         recipe.dateCreated = Date()
         recipe.lastModified = Date()
         // Determine source: if recipe has content, it's AI-generated; otherwise it's manual
-        recipe.source = (data.recipeContent != nil && !data.recipeContent!.isEmpty) ? RecipeConstants.Source.ai : RecipeConstants.Source.manual
+        recipe.source = data.recipeContent.map { !$0.isEmpty } == true ? RecipeConstants.Source.ai : RecipeConstants.Source.manual
         recipe.mealType = RecipeConstants.DefaultTypes.customMeal
         recipe.styleType = RecipeConstants.DefaultTypes.customStyle
         

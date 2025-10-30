@@ -60,18 +60,18 @@ public final class AnimationTransaction: ObservableObject {
     private func setupCoreDataObservers() {
         // Observe Core Data save notifications
         NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave)
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] notification in
                 self?.handleCoreDataSave(notification)
             }
             .store(in: &cancellables)
     }
-    
+
     private func handleCoreDataSave(_ notification: Notification) {
         // Debounce Core Data updates to batch animations
         dataUpdateDebouncer?.cancel()
         dataUpdateDebouncer = Just(())
-            .delay(for: .milliseconds(Constants.dataUpdateDebounceMilliseconds), scheduler: DispatchQueue.main)
+            .delay(for: .milliseconds(Constants.dataUpdateDebounceMilliseconds), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 self?.processPendingDataUpdates()
             }

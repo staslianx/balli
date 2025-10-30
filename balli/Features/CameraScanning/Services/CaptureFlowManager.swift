@@ -100,15 +100,15 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
     private func setupBindings() {
         // Bind state machine progress
         stateMachine.$processingProgress
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] progress in
                 self?.delegateHandler.notifyProcessingProgressDidUpdate(progress)
             }
             .store(in: &cancellables)
-        
+
         // Bind session manager updates
         sessionManager.$currentSession
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] session in
                 if let state = session?.state {
                     Task { [weak self] in

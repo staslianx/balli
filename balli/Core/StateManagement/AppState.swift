@@ -41,7 +41,7 @@ final class AppState: ObservableObject {
     private func setupCoordination() {
         // Coordinate logout with navigation
         NotificationCenter.default.publisher(for: .balliUserLoggedOut)
-            .receive(on: DispatchQueue.main)
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 self?.navigationState.popToRoot()
             }

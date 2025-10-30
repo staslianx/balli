@@ -7,12 +7,17 @@
 //
 
 import SwiftUI
+import OSLog
 
 struct SearchLibraryView: View {
     @State private var threads: [SearchAnswer] = []
     @State private var isLoading = true
 
     private let repository = ResearchHistoryRepository()
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.balli",
+        category: "Research"
+    )
 
     var body: some View {
         NavigationStack {
@@ -60,7 +65,7 @@ struct SearchLibraryView: View {
                     self.isLoading = false
                 }
             } catch {
-                print("❌ Failed to load threads from persistence: \(error)")
+                logger.error("Failed to load threads from persistence: \(error.localizedDescription)")
                 await MainActor.run {
                     self.isLoading = false
                 }
