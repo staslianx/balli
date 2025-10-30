@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7308578E2EA8F5E400D7100F /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 7308578D2EA8F5E400D7100F /* SQLite */; };
 		731FA27E2E66CF7000C3BC2E /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 731FA27C2E66CF7000C3BC2E /* HealthKit.framework */; };
 		731FA27F2E66CF7000C3BC2E /* HealthKitUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 731FA27D2E66CF7000C3BC2E /* HealthKitUI.framework */; };
 		733ADC8B2EACEDD20040165F /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 733ADC8A2EACEDD20040165F /* FirebaseFirestore */; };
@@ -92,7 +91,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7308578E2EA8F5E400D7100F /* SQLite in Frameworks */,
 				731FA27E2E66CF7000C3BC2E /* HealthKit.framework in Frameworks */,
 				731FA27F2E66CF7000C3BC2E /* HealthKitUI.framework in Frameworks */,
 				733ADC8B2EACEDD20040165F /* FirebaseFirestore in Frameworks */,
@@ -178,7 +176,6 @@
 			name = balli;
 			packageProductDependencies = (
 				73C5728D2E9E795400999C36 /* FirebaseStorage */,
-				7308578D2EA8F5E400D7100F /* SQLite */,
 				733ADC8A2EACEDD20040165F /* FirebaseFirestore */,
 			);
 			productName = balli;
@@ -266,7 +263,6 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				73C5728C2E9E795400999C36 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
-				7308578C2EA8F5E400D7100F /* XCRemoteSwiftPackageReference "SQLite" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 73D31C312E407BF900D2214B /* Products */;
@@ -695,14 +691,6 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		7308578C2EA8F5E400D7100F /* XCRemoteSwiftPackageReference "SQLite" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/stephencelis/SQLite.swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.15.4;
-			};
-		};
 		73C5728C2E9E795400999C36 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
@@ -714,11 +702,6 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		7308578D2EA8F5E400D7100F /* SQLite */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 7308578C2EA8F5E400D7100F /* XCRemoteSwiftPackageReference "SQLite" */;
-			productName = SQLite;
-		};
 		733ADC8A2EACEDD20040165F /* FirebaseFirestore */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 73C5728C2E9E795400999C36 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;

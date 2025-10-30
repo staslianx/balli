@@ -85,7 +85,6 @@ class MedicalResearchViewModel: ObservableObject {
     private let searchCoordinator = ResearchSearchCoordinator()
     private let persistenceManager = ResearchPersistenceManager()
     private let streamProcessor = ResearchStreamProcessor()
-    private let recallHandler: ResearchRecallHandler
     let stageCoordinator = ResearchStageCoordinator()
 
     private let searchService = ResearchStreamingAPIClient()
@@ -110,29 +109,6 @@ class MedicalResearchViewModel: ObservableObject {
             modelContainer: container,
             userId: currentUserId,
             metadataGenerator: metadataGenerator
-        )
-
-        // Initialize FTS5 manager for cross-conversation memory (recall)
-        let fts5Manager: FTS5Manager?
-        let recallRepository: RecallSearchRepository?
-
-        do {
-            let fts5 = try FTS5Manager()
-            fts5Manager = fts5
-            recallRepository = RecallSearchRepository(
-                modelContainer: container,
-                fts5Manager: fts5
-            )
-            logger.info("✅ FTS5 recall search initialized")
-        } catch {
-            logger.warning("⚠️ FTS5 recall unavailable: \(error.localizedDescription)")
-            fts5Manager = nil
-            recallRepository = nil
-        }
-
-        self.recallHandler = ResearchRecallHandler(
-            fts5Manager: fts5Manager,
-            recallRepository: recallRepository
         )
 
         // Setup notification observers
@@ -202,12 +178,6 @@ class MedicalResearchViewModel: ObservableObject {
 
         // Reset inactivity timer
         sessionManager.resetInactivityTimer()
-
-        // Check for recall request
-        if await recallHandler.shouldAttemptRecall(query) {
-            await handleRecallRequest(query)
-            return
-        }
 
         // Session management
         if sessionManager.shouldEndSession(query) {
@@ -364,54 +334,6 @@ class MedicalResearchViewModel: ObservableObject {
         answerIndexLookup.removeAll(keepingCapacity: true)
         for (index, answer) in answers.enumerated() {
             answerIndexLookup[answer.id] = index
-        }
-    }
-
-    /// Handle recall request
-    private func handleRecallRequest(_ query: String) async {
-        logger.info("📚 Handling recall request: \(query)")
-
-        let placeholderAnswer = SearchAnswer(
-            query: query,
-            content: "",
-            sources: [],
-            timestamp: Date(),
-            tokenCount: nil,
-            tier: .model  // Show "Hızlı" badge during recall
-        )
-
-        answers.insert(placeholderAnswer, at: 0)
-        rebuildAnswerIndexLookup()
-        searchState = .loading
-
-        let answerId = placeholderAnswer.id
-
-        do {
-            let finalAnswer = try await recallHandler.handleRecallRequest(query, answerId: answerId)
-
-            // Check if no sessions were found - auto-fallback to regular search
-            if finalAnswer.content.contains("Bu konuda daha önce bir araştırma kaydı bulamadım") {
-                logger.info("📚 No recall matches found - auto-fallback to regular search")
-
-                // Remove the recall placeholder answer
-                if let index = answerIndexLookup[answerId] {
-                    answers.remove(at: index)
-                    rebuildAnswerIndexLookup()
-                }
-
-                // Trigger regular T1/T2 search with the same query
-                await search(query: query)
-                return
-            }
-
-            // Normal recall success - update with final answer
-            if let index = answerIndexLookup[answerId] {
-                answers[index] = finalAnswer
-            }
-            searchState = .loaded(())
-        } catch {
-            logger.error("📚 Recall search failed: \(error.localizedDescription)")
-            searchState = .error(error)
         }
     }
 

@@ -106,43 +106,6 @@ struct balliApp: App {
         // NOTE: App configuration and HealthKit permissions moved to AppSyncCoordinator
         // This ensures they complete before main UI is shown
 
-        // Initialize FTS5 Manager for cross-conversation memory (recall)
-        // This is non-critical and can run in background
-        Task.detached(priority: .background) {
-            do {
-                // Initialize FTS5Manager
-                let fts5Manager = try FTS5Manager()
-                await MainActor.run {
-                    logger.info("✅ FTS5Manager initialized successfully")
-                }
-
-                // Get model container from main actor
-                let container = await MainActor.run {
-                    ResearchSessionModelContainer.shared.container
-                }
-
-                // Run one-time migration to index existing completed sessions
-                let storageActor = SessionStorageActor(
-                    modelContainer: container,
-                    fts5Manager: fts5Manager
-                )
-
-                await AppLifecycleCoordinator.shared.migrateToFTS5IfNeeded(
-                    fts5Manager: fts5Manager,
-                    storageActor: storageActor
-                )
-
-                await MainActor.run {
-                    logger.info("✅ FTS5 migration check complete")
-                }
-            } catch {
-                await MainActor.run {
-                    logger.error("❌ FTS5 initialization failed: \(error.localizedDescription)")
-                    // Non-fatal - recall feature won't work but app continues
-                }
-            }
-        }
-
         // Schedule glucose data cleanup (runs every 7 days)
         Task.detached(priority: .background) {
             await AppLifecycleCoordinator.shared.checkAndCleanupGlucoseDataIfNeeded()

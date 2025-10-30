@@ -18,11 +18,7 @@ struct ThemeColors {
     static let dexcomGreen = Color(hex: "30AB0D")
 
     // MARK: - Research Type Colors
-    // Progressive shades of purple - recall → baseline → darker → darkest
-
-    /// Recall (warm amber) - memory from past sessions
-    static let recallAmber = Color(hex: "E59F47") // Warm amber
-    static let recallAmberDark = Color(hex: "F5B662") // Lighter for dark mode
+    // Progressive shades of purple - baseline → darker → darkest
 
     /// Model (baseline purple) - intelligent and sophisticated
     static let modelPurple = Color(hex: "8B7EC8") // Baseline purple
@@ -37,10 +33,6 @@ struct ThemeColors {
     static let deepResearchOrangeDark = Color(hex: "655F8F") // Lighter for dark mode
 
     // MARK: - Adaptive Color Helpers
-    static func recallColor(for colorScheme: ColorScheme) -> Color {
-        colorScheme == .dark ? recallAmberDark : recallAmber
-    }
-
     static func deepResearchColor(for colorScheme: ColorScheme) -> Color {
         colorScheme == .dark ? deepResearchOrangeDark : deepResearchOrange
     }

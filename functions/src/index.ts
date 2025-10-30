@@ -1744,53 +1744,6 @@ export {
 export { testEdamamNutrition } from './test-edamam-nutrition';
 
 // ============================================
-// RECALL ENDPOINT - Answer from Past Research Sessions
-// ============================================
-
-import { handleRecall, RecallInput } from './flows/recall-flow';
-
-export const recallFromPastSessions = onRequest({
-  cors: true,
-  maxInstances: 10,
-  memory: '512MiB',
-  timeoutSeconds: 60
-}, async (req, res) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
-  }
-
-  try {
-    // Validate request body
-    const input = req.body as RecallInput;
-
-    if (!input.question || !input.userId) {
-      res.status(400).json({
-        success: false,
-        error: 'Missing required fields: question, userId'
-      });
-      return;
-    }
-
-    console.log(`📚 [RECALL-ENDPOINT] Request from user: ${input.userId}`);
-    console.log(`📚 [RECALL-ENDPOINT] Question: ${input.question}`);
-    console.log(`📚 [RECALL-ENDPOINT] Matched sessions: ${input.matchedSessions?.length || 0}`);
-
-    // Process recall request
-    const result = await handleRecall(input);
-
-    res.status(200).json(result);
-  } catch (error: any) {
-    console.error('❌ [RECALL-ENDPOINT] Error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Internal server error'
-    });
-  }
-});
-
-// ============================================
 // RECIPE NUTRITION CALCULATOR
 // On-demand nutritional analysis using Gemini 2.5 Pro
 // ============================================

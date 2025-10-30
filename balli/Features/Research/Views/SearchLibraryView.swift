@@ -122,14 +122,6 @@ struct SearchAnswerRow: View, Equatable {
     NavigationStack {
         List {
             Section("Son Araştırmalar") {
-                // Recall tier
-                SearchAnswerRow(answer: SearchAnswer(
-                    query: "Daha önce sorduğum bir soru",
-                    content: "Hatırlanmış yanıt",
-                    sources: [],
-                    tier: .recall
-                ))
-
                 // Model tier
                 SearchAnswerRow(answer: SearchAnswer(
                     query: "Hızlı bir soru sordum",

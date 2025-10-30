@@ -11,13 +11,11 @@ private let logger = Logger(
 /// IMPORTANT: ModelContext operations must run on @MainActor when used with observed models
 actor SessionStorageActor {
     private let modelContainer: ModelContainer
-    private let fts5Manager: FTS5Manager?
 
-    /// Initializes the storage actor with a SwiftData model container and optional FTS5 manager
-    init(modelContainer: ModelContainer, fts5Manager: FTS5Manager? = nil) {
+    /// Initializes the storage actor with a SwiftData model container
+    init(modelContainer: ModelContainer) {
         self.modelContainer = modelContainer
-        self.fts5Manager = fts5Manager
-        logger.info("SessionStorageActor initialized with FTS5: \(fts5Manager != nil)")
+        logger.info("SessionStorageActor initialized")
     }
 
     /// Creates a background ModelContext for this actor
@@ -88,28 +86,6 @@ actor SessionStorageActor {
         // Save changes to SwiftData
         try modelContext.save()
         logger.info("Session saved successfully: \(sessionId)")
-
-        // Sync to FTS5 if this is a complete session with metadata
-        if status == "complete", let title = title, let summary = summary, let fts5 = fts5Manager {
-            logger.info("📚 Syncing complete session to FTS5: \(sessionId)")
-
-            // Convert conversation history to format FTS5Manager expects
-            let conversationForFTS = conversationHistory.map { (role: $0.role, content: $0.content) }
-
-            do {
-                try await fts5.indexSession(
-                    sessionId: sessionId,
-                    title: title,
-                    summary: summary,
-                    keyTopics: keyTopics,
-                    conversationHistory: conversationForFTS
-                )
-                logger.info("✅ Session indexed in FTS5: \(sessionId)")
-            } catch {
-                logger.error("❌ Failed to index session in FTS5: \(error.localizedDescription)")
-                // Don't throw - FTS5 sync failure shouldn't fail the entire save
-            }
-        }
     }
 
     // MARK: - Load Operations
@@ -277,17 +253,6 @@ actor SessionStorageActor {
         modelContext.delete(session)
         try modelContext.save()
         logger.info("Deleted session from SwiftData: \(sessionId)")
-
-        // Also delete from FTS5 index if available
-        if let fts5 = fts5Manager {
-            do {
-                try await fts5.deleteSession(sessionId: sessionId)
-                logger.info("✅ Deleted session from FTS5: \(sessionId)")
-            } catch {
-                logger.error("❌ Failed to delete from FTS5: \(error.localizedDescription)")
-                // Don't throw - FTS5 deletion failure shouldn't fail the entire operation
-            }
-        }
     }
 
     /// Deletes all completed sessions (cleanup)
@@ -295,7 +260,6 @@ actor SessionStorageActor {
     func deleteCompletedSessions() async throws {
         let sessions = try loadCompletedSessions()
         let modelContext = createContext()
-        let sessionIds = sessions.map { $0.sessionId }
 
         for session in sessions {
             modelContext.delete(session)
@@ -303,17 +267,5 @@ actor SessionStorageActor {
 
         try modelContext.save()
         logger.info("Deleted \(sessions.count) completed sessions from SwiftData")
-
-        // Also clear from FTS5 if available
-        if let fts5 = fts5Manager {
-            for sessionId in sessionIds {
-                do {
-                    try await fts5.deleteSession(sessionId: sessionId)
-                } catch {
-                    logger.error("❌ Failed to delete session \(sessionId) from FTS5: \(error.localizedDescription)")
-                }
-            }
-            logger.info("✅ Deleted \(sessionIds.count) sessions from FTS5")
-        }
     }
 }

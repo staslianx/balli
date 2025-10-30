@@ -8,6 +8,5 @@ export { diabetesAssistantStream } from './diabetes-assistant-stream';
 export { generateSessionMetadata } from './generate-session-metadata';
 export { syncUserFacts, syncConversationSummaries, syncRecipePreferences, syncGlucosePatterns, syncUserPreferences } from './memory-sync';
 export { testEdamamNutrition } from './test-edamam-nutrition';
-export declare const recallFromPastSessions: import("firebase-functions/v2/https").HttpsFunction;
 export declare const calculateRecipeNutrition: import("firebase-functions/v2/https").HttpsFunction;
 //# sourceMappingURL=index.d.ts.map

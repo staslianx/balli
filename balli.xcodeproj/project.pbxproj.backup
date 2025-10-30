@@ -7,21 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7A777EE6616F2DA14C9B86A8 /* AIProcessorTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3EDA409A482C4DB4EB1FDFF /* AIProcessorTypes.swift */; };
-		170CCC8D3061497C4BB71FF4 /* AIContextEnhancer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 52639A00627AC5DCF02090CA /* AIContextEnhancer.swift */; };
-		07177D0852651B063FCDA2CA /* AIStreamingCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78AF1F2F179CC50A9EAD4BC3 /* AIStreamingCoordinator.swift */; };
-		41E55EE2DA4AB5D8D0D31ADF /* AIImageProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 087FCB7E5CB33F11959CB464 /* AIImageProcessor.swift */; };
-		4A26B012B4EF825703ECEBB6 /* AITextProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 105B9863C6C34231F38984A4 /* AITextProcessor.swift */; };
-		3403D4642B17E6588D5331BA /* AIWebSearchProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 538CD94F850C3D9416147184 /* AIWebSearchProcessor.swift */; };
-		595C08559FC2E5B3B7A61D1D /* AIMedicalProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 006E8DB48206CD8B63E78A2F /* AIMedicalProcessor.swift */; };
-		7C0B03B0716793B3930FB354 /* AIMedicalResearchFlow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1837857F55916A0608B895E /* AIMedicalResearchFlow.swift */; };
+		7308578E2EA8F5E400D7100F /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 7308578D2EA8F5E400D7100F /* SQLite */; };
 		731FA27E2E66CF7000C3BC2E /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 731FA27C2E66CF7000C3BC2E /* HealthKit.framework */; };
 		731FA27F2E66CF7000C3BC2E /* HealthKitUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 731FA27D2E66CF7000C3BC2E /* HealthKitUI.framework */; };
+		733ADC8B2EACEDD20040165F /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 733ADC8A2EACEDD20040165F /* FirebaseFirestore */; };
 		734BD3B52E7E7AFD00F4F22C /* balli.icon in Resources */ = {isa = PBXBuildFile; fileRef = 734BD3B42E7E7AFD00F4F22C /* balli.icon */; };
-		7388B1172E47A5AF0056489E /* Down in Frameworks */ = {isa = PBXBuildFile; productRef = 7388B1162E47A5AF0056489E /* Down */; };
-		73F4253C2E56D1BF00F815F4 /* Debug.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 73F4253B2E56D1BF00F815F4 /* Debug.xcconfig */; };
-		73F4253E2E56D1CA00F815F4 /* Release.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 73F4253D2E56D1CA00F815F4 /* Release.xcconfig */; };
-		73PORCUP1172E47A5AF0056489E /* Porcupine in Frameworks */ = {isa = PBXBuildFile; productRef = 73PORCUP1162E47A5AF0056489E /* Porcupine */; };
+		73C5728E2E9E795400999C36 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 73C5728D2E9E795400999C36 /* FirebaseStorage */; };
+		73C572902E9E826000999C36 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 73C5728F2E9E826000999C36 /* GoogleService-Info.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -42,17 +34,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		F3EDA409A482C4DB4EB1FDFF /* AIProcessorTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIProcessorTypes.swift; sourceTree = "<group>"; };
-		52639A00627AC5DCF02090CA /* AIContextEnhancer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIContextEnhancer.swift; sourceTree = "<group>"; };
-		78AF1F2F179CC50A9EAD4BC3 /* AIStreamingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIStreamingCoordinator.swift; sourceTree = "<group>"; };
-		087FCB7E5CB33F11959CB464 /* AIImageProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIImageProcessor.swift; sourceTree = "<group>"; };
-		105B9863C6C34231F38984A4 /* AITextProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AITextProcessor.swift; sourceTree = "<group>"; };
-		538CD94F850C3D9416147184 /* AIWebSearchProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIWebSearchProcessor.swift; sourceTree = "<group>"; };
-		006E8DB48206CD8B63E78A2F /* AIMedicalProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIMedicalProcessor.swift; sourceTree = "<group>"; };
-		A1837857F55916A0608B895E /* AIMedicalResearchFlow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIMedicalResearchFlow.swift; sourceTree = "<group>"; };
 		731FA27C2E66CF7000C3BC2E /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		731FA27D2E66CF7000C3BC2E /* HealthKitUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKitUI.framework; path = System/Library/Frameworks/HealthKitUI.framework; sourceTree = SDKROOT; };
 		734BD3B42E7E7AFD00F4F22C /* balli.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = balli.icon; sourceTree = "<group>"; };
+		73C5728F2E9E826000999C36 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		73D31C302E407BF900D2214B /* balli.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = balli.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		73D31C422E407BFA00D2214B /* balliTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = balliTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		73D31C4C2E407BFA00D2214B /* balliUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = balliUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -68,6 +53,8 @@
 		73D31D942E41DE5E00D2214B /* Exceptions for "balli" folder in "balli" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
+				Configuration/Debug.xcconfig,
+				Configuration/Release.xcconfig,
 				Info.plist,
 			);
 			target = 73D31C2F2E407BF900D2214B /* balli */;
@@ -105,10 +92,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7308578E2EA8F5E400D7100F /* SQLite in Frameworks */,
 				731FA27E2E66CF7000C3BC2E /* HealthKit.framework in Frameworks */,
 				731FA27F2E66CF7000C3BC2E /* HealthKitUI.framework in Frameworks */,
-				7388B1172E47A5AF0056489E /* Down in Frameworks */,
-				73PORCUP1172E47A5AF0056489E /* Porcupine in Frameworks */,
+				733ADC8B2EACEDD20040165F /* FirebaseFirestore in Frameworks */,
+				73C5728E2E9E795400999C36 /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -132,6 +120,7 @@
 		73D31C272E407BF900D2214B = {
 			isa = PBXGroup;
 			children = (
+				73C5728F2E9E826000999C36 /* GoogleService-Info.plist */,
 				73D31D8C2E41DE0300D2214B /* Fonts */,
 				73D31C322E407BF900D2214B /* balli */,
 				73D31C452E407BFA00D2214B /* balliTests */,
@@ -188,8 +177,9 @@
 			);
 			name = balli;
 			packageProductDependencies = (
-				7388B1162E47A5AF0056489E /* Down */,
-				73PORCUP1162E47A5AF0056489E /* Porcupine */,
+				73C5728D2E9E795400999C36 /* FirebaseStorage */,
+				7308578D2EA8F5E400D7100F /* SQLite */,
+				733ADC8A2EACEDD20040165F /* FirebaseFirestore */,
 			);
 			productName = balli;
 			productReference = 73D31C302E407BF900D2214B /* balli.app */;
@@ -249,7 +239,7 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1640;
-				LastUpgradeCheck = 1640;
+				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					73D31C2F2E407BF900D2214B = {
 						CreatedOnToolsVersion = 16.4;
@@ -270,12 +260,13 @@
 			knownRegions = (
 				en,
 				Base,
+				tr,
 			);
 			mainGroup = 73D31C272E407BF900D2214B;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				7388B1152E47A5AF0056489E /* XCRemoteSwiftPackageReference "Down" */,
-				73PORCUP1152E47A5AF0056489E /* XCRemoteSwiftPackageReference "porcupine" */,
+				73C5728C2E9E795400999C36 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				7308578C2EA8F5E400D7100F /* XCRemoteSwiftPackageReference "SQLite" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 73D31C312E407BF900D2214B /* Products */;
@@ -294,8 +285,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				73F4253E2E56D1CA00F815F4 /* Release.xcconfig in Resources */,
-				73F4253C2E56D1BF00F815F4 /* Debug.xcconfig in Resources */,
+				73C572902E9E826000999C36 /* GoogleService-Info.plist in Resources */,
 				734BD3B52E7E7AFD00F4F22C /* balli.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -413,6 +403,7 @@
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
@@ -470,6 +461,7 @@
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
 			};
@@ -486,7 +478,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GU7B67F65H;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_CAMERA = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = balli/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = balli;
@@ -531,7 +525,9 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GU7B67F65H;
+				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_CAMERA = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = balli/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = balli;
@@ -573,6 +569,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GU7B67F65H;
+				ENABLE_APP_SANDBOX = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "balli beslenme etiketlerini taramak ve karbonhidrat hesaplamak için kameraya erişmeye ihtiyaç duyar.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "balli kan şekeri ve beslenme verilerinizi HealthKit ile senkronize etmek için sağlık verilerine erişmeye ihtiyaç duyar.";
@@ -596,6 +593,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GU7B67F65H;
+				ENABLE_APP_SANDBOX = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "balli beslenme etiketlerini taramak ve karbonhidrat hesaplamak için kameraya erişmeye ihtiyaç duyar.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "balli kan şekeri ve beslenme verilerinizi HealthKit ile senkronize etmek için sağlık verilerine erişmeye ihtiyaç duyar.";
@@ -618,6 +616,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GU7B67F65H;
+				ENABLE_APP_SANDBOX = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "balli beslenme etiketlerini taramak ve karbonhidrat hesaplamak için kameraya erişmeye ihtiyaç duyar.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "balli kan şekeri ve beslenme verilerinizi HealthKit ile senkronize etmek için sağlık verilerine erişmeye ihtiyaç duyar.";
@@ -639,6 +638,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = GU7B67F65H;
+				ENABLE_APP_SANDBOX = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "balli beslenme etiketlerini taramak ve karbonhidrat hesaplamak için kameraya erişmeye ihtiyaç duyar.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "balli kan şekeri ve beslenme verilerinizi HealthKit ile senkronize etmek için sağlık verilerine erişmeye ihtiyaç duyar.";
@@ -695,34 +695,39 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		7388B1152E47A5AF0056489E /* XCRemoteSwiftPackageReference "Down" */ = {
+		7308578C2EA8F5E400D7100F /* XCRemoteSwiftPackageReference "SQLite" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/johnxnguyen/Down";
+			repositoryURL = "https://github.com/stephencelis/SQLite.swift";
 			requirement = {
-				branch = master;
-				kind = branch;
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.15.4;
 			};
 		};
-		73PORCUP1152E47A5AF0056489E /* XCRemoteSwiftPackageReference "porcupine" */ = {
+		73C5728C2E9E795400999C36 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Picovoice/porcupine.git";
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
 			requirement = {
-				branch = master;
-				kind = branch;
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.4.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		7388B1162E47A5AF0056489E /* Down */ = {
+		7308578D2EA8F5E400D7100F /* SQLite */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 7388B1152E47A5AF0056489E /* XCRemoteSwiftPackageReference "Down" */;
-			productName = Down;
+			package = 7308578C2EA8F5E400D7100F /* XCRemoteSwiftPackageReference "SQLite" */;
+			productName = SQLite;
 		};
-		73PORCUP1162E47A5AF0056489E /* Porcupine */ = {
+		733ADC8A2EACEDD20040165F /* FirebaseFirestore */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 73PORCUP1152E47A5AF0056489E /* XCRemoteSwiftPackageReference "porcupine" */;
-			productName = Porcupine;
+			package = 73C5728C2E9E795400999C36 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		73C5728D2E9E795400999C36 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 73C5728C2E9E795400999C36 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -24,7 +24,6 @@ actor AppLifecycleCoordinator {
     private var lastForegroundTime: Date?
     private var lastBackgroundTime: Date?
     private var appLaunchTime: Date
-    private var hasMigratedToFTS5: Bool = false
     
     // MARK: - User Preferences State
     
@@ -35,7 +34,6 @@ actor AppLifecycleCoordinator {
         self.appLaunchTime = Date()
         let firstLaunch = !userDefaults.bool(forKey: "HasLaunchedBefore")
         self.isFirstLaunch = firstLaunch
-        self.hasMigratedToFTS5 = userDefaults.bool(forKey: "HasMigratedToFTS5")
 
         logger.info("AppStateManager initialized - First launch: \(firstLaunch)")
 
@@ -351,46 +349,6 @@ actor AppLifecycleCoordinator {
         )
 
         logger.info("💾 Posted session save notification")
-    }
-
-    // MARK: - FTS5 Migration
-
-    /// Migrates existing completed research sessions to FTS5 index
-    /// Call this once on app launch after adding FTS5 support
-    /// - Parameters:
-    ///   - fts5Manager: The FTS5 manager instance
-    ///   - storageActor: The session storage actor for fetching sessions
-    func migrateToFTS5IfNeeded(
-        fts5Manager: FTS5Manager,
-        storageActor: SessionStorageActor
-    ) async {
-        // Check if migration already completed
-        guard !hasMigratedToFTS5 else {
-            logger.info("FTS5 migration already completed, skipping")
-            return
-        }
-
-        logger.warning("🔄 Starting FTS5 migration for existing sessions...")
-
-        do {
-            // Extract session data within the storage actor to avoid Sendable issues
-            let sessionsToMigrate = try await storageActor.extractSessionDataForMigration()
-
-            logger.info("Found \(sessionsToMigrate.count) completed sessions to migrate")
-
-            // Perform migration
-            try await fts5Manager.migrateExistingSessions(sessions: sessionsToMigrate)
-
-            // Mark migration as complete
-            hasMigratedToFTS5 = true
-            userDefaults.set(true, forKey: "HasMigratedToFTS5")
-            userDefaults.set(Date(), forKey: "FTS5MigrationDate")
-
-            logger.info("✅ FTS5 migration completed successfully")
-        } catch {
-            logger.error("❌ FTS5 migration failed: \(error.localizedDescription)")
-            // Don't mark as complete so it will retry next launch
-        }
     }
 
     // MARK: - Glucose Data Cleanup

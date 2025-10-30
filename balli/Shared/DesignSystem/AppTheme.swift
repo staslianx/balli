@@ -29,10 +29,6 @@ struct AppTheme {
     static let modelPurpleDark = ThemeColors.modelPurpleDark
 
     // Adaptive color helpers
-    static func recallColor(for colorScheme: ColorScheme) -> Color {
-        ThemeColors.recallColor(for: colorScheme)
-    }
-
     static func deepResearchColor(for colorScheme: ColorScheme) -> Color {
         ThemeColors.deepResearchColor(for: colorScheme)
     }

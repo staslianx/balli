@@ -37,7 +37,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.calculateRecipeNutrition = exports.recallFromPastSessions = exports.testEdamamNutrition = exports.syncUserPreferences = exports.syncGlucosePatterns = exports.syncRecipePreferences = exports.syncConversationSummaries = exports.syncUserFacts = exports.generateSessionMetadata = exports.diabetesAssistantStream = exports.transcribeMeal = exports.extractNutritionFromImage = exports.generateRecipePhoto = exports.generateSpontaneousRecipe = exports.generateRecipeFromIngredients = void 0;
+exports.calculateRecipeNutrition = exports.testEdamamNutrition = exports.syncUserPreferences = exports.syncGlucosePatterns = exports.syncRecipePreferences = exports.syncConversationSummaries = exports.syncUserFacts = exports.generateSessionMetadata = exports.diabetesAssistantStream = exports.transcribeMeal = exports.extractNutritionFromImage = exports.generateRecipePhoto = exports.generateSpontaneousRecipe = exports.generateRecipeFromIngredients = void 0;
 // Load environment variables first (required for development)
 require("dotenv/config");
 const admin = __importStar(require("firebase-admin"));
@@ -1504,46 +1504,6 @@ Object.defineProperty(exports, "syncUserPreferences", { enumerable: true, get: f
 // Export EDAMAM test endpoint (developer testing only)
 var test_edamam_nutrition_1 = require("./test-edamam-nutrition");
 Object.defineProperty(exports, "testEdamamNutrition", { enumerable: true, get: function () { return test_edamam_nutrition_1.testEdamamNutrition; } });
-// ============================================
-// RECALL ENDPOINT - Answer from Past Research Sessions
-// ============================================
-const recall_flow_1 = require("./flows/recall-flow");
-exports.recallFromPastSessions = (0, https_1.onRequest)({
-    cors: true,
-    maxInstances: 10,
-    memory: '512MiB',
-    timeoutSeconds: 60
-}, async (req, res) => {
-    // Handle CORS preflight
-    if (req.method === 'OPTIONS') {
-        res.status(204).send('');
-        return;
-    }
-    try {
-        // Validate request body
-        const input = req.body;
-        if (!input.question || !input.userId) {
-            res.status(400).json({
-                success: false,
-                error: 'Missing required fields: question, userId'
-            });
-            return;
-        }
-        console.log(`📚 [RECALL-ENDPOINT] Request from user: ${input.userId}`);
-        console.log(`📚 [RECALL-ENDPOINT] Question: ${input.question}`);
-        console.log(`📚 [RECALL-ENDPOINT] Matched sessions: ${input.matchedSessions?.length || 0}`);
-        // Process recall request
-        const result = await (0, recall_flow_1.handleRecall)(input);
-        res.status(200).json(result);
-    }
-    catch (error) {
-        console.error('❌ [RECALL-ENDPOINT] Error:', error);
-        res.status(500).json({
-            success: false,
-            error: error.message || 'Internal server error'
-        });
-    }
-});
 exports.calculateRecipeNutrition = (0, https_1.onRequest)({
     cors: true,
     maxInstances: 10,

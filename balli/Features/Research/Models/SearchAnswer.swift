@@ -63,7 +63,6 @@ struct SearchAnswer: Identifiable, Codable, Sendable, Equatable {
 
 /// Response tier indicating which execution mode was used
 enum ResponseTier: String, Codable, Sendable {
-    case recall = "RECALL"           // T0: Recall from past sessions (FTS5 search)
     case model = "MODEL"
     case search = "HYBRID_RESEARCH"  // T2: Hybrid Research (Flash + 15 Exa sources)
     case research = "DEEP_RESEARCH"  // T3: Deep Research (Pro + 25 sources) - CURRENTLY DISABLED
@@ -76,8 +75,6 @@ enum ResponseTier: String, Codable, Sendable {
 
         guard let tier else { return nil }
         switch tier {
-        case 0:
-            self = .recall
         case 3:
             self = .research
         case 2:
@@ -91,8 +88,6 @@ enum ResponseTier: String, Codable, Sendable {
 
     var label: String {
         switch self {
-        case .recall:
-            return "Hafıza"
         case .model:
             return "Hızlı"
         case .search:
@@ -104,8 +99,6 @@ enum ResponseTier: String, Codable, Sendable {
 
     var iconName: String {
         switch self {
-        case .recall:
-            return "clock.arrow.circlepath"
         case .model:
             return "bolt.fill"
         case .search:
@@ -120,8 +113,6 @@ enum ResponseTier: String, Codable, Sendable {
     /// - Returns: SwiftUI Color optimized for the current color scheme
     func color(for colorScheme: ColorScheme) -> Color {
         switch self {
-        case .recall:
-            return AppTheme.recallColor(for: colorScheme)
         case .model:
             return AppTheme.modelColor(for: colorScheme)
         case .search:
