@@ -93,7 +93,8 @@ struct AIResultView: View {
                                 impactLevel: viewModel.currentImpactLevel,
                                 impactScore: viewModel.currentImpactScore,
                                 showingValues: viewModel.uiState.showingValues,
-                                valuesAnimationProgress: viewModel.uiState.valuesAnimationProgress
+                                valuesAnimationProgress: viewModel.uiState.valuesAnimationProgress,
+                                showSlider: viewModel.uiState.showSlider  // ✅ Control slider visibility by state
                             )
                         }
                         
@@ -129,8 +130,8 @@ struct AIResultView: View {
                             .padding(.bottom, ResponsiveDesign.height(12))
                         } else if viewModel.uiState.showSaveButtons {
                             // Show both edit and save buttons after user taps done
-                            HStack(spacing: 60) {
-                                // Edit button (pencil) - transparent like retake button
+                            HStack(spacing: 16) {
+                                // Edit button (pencil) - circular, transparent glass
                                 Button(action: { viewModel.toggleEditMode() }) {
                                     Image(systemName: "pencil")
                                         .font(.system(size: 20, weight: .medium, design: .rounded))
@@ -138,17 +139,22 @@ struct AIResultView: View {
                                 }
                                 .toolbarCircularGlass(size: ResponsiveDesign.height(72))
 
-                                // Save button (checkmark) - filled purple like use button
+                                // Save button - pill-shaped, filled purple (distinguishable)
                                 Button(action: handleSave) {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(.white)
-                                        .frame(width: ResponsiveDesign.height(72), height: ResponsiveDesign.height(72))
-                                        .background(
-                                            Circle()
-                                                .fill(AppTheme.primaryPurple)
-                                                .glassEffect(.regular.interactive(), in: Circle())
-                                        )
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                        Text("Kaydet")
+                                            .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                    }
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 32)
+                                    .padding(.vertical, 18)
+                                    .background(
+                                        Capsule()  // Pill shape
+                                            .fill(AppTheme.primaryPurple)
+                                            .glassEffect(.regular.interactive(), in: Capsule())
+                                    )
                                 }
                             }
                             .padding(.bottom, ResponsiveDesign.height(12))

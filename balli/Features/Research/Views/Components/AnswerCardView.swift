@@ -33,6 +33,9 @@ struct AnswerCardView: View {
     @State private var showBadge = false // Animate badge appearance
     @State private var showSourcePill = false // Animate source pill appearance
 
+    // Track last stage seen to keep displaying it
+    @State private var lastStageBeforeContent: String? = nil
+
     init(
         answer: SearchAnswer,
         enableStreaming: Bool = true,
@@ -126,45 +129,7 @@ struct AnswerCardView: View {
             }
 
             // Current research stage - shown during deep research with progress bar
-            // Smooth fade in/out with increased spacing
-            if let stageMessage = currentStage, !isStreamingComplete {
-                ResearchStageStatusCard(
-                    stageMessage: stageMessage,
-                    progress: effectiveProgress(for: stageMessage)
-                )
-                .padding(.top, 12) // Increased spacing from badge row
-                .transition(.opacity.animation(.easeInOut(duration: 0.4)))
-                .onAppear {
-                    logger.debug("🎬 [UI-RENDER] Stage card appeared: \(stageMessage)")
-
-                    // When progress card appears, permanently hide task summary
-                    showTaskSummary = false
-
-                    // Initialize max progress with current stage
-                    let currentProgress = calculateProgress(for: stageMessage)
-                    if maxProgressReached == 0.0 {
-                        maxProgressReached = currentProgress
-                    }
-                }
-                .onChange(of: stageMessage) { oldStage, newStage in
-                    logger.debug("🔄 [UI-RENDER] Stage changed: \(oldStage) → \(newStage)")
-
-                    // Update max progress when stage changes (only if higher)
-                    let newProgress = calculateProgress(for: newStage)
-                    if newProgress > maxProgressReached {
-                        maxProgressReached = newProgress
-                    }
-                }
-            } else {
-                // Debug logging for when stage card is NOT displayed
-                let _ = {
-                    if currentStage == nil {
-                        logger.debug("❌ [UI-RENDER] Stage card hidden: currentStage is nil")
-                    } else if isStreamingComplete {
-                        logger.debug("✅ [UI-RENDER] Stage card hidden: streaming complete")
-                    }
-                }()
-            }
+            renderStageCard()
 
 
             // Answer content - markdown rendered with smooth streaming
@@ -231,6 +196,7 @@ struct AnswerCardView: View {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     showBadge = true
                 }
+
             }
         }
         .onChange(of: answer.sources.count) { oldCount, newCount in
@@ -241,11 +207,19 @@ struct AnswerCardView: View {
                 }
             }
         }
+        .onChange(of: currentStage) { _, newStage in
+            // Track the last stage we saw so we can keep showing it until content arrives
+            if let stage = newStage {
+                lastStageBeforeContent = stage
+                logger.debug("📊 Backend stage: \(stage)")
+            }
+        }
         .onChange(of: answer.id) { _, _ in
             // Reset visibility for new answers
             showTaskSummary = true
             showBadge = false
             showSourcePill = false
+            lastStageBeforeContent = nil
 
             // Re-trigger animations for new answer
             if shouldShowBadge, answer.tier != nil {
@@ -286,6 +260,28 @@ struct AnswerCardView: View {
     private var shouldShowBadge: Bool {
         answer.tier?.shouldShowBadge ?? false
     }
+
+    /// Render stage card based on tier
+    @ViewBuilder
+    private func renderStageCard() -> some View {
+        // Display backend stages (the REAL stages from coordinator)
+        // Key: Keep showing the last stage until content arrives
+        let displayStage = currentStage ?? lastStageBeforeContent
+
+        if let stageMessage = displayStage, answer.content.isEmpty {
+            ResearchStageStatusCard(
+                stageMessage: stageMessage,
+                progress: effectiveProgress(for: stageMessage)
+            )
+            .padding(.top, 12)
+            .transition(.opacity.animation(.easeInOut(duration: 0.4)))
+            .onAppear {
+                logger.debug("🎬 Stage card appeared: \(stageMessage)")
+                showTaskSummary = false
+            }
+        }
+    }
+
 
     /// Determine if shimmer effect should be active on badge text
     /// Shimmer shows from the beginning until response content appears on UI

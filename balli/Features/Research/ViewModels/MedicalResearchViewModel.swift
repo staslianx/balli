@@ -10,6 +10,7 @@
 import Foundation
 import SwiftUI
 import OSLog
+import Combine
 
 /// MedicalResearchViewModel manages medical research queries with T1/T2/T3 tier support
 /// Handles multi-round deep research, planning, reflection, and streaming synthesis
@@ -32,11 +33,9 @@ class MedicalResearchViewModel: ObservableObject {
 
     // MARK: - Multi-Round Research State (delegated to stageCoordinator)
 
-    /// Current display stage for answer (exposed from stageCoordinator)
-    /// Returns the current stage being displayed for each answer
-    var currentStages: [String: String?] {
-        stageCoordinator.currentStages.mapValues { $0 as String? }
-    }
+    /// Current display stage for answer (republished from stageCoordinator)
+    /// This MUST be @Published so SwiftUI observes changes
+    @Published var currentStages: [String: String] = [:]
 
     /// Flag to hold stream display (exposed from stageCoordinator)
     var shouldHoldStream: [String: Bool] {
@@ -99,6 +98,10 @@ class MedicalResearchViewModel: ObservableObject {
     // Current user ID - hardcoded for 2-user personal app without authentication
     private let currentUserId = "demo_user"
 
+    // MARK: - Combine
+
+    private var cancellables = Set<AnyCancellable>()
+
     // MARK: - Initialization
 
     init() {
@@ -131,6 +134,14 @@ class MedicalResearchViewModel: ObservableObject {
                 await self?.syncAnswersToPersistence()
             }
         }
+
+        // Observe stage coordinator's currentStages and republish to trigger SwiftUI updates
+        stageCoordinator.$currentStages
+            .receive(on: RunLoop.main)
+            .sink { [weak self] stages in
+                self?.currentStages = stages
+            }
+            .store(in: &cancellables)
 
         Task {
             await loadSessionHistory()

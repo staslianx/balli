@@ -19,6 +19,7 @@ struct AIResultUIState: Sendable {
 
     var showImpactBanner: Bool
     var showingValues: Bool
+    var showSlider: Bool  // Controls slider visibility based on state
 
     // MARK: - Save State
 
@@ -37,6 +38,7 @@ struct AIResultUIState: Sendable {
     // MARK: - Initialization
 
     /// Initialize for read-only mode (after analysis)
+    /// Shows label with impact banner, NO slider, only edit button
     static func readOnly() -> AIResultUIState {
         AIResultUIState(
             isEditing: false,
@@ -44,6 +46,7 @@ struct AIResultUIState: Sendable {
             showSaveButtons: false,
             showImpactBanner: true,
             showingValues: true,
+            showSlider: false,  // ❌ No slider in read-only mode
             isSaving: false,
             isSaveInProgress: false,
             validationErrors: [],
@@ -53,6 +56,7 @@ struct AIResultUIState: Sendable {
     }
 
     /// Initialize for edit mode
+    /// Shows editable label WITH slider, only checkmark button
     static func editing() -> AIResultUIState {
         AIResultUIState(
             isEditing: true,
@@ -60,6 +64,7 @@ struct AIResultUIState: Sendable {
             showSaveButtons: false,
             showImpactBanner: true,
             showingValues: true,
+            showSlider: true,  // ✅ Show slider in edit mode
             isSaving: false,
             isSaveInProgress: false,
             validationErrors: [],
@@ -69,6 +74,7 @@ struct AIResultUIState: Sendable {
     }
 
     /// Initialize for save-ready mode (after editing)
+    /// Shows read-only label WITH slider (final values), pencil + save buttons
     static func saveReady() -> AIResultUIState {
         AIResultUIState(
             isEditing: false,
@@ -76,6 +82,7 @@ struct AIResultUIState: Sendable {
             showSaveButtons: true,
             showImpactBanner: true,
             showingValues: true,
+            showSlider: true,  // ✅ Keep slider visible to show final portion
             isSaving: false,
             isSaveInProgress: false,
             validationErrors: [],
@@ -92,6 +99,7 @@ struct AIResultUIState: Sendable {
             showSaveButtons: false,
             showImpactBanner: false,
             showingValues: false,
+            showSlider: false,  // ❌ No slider during analysis
             isSaving: false,
             isSaveInProgress: false,
             validationErrors: [],

@@ -19,13 +19,24 @@ import { logger } from 'firebase-functions/v2';
 
 /**
  * API timeout configurations (in milliseconds)
- * Based on audit recommendations
+ * CRITICAL: Academic APIs (PubMed, medRxiv, ClinicalTrials) need longer timeouts
+ * because they:
+ * 1. Search through millions of papers
+ * 2. Run on government/academic infrastructure (slower than commercial)
+ * 3. Have rate limiting and anti-bot measures
+ * 4. Need to fetch metadata for multiple results
+ *
+ * For T3 Deep Research requesting 8-10 sources per API, we need:
+ * - PubMed: 10-15s (NIH servers, complex queries, multiple result fetches)
+ * - medRxiv: 8-10s (Preprint server, slower than production APIs)
+ * - ClinicalTrials: 10-12s (Government database, complex trial metadata)
+ * - Exa: 10s (Commercial API, fast and reliable)
  */
 const API_TIMEOUTS = {
-  PUBMED: 3000,           // 3 seconds for PubMed
-  MEDRXIV: 3000,          // 3 seconds for medRxiv
-  CLINICAL_TRIALS: 3000,  // 3 seconds for ClinicalTrials.gov
-  EXA: 10000              // 10 seconds for Exa (paid API, more reliable)
+  PUBMED: 15000,           // 15 seconds for PubMed (was 3s - too short!)
+  MEDRXIV: 10000,          // 10 seconds for medRxiv (was 3s - too short!)
+  CLINICAL_TRIALS: 12000,  // 12 seconds for ClinicalTrials.gov (was 3s - too short!)
+  EXA: 10000               // 10 seconds for Exa (paid API, more reliable)
 };
 
 /**
@@ -496,19 +507,40 @@ export function createT2Config(
  * @param medrxivCount - Number of medRxiv preprints
  * @param clinicalTrialsCount - Number of clinical trials
  * @returns T3 research configuration
+ *
+ * NOTE: This function is DEPRECATED. Prefer constructing ResearchFetchConfig directly
+ * with explicit exaCount to avoid confusion about source count expectations.
+ *
+ * IMPORTANT: API sources (pubmedCount + medrxivCount + clinicalTrialsCount) should sum to 15,
+ * NOT 25. The function adds 10 Exa sources automatically.
  */
 export function createT3Config(
   pubmedCount: number,
   medrxivCount: number,
   clinicalTrialsCount: number
 ): ResearchFetchConfig {
-  // Validate total API sources = 15
+  // Validate total API sources = 15 (Exa sources are added separately)
   const apiTotal = pubmedCount + medrxivCount + clinicalTrialsCount;
+
   if (apiTotal !== 15) {
-    console.warn(
-      `⚠️ [CONFIG] T3 API sources should sum to 15, got ${apiTotal}. ` +
-      `Adjusting to maintain total of 25 sources.`
+    logger.error(
+      `❌ [CONFIG] T3 API sources MUST sum to 15, got ${apiTotal}. ` +
+      `T3 config adds 10 Exa sources automatically for 25 total. ` +
+      `Received: PubMed=${pubmedCount}, medRxiv=${medrxivCount}, Trials=${clinicalTrialsCount}`
     );
+
+    // Scale down proportionally to fit 15 sources
+    const scale = 15 / apiTotal;
+    const adjustedPubmed = Math.round(pubmedCount * scale);
+    const adjustedMedrxiv = Math.round(medrxivCount * scale);
+    const adjustedTrials = 15 - adjustedPubmed - adjustedMedrxiv; // Ensure exact sum
+
+    logger.warn(
+      `⚠️ [CONFIG] Auto-adjusting API sources to sum to 15: ` +
+      `PubMed=${adjustedPubmed}, medRxiv=${adjustedMedrxiv}, Trials=${adjustedTrials}`
+    );
+
+    return TIER_CONFIGS.T3(adjustedPubmed, adjustedMedrxiv, adjustedTrials);
   }
 
   return TIER_CONFIGS.T3(pubmedCount, medrxivCount, clinicalTrialsCount);

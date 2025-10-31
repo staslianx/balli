@@ -40,7 +40,7 @@ struct InformationRetrievalView: View {
                                         enableStreaming: !displayedAnswerIds.contains(answer.id),
                                         isStreamingComplete: !viewModel.isSearching,
                                         isSearchingSources: viewModel.searchingSourcesForAnswer[answer.id] ?? false,
-                                        currentStage: viewModel.currentStages[answer.id] ?? nil,
+                                        currentStage: viewModel.currentStages[answer.id],
                                         shouldHoldStream: viewModel.shouldHoldStream[answer.id] ?? false,
                                         onViewReady: { answerId in
                                             viewModel.signalViewReady(for: answerId)

@@ -149,6 +149,17 @@ public final class AnalysisViewModel: ObservableObject {
             for await _ in AsyncTimerSequence(interval: .seconds(1)) {
                 guard !Task.isCancelled else { break }
                 guard let self = self, self.isViewVisible else { continue }
+
+                // Early termination optimization: If real processing completes quickly (< 2 seconds),
+                // skip the artificial visual delay and complete immediately for better perceived performance
+                let elapsed = Date().timeIntervalSince(self.analysisStartTime)
+                if self.isRealProcessingComplete && elapsed < 2.0 {
+                    self.visualProgress = 1.0
+                    self.currentStage = .completed
+                    self.completeAnalysis()
+                    break
+                }
+
                 self.updateVisualProgress()
             }
         }

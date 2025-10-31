@@ -39,6 +39,9 @@ struct NutritionLabelView: View {
     let showingValues: Bool
     let valuesAnimationProgress: [String: Bool]
 
+    // Slider visibility control
+    let showSlider: Bool
+
     // Haptic feedback state
     @State private var previousColor: Color?
 
@@ -62,7 +65,8 @@ struct NutritionLabelView: View {
         impactLevel: ImpactLevel? = nil,
         impactScore: Double? = nil,
         showingValues: Bool = true,
-        valuesAnimationProgress: [String: Bool] = [:]
+        valuesAnimationProgress: [String: Bool] = [:],
+        showSlider: Bool = true  // Default to true for backward compatibility
     ) {
         self._productBrand = productBrand
         self._productName = productName
@@ -83,6 +87,7 @@ struct NutritionLabelView: View {
         self.impactScore = impactScore
         self.showingValues = showingValues
         self.valuesAnimationProgress = valuesAnimationProgress
+        self.showSlider = showSlider
     }
     
     // Computed properties for proportional values
@@ -190,8 +195,10 @@ struct NutritionLabelView: View {
             dividerLine
             nutritionSection
 
-            // Always show slider - impact banner will be positioned as overlay
-            sliderSection
+            // Conditionally show slider based on state
+            if showSlider {
+                sliderSection
+            }
 
             Spacer()
         }

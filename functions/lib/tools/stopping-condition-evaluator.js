@@ -48,7 +48,9 @@ function evaluateStoppingConditions(roundNumber, maxRounds, currentRound, allRou
     }
     // CONDITION 5: Total sources exceed comprehensive threshold
     const totalSources = allRounds.reduce((sum, r) => sum + r.sourceCount, 0);
-    const COMPREHENSIVE_THRESHOLD = 30; // Stop if we have 30+ sources
+    // INCREASED: Was 30, now 50 to allow multiple rounds for truly deep research
+    // With API timeouts fixed, Round 1 should get ~25 sources, so we want at least 2 rounds
+    const COMPREHENSIVE_THRESHOLD = 50; // Stop if we have 50+ sources
     if (totalSources >= COMPREHENSIVE_THRESHOLD) {
         triggeredConditions.push(`Comprehensive source coverage (${totalSources} sources)`);
     }

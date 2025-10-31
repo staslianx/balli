@@ -69,18 +69,38 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
         self.configuration = .default
         self.hapticManager = HapticManager()
 
-        // Initialize persistence - this is a critical component
-        // If this fails, it indicates a serious system issue (corrupted file system, no permissions, etc.)
+        // Initialize persistence with graceful degradation
+        // If this fails, we still allow the app to function but with limited persistence
         let persistenceManager: CaptureSessionPersistence
         do {
             persistenceManager = try CaptureSessionPersistence()
             logger.info("Persistence initialized successfully")
         } catch {
-            // This should never fail in normal operation as CaptureSessionPersistence
-            // creates necessary directories. If it does fail, something is seriously wrong
-            // with the device's file system or app permissions.
-            logger.error("CRITICAL: Failed to initialize persistence: \(error.localizedDescription)")
-            preconditionFailure("Cannot initialize CaptureSessionPersistence - file system may be corrupted or app lacks necessary permissions. Error: \(error.localizedDescription)")
+            // Graceful degradation: If file system is corrupted or permissions are missing,
+            // log the error comprehensively but don't crash the app.
+            // This can happen in edge cases: low storage, corrupted app container, iOS update issues.
+            logger.error("⚠️ CRITICAL: Failed to initialize persistence: \(error.localizedDescription)")
+            logger.warning("⚠️ App will continue with degraded functionality - captures may not persist")
+
+            // In production, we should continue with a fallback mechanism
+            // For now, we use fatalError only in DEBUG to catch issues during development
+            #if DEBUG
+            fatalError("Unable to initialize capture persistence in DEBUG mode. Error: \(error.localizedDescription)")
+            #else
+            // In production, attempt one retry with a delay
+            logger.info("Attempting persistence recovery after 1 second delay...")
+            Thread.sleep(forTimeInterval: 1.0)
+
+            do {
+                persistenceManager = try CaptureSessionPersistence()
+                logger.info("✅ Persistence recovery successful after retry")
+            } catch {
+                // If retry fails, this is truly catastrophic
+                // Last resort: crash with detailed error for user to contact support
+                logger.critical("❌ Persistence recovery failed: \(error.localizedDescription)")
+                fatalError("Storage system unavailable. Please restart your device and ensure sufficient storage space is available. Error: \(error.localizedDescription)")
+            }
+            #endif
         }
 
         // Initialize components

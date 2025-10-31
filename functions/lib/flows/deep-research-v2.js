@@ -145,23 +145,42 @@ async function executeDeepResearchV2(question, res) {
     for (let roundNum = 1; roundNum <= maxRounds && shouldContinue; roundNum++) {
         const roundStartTime = Date.now();
         v2_1.logger.info(`🔄 [DEEP-RESEARCH-V2] Starting Round ${roundNum}/${maxRounds}`);
-        // Round 1: 25 sources for broad coverage, Rounds 2-4: 15 sources for focused gap-filling
-        const apiSourceCount = roundNum === 1 ? 25 : 15;
+        // ===== FIX: Correct source count calculation =====
+        // Round 1: 25 total sources (10 Exa + 15 Academic APIs)
+        // Rounds 2-4: 15 total sources (5 Exa + 10 Academic APIs)
+        const exaCount = roundNum === 1 ? 10 : 5;
+        const apiSourceCount = roundNum === 1 ? 15 : 10; // FIXED: Was 25/15, now 15/10
+        const totalSourceCount = exaCount + apiSourceCount;
         emitSSE(res, {
             type: 'round_started',
             round: roundNum,
             query: currentQuery,
-            estimatedSources: apiSourceCount,
+            estimatedSources: totalSourceCount, // Report accurate total including Exa
             sequence: roundNum * 10
         });
-        // ===== STEP 1: Query Analysis (determine source distribution) =====
+        // ===== STEP 1: Query Analysis (determine Academic API source distribution) =====
         const queryAnalysis = await (0, query_analyzer_1.analyzeQuery)(currentQuery, apiSourceCount);
         const sourceCounts = (0, query_analyzer_1.calculateSourceCounts)(queryAnalysis, apiSourceCount);
         v2_1.logger.debug(`📊 [DEEP-RESEARCH-V2] Round ${roundNum} distribution: ` +
-            `PubMed=${sourceCounts.pubmedCount}, medRxiv=${sourceCounts.medrxivCount}, ` +
-            `Trials=${sourceCounts.clinicalTrialsCount}`);
-        // ===== STEP 2: Fetch Sources (parallel with progress tracking) =====
-        const config = (0, parallel_research_fetcher_1.createT3Config)(sourceCounts.pubmedCount, sourceCounts.medrxivCount, sourceCounts.clinicalTrialsCount);
+            `Exa=${exaCount}, PubMed=${sourceCounts.pubmedCount}, ` +
+            `medRxiv=${sourceCounts.medrxivCount}, Trials=${sourceCounts.clinicalTrialsCount}`);
+        // ===== STEP 2: Create Config (explicit Exa count) =====
+        const config = {
+            exaCount: exaCount,
+            pubmedCount: sourceCounts.pubmedCount,
+            medrxivCount: sourceCounts.medrxivCount,
+            clinicalTrialsCount: sourceCounts.clinicalTrialsCount
+        };
+        // Validate total matches expectation
+        const actualTotal = config.exaCount + config.pubmedCount + config.medrxivCount + config.clinicalTrialsCount;
+        if (actualTotal !== totalSourceCount) {
+            v2_1.logger.warn(`⚠️ [DEEP-RESEARCH-V2] Source count mismatch in Round ${roundNum}: ` +
+                `expected ${totalSourceCount}, got ${actualTotal}`);
+        }
+        v2_1.logger.info(`📊 [DEEP-RESEARCH-V2] Round ${roundNum} requesting ${actualTotal} sources: ` +
+            `Exa=${config.exaCount}, PubMed=${config.pubmedCount}, ` +
+            `medRxiv=${config.medrxivCount}, Trials=${config.clinicalTrialsCount}`);
+        // ===== STEP 3: Fetch Sources (parallel with progress tracking) =====
         // Progress callback for SSE events
         const progressCallback = (event) => {
             if (event.type === 'api_started') {

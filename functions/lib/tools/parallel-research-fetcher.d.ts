@@ -98,6 +98,12 @@ export declare function createT2Config(pubmedCount: number, medrxivCount: number
  * @param medrxivCount - Number of medRxiv preprints
  * @param clinicalTrialsCount - Number of clinical trials
  * @returns T3 research configuration
+ *
+ * NOTE: This function is DEPRECATED. Prefer constructing ResearchFetchConfig directly
+ * with explicit exaCount to avoid confusion about source count expectations.
+ *
+ * IMPORTANT: API sources (pubmedCount + medrxivCount + clinicalTrialsCount) should sum to 15,
+ * NOT 25. The function adds 10 Exa sources automatically.
  */
 export declare function createT3Config(pubmedCount: number, medrxivCount: number, clinicalTrialsCount: number): ResearchFetchConfig;
 //# sourceMappingURL=parallel-research-fetcher.d.ts.map
