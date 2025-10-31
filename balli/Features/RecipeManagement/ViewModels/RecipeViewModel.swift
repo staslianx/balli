@@ -24,46 +24,24 @@ public class RecipeViewModel: ObservableObject {
     public var photoCoordinator: RecipePhotoGenerationCoordinator
     public var persistenceCoordinator: RecipePersistenceCoordinator
 
-    // MARK: - Image Service State (Internal)
-    @Published private var _recipeImageURL: String?
-    @Published private var _recipeImageData: Data?
-    @Published private var _isUploadingImage = false
-    @Published private var _isLoadingImageFromStorage = false
-
-    // MARK: - Pre-decoded Image Cache (Performance Optimization)
-    /// Pre-decoded UIImage to eliminate synchronous UIImage(data:) calls in SwiftUI body
-    /// This prevents main thread blocking and eliminates unsafeForcedSync warnings
-    @Published public var preparedImage: UIImage?
-
-    // MARK: - Shopping List Service State (Internal)
-    @Published private var _isShoppingListExpanded = false
-    @Published private var _isShoppingListActive = false
-    @Published private var _navigateToShoppingList = false
-    @Published private var _sentIngredients: Set<String> = []
+    // MARK: - Handler Objects
+    public var nutritionHandler: RecipeNutritionHandler
+    public var imageHandler: RecipeImageHandler
 
     // MARK: - Legacy UI State (For Backward Compatibility)
     @Published public var isInitializing = false
     @Published public var useHandwrittenFont = true
 
     // MARK: - Services
-    private let imageService: RecipeImageService
-    private let shoppingListService: ShoppingListIntegrationService
-    private let dataManager: RecipeDataManager
-    private let nutritionRepository = RecipeNutritionRepository()
     private let viewContext: NSManagedObjectContext
     private let logger = AppLoggers.Recipe.generation
-
-    // MARK: - Nutrition Calculation State
-    @Published public var isCalculatingNutrition = false
-    @Published public var nutritionCalculationError: String?
-    @Published public var nutritionCalculationProgress = 0  // NEW: Progress percentage (0-100)
 
     // MARK: - Combine
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Computed Properties for Backward Compatibility
 
-    // Form State Delegation
+    // Form State Delegation (Read-Write)
     public var recipeName: String {
         get { formState.recipeName }
         set { formState.recipeName = newValue }
@@ -135,7 +113,6 @@ public class RecipeViewModel: ObservableObject {
     }
 
     // MARK: - Per-Serving Nutrition Values
-
     public var caloriesPerServing: String {
         get { formState.caloriesPerServing }
         set { formState.caloriesPerServing = newValue }
@@ -181,151 +158,96 @@ public class RecipeViewModel: ObservableObject {
         set { formState.digestionTiming = newValue }
     }
 
-    // MARK: - Adjusted Nutrition Values (Performance Optimized with Caching)
-
-    // Cache for adjusted values - invalidated when portionGrams or nutrition values change
-    private var nutritionCache: NutritionCache = NutritionCache()
-
-    private struct NutritionCache {
-        var lastPortionGrams: Double = 100.0
-        var lastCalories: String = ""
-        var lastCarbs: String = ""
-        var lastFiber: String = ""
-        var lastSugar: String = ""
-        var lastProtein: String = ""
-        var lastFat: String = ""
-        var lastGlycemicLoad: String = ""
-
-        var cachedAdjustedCalories: String = ""
-        var cachedAdjustedCarbs: String = ""
-        var cachedAdjustedFiber: String = ""
-        var cachedAdjustedSugar: String = ""
-        var cachedAdjustedProtein: String = ""
-        var cachedAdjustedFat: String = ""
-        var cachedAdjustedGlycemicLoad: String = ""
-
-        mutating func shouldInvalidate(
-            portionGrams: Double,
-            calories: String,
-            carbs: String,
-            fiber: String,
-            sugar: String,
-            protein: String,
-            fat: String,
-            glycemicLoad: String
-        ) -> Bool {
-            portionGrams != lastPortionGrams ||
-            calories != lastCalories ||
-            carbs != lastCarbs ||
-            fiber != lastFiber ||
-            sugar != lastSugar ||
-            protein != lastProtein ||
-            fat != lastFat ||
-            glycemicLoad != lastGlycemicLoad
-        }
+    // MARK: - Nutrition Handler Delegation
+    public var isCalculatingNutrition: Bool {
+        nutritionHandler.isCalculatingNutrition
     }
 
-    /// Adjustment ratio based on current portion grams vs 100g base
+    public var nutritionCalculationError: String? {
+        nutritionHandler.nutritionCalculationError
+    }
+
+    public var nutritionCalculationProgress: Int {
+        nutritionHandler.nutritionCalculationProgress
+    }
+
     public var adjustmentRatio: Double {
-        // Nutrition values are per 100g, so ratio is portionGrams / 100
-        return formState.portionGrams / 100.0
+        nutritionHandler.adjustmentRatio
     }
 
-    /// Adjusted calorie value based on serving size
     public var adjustedCalories: String {
-        updateCacheIfNeeded()
-        return nutritionCache.cachedAdjustedCalories
+        nutritionHandler.adjustedCalories
     }
 
-    /// Adjusted carbohydrates value based on serving size
     public var adjustedCarbohydrates: String {
-        updateCacheIfNeeded()
-        return nutritionCache.cachedAdjustedCarbs
+        nutritionHandler.adjustedCarbohydrates
     }
 
-    /// Adjusted fiber value based on serving size
     public var adjustedFiber: String {
-        updateCacheIfNeeded()
-        return nutritionCache.cachedAdjustedFiber
+        nutritionHandler.adjustedFiber
     }
 
-    /// Adjusted sugar value based on serving size
     public var adjustedSugar: String {
-        updateCacheIfNeeded()
-        return nutritionCache.cachedAdjustedSugar
+        nutritionHandler.adjustedSugar
     }
 
-    /// Adjusted protein value based on serving size
     public var adjustedProtein: String {
-        updateCacheIfNeeded()
-        return nutritionCache.cachedAdjustedProtein
+        nutritionHandler.adjustedProtein
     }
 
-    /// Adjusted fat value based on serving size
     public var adjustedFat: String {
-        updateCacheIfNeeded()
-        return nutritionCache.cachedAdjustedFat
+        nutritionHandler.adjustedFat
     }
 
-    /// Adjusted glycemic load value based on serving size
     public var adjustedGlycemicLoad: String {
-        updateCacheIfNeeded()
-        return nutritionCache.cachedAdjustedGlycemicLoad
+        nutritionHandler.adjustedGlycemicLoad
     }
 
-    /// Update nutrition cache if any values changed
-    private func updateCacheIfNeeded() {
-        if nutritionCache.shouldInvalidate(
-            portionGrams: formState.portionGrams,
-            calories: calories,
-            carbs: carbohydrates,
-            fiber: fiber,
-            sugar: sugar,
-            protein: protein,
-            fat: fat,
-            glycemicLoad: glycemicLoad
-        ) {
-            // Recalculate all values
-            let ratio = adjustmentRatio
-
-            nutritionCache.cachedAdjustedCalories = calculateAdjusted(calories, ratio: ratio, isCalories: true)
-            nutritionCache.cachedAdjustedCarbs = calculateAdjusted(carbohydrates, ratio: ratio)
-            nutritionCache.cachedAdjustedFiber = calculateAdjusted(fiber, ratio: ratio)
-            nutritionCache.cachedAdjustedSugar = calculateAdjusted(sugar, ratio: ratio)
-            nutritionCache.cachedAdjustedProtein = calculateAdjusted(protein, ratio: ratio)
-            nutritionCache.cachedAdjustedFat = calculateAdjusted(fat, ratio: ratio)
-            nutritionCache.cachedAdjustedGlycemicLoad = calculateAdjusted(glycemicLoad, ratio: ratio)
-
-            // Update cache state
-            nutritionCache.lastPortionGrams = formState.portionGrams
-            nutritionCache.lastCalories = calories
-            nutritionCache.lastCarbs = carbohydrates
-            nutritionCache.lastFiber = fiber
-            nutritionCache.lastSugar = sugar
-            nutritionCache.lastProtein = protein
-            nutritionCache.lastFat = fat
-            nutritionCache.lastGlycemicLoad = glycemicLoad
-        }
+    // MARK: - Image Handler Delegation
+    public var recipeImageURL: String? {
+        get { imageHandler.recipeImageURL }
+        set { imageHandler.recipeImageURL = newValue }
     }
 
-    /// Calculate adjusted value with caching
-    private func calculateAdjusted(_ baseString: String, ratio: Double, isCalories: Bool = false) -> String {
-        guard let baseValue = Double(baseString) else { return baseString }
-        let adjusted = baseValue * ratio
-
-        if isCalories {
-            return String(format: "%.0f", adjusted)
-        }
-        return formatNutritionValue(adjusted)
+    public var recipeImageData: Data? {
+        get { imageHandler.recipeImageData }
+        set { imageHandler.recipeImageData = newValue }
     }
 
-    /// Format nutrition value with appropriate precision
-    private func formatNutritionValue(_ value: Double) -> String {
-        if value < 10 {
-            return String(format: "%.1f", value)
-        } else {
-            return String(format: "%.0f", value)
-        }
+    public var isUploadingImage: Bool {
+        imageHandler.isUploadingImage
+    }
+
+    public var isLoadingImageFromStorage: Bool {
+        imageHandler.isLoadingImageFromStorage
+    }
+
+    public var isImageFromLocalData: Bool {
+        imageHandler.isImageFromLocalData
+    }
+
+    public var preparedImage: UIImage? {
+        imageHandler.preparedImage
+    }
+
+    public var isShoppingListExpanded: Bool {
+        get { imageHandler.isShoppingListExpanded }
+        set { imageHandler.isShoppingListExpanded = newValue }
+    }
+
+    public var isShoppingListActive: Bool {
+        get { imageHandler.isShoppingListActive }
+        set { imageHandler.isShoppingListActive = newValue }
+    }
+
+    public var navigateToShoppingList: Bool {
+        get { imageHandler.navigateToShoppingList }
+        set { imageHandler.navigateToShoppingList = newValue }
+    }
+
+    public var sentIngredients: Set<String> {
+        get { imageHandler.sentIngredients }
+        set { imageHandler.sentIngredients = newValue }
     }
 
     // Generation State Delegation
@@ -387,54 +309,6 @@ public class RecipeViewModel: ObservableObject {
         persistenceCoordinator.validationErrorMessage
     }
 
-    // Image Service Properties
-    public var recipeImageURL: String? {
-        get { _recipeImageURL }
-        set { _recipeImageURL = newValue }
-    }
-
-    public var recipeImageData: Data? {
-        get { _recipeImageData }
-        set {
-            _recipeImageData = newValue
-            // PERFORMANCE FIX: Decode image asynchronously to prevent main thread blocking
-            prepareImageAsync(from: newValue)
-        }
-    }
-
-    public var isUploadingImage: Bool {
-        _isUploadingImage
-    }
-
-    public var isLoadingImageFromStorage: Bool {
-        _isLoadingImageFromStorage
-    }
-
-    public var isImageFromLocalData: Bool {
-        return _recipeImageData != nil && !_isLoadingImageFromStorage
-    }
-
-    // Shopping List Properties
-    public var isShoppingListExpanded: Bool {
-        get { _isShoppingListExpanded }
-        set { _isShoppingListExpanded = newValue }
-    }
-
-    public var isShoppingListActive: Bool {
-        get { _isShoppingListActive }
-        set { _isShoppingListActive = newValue }
-    }
-
-    public var navigateToShoppingList: Bool {
-        get { _navigateToShoppingList }
-        set { _navigateToShoppingList = newValue }
-    }
-
-    public var sentIngredients: Set<String> {
-        get { _sentIngredients }
-        set { _sentIngredients = newValue }
-    }
-
     public var hasRecipeData: Bool {
         formState.hasRecipeData
     }
@@ -443,9 +317,6 @@ public class RecipeViewModel: ObservableObject {
 
     public init(context: NSManagedObjectContext, recipe: Recipe? = nil) {
         self.viewContext = context
-        self.dataManager = RecipeDataManager(context: context)
-        self.imageService = RecipeImageService(context: context)
-        self.shoppingListService = ShoppingListIntegrationService()
 
         // Initialize state objects
         let formState = RecipeFormState()
@@ -453,6 +324,10 @@ public class RecipeViewModel: ObservableObject {
 
         self.formState = formState
         self.animationController = animationController
+
+        // Initialize handlers
+        self.nutritionHandler = RecipeNutritionHandler(formState: formState)
+        self.imageHandler = RecipeImageHandler(formState: formState, context: context)
 
         // Initialize coordinators with dependencies
         self.generationCoordinator = RecipeGenerationCoordinator(
@@ -464,8 +339,8 @@ public class RecipeViewModel: ObservableObject {
 
         self.persistenceCoordinator = RecipePersistenceCoordinator(
             context: context,
-            dataManager: dataManager,
-            imageService: imageService,
+            dataManager: RecipeDataManager(context: context),
+            imageService: RecipeImageService(context: context),
             formState: formState,
             existingRecipe: recipe
         )
@@ -488,6 +363,14 @@ public class RecipeViewModel: ObservableObject {
             self?.objectWillChange.send()
         }.store(in: &cancellables)
 
+        nutritionHandler.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
+
+        imageHandler.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
+
         // Load existing recipe if provided
         if let recipe = recipe {
             loadRecipe(recipe)
@@ -504,15 +387,13 @@ public class RecipeViewModel: ObservableObject {
     private func loadRecipe(_ recipe: Recipe) {
         persistenceCoordinator.loadExistingRecipe(recipe)
 
-        // Load image data - this will trigger async image preparation via setter
+        // Load image data
         if let imageData = recipe.imageData {
-            _recipeImageData = imageData
-            // Manually trigger image preparation since we're using private setter
-            prepareImageAsync(from: imageData)
+            imageHandler.recipeImageData = imageData
         }
 
         if let imageURL = recipe.imageURL, !imageURL.isEmpty {
-            _recipeImageURL = imageURL
+            imageHandler.recipeImageURL = imageURL
         }
 
         // Set animation to completed state
@@ -526,14 +407,11 @@ public class RecipeViewModel: ObservableObject {
         logger.info("🎯 [RECIPE-ENTRY] User initiated recipe generation - mealType: \(mealType), styleType: \(styleType)")
 
         // Clear photo state before starting generation
-        _recipeImageData = nil
-        _recipeImageURL = nil
+        imageHandler.clearImageData()
         photoCoordinator.reset()
 
         await generationCoordinator.generateRecipe(mealType: mealType, styleType: styleType)
 
-        // PERFORMANCE FIX: Removed redundant objectWillChange.send()
-        // The formState now batches all updates in a single transaction internally
         logger.info("🏁 [RECIPE-ENTRY] Recipe generation completed - hasRecipeData: \(self.formState.hasRecipeData)")
     }
 
@@ -547,201 +425,14 @@ public class RecipeViewModel: ObservableObject {
         await photoCoordinator.generatePhoto()
     }
 
-    /// Asynchronously decodes image data to UIImage on a background thread
-    /// This prevents main thread blocking and eliminates unsafeForcedSync warnings
-    private func prepareImageAsync(from data: Data?) {
-        guard let data = data else {
-            preparedImage = nil
-            return
-        }
-
-        // Decode image on background thread to avoid blocking main thread
-        Task.detached(priority: .userInitiated) {
-            // UIImage(data:) is synchronous but we're on a background thread
-            let image = UIImage(data: data)
-
-            // Update UI on main thread
-            await MainActor.run {
-                self.preparedImage = image
-            }
-        }
-    }
-
-    /// Loads image data from a URL and updates the recipe image
-    /// Handles both base64 data URLs and HTTP/HTTPS URLs
     public func loadImageFromGeneratedURL() async {
-        logger.info("🖼️ [LOAD-IMAGE] loadImageFromGeneratedURL() called")
-        if let photoURL = self.generatedPhotoURL {
-            logger.debug("📋 [LOAD-IMAGE] generatedPhotoURL: present (\(photoURL.prefix(60))...)")
-        } else {
-            logger.debug("📋 [LOAD-IMAGE] generatedPhotoURL: nil")
-        }
-
-        guard let imageURL = generatedPhotoURL else {
-            logger.warning("⚠️ [LOAD-IMAGE] Cannot load image: missing URL")
-            return
-        }
-
-        // Handle base64 data URLs differently from HTTP URLs
-        if imageURL.hasPrefix("data:") {
-            // Extract base64 data from data URL
-            logger.info("📦 [LOAD-IMAGE] Loading image from base64 data URL")
-
-            // Data URL format: data:image/jpeg;base64,/9j/4AAQ...
-            guard let commaIndex = imageURL.firstIndex(of: ",") else {
-                logger.error("❌ [LOAD-IMAGE] Invalid data URL format: missing comma")
-                return
-            }
-
-            let base64String = String(imageURL[imageURL.index(after: commaIndex)...])
-            logger.debug("🔍 [LOAD-IMAGE] Extracted base64 string length: \(base64String.count) characters")
-
-            guard let imageData = Data(base64Encoded: base64String) else {
-                logger.error("❌ [LOAD-IMAGE] Failed to decode base64 image data")
-                return
-            }
-
-            logger.info("✅ [LOAD-IMAGE] Successfully decoded base64 to Data (\(imageData.count) bytes)")
-
-            await MainActor.run {
-                logger.info("💾 [LOAD-IMAGE] Setting _recipeImageData = imageData (\(imageData.count) bytes)")
-                _recipeImageData = imageData
-                _recipeImageURL = imageURL
-                logger.info("✅ [LOAD-IMAGE] _recipeImageData has been set")
-            }
-            // CRITICAL: Trigger async image preparation to update preparedImage
-            prepareImageAsync(from: imageData)
-            logger.info("✅ [LOAD-IMAGE] Successfully loaded image from base64 data (\(imageData.count) bytes)")
-
-        } else {
-            // Handle HTTP/HTTPS URLs with URLSession
-            guard let url = URL(string: imageURL) else {
-                logger.warning("Cannot load image: invalid URL")
-                return
-            }
-
-            do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                await MainActor.run {
-                    _recipeImageData = data
-                    _recipeImageURL = imageURL
-                }
-                // CRITICAL: Trigger async image preparation to update preparedImage
-                prepareImageAsync(from: data)
-                logger.info("✅ Successfully loaded generated recipe image from network")
-            } catch {
-                logger.error("❌ Failed to load generated image from URL: \(error.localizedDescription)")
-                ErrorHandler.shared.handle(error)
-            }
-        }
+        await imageHandler.loadImageFromGeneratedURL(generatedPhotoURL: generatedPhotoURL)
     }
 
     // MARK: - Nutrition Calculation
 
-    /// Calculate nutrition values on-demand using Gemini 2.5 Pro
-    /// Called when user taps the nutrition values button
     public func calculateNutrition() {
-        logger.info("🍽️ [NUTRITION] Starting on-demand nutrition calculation")
-
-        // Validate we have recipe data
-        guard !formState.recipeName.isEmpty else {
-            logger.error("❌ [NUTRITION] Cannot calculate - no recipe name")
-            nutritionCalculationError = "Recipe name is required"
-            return
-        }
-
-        guard !formState.recipeContent.isEmpty else {
-            logger.error("❌ [NUTRITION] Cannot calculate - no recipe content")
-            nutritionCalculationError = "Recipe content is required"
-            return
-        }
-
-        // Reset error state
-        nutritionCalculationError = nil
-        isCalculatingNutrition = true
-        nutritionCalculationProgress = 1  // Start at 1%
-
-        // Start progress animation
-        startNutritionProgressAnimation()
-
-        Task {
-            do {
-                logger.info("🍽️ [NUTRITION] Calling Cloud Function...")
-                let nutritionData = try await nutritionRepository.calculateNutrition(
-                    recipeName: formState.recipeName,
-                    recipeContent: formState.recipeContent,
-                    servings: 1  // Always 1 = entire recipe as one portion
-                )
-
-                // Update form state with calculated values
-                await MainActor.run {
-                    // Per-100g values
-                    let formattedValues = nutritionData.toFormState()
-                    formState.calories = formattedValues.calories
-                    formState.carbohydrates = formattedValues.carbohydrates
-                    formState.fiber = formattedValues.fiber
-                    formState.sugar = formattedValues.sugar
-                    formState.protein = formattedValues.protein
-                    formState.fat = formattedValues.fat
-                    formState.glycemicLoad = formattedValues.glycemicLoad
-
-                    // Per-serving values (entire recipe = 1 serving)
-                    let servingValues = nutritionData.toFormStatePerServing()
-                    formState.caloriesPerServing = servingValues.calories
-                    formState.carbohydratesPerServing = servingValues.carbohydrates
-                    formState.fiberPerServing = servingValues.fiber
-                    formState.sugarPerServing = servingValues.sugar
-                    formState.proteinPerServing = servingValues.protein
-                    formState.fatPerServing = servingValues.fat
-                    formState.glycemicLoadPerServing = servingValues.glycemicLoad
-                    formState.totalRecipeWeight = servingValues.totalRecipeWeight
-
-                    // Store digestion timing insights
-                    formState.digestionTiming = nutritionData.digestionTiming
-
-                    isCalculatingNutrition = false
-                    nutritionCalculationProgress = 100  // Set to 100% on completion
-
-                    logger.info("✅ [NUTRITION] Calculation complete and form state updated")
-                    logger.info("   Per-100g: \(formattedValues.calories) kcal, \(formattedValues.carbohydrates)g carbs")
-                    logger.info("   Per-serving: \(servingValues.calories) kcal, \(servingValues.carbohydrates)g carbs, \(servingValues.totalRecipeWeight)g total")
-                    if let insights = nutritionData.digestionTiming {
-                        logger.info("   Digestion timing: \(insights.hasMismatch ? "mismatch detected" : "no mismatch"), peak at \(insights.glucosePeakTime)h")
-                    }
-                }
-
-            } catch {
-                await MainActor.run {
-                    isCalculatingNutrition = false
-                    nutritionCalculationProgress = 0  // Reset on error
-                    nutritionCalculationError = error.localizedDescription
-                    logger.error("❌ [NUTRITION] Calculation failed: \(error.localizedDescription)")
-                }
-            }
-        }
-    }
-
-    /// Animate nutrition calculation progress from 1% to 100% over time
-    private func startNutritionProgressAnimation() {
-        Task { @MainActor in
-            // Increment progress smoothly over ~66 seconds (typical API call duration: 60-70s)
-            for i in 1...100 {
-                guard isCalculatingNutrition else { break }  // Stop if calculation completes early
-
-                nutritionCalculationProgress = i
-
-                // Variable speed: faster at start (excitement), slower near end (anticipation)
-                let delay: TimeInterval = if i < 30 {
-                    0.4  // Fast (30% in 12s)
-                } else if i < 70 {
-                    0.6  // Medium (40% in 24s)
-                } else {
-                    1.0  // Slow (30% in 30s)
-                }
-
-                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-            }
-        }
+        nutritionHandler.calculateNutrition()
     }
 
     // MARK: - Save Recipe
@@ -749,16 +440,16 @@ public class RecipeViewModel: ObservableObject {
     public func saveRecipe() {
         logger.info("💾 [SAVE] saveRecipe() called")
         logger.debug("📋 [SAVE] Image state:")
-        logger.debug("  - _recipeImageURL: \(self._recipeImageURL != nil ? "present" : "nil")")
-        if let imageData = self._recipeImageData {
-            logger.debug("  - _recipeImageData: \(imageData.count) bytes")
+        logger.debug("  - recipeImageURL: \(self.recipeImageURL != nil ? "present" : "nil")")
+        if let imageData = self.recipeImageData {
+            logger.debug("  - recipeImageData: \(imageData.count) bytes")
         } else {
-            logger.debug("  - _recipeImageData: nil")
+            logger.debug("  - recipeImageData: nil")
         }
         logger.debug("  - preparedImage: \(self.preparedImage != nil ? "present" : "nil")")
 
         Task {
-            await persistenceCoordinator.saveRecipe(imageURL: _recipeImageURL, imageData: _recipeImageData)
+            await persistenceCoordinator.saveRecipe(imageURL: recipeImageURL, imageData: recipeImageData)
             logger.info("✅ [SAVE] persistenceCoordinator.saveRecipe() completed")
         }
     }
@@ -787,10 +478,8 @@ public class RecipeViewModel: ObservableObject {
 
     public func clearAllFields() {
         formState.clearAll()
-        _recipeImageURL = nil
-        _recipeImageData = nil
-        preparedImage = nil
-        resetShoppingListState()
+        imageHandler.clearImageData()
+        imageHandler.resetShoppingListState()
 
         animationController.reset()
         generationCoordinator.reset()
@@ -800,98 +489,10 @@ public class RecipeViewModel: ObservableObject {
     // MARK: - Shopping List Integration
 
     public func toggleShoppingList() {
-        toggleShoppingListInternal(ingredients: formState.ingredients, recipeName: formState.recipeName)
-
-        if _isShoppingListActive {
-            Task {
-                await addIngredientsToShoppingList()
-            }
-        }
+        imageHandler.toggleShoppingList()
     }
 
     public func addIngredientsToShoppingList() async {
-        await addIngredientsToShoppingListInternal(
-            ingredients: formState.ingredients,
-            recipeName: formState.recipeName
-        )
-    }
-
-    // MARK: - Private Shopping List Methods
-
-    private func resetShoppingListState() {
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-            _isShoppingListExpanded = false
-            _isShoppingListActive = false
-            _navigateToShoppingList = false
-        }
-        _sentIngredients.removeAll()
-    }
-
-    private func toggleShoppingListInternal(ingredients: [String], recipeName: String) {
-        let hasValidIngredients = ingredients.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        let hasTitle = !recipeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-            if !_isShoppingListExpanded && hasValidIngredients && hasTitle {
-                _isShoppingListExpanded = true
-                _isShoppingListActive = false
-            } else if !_isShoppingListActive && _isShoppingListExpanded {
-                _isShoppingListActive = true
-
-                Task {
-                    await addIngredientsToShoppingListInternal(ingredients: ingredients, recipeName: recipeName)
-                }
-            }
-        }
-    }
-
-    private func addIngredientsToShoppingListInternal(ingredients: [String], recipeName: String) async {
-        do {
-            let recipeNameToUse = recipeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                ? "Yeni Tarif"
-                : recipeName.trimmingCharacters(in: .whitespacesAndNewlines)
-
-            // Try to find existing saved recipe to use its real ID
-            let recipeId: UUID
-            let fetchRequest: NSFetchRequest<Recipe> = Recipe.fetchRequest()
-            fetchRequest.predicate = NSPredicate(format: "name == %@ AND source == %@", recipeNameToUse, RecipeConstants.Source.ai)
-            fetchRequest.fetchLimit = 1
-
-            if let existingRecipe = try? viewContext.fetch(fetchRequest).first {
-                recipeId = existingRecipe.id
-                logger.debug("Found existing saved recipe with ID: \(recipeId)")
-            } else {
-                recipeId = UUID()
-                logger.debug("No saved recipe found, using temporary ID: \(recipeId)")
-            }
-
-            let updatedSentIngredients = try await dataManager.addIngredientsToShoppingList(
-                ingredients: ingredients,
-                sentIngredients: _sentIngredients,
-                recipeName: recipeNameToUse,
-                recipeId: recipeId
-            )
-
-            _sentIngredients = updatedSentIngredients
-            logger.info("Successfully added \(updatedSentIngredients.count) ingredients to shopping list for '\(recipeNameToUse)'")
-
-            try? await Task.sleep(for: .milliseconds(1500))
-
-            await MainActor.run {
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                    _isShoppingListActive = false
-                    _isShoppingListExpanded = false
-                }
-            }
-        } catch {
-            logger.error("Failed to add ingredients to shopping list: \(error.localizedDescription)")
-            ErrorHandler.shared.handle(error)
-            await MainActor.run {
-                withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                    _isShoppingListActive = false
-                    _isShoppingListExpanded = false
-                }
-            }
-        }
+        await imageHandler.addIngredientsToShoppingList()
     }
 }

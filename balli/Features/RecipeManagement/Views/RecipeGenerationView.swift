@@ -10,32 +10,21 @@ import SwiftUI
 import CoreData
 import OSLog
 
-// MARK: - RecipeItem Model
-
-struct RecipeItem: Identifiable, Equatable, Sendable {
-    let id = UUID()
-    var text: String
-
-    static func == (lhs: RecipeItem, rhs: RecipeItem) -> Bool {
-        lhs.id == rhs.id && lhs.text == rhs.text
-    }
-}
-
 struct RecipeGenerationView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
     @StateObject private var viewModel: RecipeViewModel
+    @StateObject private var actionsHandler = RecipeGenerationActionsHandler()
+    @StateObject private var loadingHandler = LoadingAnimationHandler()
+
     @State private var showingMealSelection = false
     @State private var showingNutritionModal = false
-    @State private var showingNotesModal = false
     @State private var selectedMealType = "Kahvaltı"
-    @State private var selectedStyleType = ""  // Empty for categories without subcategories
+    @State private var selectedStyleType = ""
     @State private var isGenerating = false
     @State private var isSaved = false
-    @State private var isFavorited = false
     @State private var showingSaveConfirmation = false
-    @State private var showingShoppingConfirmation = false
     @State private var isAddingIngredient = false
     @State private var isAddingStep = false
     @State private var newIngredientText = ""
@@ -43,27 +32,13 @@ struct RecipeGenerationView: View {
     @State private var manualIngredients: [RecipeItem] = []
     @State private var manualSteps: [RecipeItem] = []
     @State private var storyCardTitle = "balli'nin Tarif Analizi"
-    @State private var currentLoadingStep: String?
     @State private var userNotes: String = ""
     @FocusState private var focusedField: FocusField?
 
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeGenerationView")
-
-    // Loading animation steps for nutrition calculation (total ~82 seconds to match API)
-    private let loadingSteps: [(label: String, duration: TimeInterval, progress: Int)] = [
-        ("Tarife tekrar bakıyorum", 5.0, 6),
-        ("Malzemeleri inceliyorum", 6.0, 13),
-        ("Ağırlıkları belirliyorum", 7.0, 21),
-        ("Ham besin değerlerini hesaplıyorum", 7.0, 30),
-        ("Pişirme yöntemlerini analiz ediyorum", 7.0, 39),
-        ("Pişirme etkilerini belirliyorum", 7.0, 48),
-        ("Pişirme kayıplarını hesaplıyorum", 7.0, 57),
-        ("Sıvı emilimini hesaplıyorum", 7.0, 66),
-        ("100g için değerleri hesaplıyorum", 7.0, 75),
-        ("1 porsiyon için değerleri hesaplıyorum", 7.0, 84),
-        ("Glisemik yükü hesaplıyorum", 7.0, 92),
-        ("Sağlamasını yapıyorum", 8.0, 100)
-    ]
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.balli",
+        category: "RecipeGenerationView"
+    )
 
     enum FocusField {
         case ingredient
@@ -81,99 +56,60 @@ struct RecipeGenerationView: View {
                 ScrollView {
                     ZStack(alignment: .top) {
                         VStack(spacing: 0) {
-                            // Hero image placeholder
-                            heroImagePlaceholder(geometry: geometry)
-
-                            // Spacer to accommodate story card overlap
-                            // Story card is 82px tall + 16px padding = 98px
-                            // We want it half-over image, so subtract half its height
-                            Spacer()
-                                .frame(height: 49)
+                            // Hero section with fixed positioning
+                            RecipeGenerationCompleteHero(
+                                recipeName: viewModel.recipeName,
+                                preparedImage: viewModel.preparedImage,
+                                isGeneratingPhoto: viewModel.isGeneratingPhoto,
+                                recipeContent: viewModel.formState.recipeContent,
+                                storyCardTitle: storyCardTitle,
+                                isCalculatingNutrition: viewModel.isCalculatingNutrition,
+                                currentLoadingStep: loadingHandler.currentLoadingStep,
+                                nutritionCalculationProgress: viewModel.nutritionCalculationProgress,
+                                geometry: geometry,
+                                onGeneratePhoto: {
+                                    Task {
+                                        await generatePhoto()
+                                    }
+                                },
+                                onStoryCardTap: handleStoryCardTap
+                            )
 
                             // All content below story card
                             VStack(spacing: 0) {
                                 // Action buttons
-                                actionButtonsPlaceholder
-                                    .padding(.horizontal, 20)
-                                    .padding(.top, 16)
-                                    .padding(.bottom, 32)
+                                RecipeGenerationActionButtons(
+                                    isFavorited: actionsHandler.isFavorited
+                                ) { action in
+                                    actionsHandler.handleAction(action, viewModel: viewModel)
+                                }
 
-                                // Recipe content (markdown)
-                                recipeContentSection
-                                    .padding(.horizontal, 20)
-                                    .padding(.bottom, 40)
+                                // Recipe content (markdown or manual input)
+                                RecipeGenerationContentSection(
+                                    recipeContent: viewModel.recipeContent,
+                                    manualIngredients: $manualIngredients,
+                                    manualSteps: $manualSteps,
+                                    isAddingIngredient: $isAddingIngredient,
+                                    isAddingStep: $isAddingStep,
+                                    newIngredientText: $newIngredientText,
+                                    newStepText: $newStepText,
+                                    focusedField: $focusedField
+                                )
+                                .padding(.horizontal, 20)
+                                .padding(.bottom, 40)
                             }
                             .background(Color(.secondarySystemBackground))
-                        }
-
-                        // Recipe metadata - positioned absolutely over hero image
-                        // Uses bottom alignment to grow upward when text is longer
-                        VStack(spacing: 0) {
-                            Spacer(minLength: 0)
-
-                            metadataPlaceholder
-                                .padding(.horizontal, 20)
-                                .padding(.bottom, 24) // Minimum gap between name and story card
-                        }
-                        .frame(height: max(geometry.size.height * 0.5, 350) - 49) // Ends where story card begins
-
-                        // Story card - positioned absolutely at fixed offset
-                        // This stays in place regardless of recipe name length
-                        VStack {
-                            Spacer()
-                                .frame(height: max(geometry.size.height * 0.5, 350) - 49)
-
-                            storyCardPlaceholder
-                                .padding(.horizontal, 20)
-
-                            Spacer()
                         }
                     }
                 }
                 .scrollIndicators(.hidden)
                 .background(Color(.secondarySystemBackground))
 
-                // MARK: - Save Confirmation Overlay
-                if showingSaveConfirmation {
-                    VStack {
-                        Spacer()
-                        HStack(spacing: 12) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(ThemeColors.primaryPurple)
-                            Text("Tarif kaydedildi!")
-                                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                                .foregroundColor(.primary)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 16)
-                        .recipeGlass(tint: .warm, cornerRadius: 100) // Pill-shaped with very large corner radius
-                        .padding(.bottom, 100)
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingSaveConfirmation)
-                }
-
-                // MARK: - Shopping Confirmation Overlay
-                if showingShoppingConfirmation {
-                    VStack {
-                        Spacer()
-                        HStack(spacing: 12) {
-                            Image(systemName: "cart.fill.badge.plus")
-                                .font(.system(size: 20))
-                                .foregroundColor(ThemeColors.primaryPurple)
-                            Text("Alışveriş listesine eklendi!")
-                                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                                .foregroundColor(.primary)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 16)
-                        .recipeGlass(tint: .warm, cornerRadius: 100)
-                        .padding(.bottom, 100)
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingShoppingConfirmation)
-                }
+                // MARK: - Confirmation Overlays
+                RecipeGenerationOverlays(
+                    showingSaveConfirmation: showingSaveConfirmation,
+                    showingShoppingConfirmation: actionsHandler.showingShoppingConfirmation
+                )
             }
             .ignoresSafeArea(edges: .top)
         }
@@ -231,7 +167,6 @@ struct RecipeGenerationView: View {
         .sheet(isPresented: $showingNutritionModal) {
             NutritionalValuesView(
                 recipeName: viewModel.recipeName,
-                // Per-100g values
                 calories: viewModel.calories,
                 carbohydrates: viewModel.carbohydrates,
                 fiber: viewModel.fiber,
@@ -239,7 +174,6 @@ struct RecipeGenerationView: View {
                 protein: viewModel.protein,
                 fat: viewModel.fat,
                 glycemicLoad: viewModel.glycemicLoad,
-                // Per-serving values
                 caloriesPerServing: viewModel.caloriesPerServing,
                 carbohydratesPerServing: viewModel.carbohydratesPerServing,
                 fiberPerServing: viewModel.fiberPerServing,
@@ -248,254 +182,18 @@ struct RecipeGenerationView: View {
                 fatPerServing: viewModel.fatPerServing,
                 glycemicLoadPerServing: viewModel.glycemicLoadPerServing,
                 totalRecipeWeight: viewModel.totalRecipeWeight,
-                // API insights
                 digestionTiming: viewModel.digestionTiming
             )
             .presentationDetents([.large])
         }
-        .sheet(isPresented: $showingNotesModal) {
+        .sheet(isPresented: $actionsHandler.showingNotesModal) {
             UserNotesModalView(notes: $userNotes) { newNotes in
                 logger.info("💬 [NOTES] User saved notes: '\(newNotes.prefix(50))...'")
                 userNotes = newNotes
-                // Notes will be saved when user saves the recipe
             }
         }
         .onChange(of: viewModel.isCalculatingNutrition) { oldValue, newValue in
-            if oldValue && !newValue {
-                // Calculation just completed
-                logger.info("✅ [NUTRITION] Calculation completed, showing modal")
-                currentLoadingStep = nil  // Clear loading state
-                showingNutritionModal = true
-            } else if !oldValue && newValue {
-                // Calculation just started
-                logger.info("🔄 [NUTRITION] Calculation started, beginning loading animation")
-                startLoadingAnimation()
-            }
-        }
-    }
-
-    // MARK: - Hero Image Placeholder
-
-    @ViewBuilder
-    private func heroImagePlaceholder(geometry: GeometryProxy) -> some View {
-        let imageHeight = max(geometry.size.height * 0.5, 350)
-
-        ZStack(alignment: .top) {
-            // Show generated image if available, otherwise show placeholder gradient
-            if let image = viewModel.preparedImage {
-                // Display generated image
-                Image(uiImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: geometry.size.width, height: imageHeight)
-                    .clipped()
-
-                // Dark gradient overlay for text readability
-                RecipeImageGradient.textOverlay
-                    .frame(width: geometry.size.width, height: imageHeight)
-            } else {
-                // Placeholder gradient (purple like recipe detail view)
-                LinearGradient(
-                    colors: [
-                        ThemeColors.primaryPurple,
-                        ThemeColors.lightPurple
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .frame(width: geometry.size.width, height: imageHeight)
-
-                // Dark gradient overlay
-                RecipeImageGradient.textOverlay
-                    .frame(width: geometry.size.width, height: imageHeight)
-            }
-
-            // Photo generation button or loading indicator
-            if !viewModel.recipeName.isEmpty {
-                if viewModel.isGeneratingPhoto {
-                    // Show pulsing spatial.capture icon while generating
-                    PulsingPhotoIcon()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if viewModel.preparedImage == nil {
-                    // Show photo generation button if no image yet
-                    Button(action: {
-                        Task {
-                            await generatePhoto()
-                        }
-                    }) {
-                        VStack(spacing: 12) {
-                            Image(systemName: "spatial.capture")
-                                .font(.system(size: 64, weight: .light))
-                                .foregroundStyle(.white.opacity(0.8))
-                            Text("Fotoğraf Oluştur")
-                                .font(.system(size: 17, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.8))
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-        .frame(height: imageHeight)
-    }
-
-    // MARK: - Metadata Placeholder
-
-    private var metadataPlaceholder: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Logo - Shows balli logo if AI-generated recipe
-            if !viewModel.formState.recipeContent.isEmpty {
-                Image("balli-text-logo-dark")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 40)
-            }
-
-            // Recipe title
-            if !viewModel.recipeName.isEmpty {
-                Text(viewModel.recipeName)
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-            } else {
-                Text("Tarif ismi")
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .foregroundColor(.white.opacity(0.3))
-                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: - Author Section
-
-    private var authorSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Only show logo/author for AI-generated recipes
-            if !viewModel.formState.recipeContent.isEmpty {
-                // Recipe was AI-generated - show balli logo above recipe name
-                Image("balli-text-logo-dark")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 40)
-            }
-        }
-    }
-
-    // MARK: - Story Card Placeholder
-
-    private var storyCardPlaceholder: some View {
-        RecipeStoryCard(
-            title: storyCardTitle,
-            description: "Besin değeri analizi",
-            thumbnailURL: nil,
-            isLoading: viewModel.isCalculatingNutrition,
-            loadingStep: currentLoadingStep,
-            loadingProgress: Double(viewModel.nutritionCalculationProgress)
-        ) {
-            handleStoryCardTap()
-        }
-    }
-
-    // MARK: - Action Buttons
-
-    private var actionButtonsPlaceholder: some View {
-        RecipeActionRow(
-            actions: [.favorite, .notes, .shopping],
-            activeStates: [isFavorited, false, false],
-            loadingStates: [false, false, false],
-            completedStates: [false, false, false],
-            progressStates: [0, 0, 0]
-        ) { action in
-            handleAction(action)
-        }
-    }
-
-    private func handleAction(_ action: RecipeAction) {
-        switch action {
-        case .favorite:
-            toggleFavorite()
-        case .notes:
-            showingNotesModal = true
-        case .shopping:
-            handleShopping()
-        default:
-            break
-        }
-    }
-
-    private func toggleFavorite() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-            isFavorited.toggle()
-        }
-
-        // Only update the form state, don't save
-        // Favoriting is just a UI state change until user explicitly saves
-        viewModel.formState.isFavorite = isFavorited
-    }
-
-    private func handleShopping() {
-        logger.info("🛒 [VIEW] Adding \(viewModel.ingredients.count) ingredients to shopping list")
-        logger.debug("📋 [VIEW] Recipe name: '\(viewModel.recipeName)'")
-        logger.debug("📋 [VIEW] First 3 ingredients: \(viewModel.ingredients.prefix(3).joined(separator: ", "))")
-
-        Task {
-            await viewModel.addIngredientsToShoppingList()
-            logger.info("✅ [VIEW] Ingredients successfully added to shopping list")
-
-            // Show confirmation toast
-            await MainActor.run {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    showingShoppingConfirmation = true
-                }
-            }
-
-            // Hide confirmation after 2 seconds
-            try? await Task.sleep(for: .seconds(2))
-            await MainActor.run {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    showingShoppingConfirmation = false
-                }
-            }
-        }
-    }
-
-    // MARK: - Recipe Content (Markdown)
-
-    private var recipeContentSection: some View {
-        Group {
-            if !viewModel.recipeContent.isEmpty {
-                MarkdownText(
-                    content: viewModel.recipeContent,
-                    fontSize: 20,  // Increased from 17 to 20
-                    enableSelection: true,
-                    sourceCount: 0,
-                    sources: [],
-                    headerFontSize: 20 * 2.0,  // Proportionally bigger headers (40pt)
-                    fontName: "Manrope"
-                )
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                // Interactive placeholder - let user add their own recipe
-                VStack(alignment: .leading, spacing: 32) {
-                    ManualIngredientsSection(
-                        ingredients: $manualIngredients,
-                        isAddingIngredient: $isAddingIngredient,
-                        newIngredientText: $newIngredientText,
-                        focusedField: $focusedField
-                    )
-
-                    ManualStepsSection(
-                        steps: $manualSteps,
-                        isAddingStep: $isAddingStep,
-                        newStepText: $newStepText,
-                        focusedField: $focusedField
-                    )
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            handleNutritionCalculationChange(oldValue: oldValue, newValue: newValue)
         }
     }
 
@@ -503,20 +201,14 @@ struct RecipeGenerationView: View {
 
     private func startGeneration() async {
         isGenerating = true
-        // Reset saved state when generating new recipe
         isSaved = false
-        // Change story card title to "balli'nin notu" for AI-generated recipes
         storyCardTitle = "balli'nin notu"
 
-        // Use streaming version for real-time updates
         await viewModel.generationCoordinator.generateRecipeWithStreaming(
             mealType: selectedMealType,
             styleType: selectedStyleType
         )
         isGenerating = false
-
-        // After generation completes, view shows generated content
-        // User can tap spatial.capture icon to generate photo
     }
 
     // MARK: - Save Recipe
@@ -524,28 +216,26 @@ struct RecipeGenerationView: View {
     private func saveRecipe() async {
         logger.info("💾 [VIEW] saveRecipe() called")
 
-        // If user has manually created a recipe, build markdown content
+        // Build manual recipe content if needed
         if !manualIngredients.isEmpty || !manualSteps.isEmpty {
             buildManualRecipeContent()
         }
 
-        // CRITICAL: Load image data from generated URL if present (before saving)
+        // Load image data if present
         if viewModel.generatedPhotoURL != nil {
             logger.info("🖼️ [VIEW] Photo URL present - loading image data before save...")
             await viewModel.loadImageFromGeneratedURL()
             logger.info("✅ [VIEW] Image data loaded - proceeding with save")
-        } else {
-            logger.debug("ℹ️ [VIEW] No generated photo URL - saving without image")
         }
 
-        // Call ViewModel saveRecipe which passes image data to persistence coordinator
+        // Save recipe
         logger.info("💾 [VIEW] Calling viewModel.saveRecipe()...")
         viewModel.saveRecipe()
 
-        // Wait a moment for async save to complete
+        // Wait for save to complete
         try? await Task.sleep(for: .milliseconds(100))
 
-        // Check if save was successful by checking coordinator's confirmation state
+        // Show confirmation if successful
         if viewModel.persistenceCoordinator.showingSaveConfirmation {
             logger.info("✅ [VIEW] Save confirmed - showing success state")
             isSaved = true
@@ -562,14 +252,12 @@ struct RecipeGenerationView: View {
     private func buildManualRecipeContent() {
         var sections: [String] = []
 
-        // Add ingredients section
         if !manualIngredients.isEmpty {
             var ingredientLines = ["## Malzemeler", "---"]
             ingredientLines.append(contentsOf: manualIngredients.map { "- \($0.text)" })
             sections.append(ingredientLines.joined(separator: "\n"))
         }
 
-        // Add steps section
         if !manualSteps.isEmpty {
             var stepLines = ["## Yapılışı", "---"]
             stepLines.append(contentsOf: manualSteps.enumerated().map { "\($0.offset + 1). \($0.element.text)" })
@@ -585,249 +273,53 @@ struct RecipeGenerationView: View {
 
     private func generatePhoto() async {
         logger.info("🎬 [VIEW] Photo generation button tapped")
-        logger.debug("📋 [VIEW] ViewModel state before generation:")
-        logger.debug("  - recipeName: '\(viewModel.recipeName)'")
-        logger.debug("  - isGeneratingPhoto: \(viewModel.isGeneratingPhoto)")
-        logger.debug("  - generatedPhotoURL: \(viewModel.generatedPhotoURL ?? "nil")")
-        logger.debug("  - preparedImage: \(viewModel.preparedImage != nil ? "present" : "nil")")
-
-        logger.info("🎬 [VIEW] Calling viewModel.generateRecipePhoto()...")
-        // Call photo coordinator to generate AI image
         await viewModel.generateRecipePhoto()
 
-        logger.info("✅ [VIEW] viewModel.generateRecipePhoto() returned")
-        logger.debug("📋 [VIEW] ViewModel state after generation:")
-        logger.debug("  - isGeneratingPhoto: \(viewModel.isGeneratingPhoto)")
-        logger.debug("  - generatedPhotoURL: \(viewModel.generatedPhotoURL ?? "nil")")
-        logger.debug("  - preparedImage: \(viewModel.preparedImage != nil ? "present" : "nil")")
-
-        // After generation completes, load the image from the generated URL
         if viewModel.generatedPhotoURL != nil {
-            logger.info("🖼️ [VIEW] generatedPhotoURL is present - calling loadImageFromGeneratedURL()")
+            logger.info("🖼️ [VIEW] Loading image from generated URL")
             await viewModel.loadImageFromGeneratedURL()
-            logger.info("✅ [VIEW] loadImageFromGeneratedURL() completed")
-            logger.debug("  - preparedImage after load: \(viewModel.preparedImage != nil ? "present" : "nil")")
-        } else {
-            logger.warning("⚠️ [VIEW] generatedPhotoURL is nil - skipping image load")
         }
-
-        logger.info("🏁 [VIEW] generatePhoto() completed")
+        logger.info("🏁 [VIEW] Photo generation completed")
     }
 
-    // MARK: - Story Card Tap Handler
+    // MARK: - Story Card Handler
 
     private func handleStoryCardTap() {
         logger.info("🔍 [STORY] Story card tapped")
 
-        // Check if nutrition values are already calculated
         let hasNutrition = !viewModel.calories.isEmpty &&
                           !viewModel.carbohydrates.isEmpty &&
                           !viewModel.protein.isEmpty
 
         if hasNutrition {
-            // Nutrition already calculated, show modal immediately
             logger.info("✅ [STORY] Nutrition data exists, showing modal")
             showingNutritionModal = true
         } else {
-            // Start calculation - loading animation will show in card
             logger.info("🔄 [STORY] Starting nutrition calculation")
             viewModel.calculateNutrition()
-            // Modal will open automatically via .onChange(of: viewModel.isCalculatingNutrition)
         }
     }
 
-    // MARK: - Loading Animation
+    // MARK: - Nutrition Calculation Handler
 
-    private func startLoadingAnimation() {
-        Task {
-            for step in loadingSteps {
-                // Check if calculation is still in progress
-                guard await MainActor.run(body: { viewModel.isCalculatingNutrition }) else {
-                    logger.info("⏹️ [LOADING] Calculation completed early, stopping animation")
-                    return
-                }
-
-                // Update current step
-                await MainActor.run {
-                    currentLoadingStep = step.label
-                }
-
-                logger.debug("📝 [LOADING] Step: '\(step.label)' (target: \(step.progress)%)")
-
-                // Wait for step duration
-                try? await Task.sleep(for: .seconds(step.duration))
-            }
-
-            // Clear loading step when done
-            await MainActor.run {
-                currentLoadingStep = nil
-            }
-            logger.info("✅ [LOADING] Animation sequence completed")
-        }
-    }
-}
-
-// MARK: - Helper Views
-
-struct ManualIngredientsSection: View {
-    @Binding var ingredients: [RecipeItem]
-    @Binding var isAddingIngredient: Bool
-    @Binding var newIngredientText: String
-    var focusedField: FocusState<RecipeGenerationView.FocusField?>.Binding
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Malzemeler")
-                .font(.custom("GalanoGrotesqueAlt-Bold", size: 33.32))
-                .foregroundColor(.primary.opacity(0.3))
-
-            // Show existing manual ingredients
-            ForEach(ingredients) { item in
-                HStack(spacing: 8) {
-                    Text("•")
-                        .font(.custom("Manrope", size: 20))
-                        .foregroundColor(.primary)
-                    Text(item.text)
-                        .font(.custom("Manrope", size: 20))
-                        .foregroundColor(.primary)
-
-                    Spacer()
-
-                    Button(action: {
-                        ingredients.removeAll { $0.id == item.id }
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(.secondary.opacity(0.5))
-                    }
-                }
-            }
-
-            // Inline input or add button
-            if isAddingIngredient {
-                HStack(spacing: 8) {
-                    Text("•")
-                        .font(.custom("Manrope", size: 20))
-                        .foregroundColor(.primary)
-                    TextField("Örn: 250g tavuk göğsü", text: $newIngredientText)
-                        .font(.custom("Manrope", size: 20))
-                        .focused(focusedField, equals: .ingredient)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            addIngredient()
-                        }
-                }
-            } else {
-                Button(action: {
-                    isAddingIngredient = true
-                    focusedField.wrappedValue = .ingredient
-                }) {
-                    HStack(spacing: 8) {
-                        Text("•")
-                            .font(.custom("Manrope", size: 20))
-                            .foregroundColor(.primary.opacity(0.7))
-                        Text("Malzeme Ekle")
-                            .font(.custom("Manrope", size: 20))
-                            .foregroundColor(.primary.opacity(0.7))
-                    }
-                }
-                .buttonStyle(.plain)
+    private func handleNutritionCalculationChange(oldValue: Bool, newValue: Bool) {
+        if oldValue && !newValue {
+            // Calculation completed
+            logger.info("✅ [NUTRITION] Calculation completed, showing modal")
+            loadingHandler.clearLoadingStep()
+            showingNutritionModal = true
+        } else if !oldValue && newValue {
+            // Calculation started
+            logger.info("🔄 [NUTRITION] Calculation started, beginning loading animation")
+            loadingHandler.startLoadingAnimation {
+                viewModel.isCalculatingNutrition
             }
         }
-    }
-
-    private func addIngredient() {
-        guard !newIngredientText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            isAddingIngredient = false
-            return
-        }
-        ingredients.append(RecipeItem(text: newIngredientText))
-        newIngredientText = ""
-        focusedField.wrappedValue = .ingredient
-    }
-}
-
-struct ManualStepsSection: View {
-    @Binding var steps: [RecipeItem]
-    @Binding var isAddingStep: Bool
-    @Binding var newStepText: String
-    var focusedField: FocusState<RecipeGenerationView.FocusField?>.Binding
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Yapılışı")
-                .font(.custom("GalanoGrotesqueAlt-Bold", size: 33.32))
-                .foregroundColor(.primary.opacity(0.3))
-
-            // Show existing manual steps
-            ForEach(Array(steps.enumerated()), id: \.element.id) { index, item in
-                HStack(spacing: 8) {
-                    Text("\(index + 1).")
-                        .font(.custom("Manrope", size: 20))
-                        .foregroundColor(.primary)
-                    Text(item.text)
-                        .font(.custom("Manrope", size: 20))
-                        .foregroundColor(.primary)
-
-                    Spacer()
-
-                    Button(action: {
-                        steps.removeAll { $0.id == item.id }
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 18))
-                            .foregroundColor(.secondary.opacity(0.5))
-                    }
-                }
-            }
-
-            // Inline input or add button
-            if isAddingStep {
-                HStack(spacing: 8) {
-                    Text("\(steps.count + 1).")
-                        .font(.custom("Manrope", size: 20))
-                        .foregroundColor(.primary)
-                    TextField("Örn: Tavukları zeytinyağında sotele", text: $newStepText)
-                        .font(.custom("Manrope", size: 20))
-                        .focused(focusedField, equals: .step)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            addStep()
-                        }
-                }
-            } else {
-                Button(action: {
-                    isAddingStep = true
-                    focusedField.wrappedValue = .step
-                }) {
-                    HStack(spacing: 8) {
-                        Text("\(steps.count + 1).")
-                            .font(.custom("Manrope", size: 20))
-                            .foregroundColor(.primary.opacity(0.7))
-                        Text("Adım Ekle")
-                            .font(.custom("Manrope", size: 20))
-                            .foregroundColor(.primary.opacity(0.7))
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    private func addStep() {
-        guard !newStepText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            isAddingStep = false
-            return
-        }
-        steps.append(RecipeItem(text: newStepText))
-        newStepText = ""
-        focusedField.wrappedValue = .step
     }
 }
 
 // MARK: - Custom Button Style
 
-/// Button style that provides subtle opacity feedback without the glass interactive effect
 struct RecipeButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
