@@ -23,8 +23,10 @@ import {
   type ErrorContext
 } from './utils/error-logger';
 
-// Shared research prompts
-import { buildResearchSystemPrompt } from './research-prompts';
+// Tier-specific prompts
+import { buildTier1Prompt } from './prompts/fast-prompt-t1';
+import { buildTier2Prompt } from './prompts/research-prompt-t2';
+import { buildTier3Prompt } from './prompts/deep-research-prompt-t3';
 
 // Research helper functions
 import { formatSourcesWithTypes } from './utils/research-helpers';
@@ -214,7 +216,7 @@ async function streamTier1(
   }
 
   // ===== STEP 2: Build system prompt =====
-  let systemPrompt = buildResearchSystemPrompt({ tier: 1 });
+  let systemPrompt = buildTier1Prompt();
 
   // ===== STEP 3: Build prompt with memory + conversation history =====
   let prompt = '';
@@ -333,7 +335,7 @@ async function streamTier2Hybrid(
   }
 
   // ===== STEP 1: Build static system prompt =====
-  const systemPrompt = buildResearchSystemPrompt({ tier: 2 });
+  const systemPrompt = buildTier2Prompt();
 
   // ===== STEP 1.5: Enrich query with conversation context =====
   const { enrichQuery } = await import('./tools/query-enricher');
@@ -590,7 +592,7 @@ async function streamDeepResearch(
   }
 
   // ===== STEP 1: Build static system prompt =====
-  const systemPrompt = buildResearchSystemPrompt({ tier: 3 });
+  const systemPrompt = buildTier3Prompt();
 
   // ===== STEP 2: Execute deep research V2 =====
   const { executeDeepResearchV2, formatResearchForSynthesis } = await import('./flows/deep-research-v2');

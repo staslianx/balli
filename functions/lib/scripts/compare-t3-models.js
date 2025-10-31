@@ -144,7 +144,6 @@ async function runSynthesis(modelName, researchContext, question, systemPrompt) 
  * Format comparison results as markdown
  */
 function formatMarkdown(result) {
-    const timestamp = new Date(result.timestamp).toISOString().replace(/:/g, '-').split('.')[0];
     let md = `# T3 Model Comparison Report\n\n`;
     md += `**Generated:** ${result.timestamp}\n\n`;
     md += `---\n\n`;

@@ -52,8 +52,10 @@ const providers_1 = require("./providers");
 const genkit_instance_1 = require("./genkit-instance");
 const rate_limiter_1 = require("./utils/rate-limiter");
 const error_logger_1 = require("./utils/error-logger");
-// Shared research prompts
-const research_prompts_1 = require("./research-prompts");
+// Tier-specific prompts
+const fast_prompt_t1_1 = require("./prompts/fast-prompt-t1");
+const research_prompt_t2_1 = require("./prompts/research-prompt-t2");
+const deep_research_prompt_t3_1 = require("./prompts/deep-research-prompt-t3");
 // Research helper functions
 const research_helpers_1 = require("./utils/research-helpers");
 // Memory context helper
@@ -183,7 +185,7 @@ async function streamTier1(res, question, userId, diabetesProfile, conversationH
         console.log(`🧠 [TIER1-MEMORY] Using cross-conversation memory: ${memoryContext.factCount} facts, ${memoryContext.summaryCount} summaries`);
     }
     // ===== STEP 2: Build system prompt =====
-    let systemPrompt = (0, research_prompts_1.buildResearchSystemPrompt)({ tier: 1 });
+    let systemPrompt = (0, fast_prompt_t1_1.buildTier1Prompt)();
     // ===== STEP 3: Build prompt with memory + conversation history =====
     let prompt = '';
     // Add cross-conversation memory first (long-term context)
@@ -277,7 +279,7 @@ async function streamTier2Hybrid(res, question, userId, diabetesProfile, convers
         console.log(`🧠 [T2-MEMORY] Using cross-conversation memory: ${memoryContext.factCount} facts, ${memoryContext.summaryCount} summaries`);
     }
     // ===== STEP 1: Build static system prompt =====
-    const systemPrompt = (0, research_prompts_1.buildResearchSystemPrompt)({ tier: 2 });
+    const systemPrompt = (0, research_prompt_t2_1.buildTier2Prompt)();
     // ===== STEP 1.5: Enrich query with conversation context =====
     const { enrichQuery } = await Promise.resolve().then(() => __importStar(require('./tools/query-enricher')));
     const enrichedQueryResult = await enrichQuery({
@@ -484,7 +486,7 @@ async function streamDeepResearch(res, question, userId, diabetesProfile, conver
         console.log(`🧠 [T3-MEMORY] Using cross-conversation memory: ${memoryContext.factCount} facts, ${memoryContext.summaryCount} summaries`);
     }
     // ===== STEP 1: Build static system prompt =====
-    const systemPrompt = (0, research_prompts_1.buildResearchSystemPrompt)({ tier: 3 });
+    const systemPrompt = (0, deep_research_prompt_t3_1.buildTier3Prompt)();
     // ===== STEP 2: Execute deep research V2 =====
     const { executeDeepResearchV2, formatResearchForSynthesis } = await Promise.resolve().then(() => __importStar(require('./flows/deep-research-v2')));
     const researchResults = await executeDeepResearchV2(question, res);

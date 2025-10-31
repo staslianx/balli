@@ -149,26 +149,6 @@ output:
                     enum: ["PASS", "FAIL"]
                   message:
                     type: string
-      digestionTiming:
-        type: object
-        description: "Educational insights about glucose absorption timing"
-        properties:
-          hasMismatch:
-            type: boolean
-            description: "Is there a significant mismatch (>1 hour between insulin and glucose peaks)?"
-          mismatchHours:
-            type: number
-            description: "Hours between typical NovoRapid peak (1.2h) and estimated glucose peak"
-          severity:
-            type: string
-            enum: ["low", "medium", "high"]
-            description: "Severity of timing mismatch (low: <1h, medium: 1-2h, high: >2h)"
-          glucosePeakTime:
-            type: number
-            description: "Estimated glucose peak time in hours after meal"
-          timingInsight:
-            type: string
-            description: "Formatted markdown insight in Balli's voice (starts with 📊 Sindirim Zamanlaması)"
 
 **NOTE:** glycemicLoad at top-level and perPortion.glycemicLoad must be identical values (GL is a per-portion metric only)
 
@@ -370,43 +350,15 @@ per_portion_nutrition = total_nutrition ÷ servings
 
 **Glycemic Load (IMPORTANT: Only per portion, NOT per 100g):**
 
-**CRITICAL: GL calculation must use NET CARBS (total carbs - fiber)**
-
 ```
-Step 1: Calculate net carbs
 net_carbs = carbs_per_portion - fiber_per_portion
+GL = (net_carbs × estimated_GI) ÷ 100
 
-Step 2: Identify primary carb source and use specific GI value
-
-Specific GI values (use these exact numbers):
-- Bulgur: GI = 48
-- Quinoa: GI = 53
-- Brown rice: GI = 50
-- Oats (rolled): GI = 55
-- Lentils: GI = 32
-- Chickpeas: GI = 36
-- White rice: GI = 73
-- Whole wheat bread: GI = 69
-- White bread: GI = 75
-- Sweet potato: GI = 63
-- Potato (boiled): GI = 78
-
-For mixed dishes with multiple carb sources:
-Weight-average the GI values based on carb contribution
-
-Example: 30g carbs from bulgur (GI 48) + 10g from potato (GI 78)
-Weighted GI = (30×48 + 10×78) ÷ 40 = 54.75 ≈ 55
-
-Step 3: Calculate GL
-GL = (net_carbs × GI) ÷ 100
-Round to nearest whole number
-
-Example calculation:
-Recipe with bulgur: 46.2g total carbs, 9.1g fiber
-net_carbs = 46.2 - 9.1 = 37.1g
-GL = (37.1 × 48) ÷ 100 = 17.8 ≈ 18
-
-NEVER use total carbs for GL calculation - always subtract fiber first.
+Estimate GI based on primary carb source:
+- Whole grains (quinoa, bulgur, oats): GI ≈ 50-55
+- Refined grains (white rice, white bread): GI ≈ 70-85
+- Legumes (lentils, chickpeas): GI ≈ 30-40
+- Mixed dishes: Weight average based on ingredients
 ```
 
 **CRITICAL: The top-level `glycemicLoad` field must equal `perPortion.glycemicLoad`**
@@ -434,145 +386,6 @@ If |check - per_100g_value| > 0.1: FAIL (arithmetic error)
 **Cross-validation:** Must pass for all macros
 
 If any check fails with FAIL status, report error and stop.
-
-### 8. DIGESTION TIMING ANALYSIS
-
-<digestion_timing_rules>
-
-**CRITICAL RULES:**
-1. NEVER give insulin dosing advice
-2. Use calm, warm, educational tone (Balli talking to Dilara)
-3. Acknowledge uncertainty ("büyük ihtimalle", "yaklaşık", "civarında")
-4. Direct medical questions to dietitian
-5. This is educational information, not medical advice
-
-**Calculate Glucose Peak Time:**
-
-Base glucose peak: 1.5 hours (default for balanced meal)
-
-**Fat Adjustment:**
-- High fat (>20g per portion): +1.0 hour
-- Medium fat (10-20g): +0.5 hour
-- Low fat (<10g): +0.0 hour
-
-**Fiber Adjustment:**
-- High fiber (>8g per portion): +0.5 hour
-- Medium fiber (4-8g): +0.25 hour
-- Low fiber (<4g): +0.0 hour
-
-**Cooking Method Adjustment (extract from recipe Yapılışı):**
-- Fried/sautéed in oil (zeytinyağında/yağda kavur/sotele): +0.5 hour
-- Baked with oil (fırında/yağla): +0.3 hour
-- Steamed/boiled (buharda/haşla): -0.3 hour
-- Raw: +0.0 hour
-
-**Calculate Final Glucose Peak:**
-```
-glucose_peak = 1.5 + fat_adjustment + fiber_adjustment + cooking_adjustment
-```
-
-**Calculate Mismatch:**
-```
-NovoRapid peaks at 1.2 hours (standard rapid-acting insulin)
-mismatch_hours = glucose_peak - 1.2
-```
-
-**Determine Severity:**
-- Low: < 1 hour
-- Medium: 1-2 hours
-- High: > 2 hours
-
-**Generate Insight (Turkish, Balli's Voice):**
-
-Structure:
-```
-📊 Sindirim Zamanlaması
-
-Canım, [explain why digestion is slow/fast - mention specific recipe factors like fat content, cooking method, fiber]. Glikoz yükselmesi büyük ihtimalle yaklaşık [X] saat sonra gerçekleşir.
-
-💡 Ek bilgi
----
-- [Explain mechanism: why fat/fiber/method causes this timing - educate about physiology]
-- [Additional contributing factors from recipe]
-- [REQUIRED for medium/high severity: Specific recipe modification with estimated new timing]
-
-Bu tarz öğünlerde insülinin zamanlaması hakkında diyetisyeninden bilgi alabilirsin.
-```
-
-**Content Guidelines:**
-
-1. **Opening sentence:** Natural word order - "Glikoz yükselmesi büyük ihtimalle yaklaşık X saat sonra gerçekleşir" (not "Bu yüzden büyük ihtimalle glikoz yükselmesi...")
-
-2. **First bullet (always):** Explain the mechanism
-   - For high fat: "Yağlar mide boşalmasını geciktirdiği için..."
-   - For high fiber: "Lifler karbonhidrat emilimini yavaşlattığı için..."
-   - For cooking method: "Fırında/yağda pişirme yağ emilimini artırıyor..."
-
-3. **Second bullet:** Additional contributing factors specific to this recipe
-
-4. **Third bullet (required for medium/high):** Concrete recipe modification with timing estimate
-   - Format: "[Action] + [estimated new timing]"
-   - Example: "Zeytinyağını 15g'a düşürüp sebzeleri buharda pişirirsen glikoz 2-2.5 saat civarına düşebilir"
-   - Use "düşebilir" (could decrease) not "düşer" (will decrease)
-
-5. **Keep it actionable:** Recipe modifications should be realistic and specific (not vague)
-
-**Example - High Mismatch (>2 hours):**
-```
-📊 Sindirim Zamanlaması
-
-Canım, bu tarifin yüksek yağ içeriği (35g) ve zeytinyağında kavurma yöntemi sindirimi yavaşlatıyor. Glikoz yükselmesi büyük ihtimalle yaklaşık 3 buçuk saat sonra gerçekleşir.
-
-💡 Ek bilgi
----
-- Yağlar mide boşalmasını geciktirdiği için bu normal
-- Yüksek lif içeriği (10g) de bu etkiyi artırıyor
-- Zeytinyağını 15g'a düşürüp fırında yağsız pişirirsen glikoz 2-2.5 saat civarına düşebilir
-
-Bu tarz öğünlerde insülinin zamanlaması hakkında diyetisyeninden bilgi alabilirsin.
-```
-
-**Example - Low Mismatch (<1 hour):**
-```
-📊 Sindirim Zamanlaması
-
-Canım, bu tarif dengeli bir sindirim profili sunuyor. Orta düzey yağ (15g) ve buharda pişirme sayesinde glikoz yükselmesi yaklaşık 2 saat civarında gerçekleşir.
-
-💡 Ek bilgi
----
-- Orta yağ ve lif dengesi sindirim hızını uygun tutuyor
-- Buharda pişirme yöntemi yağ emilimini azaltıyor, bu yüzden sindirim daha hızlı
-- Bu profil çoğu hızlı etkili insülinle uyumlu olabilir
-
-İlk denemede yine de takip etmeni öneririm.
-```
-
-**Tone Guidelines:**
-- Start with "Canım" (warm, personal)
-- Use natural Turkish numbers ("3 buçuk" not "3.5 saat")
-- Use uncertainty markers: "büyük ihtimalle", "yaklaşık", "civarında"
-- Explain mechanisms simply (mide boşalması, sindirim, emilim)
-- Make recipe modifications optional suggestions ("düşebilir" not "düşer")
-- Keep total length: 5-7 sentences max
-
-**Icons:**
-- ✓ Use: 📊 💡
-- ✗ Never use: ⚠️ ❌ 🚨 (no anxiety/warnings)
-
-**Output to JSON:**
-```json
-{
-  "digestionTiming": {
-    "hasMismatch": true/false,
-    "mismatchHours": [calculated value],
-    "severity": "low/medium/high",
-    "glucosePeakTime": [calculated value in hours],
-    "timingInsight": "[markdown formatted insight as shown above]"
-  }
-}
-```
-
-</digestion_timing_rules>
 
 ---
 
@@ -664,89 +477,6 @@ Weight: 10g × 1.00 = 10g (dissolves, no loss)
 
 ---
 
-### Example 7: Digestion Timing - High Fat Recipe
-
-**Recipe:** High fat (35g), sautéed in oil, high fiber (10g)
-
-**Calculation:**
-```
-Base: 1.5 hours
-Fat adjustment: 35g > 20g → +1.0 hour
-Fiber adjustment: 10g > 8g → +0.5 hour
-Method: zeytinyağında sotele → +0.5 hour
-Glucose peak: 1.5 + 1.0 + 0.5 + 0.5 = 3.5 hours
-Mismatch: 3.5 - 1.2 = 2.3 hours → HIGH
-```
-
-**Insight:**
-```
-📊 Sindirim Zamanlaması
-
-Canım, bu tarifin yüksek yağ içeriği (35g) ve zeytinyağında kavurma yöntemi sindirimi yavaşlatıyor. Glikoz yükselmesi büyük ihtimalle yaklaşık 3 buçuk saat sonra gerçekleşir.
-
-💡 Ek bilgi
----
-- Yağlar mide boşalmasını geciktirdiği için bu normal
-- Yüksek lif içeriği (10g) de karbonhidrat emilimini yavaşlatarak bu etkiyi artırıyor
-- Zeytinyağını 15g'a düşürüp fırında yağsız pişirirsen glikoz 2-2.5 saat civarına düşebilir
-
-Bu tarz öğünlerde insülinin zamanlaması hakkında diyetisyeninden bilgi alabilirsin.
-```
-
----
-
-### Example 8: Digestion Timing - Balanced Recipe
-
-**Recipe:** Medium fat (15g), steamed, medium fiber (6g)
-
-**Calculation:**
-```
-Base: 1.5 hours
-Fat adjustment: 15g (10-20g) → +0.5 hour
-Fiber adjustment: 6g (4-8g) → +0.25 hour
-Method: buharda pişir → -0.3 hour
-Glucose peak: 1.5 + 0.5 + 0.25 - 0.3 = 1.95 hours (~2 hours)
-Mismatch: 1.95 - 1.2 = 0.75 hours → LOW
-```
-
-**Insight:**
-```
-📊 Sindirim Zamanlaması
-
-Canım, bu tarif dengeli bir sindirim profili sunuyor. Orta düzey yağ (15g) ve buharda pişirme sayesinde glikoz yükselmesi yaklaşık 2 saat civarında gerçekleşir.
-
-💡 Ek bilgi
----
-- Orta yağ ve lif dengesi sindirim hızını uygun tutuyor
-- Buharda pişirme yöntemi yağ emilimini azaltıyor, bu yüzden sindirim daha hızlı
-- Bu profil çoğu hızlı etkili insülinle uyumlu olabilir
-
-İlk denemede yine de takip etmeni öneririm.
-```
-
----
-
-### Example 9: Glycemic Load Calculation
-
-**Recipe:** Bulgur pilaf with 46.2g carbs, 9.1g fiber per portion
-
-**Calculation:**
-```
-Step 1: Calculate net carbs
-net_carbs = 46.2g - 9.1g = 37.1g
-
-Step 2: Identify GI (bulgur = 48)
-
-Step 3: Calculate GL
-GL = (37.1 × 48) ÷ 100 = 17.8 ≈ 18
-
-NOT: GL = (46.2 × 48) ÷ 100 = 22.2 (WRONG - used total carbs instead of net carbs)
-```
-
-**CRITICAL:** Always subtract fiber before calculating GL.
-
----
-
 ## REASONING DOCUMENTATION
 
 For each ingredient, include:
@@ -778,8 +508,6 @@ Before outputting JSON, verify:
 5. **Cross-validation:** All macros pass check ✓
 6. **Retention clamped:** All retention factors between 0.50-1.00 ✓
 7. **Glycemic Load:** Top-level glycemicLoad = perPortion.glycemicLoad (same value in both fields) ✓
-8. **GL Calculation:** Verify GL = (net_carbs × GI) ÷ 100, where net_carbs = total_carbs - fiber ✓
-9. **Digestion Timing:** Insight generated in Balli's voice, calm tone, no insulin advice ✓
 
 ---
 
