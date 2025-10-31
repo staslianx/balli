@@ -1,0 +1,25 @@
+{
+  "apiKeys": {
+    "firebase": "optional-firebase-api-key",
+    "gemini": "optional-gemini-api-key"
+  },
+  "firebaseFunctions": {
+    "emulator": true,
+    "emulatorUrl": "http://127.0.0.1:5001/balli-health/us-central1/diabetesAssistantStream",
+    "productionUrl": "https://us-central1-balli-health.cloudfunctions.net/diabetesAssistantStream",
+    "projectId": "balli-health",
+    "region": "us-central1"
+  },
+  "display": {
+    "colorScheme": "default",
+    "verbosity": "normal",
+    "showTimestamps": true,
+    "showCosts": true,
+    "showTokens": true
+  },
+  "export": {
+    "autoSave": true,
+    "outputDir": "./research-logs",
+    "formats": ["json", "markdown"]
+  }
+}

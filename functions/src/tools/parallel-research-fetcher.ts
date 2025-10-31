@@ -66,6 +66,7 @@ function withTimeout<T>(
 export type ProgressCallback = (event: {
   type: 'api_started' | 'api_completed' | 'progress_update';
   api?: 'pubmed' | 'medrxiv' | 'clinicaltrials' | 'exa';
+  query?: string;  // The actual query string sent to the API
   count?: number;
   duration?: number;
   success?: boolean;
@@ -137,7 +138,14 @@ export async function fetchAllResearchSources(
   // Exa works fine with Turkish, so we keep the original query for it
   const englishQuery = await translateToEnglishForAPIs(query);
   console.log(`📝 [PARALLEL-FETCH] English query for APIs: "${englishQuery.substring(0, 80)}..."`);
+  console.log(`📝 [PARALLEL-FETCH] English query length: ${englishQuery.length}`);
   console.log(`📝 [PARALLEL-FETCH] Translation changed query: ${query !== englishQuery}`);
+
+  // CRITICAL: Detect empty translation
+  if (!englishQuery || englishQuery.length === 0) {
+    console.error(`❌ [PARALLEL-FETCH] CRITICAL BUG: englishQuery is EMPTY! Original query: "${query}"`);
+    logger.error(`❌ [PARALLEL-FETCH] Empty englishQuery detected, this will cause empty query strings in SSE events`);
+  }
 
   // Track total expected sources for progress
   const totalExpected = config.exaCount + config.pubmedCount + config.medrxivCount + config.clinicalTrialsCount;
@@ -163,13 +171,14 @@ export async function fetchAllResearchSources(
           progressCallback({
             type: 'api_started',
             api: 'exa',
+            query: englishQuery,  // Exa uses English translation (consistent with other APIs)
             count: config.exaCount
           });
         }
 
         try {
           const results = await withTimeout(
-            searchMedicalSources(query, config.exaCount),
+            searchMedicalSources(englishQuery, config.exaCount),  // Use English query
             API_TIMEOUTS.EXA,
             'Exa search'
           );
@@ -217,6 +226,7 @@ export async function fetchAllResearchSources(
           progressCallback({
             type: 'api_started',
             api: 'pubmed',
+            query: englishQuery,  // PubMed uses English translation
             count: config.pubmedCount
           });
         }
@@ -271,6 +281,7 @@ export async function fetchAllResearchSources(
           progressCallback({
             type: 'api_started',
             api: 'medrxiv',
+            query: englishQuery,  // medRxiv uses English translation
             count: config.medrxivCount
           });
         }
@@ -325,6 +336,7 @@ export async function fetchAllResearchSources(
           progressCallback({
             type: 'api_started',
             api: 'clinicaltrials',
+            query: englishQuery,  // ClinicalTrials uses English translation
             count: config.clinicalTrialsCount
           });
         }

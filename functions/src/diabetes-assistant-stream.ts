@@ -56,6 +56,7 @@ type SSEEvent =
   | { type: 'api_started'; api: 'pubmed' | 'medrxiv' | 'clinicaltrials' | 'exa'; count: number; message: string }
   | { type: 'api_completed'; api: 'pubmed' | 'medrxiv' | 'clinicaltrials' | 'exa'; count: number; duration: number; message: string; success: boolean }
   | { type: 'research_progress'; fetched: number; total: number; message: string }
+  | { type: 'synthesis_started'; totalRounds: number; totalSources: number; sequence: number }
   | { type: 'generating'; message: string }
   | { type: 'token'; content: string }
   | { type: 'complete'; sources: any[]; metadata: any; researchSummary?: any; processingTier?: string; thinkingSummary?: string }
@@ -591,10 +592,7 @@ async function streamDeepResearch(
     console.log(`🧠 [T3-MEMORY] Using cross-conversation memory: ${memoryContext.factCount} facts, ${memoryContext.summaryCount} summaries`);
   }
 
-  // ===== STEP 1: Build static system prompt =====
-  const systemPrompt = buildTier3Prompt();
-
-  // ===== STEP 2: Execute deep research V2 =====
+  // ===== STEP 1: Execute deep research V2 =====
   const { executeDeepResearchV2, formatResearchForSynthesis } = await import('./flows/deep-research-v2');
 
   const researchResults = await executeDeepResearchV2(question, res);
@@ -604,12 +602,29 @@ async function streamDeepResearch(
     `${researchResults.totalSources} sources`
   );
 
+  // ===== STEP 2: Build system prompt with source count =====
+  const systemPrompt = buildTier3Prompt(researchResults.totalSources);
+
   // ===== STEP 3: Format sources =====
   const formattedSources = formatSourcesWithTypes(
     researchResults.allSources.exa,
     researchResults.allSources.pubmed,
     researchResults.allSources.medrxiv,
     researchResults.allSources.clinicalTrials
+  );
+
+  // ===== STEP 3.5: Emit synthesis_started event before building prompt =====
+  // This signals the final research stage to the iOS app
+  writeSSE(res, {
+    type: 'synthesis_started',
+    totalRounds: researchResults.rounds.length,
+    totalSources: researchResults.totalSources,
+    sequence: 220
+  });
+
+  console.log(
+    `🎯 [T3-SYNTHESIS] Starting synthesis: ${researchResults.rounds.length} rounds, ` +
+    `${researchResults.totalSources} sources`
   );
 
   // ===== STEP 4: Build prompt with memory + research context + conversation history =====
