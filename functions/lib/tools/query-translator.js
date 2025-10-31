@@ -59,6 +59,12 @@ Return only the English translation.`
         });
         const translated = response.text.trim();
         const duration = Date.now() - startTime;
+        // CRITICAL: Check for empty translation
+        if (!translated || translated.length === 0) {
+            console.error(`❌ [TRANSLATOR] EMPTY TRANSLATION - response.text was empty! Falling back to original query`);
+            v2_1.logger.error(`❌ [TRANSLATOR] Empty translation received, using original query`);
+            return turkishQuery;
+        }
         console.log(`✅ [TRANSLATOR] SUCCESS in ${duration}ms - Translated: "${translated}"`);
         v2_1.logger.info(`✅ [TRANSLATOR] Translated in ${duration}ms: "${translated}"`);
         return translated;

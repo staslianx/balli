@@ -28,6 +28,8 @@ studyTypes // e.g., ['Clinical Trial', 'Meta-Analysis']
             searchQuery = `(${searchQuery}) AND (${typeFilters})`;
         }
         console.log(`🏥 [PUBMED] Searching for: ${query}${yearsBack ? ` (last ${yearsBack} years)` : ''}`);
+        console.log(`🏥 [PUBMED-DEBUG] Full search query: ${searchQuery}`);
+        console.log(`🏥 [PUBMED-DEBUG] Max results: ${maxResults}`);
         // Step 1: Search for article IDs
         const searchUrl = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi';
         const searchParams = new URLSearchParams({
@@ -37,6 +39,7 @@ studyTypes // e.g., ['Clinical Trial', 'Meta-Analysis']
             retmode: 'json',
             sort: 'relevance'
         });
+        console.log(`🏥 [PUBMED-DEBUG] Request URL: ${searchUrl}?${searchParams.toString()}`);
         // Add API key if available (increases rate limit)
         if (apiKey) {
             searchParams.append('api_key', apiKey);
@@ -49,9 +52,13 @@ studyTypes // e.g., ['Clinical Trial', 'Meta-Analysis']
         const searchResponse = await axios_1.default.get(`${searchUrl}?${searchParams.toString()}`, {
             timeout: 10000 // 10 second timeout
         });
+        console.log(`🏥 [PUBMED-DEBUG] Raw API response:`, JSON.stringify(searchResponse.data, null, 2));
         const ids = searchResponse.data.esearchresult?.idlist || [];
+        console.log(`🏥 [PUBMED-DEBUG] Extracted IDs:`, ids);
         if (ids.length === 0) {
             console.log(`📭 [PUBMED] No articles found for query: ${query}`);
+            console.log(`📭 [PUBMED-DEBUG] Response had esearchresult:`, !!searchResponse.data.esearchresult);
+            console.log(`📭 [PUBMED-DEBUG] Response had idlist:`, !!searchResponse.data.esearchresult?.idlist);
             return [];
         }
         console.log(`📚 [PUBMED] Found ${ids.length} articles, fetching details...`);

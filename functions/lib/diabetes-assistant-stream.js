@@ -485,15 +485,25 @@ async function streamDeepResearch(res, question, userId, diabetesProfile, conver
     if (formattedMemory) {
         console.log(`🧠 [T3-MEMORY] Using cross-conversation memory: ${memoryContext.factCount} facts, ${memoryContext.summaryCount} summaries`);
     }
-    // ===== STEP 1: Build static system prompt =====
-    const systemPrompt = (0, deep_research_prompt_t3_1.buildTier3Prompt)();
-    // ===== STEP 2: Execute deep research V2 =====
+    // ===== STEP 1: Execute deep research V2 =====
     const { executeDeepResearchV2, formatResearchForSynthesis } = await Promise.resolve().then(() => __importStar(require('./flows/deep-research-v2')));
     const researchResults = await executeDeepResearchV2(question, res);
     console.log(`✅ [T3-STATELESS] Research complete: ${researchResults.rounds.length} rounds, ` +
         `${researchResults.totalSources} sources`);
+    // ===== STEP 2: Build system prompt with source count =====
+    const systemPrompt = (0, deep_research_prompt_t3_1.buildTier3Prompt)(researchResults.totalSources);
     // ===== STEP 3: Format sources =====
     const formattedSources = (0, research_helpers_1.formatSourcesWithTypes)(researchResults.allSources.exa, researchResults.allSources.pubmed, researchResults.allSources.medrxiv, researchResults.allSources.clinicalTrials);
+    // ===== STEP 3.5: Emit synthesis_started event before building prompt =====
+    // This signals the final research stage to the iOS app
+    writeSSE(res, {
+        type: 'synthesis_started',
+        totalRounds: researchResults.rounds.length,
+        totalSources: researchResults.totalSources,
+        sequence: 220
+    });
+    console.log(`🎯 [T3-SYNTHESIS] Starting synthesis: ${researchResults.rounds.length} rounds, ` +
+        `${researchResults.totalSources} sources`);
     // ===== STEP 4: Build prompt with memory + research context + conversation history =====
     const researchContext = formatResearchForSynthesis(researchResults);
     let userPrompt = '';

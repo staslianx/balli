@@ -184,17 +184,20 @@ async function executeDeepResearchV2(question, res) {
         // Progress callback for SSE events
         const progressCallback = (event) => {
             if (event.type === 'api_started') {
+                // Include the actual query string in the message for debugging
+                const queryPreview = event.query ? ` [Query: ${event.query.substring(0, 50)}...]` : '';
                 const messages = {
-                    pubmed: `PubMed'den ${event.count} makale aranıyor...`,
-                    medrxiv: `medRxiv'den ${event.count} önbaskı çalışma kontrol ediliyor...`,
-                    clinicaltrials: `Klinik denemeler inceleniyor (${event.count} deneme)...`,
-                    exa: `Güvenilir tıbbi siteler taranıyor (${event.count} kaynak)...`
+                    pubmed: `PubMed'den ${event.count} makale aranıyor...${queryPreview}`,
+                    medrxiv: `medRxiv'den ${event.count} önbaskı çalışma kontrol ediliyor...${queryPreview}`,
+                    clinicaltrials: `Klinik denemeler inceleniyor (${event.count} deneme)...${queryPreview}`,
+                    exa: `Güvenilir tıbbi siteler taranıyor (${event.count} kaynak)...${queryPreview}`
                 };
                 emitSSE(res, {
                     type: 'api_started',
                     api: event.api,
                     count: event.count,
-                    message: messages[event.api] || `${event.api} aranıyor...`
+                    message: messages[event.api] || `${event.api} aranıyor...${queryPreview}`,
+                    query: event.query // Pass full query in dedicated field
                 });
             }
             else if (event.type === 'api_completed') {

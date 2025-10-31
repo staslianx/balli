@@ -20,6 +20,7 @@ import { type ClinicalTrialResult } from './clinical-trials';
 export type ProgressCallback = (event: {
     type: 'api_started' | 'api_completed' | 'progress_update';
     api?: 'pubmed' | 'medrxiv' | 'clinicaltrials' | 'exa';
+    query?: string;
     count?: number;
     duration?: number;
     success?: boolean;
