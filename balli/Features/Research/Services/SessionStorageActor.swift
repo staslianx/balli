@@ -7,9 +7,10 @@ private let logger = Logger(
     category: "SessionStorage"
 )
 
-/// Thread-safe actor for managing persistence of research sessions using SwiftData
-/// IMPORTANT: ModelContext operations must run on @MainActor when used with observed models
-actor SessionStorageActor {
+/// Thread-safe storage for managing persistence of research sessions using SwiftData
+/// IMPORTANT: All operations run on @MainActor as required by SwiftData ModelContext
+@MainActor
+class SessionStorageActor {
     private let modelContainer: ModelContainer
 
     /// Initializes the storage actor with a SwiftData model container
@@ -18,9 +19,8 @@ actor SessionStorageActor {
         logger.info("SessionStorageActor initialized")
     }
 
-    /// Creates a background ModelContext for this actor
+    /// Creates a ModelContext for persistence operations
     /// Each operation gets its own context to avoid thread-safety issues
-    @MainActor
     private func createContext() -> ModelContext {
         return ModelContext(modelContainer)
     }
@@ -28,10 +28,9 @@ actor SessionStorageActor {
     // MARK: - Save Operations
 
     /// Saves or updates a research session from raw data
-    @MainActor
     func saveSession(
         sessionId: UUID,
-        conversationHistory: [(id: UUID, role: String, content: String, timestamp: Date, tier: String?, sourcesData: Data?)],
+        conversationHistory: [(id: UUID, role: String, content: String, timestamp: Date, tier: String?, sourcesData: Data?, imageAttachmentData: Data?)],
         status: String,
         createdAt: Date,
         lastUpdated: Date,
@@ -72,14 +71,19 @@ actor SessionStorageActor {
 
         // Add messages
         for messageData in conversationHistory {
+            let imageAttachment = messageData.imageAttachmentData.flatMap {
+                try? JSONDecoder().decode(ImageAttachment.self, from: $0)
+            }
+
             let message = SessionMessage(
                 role: MessageRole(rawValue: messageData.role) ?? .user,
                 content: messageData.content,
                 timestamp: messageData.timestamp,
-                tier: messageData.tier.flatMap { ResponseTier(rawValue: $0) },
-                sources: messageData.sourcesData.flatMap { try? JSONDecoder().decode([ResearchSource].self, from: $0) }
+                imageAttachment: imageAttachment
             )
             message.id = messageData.id
+            message.tierRaw = messageData.tier
+            message.sourcesData = messageData.sourcesData
             session.conversationHistory.append(message)
         }
 
@@ -91,7 +95,6 @@ actor SessionStorageActor {
     // MARK: - Load Operations
 
     /// Loads a specific session by ID
-    @MainActor
     func loadSession(id: UUID) throws -> ResearchSession? {
         let modelContext = createContext()
         let fetchDescriptor = FetchDescriptor<ResearchSession>(
@@ -111,7 +114,6 @@ actor SessionStorageActor {
     }
 
     /// Loads session conversation history as Sendable data
-    @MainActor
     func loadSessionConversation(id: UUID) throws -> (sessionId: UUID, messages: [SessionMessageData])? {
         let modelContext = createContext()
         let fetchDescriptor = FetchDescriptor<ResearchSession>(
@@ -139,7 +141,6 @@ actor SessionStorageActor {
     }
 
     /// Loads the currently active session (if any) as raw data
-    @MainActor
     func loadActiveSession() throws -> (
         sessionId: UUID,
         conversationHistory: [(id: UUID, role: String, content: String, timestamp: Date, tier: String?, sources: [ResearchSource]?)],
@@ -183,7 +184,6 @@ actor SessionStorageActor {
     }
 
     /// Loads all completed sessions
-    @MainActor
     func loadCompletedSessions() throws -> [ResearchSession] {
         let modelContext = createContext()
         let fetchDescriptor = FetchDescriptor<ResearchSession>(
@@ -199,7 +199,6 @@ actor SessionStorageActor {
 
     /// Extracts Sendable session data for FTS5 migration
     /// This method avoids Sendable conformance issues by extracting only primitive types
-    @MainActor
     func extractSessionDataForMigration() throws -> [(
         sessionId: UUID,
         title: String?,
@@ -230,7 +229,6 @@ actor SessionStorageActor {
     }
 
     /// Loads all sessions (active and completed)
-    @MainActor
     func loadAllSessions() throws -> [ResearchSession] {
         let modelContext = createContext()
         let fetchDescriptor = FetchDescriptor<ResearchSession>(
@@ -246,7 +244,6 @@ actor SessionStorageActor {
     // MARK: - Delete Operations
 
     /// Deletes a specific session
-    @MainActor
     func deleteSession(_ session: ResearchSession) async throws {
         let sessionId = session.sessionId
         let modelContext = createContext()
@@ -256,7 +253,6 @@ actor SessionStorageActor {
     }
 
     /// Deletes all completed sessions (cleanup)
-    @MainActor
     func deleteCompletedSessions() async throws {
         let sessions = try loadCompletedSessions()
         let modelContext = createContext()
