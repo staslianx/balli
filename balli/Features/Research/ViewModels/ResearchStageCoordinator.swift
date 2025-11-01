@@ -10,6 +10,7 @@
 import Foundation
 import SwiftUI
 import OSLog
+import Combine
 
 /// Coordinates multi-round research stages and progress display
 @MainActor
@@ -37,6 +38,11 @@ final class ResearchStageCoordinator {
 
     /// Signals when a view is ready to display stages for an answer
     @Published var viewReadySignals: [String: Bool] = [:]
+
+    // MARK: - Combine Subscriptions
+
+    /// Per-answer Combine cancellables for stage change subscriptions
+    private var cancellables: [String: Set<AnyCancellable>] = [:]
 
     // MARK: - Stage Management
 
@@ -83,40 +89,34 @@ final class ResearchStageCoordinator {
     }
 
     /// Start observing stage changes from manager and updating UI
+    /// Uses Combine publisher for efficient, event-driven updates (no polling!)
     private func startObservingStageChanges(for answerId: String, manager: ResearchStageDisplayManager) {
-        // Create a repeating timer to poll manager's currentStage
-        // This is necessary because ResearchStageDisplayManager doesn't use @Published
-        Task { @MainActor in
-            logger.info("👀 Observer started for answer: \(answerId)")
-            var pollCount = 0
+        logger.info("👀 Subscribing to stage changes for answer: \(answerId)")
 
-            while stageManagers[answerId] != nil {
-                pollCount += 1
+        // Ensure we have a cancellables set for this answer
+        if cancellables[answerId] == nil {
+            cancellables[answerId] = Set<AnyCancellable>()
+        }
 
-                // Check if manager has a stage to display
-                if let currentStageMessage = manager.stageMessage {
-                    // Update UI if stage changed
-                    if currentStages[answerId] != currentStageMessage {
-                        logger.info("📊 Stage displayed: \(currentStageMessage) (poll #\(pollCount))")
-                        currentStages[answerId] = currentStageMessage
-                    }
-                } else if pollCount % 10 == 0 {
-                    // Log every 1 second when no stage is available
-                    logger.debug("⏳ Observer polling: no stage yet (poll #\(pollCount))")
-                }
+        // Subscribe to manager's stage changes publisher
+        manager.stageChanges
+            .receive(on: RunLoop.main)
+            .sink { [weak self] stageMessage in
+                guard let self = self else { return }
 
-                // Poll every 100ms for smooth updates
-                try? await Task.sleep(nanoseconds: 100_000_000)
-
-                // Exit if task is cancelled
-                if Task.isCancelled {
-                    logger.info("🛑 Observer cancelled for answer: \(answerId)")
-                    break
+                if let message = stageMessage {
+                    // Update UI when stage changes
+                    self.logger.info("📊 Stage changed: \(message)")
+                    self.currentStages[answerId] = message
+                } else {
+                    // Stage cleared (nil)
+                    self.logger.debug("🧹 Stage cleared for answer: \(answerId)")
+                    self.currentStages[answerId] = nil
                 }
             }
+            .store(in: &cancellables[answerId]!)
 
-            logger.info("👋 Observer stopped for answer: \(answerId)")
-        }
+        logger.info("✅ Stage change subscription active for answer: \(answerId)")
     }
 
     /// Handle first token arrival - triggers stage fade and stops queue processing
@@ -172,6 +172,10 @@ final class ResearchStageCoordinator {
             manager.stopProcessing()
         }
 
+        // Cancel Combine subscriptions for this answer
+        cancellables[answerId]?.removeAll()
+        cancellables.removeValue(forKey: answerId)
+
         currentStages.removeValue(forKey: answerId)
         shouldHoldStream.removeValue(forKey: answerId)
         stageManagers.removeValue(forKey: answerId)
@@ -181,11 +185,18 @@ final class ResearchStageCoordinator {
     }
 
     /// Clear all state when starting a new conversation
-    func clearAllState() {
+    /// This async method ensures all subscriptions are properly cancelled before returning
+    func clearAllState() async {
         // Stop all queue processing tasks
         for (_, manager) in stageManagers {
             manager.stopProcessing()
         }
+
+        // Cancel all Combine subscriptions
+        for (answerId, _) in cancellables {
+            cancellables[answerId]?.removeAll()
+        }
+        cancellables.removeAll()
 
         currentStages.removeAll()
         shouldHoldStream.removeAll()
@@ -193,6 +204,7 @@ final class ResearchStageCoordinator {
         currentPlans.removeAll()
         completedRounds.removeAll()
         viewReadySignals.removeAll()
+
         logger.info("✅ Cleared all stage coordinator state")
     }
 }

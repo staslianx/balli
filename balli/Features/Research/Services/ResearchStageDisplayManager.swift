@@ -9,6 +9,7 @@
 
 import Foundation
 import OSLog
+import Combine
 
 /// User-facing research stages with simplified, conversational messages
 enum ResearchDisplayStage: Sendable {
@@ -64,7 +65,12 @@ class ResearchStageDisplayManager {
     // MARK: - State
 
     /// Currently displayed stage (UI reads this)
-    private(set) var currentStage: ResearchDisplayStage?
+    private(set) var currentStage: ResearchDisplayStage? {
+        didSet {
+            // Publish stage changes to subscribers
+            stageChangePublisher.send(currentStage?.userMessage)
+        }
+    }
 
     /// When current stage started displaying
     private var currentStageStartTime: Date?
@@ -77,6 +83,16 @@ class ResearchStageDisplayManager {
 
     /// Flag to indicate if queue is being processed
     private var isProcessingQueue = false
+
+    // MARK: - Combine Publisher
+
+    /// Publisher that emits stage message changes (nil when no stage)
+    private let stageChangePublisher = PassthroughSubject<String?, Never>()
+
+    /// Public publisher for subscribers to observe stage changes
+    var stageChanges: AnyPublisher<String?, Never> {
+        stageChangePublisher.eraseToAnyPublisher()
+    }
 
     // MARK: - Public API
 
