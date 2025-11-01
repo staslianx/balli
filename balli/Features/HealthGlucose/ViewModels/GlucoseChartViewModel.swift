@@ -44,9 +44,8 @@ final class GlucoseChartViewModel: ObservableObject {
     // MARK: - Observers
 
     // nonisolated(unsafe) allows deinit to access these from any isolation context
-    nonisolated(unsafe) private var scenePhaseObserver: NSObjectProtocol?
-    nonisolated(unsafe) private var coreDataObserver: NSObjectProtocol?
-    nonisolated(unsafe) private var dataRefreshObserver: NSObjectProtocol?
+    nonisolated(unsafe) private var observers: [NSObjectProtocol] = []
+    private var lastRefreshTime: Date?
 
     // MARK: - Initialization
 
@@ -79,71 +78,84 @@ final class GlucoseChartViewModel: ObservableObject {
     }
 
     deinit {
-        // Remove observers
-        if let observer = scenePhaseObserver {
+        // Remove all observers
+        for observer in observers {
             NotificationCenter.default.removeObserver(observer)
         }
-        if let observer = coreDataObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        if let observer = dataRefreshObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
+        observers.removeAll()
     }
 
     // MARK: - Observers Setup
 
     private func setupObservers() {
         // Observe scene becoming active (app returns to foreground)
-        scenePhaseObserver = NotificationCenter.default.addObserver(
-            forName: .sceneDidBecomeActive,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.logger.info("Scene became active - refreshing glucose chart")
-                await self?.refreshData()
-            }
-        }
-
-        // Observe Core Data changes (meal entries added/updated)
-        if let context = viewContext {
-            coreDataObserver = NotificationCenter.default.addObserver(
-                forName: .NSManagedObjectContextObjectsDidChange,
-                object: context,
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: .sceneDidBecomeActive,
+                object: nil,
                 queue: .main
-            ) { [weak self] notification in
-                // Extract data from notification synchronously on main queue
-                let inserted = (notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject>) ?? []
-                let updated = (notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject>) ?? []
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    guard let self = self else { return }
 
-                let hasMealChanges = inserted.contains { $0 is MealEntry } ||
-                                    updated.contains { $0 is MealEntry }
+                    // DEBOUNCE: Don't refresh if we just refreshed
+                    if let lastRefresh = self.lastRefreshTime,
+                       Date().timeIntervalSince(lastRefresh) < 2.0 {
+                        self.logger.debug("Skipping scene refresh - too soon (last refresh \(Date().timeIntervalSince(lastRefresh))s ago)")
+                        return
+                    }
 
-                // Then handle asynchronously
-                if hasMealChanges {
-                    Task { @MainActor [weak self] in
-                        guard let self = self else { return }
-                        self.logger.info("Meal entry changed - refreshing meal logs")
-                        if let timeRange = self.calculateTimeRange() {
-                            self.loadMealLogs(timeRange: timeRange)
+                    self.logger.info("Scene became active - refreshing glucose chart")
+                    self.lastRefreshTime = Date()
+                    await self.refreshData()
+                }
+            }
+        )
+
+        // Observe Core Data changes (meal entries added/updated/deleted)
+        if let context = viewContext {
+            observers.append(
+                NotificationCenter.default.addObserver(
+                    forName: .NSManagedObjectContextObjectsDidChange,
+                    object: context,
+                    queue: .main
+                ) { [weak self] notification in
+                    // Extract data from notification synchronously on main queue
+                    let inserted = (notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject>) ?? []
+                    let updated = (notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject>) ?? []
+                    let deleted = (notification.userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObject>) ?? []
+
+                    let hasMealChanges = inserted.contains { $0 is MealEntry } ||
+                                        updated.contains { $0 is MealEntry } ||
+                                        deleted.contains { $0 is MealEntry }
+
+                    // Then handle asynchronously
+                    if hasMealChanges {
+                        Task { @MainActor [weak self] in
+                            guard let self = self else { return }
+                            self.logger.info("Meal entry changed (inserted/updated/deleted) - refreshing meal logs")
+                            if let timeRange = self.calculateTimeRange() {
+                                self.loadMealLogs(timeRange: timeRange)
+                            }
                         }
                     }
                 }
-            }
+            )
         }
 
         // Observe custom data refresh notifications from Dexcom services
-        dataRefreshObserver = NotificationCenter.default.addObserver(
-            forName: .glucoseDataDidUpdate,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.logger.info("Glucose data updated - loading with debounce protection")
-                self?.loadGlucoseData()  // Use loadGlucoseData (with debounce) instead of refreshData (bypasses debounce)
+        observers.append(
+            NotificationCenter.default.addObserver(
+                forName: .glucoseDataDidUpdate,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.logger.info("Glucose data updated - loading with debounce protection")
+                    self?.loadGlucoseData()  // Use loadGlucoseData (with debounce) instead of refreshData (bypasses debounce)
+                }
             }
-        }
+        )
     }
 
     // MARK: - Public Methods
@@ -210,14 +222,25 @@ final class GlucoseChartViewModel: ObservableObject {
             logger.info("Loaded \(self.glucoseData.count) readings from CoreData")
 
             // Try to refresh with real-time data if available
-            if isRealTimeModeEnabled && hybridDataSource != nil {
-                logger.info("✅ Refreshing with Hybrid mode (Official + SHARE)")
+            // IMPORTANT: SHARE (0-3h) and Official API (3h+) are COMPLEMENTARY, not fallbacks
+            // - SHARE API: Real-time data (now to -3 hours)
+            // - Official API: Historical data (-3 hours to backwards)
+            // - Hybrid mode: Intelligently combines both for complete timeline
+            //
+            // CRITICAL FIX: Always use Hybrid mode when BOTH services are connected,
+            // regardless of Real-Time Mode setting, because they cover different time ranges!
+            if hybridDataSource != nil && dexcomService.isConnected && dexcomShareService.isConnected {
+                logger.info("✅ Refreshing with Hybrid mode (both services connected)")
+                logger.info("  - SHARE API: Recent data (0-3h)")
+                logger.info("  - Official API: Historical data (3h+)")
                 await loadFromHybridSource(timeRange: timeRange, mergeWithExisting: true)
             } else if dexcomShareService.isConnected {
-                logger.info("✅ Refreshing with SHARE API")
+                logger.info("✅ Refreshing with SHARE API only (recent data 0-3h)")
+                logger.info("  ⚠️ Historical data beyond 3h will not be fetched")
                 await loadFromDexcomShare(timeRange: timeRange, mergeWithExisting: true)
             } else if dexcomService.isConnected {
-                logger.info("✅ Refreshing with Official Dexcom API")
+                logger.info("✅ Refreshing with Official Dexcom API only (historical data 3h+)")
+                logger.info("  ⚠️ Recent data (0-3h) will not be available due to EU 3h delay")
                 await loadFromDexcom(timeRange: timeRange)
             } else {
                 logger.info("No Dexcom sources available, trying HealthKit")
