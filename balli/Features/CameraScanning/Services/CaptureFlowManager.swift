@@ -56,11 +56,11 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
     
     // MARK: - Internal State
     private var processingTask: Task<Void, Never>?
-    private var cancellables = Set<AnyCancellable>()
-    
+    nonisolated(unsafe) private var cancellables = Set<AnyCancellable>()
+
     // MARK: - Lifecycle Observers
-    private var backgroundObserver: (any NSObjectProtocol)?
-    private var foregroundObserver: (any NSObjectProtocol)?
+    nonisolated(unsafe) private var backgroundObserver: (any NSObjectProtocol)?
+    nonisolated(unsafe) private var foregroundObserver: (any NSObjectProtocol)?
     
     // MARK: - Initialization
     
@@ -496,8 +496,8 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
     }
     
     // MARK: - Cleanup
-    
-    public func cleanup() {
+
+    nonisolated public func cleanup() {
         if let observer = backgroundObserver {
             NotificationCenter.default.removeObserver(observer)
             backgroundObserver = nil
@@ -510,6 +510,6 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
     }
     
     deinit {
-        // Cleanup should be called before deinit
+        cleanup()
     }
 }

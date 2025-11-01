@@ -53,6 +53,7 @@ final class MealSyncCoordinator: ObservableObject {
     }
 
     deinit {
+        syncTask?.cancel()
         if let observer = coreDataObserver {
             NotificationCenter.default.removeObserver(observer)
         }
