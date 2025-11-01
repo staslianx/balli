@@ -102,6 +102,11 @@ class MedicalResearchViewModel: ObservableObject {
 
     private var cancellables = Set<AnyCancellable>()
 
+    // MARK: - NotificationCenter Observers
+
+    // nonisolated(unsafe) allows deinit to access these from any isolation context
+    nonisolated(unsafe) private var observers: [NSObjectProtocol] = []
+
     // MARK: - Initialization
 
     init() {
@@ -115,7 +120,7 @@ class MedicalResearchViewModel: ObservableObject {
         )
 
         // Setup notification observers
-        NotificationCenter.default.addObserver(
+        let observer1 = NotificationCenter.default.addObserver(
             forName: NSNotification.Name("SaveActiveResearchSession"),
             object: nil,
             queue: .main
@@ -124,8 +129,9 @@ class MedicalResearchViewModel: ObservableObject {
                 await self?.saveCurrentSession()
             }
         }
+        observers.append(observer1)
 
-        NotificationCenter.default.addObserver(
+        let observer2 = NotificationCenter.default.addObserver(
             forName: UIApplication.didEnterBackgroundNotification,
             object: nil,
             queue: .main
@@ -134,6 +140,7 @@ class MedicalResearchViewModel: ObservableObject {
                 await self?.syncAnswersToPersistence()
             }
         }
+        observers.append(observer2)
 
         // Observe stage coordinator's currentStages and republish to trigger SwiftUI updates
         stageCoordinator.$currentStages
@@ -150,7 +157,10 @@ class MedicalResearchViewModel: ObservableObject {
     }
 
     deinit {
-        NotificationCenter.default.removeObserver(self)
+        for observer in observers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        observers.removeAll()
     }
 
     // MARK: - Session Management
@@ -184,8 +194,10 @@ class MedicalResearchViewModel: ObservableObject {
     // MARK: - Public API
 
     /// Perform search via Cloud Function with instant question display
-    func search(query: String) async {
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+    func search(query: String, image: UIImage? = nil) async {
+        let hasText = !query.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasImage = image != nil
+        guard hasText || hasImage else { return }
 
         // Reset inactivity timer
         sessionManager.resetInactivityTimer()
@@ -196,9 +208,20 @@ class MedicalResearchViewModel: ObservableObject {
             await endCurrentSession()
         }
 
-        // Append user message to session
+        // Create image attachment if image provided
+        var imageAttachment: ImageAttachment? = nil
+        if let image = image {
+            imageAttachment = ImageAttachment.create(from: image)
+            logger.debug("Created image attachment: \(imageAttachment?.fileSizeDescription ?? "unknown size")")
+        }
+
+        // Append user message to session (with optional image)
         do {
-            try await sessionManager.appendUserMessage(query)
+            if let imageAttachment = imageAttachment {
+                try await sessionManager.appendUserMessage(query, imageAttachment: imageAttachment)
+            } else {
+                try await sessionManager.appendUserMessage(query)
+            }
             logger.debug("Appended user message to session")
         } catch {
             logger.error("Failed to append user message to session: \(error.localizedDescription)")
@@ -275,24 +298,24 @@ class MedicalResearchViewModel: ObservableObject {
         logger.info("💬 Starting new conversation - saving current conversation to library")
         logger.info("Current answers count: \(self.answers.count)")
 
-        // Save and end current session
-        await syncAnswersToPersistence()
-        await endCurrentSession()
-
-        // Clear all state
+        // CRITICAL: Clear UI state IMMEDIATELY (synchronously) for instant visual feedback
+        // This ensures the empty state appears on first tap without delay
         answers.removeAll()
         answerIndexLookup.removeAll()
         searchingSourcesForAnswer.removeAll()
+        firstTokenProcessed.removeAll()
+        searchState = .idle
+        currentSearchTier = nil
 
-        // Clear stage coordinator state
-        stageCoordinator.clearAllState()
+        // Then perform async cleanup work (persistence, session management)
+        await syncAnswersToPersistence()
+        await endCurrentSession()
+
+        // Clear stage coordinator state (includes observer cleanup)
+        await stageCoordinator.clearAllState()
 
         // Start fresh session
         sessionManager.startNewSession()
-
-        // Reset search state
-        searchState = .idle
-        currentSearchTier = nil
 
         logger.info("✅ New conversation started - previous conversation saved to library")
         logger.info("New answers count: \(self.answers.count)")
