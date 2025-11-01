@@ -10,9 +10,10 @@ import Foundation
 import os.log
 
 /// Monitors database health and detects issues
-actor DataHealthMonitor {
+@MainActor
+class DataHealthMonitor {
     private let logger = os.Logger(subsystem: "com.balli.diabetes", category: "DataHealth")
-    
+
     // Health metrics
     private var lastCheckDate: Date?
     private var lastVacuumDate: Date?
@@ -20,6 +21,9 @@ actor DataHealthMonitor {
     private var consecutiveErrors = 0
     private var totalSaves = 0
     private var failedSaves = 0
+
+    // Observer cleanup
+    nonisolated(unsafe) private var saveObserver: (any NSObjectProtocol)?
     
     // Thresholds
     private let maxDatabaseSize: Int64 = 100_000_000 // 100 MB
@@ -231,7 +235,7 @@ actor DataHealthMonitor {
     
     private func setupNotificationMonitoring() {
         // Monitor save notifications
-        NotificationCenter.default.addObserver(
+        saveObserver = NotificationCenter.default.addObserver(
             forName: .NSManagedObjectContextDidSave,
             object: nil,
             queue: nil
@@ -287,6 +291,14 @@ actor DataHealthMonitor {
             // This is a placeholder
             backgroundContext.refreshAllObjects()
             return 0
+        }
+    }
+
+    // MARK: - Cleanup
+
+    deinit {
+        if let observer = saveObserver {
+            NotificationCenter.default.removeObserver(observer)
         }
     }
 }
