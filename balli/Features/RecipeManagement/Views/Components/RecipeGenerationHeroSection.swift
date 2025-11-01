@@ -19,7 +19,7 @@ struct RecipeGenerationHeroImage: View {
     let onGeneratePhoto: () -> Void
 
     var body: some View {
-        let imageHeight = max(geometry.size.height * 0.5, 350)
+        let imageHeight = max(UIScreen.main.bounds.height * 0.5, 350)
 
         ZStack(alignment: .top) {
             // Show generated image if available, otherwise show placeholder gradient
@@ -115,7 +115,7 @@ struct RecipeGenerationMetadata: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 24) // Minimum gap between name and story card
         }
-        .frame(height: max(geometry.size.height * 0.5, 350) - 49) // Ends where story card begins
+        .frame(height: max(UIScreen.main.bounds.height * 0.5, 350) - 49) // Ends where story card begins
     }
 }
 
@@ -130,9 +130,9 @@ struct RecipeGenerationStoryCard: View {
     let onTap: () -> Void
 
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             Spacer()
-                .frame(height: max(geometry.size.height * 0.5, 350) - 49)
+                .frame(height: max(UIScreen.main.bounds.height * 0.5, 350) - 49)
 
             RecipeStoryCard(
                 title: storyCardTitle,
@@ -145,8 +145,6 @@ struct RecipeGenerationStoryCard: View {
                 onTap()
             }
             .padding(.horizontal, 20)
-
-            Spacer()
         }
     }
 }

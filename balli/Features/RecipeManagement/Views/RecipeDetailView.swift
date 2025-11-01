@@ -121,13 +121,13 @@ struct RecipeDetailView: View {
                             .padding(.horizontal, 20)
                             .padding(.bottom, 24)
                         }
-                        .frame(height: geometry.size.height * 0.5 - 49)
+                        .frame(height: UIScreen.main.bounds.height * 0.5 - 49)
 
                         // Story card - positioned absolutely at fixed offset
                         if recipeData.hasStory {
-                            VStack {
+                            VStack(spacing: 0) {
                                 Spacer()
-                                    .frame(height: geometry.size.height * 0.5 - 49)
+                                    .frame(height: UIScreen.main.bounds.height * 0.5 - 49)
 
                                 RecipeStoryCardSection(
                                     hasStory: recipeData.hasStory,
@@ -137,8 +137,6 @@ struct RecipeDetailView: View {
                                     onTap: handleStoryCardTap
                                 )
                                 .padding(.horizontal, 20)
-
-                                Spacer()
                             }
                         }
                     }

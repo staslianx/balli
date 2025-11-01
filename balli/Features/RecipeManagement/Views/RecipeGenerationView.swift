@@ -56,24 +56,23 @@ struct RecipeGenerationView: View {
                 ScrollView {
                     ZStack(alignment: .top) {
                         VStack(spacing: 0) {
-                            // Hero section with fixed positioning
-                            RecipeGenerationCompleteHero(
+                            // Hero image
+                            RecipeGenerationHeroImage(
                                 recipeName: viewModel.recipeName,
                                 preparedImage: viewModel.preparedImage,
                                 isGeneratingPhoto: viewModel.isGeneratingPhoto,
                                 recipeContent: viewModel.formState.recipeContent,
-                                storyCardTitle: storyCardTitle,
-                                isCalculatingNutrition: viewModel.isCalculatingNutrition,
-                                currentLoadingStep: loadingHandler.currentLoadingStep,
-                                nutritionCalculationProgress: viewModel.nutritionCalculationProgress,
                                 geometry: geometry,
                                 onGeneratePhoto: {
                                     Task {
                                         await generatePhoto()
                                     }
-                                },
-                                onStoryCardTap: handleStoryCardTap
+                                }
                             )
+
+                            // Spacer to accommodate story card overlap
+                            Spacer()
+                                .frame(height: 49)
 
                             // All content below story card
                             VStack(spacing: 0) {
@@ -83,6 +82,9 @@ struct RecipeGenerationView: View {
                                 ) { action in
                                     actionsHandler.handleAction(action, viewModel: viewModel)
                                 }
+                                .padding(.horizontal, 20)
+                                .padding(.top, 16)
+                                .padding(.bottom, 32)
 
                                 // Recipe content (markdown or manual input)
                                 RecipeGenerationContentSection(
@@ -98,12 +100,31 @@ struct RecipeGenerationView: View {
                                 .padding(.horizontal, 20)
                                 .padding(.bottom, 40)
                             }
+                            .frame(maxWidth: .infinity)
                             .background(Color(.secondarySystemBackground))
                         }
+
+                        // Recipe metadata - positioned absolutely over hero image
+                        RecipeGenerationMetadata(
+                            recipeName: viewModel.recipeName,
+                            recipeContent: viewModel.formState.recipeContent,
+                            geometry: geometry
+                        )
+
+                        // Story card - positioned absolutely at fixed offset
+                        RecipeGenerationStoryCard(
+                            storyCardTitle: storyCardTitle,
+                            isCalculatingNutrition: viewModel.isCalculatingNutrition,
+                            currentLoadingStep: loadingHandler.currentLoadingStep,
+                            nutritionCalculationProgress: viewModel.nutritionCalculationProgress,
+                            geometry: geometry,
+                            onTap: handleStoryCardTap
+                        )
                     }
                 }
                 .scrollIndicators(.hidden)
                 .background(Color(.secondarySystemBackground))
+                .ignoresSafeArea(edges: .top)
 
                 // MARK: - Confirmation Overlays
                 RecipeGenerationOverlays(
@@ -111,7 +132,6 @@ struct RecipeGenerationView: View {
                     showingShoppingConfirmation: actionsHandler.showingShoppingConfirmation
                 )
             }
-            .ignoresSafeArea(edges: .top)
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
@@ -202,7 +222,6 @@ struct RecipeGenerationView: View {
     private func startGeneration() async {
         isGenerating = true
         isSaved = false
-        storyCardTitle = "balli'nin notu"
 
         await viewModel.generationCoordinator.generateRecipeWithStreaming(
             mealType: selectedMealType,

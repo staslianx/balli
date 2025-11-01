@@ -91,8 +91,5 @@ struct RecipeGenerationActionButtons: View {
         ) { action in
             onAction(action)
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 16)
-        .padding(.bottom, 32)
     }
 }
