@@ -37,6 +37,9 @@ final class MemorySyncCoordinator {
     private var isSyncing = false
     private var lastSyncTime: Date?
 
+    // Observer cleanup
+    nonisolated(unsafe) private var networkObserver: (any NSObjectProtocol)?
+
     // MARK: - Initialization
 
     private init() {
@@ -139,7 +142,7 @@ final class MemorySyncCoordinator {
 
     /// Setup network observer for connectivity restoration
     func setupNetworkObserver() {
-        NotificationCenter.default.addObserver(
+        networkObserver = NotificationCenter.default.addObserver(
             forName: .networkDidBecomeReachable,
             object: nil,
             queue: .main
@@ -223,5 +226,13 @@ final class MemorySyncCoordinator {
     /// Get time of last successful sync
     func getLastSyncTime() -> Date? {
         return lastSyncTime
+    }
+
+    // MARK: - Cleanup
+
+    deinit {
+        if let observer = networkObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 }
