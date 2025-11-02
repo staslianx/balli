@@ -1,0 +1,225 @@
+# SwiftLint Configuration for balli
+# iOS 26+ | Swift 6 | Xcode 16+
+#
+# Installation:
+#   brew install swiftlint
+#
+# Xcode Integration:
+#   Add Run Script Phase:
+#   if command -v swiftlint >/dev/null 2>&1; then swiftlint; fi
+
+# ===================================
+# DISABLED RULES (explicitly turned off)
+# ===================================
+disabled_rules:
+  - trailing_whitespace  # Allow trailing whitespace (common in development)
+  - todo                 # Allow TODO comments (part of development workflow)
+  - line_length          # Using custom line_length below instead
+
+# ===================================
+# OPT-IN RULES (explicitly enabled)
+# ===================================
+opt_in_rules:
+  - force_unwrapping           # Warn on force unwraps (!)
+  - explicit_init              # Prefer Type() over Type.init()
+  - empty_count                # Prefer isEmpty over count == 0
+  - redundant_nil_coalescing   # Warn on redundant ?? nil
+  - unavailable_function       # Warn on @available with unavailable
+  - strict_fileprivate         # Encourage private over fileprivate
+  - explicit_self              # Require explicit self in closures
+  - explicit_top_level_acl     # Require explicit access control
+  - multiline_parameters       # Prefer multiline for 4+ parameters
+  - sorted_imports             # Enforce sorted import statements
+  - vertical_whitespace_closing_braces  # Limit empty lines before }
+  - vertical_whitespace_opening_braces   # Limit empty lines after {
+
+# ===================================
+# ANALYZER RULES (requires compilation)
+# ===================================
+analyzer_rules:
+  - unused_declaration         # Warn on unused functions/vars
+  - unused_import              # Warn on unused imports
+
+# ===================================
+# FILE/LINE LENGTH LIMITS
+# ===================================
+
+# File length: warn at 300, error at 500
+file_length:
+  warning: 300
+  error: 500
+  ignore_comment_only_lines: true
+
+# Line length: warn at 200, error at 250
+line_length:
+  warning: 200
+  error: 250
+  ignores_function_declarations: true
+  ignores_comments: true
+  ignores_urls: true
+
+# Function body length: warn at 50, error at 80
+function_body_length:
+  warning: 50
+  error: 80
+
+# Type body length: warn at 300, error at 500
+type_body_length:
+  warning: 300
+  error: 500
+
+# ===================================
+# NAMING CONVENTIONS
+# ===================================
+
+# Type names (classes, structs, enums)
+type_name:
+  min_length: 3
+  max_length:
+    warning: 40
+    error: 50
+  excluded:
+    - ID  # Allow short names like "ID"
+    - URL
+    - API
+
+# Variable/constant names
+identifier_name:
+  min_length: 2
+  max_length:
+    warning: 40
+    error: 50
+  excluded:
+    - id  # Common short names
+    - url
+    - db
+    - vm
+    - ui
+    - x
+    - y
+    - z
+    - i
+    - j
+    - k
+  validates_start_with_lowercase: true
+
+# ===================================
+# CODE STYLE
+# ===================================
+
+# Force cast: error (never use as!)
+force_cast: error
+
+# Force try: error (never use try!)
+force_try: error
+
+# Multiple closures: warn (readability)
+multiple_closures_with_trailing_closure: warning
+
+# Nesting: warn at level 2 (max 1 level preferred)
+nesting:
+  type_level:
+    warning: 2
+    error: 3
+  function_level:
+    warning: 3
+    error: 5
+
+# Cyclomatic complexity: warn at 10, error at 20
+cyclomatic_complexity:
+  warning: 10
+  error: 20
+  ignores_case_statements: true
+
+# ===================================
+# EXCLUDED PATHS
+# ===================================
+excluded:
+  - Pods
+  - Carthage
+  - .build
+  - DerivedData
+  - vendor
+  - "*/Generated/*"
+  - "*/Protobuf/*"
+  - "*/.generated.swift"
+  - "balli.xcdatamodeld"
+  - "**/*.xcdatamodeld"
+  - "**/CoreData/Generated/*"
+
+# ===================================
+# CUSTOM RULES
+# ===================================
+custom_rules:
+
+  # No print statements (use Logger instead)
+  no_print:
+    name: "No Print Statements"
+    regex: '(^|\s)print\s*\('
+    message: "Use Logger instead of print() for production code"
+    severity: warning
+
+  # No NSLog (use Logger instead)
+  no_nslog:
+    name: "No NSLog"
+    regex: '(^|\s)NSLog\s*\('
+    message: "Use Logger instead of NSLog for production code"
+    severity: warning
+
+  # Prefer async/await over completion handlers
+  avoid_completion_handler:
+    name: "Avoid Completion Handlers"
+    regex: 'func\s+\w+\([^)]*@escaping\s+\([^)]*\)\s*->\s*Void'
+    message: "Consider using async/await instead of completion handlers for Swift 6 concurrency"
+    severity: warning
+
+  # Mark TODOs with issue tracker
+  todo_requires_ticket:
+    name: "TODO Requires Ticket"
+    regex: '//\s*TODO(?!:?\s*\[)'
+    message: "TODO comments should reference an issue: // TODO: [ISSUE-123] Description"
+    severity: warning
+
+  # Discourage DispatchQueue.main.async (use @MainActor)
+  avoid_dispatch_main:
+    name: "Avoid DispatchQueue.main.async"
+    regex: 'DispatchQueue\.main\.async'
+    message: "Use @MainActor instead of DispatchQueue.main.async for Swift 6 concurrency"
+    severity: warning
+
+  # Require documentation for public APIs
+  public_requires_docs:
+    name: "Public APIs Require Documentation"
+    regex: '^\s*(public|open)\s+(class|struct|enum|protocol|func|var|let)'
+    message: "Public APIs should have documentation comments"
+    severity: warning
+
+# ===================================
+# REPORTER
+# ===================================
+
+# Output format: xcode (integrates with Xcode warnings)
+reporter: "xcode"
+
+# ===================================
+# SWIFT VERSION
+# ===================================
+swift_version: 6.0
+
+# ===================================
+# NOTES
+# ===================================
+#
+# This configuration enforces:
+# - Swift 6 strict concurrency compliance
+# - File size limits (300 lines warning, 500 error)
+# - Function size limits (50 lines warning, 80 error)
+# - No force unwraps, force casts, or force try
+# - Proper logging (Logger over print/NSLog)
+# - Async/await over completion handlers
+# - @MainActor over DispatchQueue.main.async
+# - Documentation for public APIs
+# - Clean import statements
+# - Consistent naming conventions
+#
+# Aligns with CLAUDE.md standards and iOS 26 best practices
