@@ -417,7 +417,11 @@ struct DexcomConnectionView: View {
 
                 logger.debug("🔵 Starting Dexcom authorization flow...")
                 try await dexcomService.connect(presentationAnchor: presentationWindow)
-                logger.debug("✅ Dexcom connection successful")
+                logger.debug("✅ Dexcom Official API connection successful")
+
+                // AUTO-CONNECT: Automatically connect SHARE API for real-time data
+                logger.debug("🔵 Auto-connecting SHARE API with hardcoded credentials...")
+                await autoConnectShareAPI()
 
             } catch let error as DexcomError {
                 logger.error("DexcomError - \(error.errorDescription ?? "Unknown error")")
@@ -442,6 +446,36 @@ struct DexcomConnectionView: View {
             }
 
             isConnecting = false
+        }
+    }
+
+    /// Automatically connect SHARE API using hardcoded credentials
+    /// This runs after Official API connection succeeds
+    private func autoConnectShareAPI() async {
+        logger.info("🔄 AUTO-CONNECT: Starting automatic SHARE API connection")
+
+        // Get hardcoded credentials from configuration
+        let credentials = DexcomConfiguration.shareCredentials
+        let shareService = DexcomShareService.shared
+
+        logger.info("🔄 AUTO-CONNECT: Using \(credentials.server) server")
+
+        do {
+            // Attempt to connect with hardcoded credentials
+            try await shareService.connect(
+                username: credentials.username,
+                password: credentials.password
+            )
+
+            logger.info("✅ AUTO-CONNECT: SHARE API connected successfully")
+            logger.info("📊 Complete timeline now available: SHARE (0-3h) + Official (3h+)")
+
+        } catch {
+            // Don't fail the overall connection if SHARE fails
+            // Official API still works for historical data
+            logger.warning("⚠️ AUTO-CONNECT: SHARE API connection failed: \(error.localizedDescription)")
+            logger.info("📊 Official API connected - historical data available (3h+)")
+            logger.info("💡 SHARE connection can be retried manually in settings")
         }
     }
 

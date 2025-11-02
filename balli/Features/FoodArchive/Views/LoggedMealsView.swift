@@ -118,33 +118,15 @@ struct LoggedMealsView: View {
                             .padding(.horizontal)
                     }
                 } else {
-                    List {
-                        ForEach(groupedEntries, id: \.date) { dateGroup in
-                            Section {
-                                ForEach(dateGroup.mealGroups) { mealGroup in
-                                    mealGroupRow(mealGroup)
-                                        .contentShape(Rectangle())
-                                        .onTapGesture {
-                                            selectedMealGroup = mealGroup
-                                            showMealDetail = true
-                                        }
-                                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                            Button(role: .destructive) {
-                                                deleteMealGroup(mealGroup)
-                                            } label: {
-                                                Label("Sil", systemImage: "trash")
-                                            }
-                                        }
-                                }
-                            } header: {
-                                dateGroupHeader(for: dateGroup.date)
+                    ScrollView {
+                        LazyVStack(spacing: ResponsiveDesign.Spacing.medium) {
+                            ForEach(groupedEntries, id: \.date) { dateGroup in
+                                dayCard(for: dateGroup)
                             }
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets())
                         }
+                        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                        .padding(.vertical, ResponsiveDesign.Spacing.small)
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -228,54 +210,86 @@ struct LoggedMealsView: View {
     // Logger
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "LoggedMealsView")
 
-    // MARK: - Date Group Header
+    // MARK: - Day Card View
 
     @ViewBuilder
-    private func dateGroupHeader(for date: Date) -> some View {
-        HStack(spacing: 8) {
-            Text(formatDateForHeader(date))
-                .font(.system(size: 14, weight: .semibold, design: .rounded))
+    private func dayCard(for dateGroup: (date: Date, mealGroups: [MealGroup])) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Date header at top left inside card
+            Text(formatDateForHeader(dateGroup.date))
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold, design: .rounded))
                 .foregroundStyle(.primary)
+                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                .padding(.top, ResponsiveDesign.Spacing.medium)
+                .padding(.bottom, ResponsiveDesign.Spacing.small)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
+            // Divider below date
             Rectangle()
-                .fill(Color.secondary.opacity(0.3))
-                .frame(height: 1)
+                .fill(Color.secondary.opacity(0.2))
+                .frame(height: 0.5)
+                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+
+            // All meals for this day
+            VStack(spacing: ResponsiveDesign.Spacing.xSmall) {
+                ForEach(dateGroup.mealGroups) { mealGroup in
+                    mealGroupRow(mealGroup)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedMealGroup = mealGroup
+                            showMealDetail = true
+                        }
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                deleteMealGroup(mealGroup)
+                            } label: {
+                                Label("Sil", systemImage: "trash")
+                            }
+                        }
+
+                    // Divider between meals (except last one)
+                    if mealGroup.id != dateGroup.mealGroups.last?.id {
+                        Rectangle()
+                            .fill(Color.secondary.opacity(0.1))
+                            .frame(height: 0.5)
+                            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                    }
+                }
+            }
+            .padding(.vertical, ResponsiveDesign.Spacing.small)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .listRowInsets(EdgeInsets())
+        .background(.clear)
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
     }
 
     // MARK: - Meal Group Row
 
-    // MARK: - Meal Row
-
     private func mealGroupRow(_ mealGroup: MealGroup) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: ResponsiveDesign.Spacing.small) {
             // Meal type icon
             Image(systemName: symbolForMealType(mealGroup.mealType))
-                .font(.system(size: 20, weight: .semibold))
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .semibold))
                 .foregroundStyle(AppTheme.primaryPurple)
-                .frame(width: 32, alignment: .center)
+                .frame(width: ResponsiveDesign.Font.scaledSize(32), alignment: .center)
 
             // Meal details
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xxSmall) {
                 Text(mealGroup.mealType.capitalized)
-                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
 
                 // Ingredient count if multiple
                 if mealGroup.meals.count > 1 {
                     Text("\(mealGroup.meals.count) malzeme")
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(12), weight: .regular, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
 
-                // Time only (date is shown in header)
+                // Time only (date is shown in card header)
                 Text(mealGroup.timestamp, format: .dateTime.hour().minute())
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(13), weight: .regular, design: .rounded))
                     .foregroundStyle(.secondary)
             }
 
@@ -283,20 +297,14 @@ struct LoggedMealsView: View {
 
             // Right-aligned carbohydrate badge
             if mealGroup.totalCarbs > 0 {
-                Text("\(Int(mealGroup.totalCarbs)) gr")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(AppTheme.primaryPurple.gradient)
-                    )
+                Text("\(Int(mealGroup.totalCarbs))gr")
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(AppTheme.primaryPurple)
             }
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 16)
-        .listRowInsets(EdgeInsets())
+        .padding(.vertical, ResponsiveDesign.Spacing.small)
+        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
     }
 }
 

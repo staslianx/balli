@@ -50,8 +50,16 @@ exports.TRUSTED_MEDICAL_DOMAINS = [
  * Restricted to trusted medical domains
  */
 async function searchMedicalSources(query, numResults = 8) {
+    const startTime = Date.now();
     try {
-        console.log(`🏥 [EXA-MEDICAL] Searching trusted medical sources for: "${query}"`);
+        console.log(`\n┌─ EXA MEDICAL SEARCH ──────────────────────────────────────────────────────┐`);
+        console.log(`🏥 [EXA-MEDICAL] Starting search...`);
+        console.log(`   • Query: "${query}"`);
+        console.log(`   • Target results: ${numResults}`);
+        console.log(`   • Search type: Neural (semantic)`);
+        console.log(`   • Trusted domains: ${exports.TRUSTED_MEDICAL_DOMAINS.length} domains`);
+        console.log(`   • Text extraction: 500 chars max`);
+        console.log(`   • Highlights: 3 sentences per result`);
         const response = await exa.searchAndContents(query, {
             type: 'neural', // Semantic search for better medical context
             numResults,
@@ -59,7 +67,11 @@ async function searchMedicalSources(query, numResults = 8) {
             text: { maxCharacters: 500 },
             highlights: { numSentences: 3 }
         });
-        return response.results.map((result) => {
+        const duration = Date.now() - startTime;
+        console.log(`\n✅ [EXA-MEDICAL] Search complete:`);
+        console.log(`   • Results found: ${response.results.length}`);
+        console.log(`   • Duration: ${duration}ms`);
+        const processed = response.results.map((result) => {
             const domain = new URL(result.url).hostname.replace('www.', '');
             const credibilityLevel = determineCredibilityLevel(domain);
             return {
@@ -74,9 +86,44 @@ async function searchMedicalSources(query, numResults = 8) {
                 credibilityLevel
             };
         });
+        // Log credibility breakdown
+        const credibilityCounts = processed.reduce((acc, r) => {
+            acc[r.credibilityLevel] = (acc[r.credibilityLevel] || 0) + 1;
+            return acc;
+        }, {});
+        console.log(`\n📊 [EXA-MEDICAL] Source credibility breakdown:`);
+        if (credibilityCounts['medical_institution']) {
+            console.log(`   • Medical institutions ⭐⭐⭐: ${credibilityCounts['medical_institution']}`);
+        }
+        if (credibilityCounts['peer_reviewed']) {
+            console.log(`   • Peer-reviewed ⭐⭐: ${credibilityCounts['peer_reviewed']}`);
+        }
+        if (credibilityCounts['expert_authored']) {
+            console.log(`   • Expert-authored ⭐: ${credibilityCounts['expert_authored']}`);
+        }
+        if (credibilityCounts['general']) {
+            console.log(`   • General sources: ${credibilityCounts['general']}`);
+        }
+        // Log top 5 results
+        if (processed.length > 0) {
+            console.log(`\n📚 [EXA-MEDICAL] Top results:`);
+            processed.slice(0, 5).forEach((result, idx) => {
+                console.log(`   ${idx + 1}. ${result.title.substring(0, 70)}${result.title.length > 70 ? '...' : ''}`);
+                console.log(`      Domain: ${result.domain} | Credibility: ${formatCredibilityLevel(result.credibilityLevel)}`);
+                if (result.publishedDate) {
+                    console.log(`      Published: ${result.publishedDate}`);
+                }
+            });
+        }
+        console.log(`└───────────────────────────────────────────────────────────────────────────┘\n`);
+        return processed;
     }
     catch (error) {
-        console.error(`❌ [EXA-MEDICAL] Search failed:`, error.message);
+        const duration = Date.now() - startTime;
+        console.error(`\n❌ [EXA-MEDICAL] Search failed after ${duration}ms:`);
+        console.error(`   • Error: ${error.message}`);
+        console.error(`   • Query: "${query}"`);
+        console.log(`└───────────────────────────────────────────────────────────────────────────┘\n`);
         return [];
     }
 }

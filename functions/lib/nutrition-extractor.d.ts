@@ -64,6 +64,10 @@ export interface NutritionExtractionOutput {
         detectedLanguage?: string;
     };
     rawText?: string;
+    usage?: {
+        inputTokens: number;
+        outputTokens: number;
+    };
 }
 /**
  * Extracts nutrition information from an image using direct Gemini API with responseSchema

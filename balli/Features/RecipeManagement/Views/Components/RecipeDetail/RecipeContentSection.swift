@@ -57,7 +57,8 @@ struct RecipeContentSection: View {
             // Editable Ingredients Section
             VStack(alignment: .leading, spacing: 8) {
                 Text("Malzemeler")
-                    .font(.custom("GalanoGrotesqueAlt-Bold", size: 33))
+                    .font(.custom("Playfair Display", size: 33))
+                    .fontWeight(.bold)
                     .foregroundColor(.primary)
                     .padding(.bottom, 0)
 
@@ -68,16 +69,13 @@ struct RecipeContentSection: View {
                             .foregroundColor(AppTheme.primaryPurple)
                             .padding(.top, 8)
 
-                        TextEditor(text: Binding(
+                        TextField("", text: Binding(
                             get: { editedIngredients[index] },
                             set: { editedIngredients[index] = $0 }
-                        ))
+                        ), axis: .vertical)
                         .font(.custom("Manrope", size: 20))
                         .foregroundColor(.primary)
-                        .scrollContentBackground(.hidden)
-                        .background(Color.clear)
-                        .frame(minHeight: 30)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .textFieldStyle(.plain)
                     }
                     .padding(.vertical, 4)
                 }
@@ -87,7 +85,8 @@ struct RecipeContentSection: View {
             // Editable Instructions Section
             VStack(alignment: .leading, spacing: 8) {
                 Text("Yapılışı")
-                    .font(.custom("GalanoGrotesqueAlt-Bold", size: 33))
+                    .font(.custom("Playfair Display", size: 33))
+                    .fontWeight(.bold)
                     .foregroundColor(.primary)
                     .padding(.bottom, 0)
 
@@ -98,16 +97,13 @@ struct RecipeContentSection: View {
                             .foregroundColor(AppTheme.primaryPurple)
                             .padding(.top, 8)
 
-                        TextEditor(text: Binding(
+                        TextField("", text: Binding(
                             get: { editedInstructions[index] },
                             set: { editedInstructions[index] = $0 }
-                        ))
+                        ), axis: .vertical)
                         .font(.custom("Manrope", size: 20))
                         .foregroundColor(.primary)
-                        .scrollContentBackground(.hidden)
-                        .background(Color.clear)
-                        .frame(minHeight: 30)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .textFieldStyle(.plain)
                     }
                     .padding(.vertical, 4)
                 }

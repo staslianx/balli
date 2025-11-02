@@ -31,7 +31,7 @@ enum ToastType: Equatable {
     var color: Color {
         switch self {
         case .success:
-            return .green
+            return ThemeColors.primaryPurple
         case .error:
             return .red
         }
@@ -48,29 +48,39 @@ struct ToastNotification: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: type.icon)
-                .font(.title3)
-                .foregroundStyle(type.color)
+                .font(.system(size: 20))
+                .foregroundColor(type.color)
 
             Text(type.message)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(.primary)
-
-            Spacer()
+                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                .foregroundColor(.primary)
         }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
+        .recipeGlass(tint: .warm, cornerRadius: 100)
+        .fixedSize(horizontal: true, vertical: false)
+        .frame(maxWidth: .infinity)
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(.regularMaterial)
-                .shadow(color: .black.opacity(0.1), radius: 8, y: 4)
-        }
-        .padding(.horizontal, 16)
-        .transition(.move(edge: .top).combined(with: .opacity))
+        .transition(
+            .asymmetric(
+                insertion: .move(edge: .top).combined(with: .opacity),
+                removal: .move(edge: .top).combined(with: .opacity)
+            )
+        )
         .onAppear {
+            // Haptic feedback
+            let generator = UINotificationFeedbackGenerator()
+            switch type {
+            case .success:
+                generator.notificationOccurred(.success)
+            case .error:
+                generator.notificationOccurred(.error)
+            }
+
             // Auto-dismiss after duration
             Task {
                 try? await Task.sleep(nanoseconds: UInt64(displayDuration * 1_000_000_000))
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75, blendDuration: 0)) {
                     isShowing = false
                 }
             }
@@ -89,23 +99,26 @@ struct ToastModifier: ViewModifier {
             content
 
             if let toast = toast, isShowing {
-                ToastNotification(type: toast, isShowing: $isShowing)
-                    .padding(.top, 8)
-                    .zIndex(1000)
-                    .onChange(of: isShowing) { oldValue, newValue in
-                        if !newValue {
-                            // Clear toast when dismissed
-                            Task { @MainActor in
-                                try? await Task.sleep(nanoseconds: 300_000_000) // Wait for animation
-                                self.toast = nil
-                            }
+                VStack(spacing: 0) {
+                    ToastNotification(type: toast, isShowing: $isShowing)
+                        .padding(.top, 8)
+                    Spacer()
+                }
+                .zIndex(1000)
+                .onChange(of: isShowing) { oldValue, newValue in
+                    if !newValue {
+                        // Clear toast when dismissed
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 350_000_000) // Wait for animation
+                            self.toast = nil
                         }
                     }
+                }
             }
         }
         .onChange(of: toast) { oldValue, newValue in
             if newValue != nil {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75, blendDuration: 0)) {
                     isShowing = true
                 }
             }

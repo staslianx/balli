@@ -22,11 +22,13 @@ import {
   getUserFriendlyMessage,
   type ErrorContext
 } from './utils/error-logger';
+import { logTokenUsage } from './cost-tracking/cost-tracker';
+import { FeatureName } from './cost-tracking/model-pricing';
 
 // Tier-specific prompts
 import { buildTier1Prompt } from './prompts/fast-prompt-t1';
 import { buildTier2Prompt } from './prompts/research-prompt-t2';
-import { buildTier3Prompt } from './prompts/deep-research-prompt-t3';
+import { buildTier3PromptImproved } from './prompts/deep-research-prompt-t3';
 
 // Research helper functions
 import { formatSourcesWithTypes } from './utils/research-helpers';
@@ -53,10 +55,17 @@ type SSEEvent =
   | { type: 'keywords_extracted'; keywords: string }
   // NEW: Granular research progress events
   | { type: 'research_stage'; stage: 'starting' | 'scanning' | 'fetching' | 'synthesizing'; message: string }
-  | { type: 'api_started'; api: 'pubmed' | 'medrxiv' | 'clinicaltrials' | 'exa'; count: number; message: string }
-  | { type: 'api_completed'; api: 'pubmed' | 'medrxiv' | 'clinicaltrials' | 'exa'; count: number; duration: number; message: string; success: boolean }
+  | { type: 'api_started'; api: 'pubmed' | 'medrxiv' | 'clinicaltrials' | 'exa'; count: number; message: string; query?: string }
+  | { type: 'api_completed'; api: 'pubmed' | 'medrxiv' | 'clinicaltrials' | 'exa'; count: number; duration: number; message: string; success: boolean; searchQuery?: string; topSources?: Array<{index: number; title: string; url: string; domain: string}> }
   | { type: 'research_progress'; fetched: number; total: number; message: string }
   | { type: 'synthesis_started'; totalRounds: number; totalSources: number; sequence: number }
+  // T2-specific events for detailed tracking
+  | { type: 't2_query_enrichment_started'; message: string }
+  | { type: 't2_query_enrichment_complete'; enrichedQuery: string; contextUsed: boolean; originalQuery?: string; duration?: number }
+  | { type: 't2_translation_started'; message: string }
+  | { type: 't2_translation_complete'; originalQuery: string; translatedQuery: string; duration: number }
+  | { type: 't2_source_analysis_started'; message: string }
+  | { type: 't2_source_analysis_complete'; totalSources: number; breakdown: { exa: number } }
   | { type: 'generating'; message: string }
   | { type: 'token'; content: string }
   | { type: 'complete'; sources: any[]; metadata: any; researchSummary?: any; processingTier?: string; thinkingSummary?: string }
@@ -199,12 +208,23 @@ async function streamTier1(
   question: string,
   userId: string,
   diabetesProfile?: any,
-  conversationHistory?: Array<{ role: string; content: string }>
+  conversationHistory?: Array<{ role: string; content: string; imageBase64?: string }>
 ): Promise<void> {
   console.log(`🔵 [TIER1] Processing question for user ${userId}`);
 
   if (conversationHistory && conversationHistory.length > 0) {
     console.log(`🧠 [TIER1-MEMORY] Using conversation history: ${conversationHistory.length} messages`);
+  }
+
+  // Extract image from current query (last message in history or current question)
+  let imageBase64: string | undefined;
+  if (conversationHistory && conversationHistory.length > 0) {
+    // Check the last user message for an image
+    const lastUserMessage = [...conversationHistory].reverse().find(msg => msg.role === 'user');
+    if (lastUserMessage?.imageBase64) {
+      imageBase64 = lastUserMessage.imageBase64;
+      console.log(`🖼️ [TIER1-IMAGE] Found image attachment in conversation history`);
+    }
   }
 
   // ===== STEP 1: Fetch cross-conversation memory context =====
@@ -243,7 +263,8 @@ async function streamTier1(
   writeSSE(res, { type: 'generating', message: 'Yanıt oluşturuluyor...' });
 
   // ===== STEP 3: Call ai.generate() with full conversation context =====
-  const { stream, response } = await ai.generateStream({
+  // Build generate request with optional image
+  const generateRequest: any = {
     model: getTier1Model(),
     system: systemPrompt,
     prompt: prompt,
@@ -261,7 +282,18 @@ async function streamTier1(
         { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' }
       ]
     }
-  });
+  };
+
+  // Add image if present (multimodal request)
+  if (imageBase64) {
+    generateRequest.media = {
+      url: `data:image/jpeg;base64,${imageBase64}`,
+      contentType: 'image/jpeg'
+    };
+    console.log(`🖼️ [TIER1-IMAGE] Including image in multimodal request`);
+  }
+
+  const { stream, response } = await ai.generateStream(generateRequest);
 
   // ===== STEP 3: Stream response word-by-word =====
   let fullText = '';
@@ -291,6 +323,26 @@ async function streamTier1(
   const finishReason = (finalResponse as any)?.candidates?.[0]?.finishReason || 'unknown';
   const finishMessage = (finalResponse as any)?.candidates?.[0]?.finishMessage || 'none';
 
+  // Extract and track token usage for cost tracking
+  const rawResponse = (finalResponse as any).raw || (finalResponse as any).response;
+  const usageMetadata = rawResponse?.usageMetadata || (finalResponse as any).usageMetadata;
+  const inputTokens = usageMetadata?.promptTokenCount || 0;
+  const outputTokens = usageMetadata?.candidatesTokenCount || 0;
+
+  // Track cost for Tier 1 fast response
+  await logTokenUsage({
+    featureName: FeatureName.RESEARCH_FAST,
+    modelName: getTier1Model(),
+    inputTokens,
+    outputTokens,
+    userId,
+    metadata: {
+      hasImage: !!imageBase64,
+      conversationLength: conversationHistory?.length || 0,
+      memoryFactCount: memoryContext?.factCount || 0
+    }
+  });
+
   console.log(`✅ [TIER1-STATELESS] Completed. Response: ${fullText.length} chars, Chunks: ${chunkCount}`);
   console.log(`🔍 [TIER1-FINISH] Finish Reason: ${finishReason}`);
   console.log(`🔍 [TIER1-FINISH] Finish Message: ${finishMessage}`);
@@ -316,54 +368,187 @@ async function streamTier2Hybrid(
   question: string,
   userId: string,
   diabetesProfile?: any,
-  conversationHistory?: Array<{ role: string; content: string }>
+  conversationHistory?: Array<{ role: string; content: string; imageBase64?: string }>
 ): Promise<void> {
   const startTime = Date.now();
 
-  console.log(`🔵 [T2] Processing web search for user ${userId}`);
+  console.log(`╔════════════════════════════════════════════════════════════════════════════╗`);
+  console.log(`║ 🔵 T2: WEB SEARCH RESEARCH PIPELINE                                       ║`);
+  console.log(`╚════════════════════════════════════════════════════════════════════════════╝`);
+  console.log(`📝 [T2] Query: "${question.substring(0, 80)}${question.length > 80 ? '...' : ''}"`);
+  console.log(`👤 [T2] User: ${userId}`);
 
   if (conversationHistory && conversationHistory.length > 0) {
-    console.log(`🧠 [T2-MEMORY] Using conversation history: ${conversationHistory.length} messages`);
+    console.log(`🧠 [T2-MEMORY] Conversation history: ${conversationHistory.length} messages`);
+  }
+
+  // Extract image from current query (last message in history)
+  let imageBase64: string | undefined;
+  if (conversationHistory && conversationHistory.length > 0) {
+    const lastUserMessage = [...conversationHistory].reverse().find(msg => msg.role === 'user');
+    if (lastUserMessage?.imageBase64) {
+      imageBase64 = lastUserMessage.imageBase64;
+      console.log(`🖼️ [T2-IMAGE] Found image attachment in conversation history`);
+    }
+  }
+
+  if (diabetesProfile) {
+    console.log(`📋 [T2] Profile: ${diabetesProfile.type || 'Unknown type'}`);
   }
 
   // ===== STEP 0.5: Fetch cross-conversation memory context =====
+  console.log(`\n┌─ STAGE 1: MEMORY CONTEXT ─────────────────────────────────────────────────┐`);
   writeSSE(res, { type: 'searching_memory', message: 'Önceki konuşmalar kontrol ediliyor...' });
   const memoryContext = await getMemoryContext(userId);
   const formattedMemory = formatMemoryContext(memoryContext);
 
   if (formattedMemory) {
-    console.log(`🧠 [T2-MEMORY] Using cross-conversation memory: ${memoryContext.factCount} facts, ${memoryContext.summaryCount} summaries`);
+    console.log(`🧠 [T2-MEMORY] Cross-conversation memory loaded:`);
+    console.log(`   • Facts: ${memoryContext.factCount}`);
+    console.log(`   • Summaries: ${memoryContext.summaryCount}`);
+  } else {
+    console.log(`🧠 [T2-MEMORY] No prior conversation memory found`);
   }
+  console.log(`└───────────────────────────────────────────────────────────────────────────┘`);
 
   // ===== STEP 1: Build static system prompt =====
+  console.log(`\n┌─ STAGE 2: SYSTEM PROMPT ──────────────────────────────────────────────────┐`);
   const systemPrompt = buildTier2Prompt();
+  console.log(`📝 [T2] System prompt loaded: T2 Web Search`);
+  console.log(`└───────────────────────────────────────────────────────────────────────────┘`);
 
   // ===== STEP 1.5: Enrich query with conversation context =====
+  console.log(`\n┌─ STAGE 3: QUERY ENRICHMENT ───────────────────────────────────────────────┐`);
+  writeSSE(res, {
+    type: 't2_query_enrichment_started',
+    message: 'Sorgu bağlama göre zenginleştiriliyor...'
+  });
+
   const { enrichQuery } = await import('./tools/query-enricher');
+  const enrichmentStartTime = Date.now();
   const enrichedQueryResult = await enrichQuery({
     currentQuestion: question,
     conversationHistory,
     diabetesProfile
   });
+  const enrichmentDuration = Date.now() - enrichmentStartTime;
 
   const searchQuery = enrichedQueryResult.enriched;
-  console.log(`🔍 [T2] Search query: "${searchQuery}" (context: ${enrichedQueryResult.contextUsed})`);
+  console.log(`🔍 [T2-ENRICHMENT] Original: "${question}"`);
+  console.log(`🔍 [T2-ENRICHMENT] Enriched: "${searchQuery}"`);
+  console.log(`🔍 [T2-ENRICHMENT] Context used: ${enrichedQueryResult.contextUsed}`);
+  console.log(`⏱️  [T2-ENRICHMENT] Duration: ${enrichmentDuration}ms`);
+  console.log(`└───────────────────────────────────────────────────────────────────────────┘`);
 
-  // ===== STEP 2: Fetch Exa web sources with enriched query =====
-  writeSSE(res, { type: 'searching', source: 'exa' });
+  writeSSE(res, {
+    type: 't2_query_enrichment_complete',
+    enrichedQuery: searchQuery,
+    contextUsed: enrichedQueryResult.contextUsed,
+    originalQuery: question, // ADD: So CLI can show comparison
+    duration: enrichmentDuration // ADD: Show timing
+  });
+
+  // ===== STEP 2: Translate query to English for better Exa results =====
+  console.log(`\n┌─ STAGE 4: TRANSLATION ────────────────────────────────────────────────────┐`);
+  writeSSE(res, {
+    type: 't2_translation_started',
+    message: 'Sorgu İngilizce\'ye çevriliyor...'
+  });
+
+  const { translateToEnglishForAPIs } = await import('./tools/query-translator');
+  const translationStartTime = Date.now();
+  const englishQuery = await translateToEnglishForAPIs(searchQuery);
+  const translationDuration = Date.now() - translationStartTime;
+
+  console.log(`🌍 [T2-TRANSLATION] Translation complete:`);
+  console.log(`   • Original (Turkish): "${searchQuery}"`);
+  console.log(`   • Translated (English): "${englishQuery}"`);
+  console.log(`   • Duration: ${translationDuration}ms`);
+  console.log(`└───────────────────────────────────────────────────────────────────────────┘`);
+
+  writeSSE(res, {
+    type: 't2_translation_complete',
+    originalQuery: searchQuery,
+    translatedQuery: englishQuery,
+    duration: translationDuration
+  });
+
+  // ===== STEP 3: Fetch Exa web sources with translated English query =====
+  console.log(`\n┌─ STAGE 5: SOURCE FETCHING ────────────────────────────────────────────────┐`);
+  const exaStartTime = Date.now();
+
+  writeSSE(res, {
+    type: 'api_started',
+    api: 'exa',
+    count: 15,
+    message: 'Web kaynaklarından arama yapılıyor...',
+    query: englishQuery
+  });
+
+  console.log(`🌐 [T2-EXA] Starting Exa medical search...`);
+  console.log(`   • Query (English): "${englishQuery}"`);
+  console.log(`   • Target count: 15 sources`);
 
   const { searchMedicalSources, formatExaForAI } = await import('./tools/exa-search');
 
-  const exaResults = await searchMedicalSources(searchQuery, 15).catch(() => []);
+  const exaResults = await searchMedicalSources(englishQuery, 15).catch(() => []);
   const totalSources = exaResults.length;
+  const exaDuration = Date.now() - exaStartTime;
+
+  // Send detailed top sources to CLI
+  const topSources = exaResults.slice(0, 5).map((result, idx) => ({
+    index: idx + 1,
+    title: result.title,
+    url: result.url,
+    domain: result.domain || new URL(result.url).hostname
+  }));
 
   writeSSE(res, {
-    type: 'search_complete',
+    type: 'api_completed',
+    api: 'exa',
     count: totalSources,
-    source: 'exa_web_search'
+    duration: exaDuration,
+    message: `Exa: ${totalSources} kaynak bulundu ✓ (${(exaDuration / 1000).toFixed(1)}s)`,
+    success: totalSources > 0,
+    searchQuery: englishQuery, // FIXED: Show English query that was actually searched
+    topSources: topSources // ADD: Show top sources found
   });
 
-  console.log(`✅ [T2-STATELESS] Fetched ${totalSources} Exa sources`);
+  console.log(`✅ [T2-EXA] Fetch complete:`);
+  console.log(`   • Sources found: ${totalSources}`);
+  console.log(`   • Duration: ${exaDuration}ms`);
+  console.log(`   • Success: ${totalSources > 0 ? 'YES' : 'NO'}`);
+
+  // Log top 3 sources
+  if (exaResults.length > 0) {
+    console.log(`\n📚 [T2-EXA] Top 3 sources:`);
+    exaResults.slice(0, 3).forEach((result, idx) => {
+      console.log(`   ${idx + 1}. ${result.title}`);
+      console.log(`      URL: ${result.url}`);
+      console.log(`      Domain: ${result.domain || new URL(result.url).hostname}`);
+    });
+  }
+  console.log(`└───────────────────────────────────────────────────────────────────────────┘`);
+
+  // ===== STEP 2.5: Source analysis =====
+  console.log(`\n┌─ STAGE 5: SOURCE ANALYSIS ────────────────────────────────────────────────┐`);
+  writeSSE(res, {
+    type: 't2_source_analysis_started',
+    message: 'Kaynaklar analiz ediliyor...'
+  });
+
+  writeSSE(res, {
+    type: 't2_source_analysis_complete',
+    totalSources,
+    breakdown: {
+      exa: exaResults.length
+    }
+  });
+
+  console.log(`📊 [T2-ANALYSIS] Source breakdown:`);
+  console.log(`   • Total sources: ${totalSources}`);
+  console.log(`   • Exa web sources: ${exaResults.length}`);
+  console.log(`└───────────────────────────────────────────────────────────────────────────┘`);
 
   // ===== STEP 3: Format sources =====
   const formattedSources = formatSourcesWithTypes(exaResults, [], [], []);
@@ -423,12 +608,20 @@ async function streamTier2Hybrid(
   userPrompt += `Yukarıdaki web araştırma kaynaklarını sentezle ve soruya kapsamlı bir yanıt oluştur.
 ÖNEMLI: Inline [1][2][3] sitasyonları kullan. Sonuna "## Kaynaklar" bölümü ekleme.`;
 
+  console.log(`\n┌─ STAGE 6: SYNTHESIS ──────────────────────────────────────────────────────┐`);
+  console.log(`🤖 [T2-SYNTHESIS] Starting AI synthesis...`);
+  console.log(`   • Model: Gemini 2.5 Flash`);
+  console.log(`   • Temperature: 0.2`);
+  console.log(`   • Max tokens: 3000`);
+  console.log(`   • Prompt length: ${userPrompt.length} chars`);
+
   writeSSE(res, { type: 'generating', message: 'Web araştırma sentezleniyor...' });
 
   // ===== STEP 6: Call ai.generate() with full conversation context =====
   let stream, response;
   try {
-    const result = await ai.generateStream({
+    // Build generate request with optional image
+    const generateRequest: any = {
       model: getTier2Model(),
       system: systemPrompt,
       prompt: userPrompt,
@@ -446,7 +639,18 @@ async function streamTier2Hybrid(
           { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' }
         ]
       }
-    });
+    };
+
+    // Add image if present (multimodal request)
+    if (imageBase64) {
+      generateRequest.media = {
+        url: `data:image/jpeg;base64,${imageBase64}`,
+        contentType: 'image/jpeg'
+      };
+      console.log(`🖼️ [T2-IMAGE] Including image in multimodal request`);
+    }
+
+    const result = await ai.generateStream(generateRequest);
     stream = result.stream;
     response = result.response;
   } catch (genError: any) {
@@ -506,10 +710,38 @@ async function streamTier2Hybrid(
   const finishReason = (finalResponse as any)?.candidates?.[0]?.finishReason || 'unknown';
   const finishMessage = (finalResponse as any)?.candidates?.[0]?.finishMessage || 'none';
 
-  console.log(`✅ [T2-STATELESS] Stream completed. Response: ${fullText.length} chars, Chunks: ${chunkCount}, Tokens: ${tokenCount}`);
-  console.log(`🔍 [T2-FINISH] Finish Reason: ${finishReason}`);
-  console.log(`🔍 [T2-FINISH] Finish Message: ${finishMessage}`);
-  console.log(`🔍 [T2-FINISH] Last 100 chars: "${fullText.slice(-100)}"`);
+  // Extract and track token usage for cost tracking
+  const rawResponse = (finalResponse as any).raw || (finalResponse as any).response;
+  const usageMetadata = rawResponse?.usageMetadata || (finalResponse as any).usageMetadata;
+  const inputTokens = usageMetadata?.promptTokenCount || 0;
+  const outputTokens = usageMetadata?.candidatesTokenCount || 0;
+
+  // Track cost for Tier 2 research with web search
+  await logTokenUsage({
+    featureName: FeatureName.RESEARCH_STANDARD,
+    modelName: getTier2Model(),
+    inputTokens,
+    outputTokens,
+    userId,
+    metadata: {
+      sourceCount: exaResults.length,
+      hasImage: !!imageBase64,
+      conversationLength: conversationHistory?.length || 0,
+      enrichmentDuration: enrichmentDuration,
+      exaDuration: exaDuration
+    }
+  });
+
+  console.log(`✅ [T2-SYNTHESIS] Stream completed:`);
+  console.log(`   • Response length: ${fullText.length} chars`);
+  console.log(`   • Chunks streamed: ${chunkCount}`);
+  console.log(`   • Estimated tokens: ${tokenCount}`);
+  console.log(`   • Finish reason: ${finishReason}`);
+  if (finishReason !== 'STOP') {
+    console.log(`   ⚠️  Abnormal finish: ${finishMessage}`);
+  }
+  console.log(`   • Last 50 chars: "${fullText.slice(-50)}"`);
+  console.log(`└───────────────────────────────────────────────────────────────────────────┘`);
 
   // If not natural stop, log warning
   if (finishReason !== 'STOP') {
@@ -531,6 +763,11 @@ async function streamTier2Hybrid(
     exaResults.length >= 7 ? 'moderate' :
     exaResults.length >= 4 ? 'limited' : 'insufficient';
 
+  // Calculate detailed metrics
+  const enrichmentTimePercent = ((enrichmentDuration / (Date.now() - startTime)) * 100).toFixed(1);
+  const exaTimePercent = ((exaDuration / (Date.now() - startTime)) * 100).toFixed(1);
+  const synthesisTimePercent = (100 - parseFloat(enrichmentTimePercent) - parseFloat(exaTimePercent)).toFixed(1);
+
   // ===== STEP 9: Send complete event (no sessionId) =====
   writeSSE(res, {
     type: 'complete',
@@ -538,7 +775,12 @@ async function streamTier2Hybrid(
     metadata: {
       processingTime: `${duration}s`,
       modelUsed: 'Gemini 2.5 Flash (Web Araştırma)',
-      costTier: 'low'
+      costTier: 'low',
+      stageBreakdown: {
+        enrichment: `${(enrichmentDuration / 1000).toFixed(2)}s (${enrichmentTimePercent}%)`,
+        exaFetch: `${(exaDuration / 1000).toFixed(2)}s (${exaTimePercent}%)`,
+        synthesis: `${synthesisTimePercent}%`
+      }
     },
     researchSummary: {
       totalStudies: clientSources.length,
@@ -552,7 +794,28 @@ async function streamTier2Hybrid(
     thinkingSummary
   });
 
-  console.log(`✅ [T2-STATELESS] Completed. Duration: ${duration}s`);
+  // ===== COMPREHENSIVE SUMMARY LOG =====
+  console.log(`\n╔════════════════════════════════════════════════════════════════════════════╗`);
+  console.log(`║ ✅ T2: WEB SEARCH RESEARCH COMPLETE                                       ║`);
+  console.log(`╚════════════════════════════════════════════════════════════════════════════╝`);
+  console.log(`📊 [T2-SUMMARY] Performance Metrics:`);
+  console.log(`   • Total duration: ${duration}s`);
+  console.log(`   • Query enrichment: ${(enrichmentDuration / 1000).toFixed(2)}s (${enrichmentTimePercent}%)`);
+  console.log(`   • Exa API fetch: ${(exaDuration / 1000).toFixed(2)}s (${exaTimePercent}%)`);
+  console.log(`   • Synthesis: ${synthesisTimePercent}%`);
+  console.log(`\n📚 [T2-SUMMARY] Sources:`);
+  console.log(`   • Total sources: ${totalSources}`);
+  console.log(`   • Evidence quality: ${evidenceQuality}`);
+  console.log(`   • Exa medical sources: ${exaResults.length}`);
+  console.log(`\n💬 [T2-SUMMARY] Response:`);
+  console.log(`   • Response length: ${fullText.length} chars`);
+  console.log(`   • Token count: ~${tokenCount}`);
+  console.log(`   • Chunks streamed: ${chunkCount}`);
+  console.log(`\n🎯 [T2-SUMMARY] Context:`);
+  console.log(`   • Original query: "${question.substring(0, 60)}${question.length > 60 ? '...' : ''}"`);
+  console.log(`   • Enriched query: "${searchQuery.substring(0, 60)}${searchQuery.length > 60 ? '...' : ''}"`);
+  console.log(`   • Context used: ${enrichedQueryResult.contextUsed}`);
+  console.log(`\n╚════════════════════════════════════════════════════════════════════════════╝\n`);
 }
 
 // NOTE: streamTier2 function removed - no longer needed in 2-tier system
@@ -573,7 +836,7 @@ async function streamDeepResearch(
   question: string,
   userId: string,
   diabetesProfile?: any,
-  conversationHistory?: Array<{ role: string; content: string }>
+  conversationHistory?: Array<{ role: string; content: string; imageBase64?: string }>
 ): Promise<void> {
   const startTime = Date.now();
 
@@ -581,6 +844,16 @@ async function streamDeepResearch(
 
   if (conversationHistory && conversationHistory.length > 0) {
     console.log(`🧠 [T3-MEMORY] Using conversation history: ${conversationHistory.length} messages`);
+  }
+
+  // Extract image from current query (last message in history)
+  let imageBase64: string | undefined;
+  if (conversationHistory && conversationHistory.length > 0) {
+    const lastUserMessage = [...conversationHistory].reverse().find(msg => msg.role === 'user');
+    if (lastUserMessage?.imageBase64) {
+      imageBase64 = lastUserMessage.imageBase64;
+      console.log(`🖼️ [T3-IMAGE] Found image attachment in conversation history`);
+    }
   }
 
   // ===== STEP 0.5: Fetch cross-conversation memory context =====
@@ -603,7 +876,7 @@ async function streamDeepResearch(
   );
 
   // ===== STEP 2: Build system prompt with source count =====
-  const systemPrompt = buildTier3Prompt(researchResults.totalSources);
+  const systemPrompt = buildTier3PromptImproved(researchResults.totalSources);
 
   // ===== STEP 3: Format sources =====
   const formattedSources = formatSourcesWithTypes(
@@ -663,7 +936,8 @@ async function streamDeepResearch(
 ÖNEMLI: Inline [1][2][3] sitasyonları kullan. Sonuna "## Kaynaklar" bölümü ekleme.`;
 
   // ===== STEP 5: Call ai.generate() with full conversation context =====
-  const { stream, response } = await ai.generateStream({
+  // Build generate request with optional image
+  const generateRequest: any = {
     model: getTier3Model(),
     system: systemPrompt,
     prompt: userPrompt,
@@ -678,7 +952,18 @@ async function streamDeepResearch(
         { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' }
       ]
     }
-  });
+  };
+
+  // Add image if present (multimodal request)
+  if (imageBase64) {
+    generateRequest.media = {
+      url: `data:image/jpeg;base64,${imageBase64}`,
+      contentType: 'image/jpeg'
+    };
+    console.log(`🖼️ [T3-IMAGE] Including image in multimodal request`);
+  }
+
+  const { stream, response } = await ai.generateStream(generateRequest);
 
   // ===== STEP 6: Stream the synthesis =====
   let fullText = '';
@@ -749,6 +1034,20 @@ async function streamDeepResearch(
   const outputTokens = usageMetadata?.candidatesTokenCount || 0;
   const inputTokens = usageMetadata?.promptTokenCount || 0;
   const totalTokens = usageMetadata?.totalTokenCount || 0;
+
+  // Track cost for Tier 3 deep research
+  await logTokenUsage({
+    featureName: FeatureName.RESEARCH_DEEP,
+    modelName: getTier3Model(),
+    inputTokens,
+    outputTokens,
+    userId: question, // Using question as identifier since no userId provided
+    metadata: {
+      rounds: researchResults.rounds.length,
+      estimatedRounds: researchResults.plan.estimatedRounds,
+      strategy: researchResults.plan.strategy
+    }
+  });
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(2);
 

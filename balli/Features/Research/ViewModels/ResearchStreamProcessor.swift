@@ -160,7 +160,9 @@ final class ResearchStreamProcessor {
                 tokenCount: currentAnswer.tokenCount,
                 tier: currentAnswer.tier,
                 thinkingSummary: currentAnswer.thinkingSummary,
-                processingTierRaw: currentAnswer.processingTierRaw
+                processingTierRaw: currentAnswer.processingTierRaw,
+                completedRounds: currentAnswer.completedRounds,
+                imageAttachment: currentAnswer.imageAttachment
             )
             onUpdate(updatedAnswer)
 

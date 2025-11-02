@@ -61,20 +61,20 @@ struct MealDetailView: View {
 
     @ViewBuilder
     private var mealHeaderCard: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ResponsiveDesign.Spacing.medium) {
             // Meal type with icon
-            HStack(spacing: 12) {
+            HStack(spacing: ResponsiveDesign.Spacing.small) {
                 Image(systemName: symbolForMealType(mealGroup.mealType))
-                    .font(.system(size: 32, weight: .semibold))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(32), weight: .semibold))
                     .foregroundStyle(AppTheme.primaryPurple)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xxSmall) {
                     Text(mealGroup.mealType.capitalized)
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(24), weight: .bold, design: .rounded))
                         .foregroundStyle(.primary)
 
                     Text(mealGroup.timestamp, format: .dateTime.day().month().year().hour().minute())
-                        .font(.system(size: 14, weight: .regular, design: .rounded))
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .regular, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
 
@@ -89,50 +89,58 @@ struct MealDetailView: View {
                     }
                 } label: {
                     Image(systemName: "pencil")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold))
                         .foregroundStyle(AppTheme.primaryPurple)
+                        .frame(width: 40, height: 40)
+                        .background(Color(.systemGray6))
+                        .clipShape(Circle())
                 }
-                .balliCircularGlass(size: 32)
             }
         }
-        .padding()
-        .balliColoredGlass() // Uses default 28
+        .padding(ResponsiveDesign.Spacing.medium)
+        .background(.clear)
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 36, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
     }
 
     // MARK: - Nutrition Summary Card
 
     @ViewBuilder
     private var nutritionSummaryCard: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ResponsiveDesign.Spacing.medium) {
             Text("Besin Değerleri")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold, design: .rounded))
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             // Large carbs display
-            VStack(spacing: 4) {
+            VStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
                 Text("\(Int(mealGroup.totalCarbs))")
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(48), weight: .bold, design: .rounded))
                     .foregroundStyle(AppTheme.primaryPurple)
 
                 Text("gram karbonhidrat")
-                    .font(.system(size: 14, weight: .medium, design: .rounded))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, ResponsiveDesign.Spacing.small)
         }
-        .padding()
-        .balliColoredGlass() // Uses default 28
+        .padding(ResponsiveDesign.Spacing.medium)
+        .background(.clear)
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 36, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
     }
 
     // MARK: - Ingredients Section
 
     @ViewBuilder
     private var ingredientsSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: ResponsiveDesign.Spacing.small) {
             Text("Malzemeler (\(mealGroup.meals.count))")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold, design: .rounded))
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -140,28 +148,31 @@ struct MealDetailView: View {
                 ingredientRow(meal)
             }
         }
-        .padding()
-        .balliColoredGlass() // Uses default 28
+        .padding(ResponsiveDesign.Spacing.medium)
+        .background(.clear)
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 36, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
     }
 
     @ViewBuilder
     private func ingredientRow(_ meal: MealEntry) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: ResponsiveDesign.Spacing.small) {
             // Food name
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xxSmall) {
                 if let foodName = meal.foodItem?.name {
                     Text(foodName)
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
                         .foregroundStyle(.primary)
                 } else {
                     Text("Bilinmeyen yiyecek")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
                         .foregroundStyle(.secondary)
                 }
 
                 // Portion info
                 Text(meal.portionDescription)
-                    .font(.system(size: 13, weight: .regular, design: .rounded))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(13), weight: .regular, design: .rounded))
                     .foregroundStyle(.secondary)
             }
 
@@ -170,15 +181,10 @@ struct MealDetailView: View {
             // Carbs badge - ONLY show if this meal has individual carbs specified
             // Don't show if the user provided a collective carb amount
             if shouldShowIndividualCarbBadge(for: meal) {
-                Text("\(Int(meal.consumedCarbs)) g")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        Capsule()
-                            .fill(AppTheme.primaryPurple.gradient)
-                    )
+                Text("\(Int(meal.consumedCarbs))g")
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(AppTheme.primaryPurple)
             }
 
             // Edit button
@@ -187,13 +193,18 @@ struct MealDetailView: View {
                 showingEditSheet = true
             } label: {
                 Image(systemName: "pencil")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold))
                     .foregroundStyle(AppTheme.primaryPurple)
+                    .frame(width: 32, height: 32)
+                    .background(Color(.systemGray6))
+                    .clipShape(Circle())
             }
-            .balliCircularGlass() // Uses default size 32
         }
-        .padding()
-        .balliColoredGlass(cornerRadius: 20) // Slightly smaller for nested items
+        .padding(ResponsiveDesign.Spacing.medium)
+        .background(.clear)
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .shadow(color: .black.opacity(0.04), radius: ResponsiveDesign.height(4), x: 0, y: ResponsiveDesign.height(2))
     }
 
     // MARK: - Helper Functions

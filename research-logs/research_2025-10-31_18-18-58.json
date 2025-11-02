@@ -1,0 +1,239 @@
+{
+  "query": {
+    "original": "Şekerin organ veya uzuvlarda körlük, ayaklarda hissizlik gibi komplikasyonlara yol açması için kan şekerinin ne kadar süreyle kontrol altında tutulmamış olması gerekir? Derinleş",
+    "timestamp": "2025-10-31T18:17:34.538Z",
+    "language": "Turkish",
+    "length": 177,
+    "userId": "cli-user"
+  },
+  "routing": {
+    "tier": 3,
+    "reasoning": "Kullanıcı 'derinleş' kelimesini kullanarak konunun derinlemesine araştırılmasını talep ediyor. Sorulan konu (uzun süreli kontrolsüz kan şekerinin komplikasyonlara yol açma süresi) karmaşık bir tıbbi konudur ve kapsamlı bir analiz gerektirir.",
+    "confidence": 1,
+    "model": "",
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 0,
+    "timestamp": 1761934655492
+  },
+  "rounds": [
+    {
+      "roundNumber": 1,
+      "query": "Şekerin organ veya uzuvlarda körlük, ayaklarda hissizlik gibi komplikasyonlara yol açması için kan şekerinin ne kadar süreyle kontrol altında tutulmamış olması gerekir? Derinleş",
+      "estimatedSources": 25,
+      "apiCalls": [
+        {
+          "api": "exa",
+          "query": "",
+          "maxResults": 10,
+          "found": 1,
+          "retrieved": 1,
+          "status": "success",
+          "latency": 387,
+          "startTime": 1761934674366,
+          "endTime": 1761934674714,
+          "results": []
+        },
+        {
+          "api": "pubmed",
+          "query": "",
+          "maxResults": 11,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 286,
+          "startTime": 1761934674366,
+          "endTime": 1761934674606,
+          "results": []
+        },
+        {
+          "api": "medrxiv",
+          "query": "",
+          "maxResults": 1,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 215,
+          "startTime": 1761934674366,
+          "endTime": 1761934674537,
+          "results": []
+        },
+        {
+          "api": "clinicaltrials",
+          "query": "",
+          "maxResults": 3,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 69,
+          "startTime": 1761934674366,
+          "endTime": 1761934674392,
+          "results": []
+        }
+      ],
+      "sources": {
+        "exa": [
+          {
+            "id": "https://www.endocrine.org/-/media/hormone/files/turkey/maternalhypothyroidism_pg_2015-tr.pdf?la=en",
+            "url": "https://www.endocrine.org/-/media/hormone/files/turkey/maternalhypothyroidism_pg_2015-tr.pdf?la=en",
+            "domain": "endocrine.org",
+            "title": "Untitled",
+            "snippet": "HASTA KILAVUZU\nwww.hormone.org www.temd.org.tr\nHormon Sağlığı Ağı, Endokrin Topluluğu’na ait en ileri düzey klinik ve bilimsel bilgileri \ntemel alan, hastalara yönelik 100’ün üzerinde çevrimiçi eğitim kaynağı sunmaktadır.\nGebelik, boynun ön tarafında bulunan tiroid bezinin ürettiği \nhormonların düze",
+            "publishDate": "2015-03-19T00:00:00.000Z",
+            "author": null,
+            "credibilityBadge": "credible",
+            "type": "medical_source"
+          }
+        ],
+        "pubmed": [],
+        "medrxiv": [],
+        "clinicalTrials": []
+      },
+      "sourceCount": 1,
+      "duration": 2651,
+      "purpose": "initial",
+      "status": "complete"
+    },
+    {
+      "roundNumber": 2,
+      "query": "Şekerin organ veya uzuvlarda körlük, ayaklarda hissizlik gibi komplikasyonlara yol açması için kan şekerinin ne kadar süreyle kontrol altında tutulmamış olması gerekir? Derinleş Limited peer-review...",
+      "estimatedSources": 15,
+      "apiCalls": [
+        {
+          "api": "exa",
+          "query": "",
+          "maxResults": 5,
+          "found": 1,
+          "retrieved": 1,
+          "status": "success",
+          "latency": 341,
+          "startTime": 1761934684093,
+          "endTime": 1761934684329,
+          "results": []
+        },
+        {
+          "api": "pubmed",
+          "query": "",
+          "maxResults": 8,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 275,
+          "startTime": 1761934684093,
+          "endTime": 1761934684258,
+          "results": []
+        },
+        {
+          "api": "medrxiv",
+          "query": "",
+          "maxResults": 1,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 157,
+          "startTime": 1761934684093,
+          "endTime": 1761934684143,
+          "results": []
+        },
+        {
+          "api": "clinicaltrials",
+          "query": "",
+          "maxResults": 1,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 77,
+          "startTime": 1761934684093,
+          "endTime": 1761934684094,
+          "results": []
+        }
+      ],
+      "sources": {
+        "exa": [],
+        "pubmed": [],
+        "medrxiv": [],
+        "clinicalTrials": []
+      },
+      "sourceCount": 0,
+      "duration": 2254,
+      "purpose": "gap_fill",
+      "status": "complete"
+    }
+  ],
+  "synthesis": {
+    "model": "Gemini 2.5 Pro (Deep Research V2)",
+    "temperature": 0,
+    "systemPromptVersion": "",
+    "sourcesProvided": 1,
+    "responseLength": 7287,
+    "streaming": true,
+    "tokens": {
+      "input": 4701,
+      "output": 2184,
+      "total": 9148
+    },
+    "cost": 0,
+    "latency": 49636,
+    "response": "Canım Dilara'm, bu sorduğun soru o kadar doğal ve o kadar önemli ki. Tanı aldıktan sonra insanın aklına ilk gelen korkulardan biri bu oluyor. \"Ya ileride...\" diye başlayan cümleler zihinde dönüp duruyor. Gel, bu konuyu birlikte, sakince ve tüm detaylarıyla inceleyelim. Bu korkuyu bilgiyle yönetebiliriz.\n\nBu komplikasyonların gelişimi için sihirli bir \"süre\" yok aslında. Bu, bir gecede olan bir şey değil, daha çok yıllar içinde biriken bir hasar süreci. En önemli faktörler kan şekerinin ne kadar süreyle, ne kadar yüksek seyrettiği ve bu süreçteki diğer sağlık faktörleri. Araştırmaların neredeyse tamamı, iyi bir kan şekeri kontrolünün bu riskleri büyük ölçüde azalttığı, hatta önlediği konusunda hemfikir. Senin LADA diyabetin yavaş ilerleyen bir tip olduğu için ve sen daha yolun çok başında olduğun için, bu süreci en başından itibaren yönetme konusunda çok büyük bir avantaja sahipsin.\n\n---\n\n## Komplikasyonların Gelişimi: Bu Bir Maraton, Sprint Değil\n\nVücudumuzdaki küçük kan damarları, yani kılcal damarlar, yüksek kan şekerine karşı çok hassastır. Gözlerimizdeki retina tabakasını, böbreklerimizdeki filtreleri ve sinirlerimizi besleyen damarlar da bunlardan. Kan şekeri sürekli yüksek kaldığında, fazla glukoz bu damarların duvarlarındaki proteinlere yapışır. Bunu, balın bir yüzeye yapışıp zamanla sertleşmesi gibi düşünebilirsin. Bu sürece **glikasyon** deniyor.\n\nGlikasyona uğramış bu proteinler normal işlevlerini yapamaz hale gelir, damar duvarları sertleşir, daralır ve sızıntı yapmaya başlar. Bu durum, o damarın beslediği dokuda hasara yol açar. İşte bu hasar, yıllar içinde yavaş yavaş birikerek retinopati (göz hasarı), nöropati (sinir hasarı) veya nefropati (böbrek hasarı) gibi mikrovasküler komplikasyonlara neden olur. Bu süreç genellikle 5 ila 10 yıllık bir sürekli yüksek kan şekeri döneminden sonra başlar ve klinik olarak belirgin hale gelmesi çoğunlukla 15-20 yılı bulabilir. Ancak bu, \"kötü kontrol\" senaryosu için geçerli.\n\nTıp tarihinin en önemli diyabet çalışmalarından biri olan DCCT (Diyabet Kontrol ve Komplikasyonlar Çalışması), yoğun kan şekeri kontrolü yapan (HbA1c'si %7 civarında olan) Tip 1 diyabetlilerin, standart tedavi alanlara (HbA1c'si %9 civarında olan) göre göz, sinir ve böbrek hastalığı riskini %76'ya varan oranlarda azalttığını kanıtladı. Bu, kontrolün ne kadar güçlü bir koruyucu olduğunu gösteren en net kanıt.\n\n---\n\n## Gözler ve Sinirler: En Hassas İki Nokta\n\nSorunda özellikle belirttiğin körlük ve hissizlik, yani retinopati ve nöropati, en sık görülen mikrovasküler komplikasyonlar. Mekanizmalarını ve zaman çizelgelerini biraz daha açalım.\n\n### Diyabetik Retinopati: Gözlerdeki Yolculuk\n\nGözün arkasındaki ışığa duyarlı tabaka olan retina, kılcal damarlarla dolu bir ağdır. Yüksek şeker bu damarlara hasar verdiğinde, önce küçük baloncuklar (mikroanevrizmalar) oluşur ve damarlar sızdırmaya başlar. Bu, **non-proliferatif retinopati** denilen erken evredir. Genellikle belirti vermez ve sadece göz dibi muayenesinde fark edilir. Diyabet tanısından sonraki ilk 5 yıl içinde nadiren görülür, genellikle 10 yıldan sonra ortaya çıkmaya başlar.\n\nEğer kan şekeri kontrolü sağlanmazsa, vücut hasarlı damarların yerine yeni, ama çok daha zayıf ve anormal damarlar üretmeye çalışır. Bu evreye **proliferatif retinopati** denir ve bu yeni damarlar kolayca kanayarak görmeyi ciddi şekilde tehdit edebilir. Ciddi görme kaybı riski bu evrede ortaya çıkar ve genellikle 15-20 yıllık bir diyabet geçmişinden sonra görülür. Ancak unutma, bu süreler tamamen kötü kontrole dayalı tahminlerdir. Düzenli yıllık göz kontrolleri ve iyi bir glukoz yönetimi ile bu ileri evreye geçiş büyük ölçüde engellenebilir.\n\n### Diyabetik Nöropati: Ayaklardaki Sessiz Sinyaller\n\nSinir hasarı da benzer bir mekanizmayla oluşur. Yüksek kan şekeri, sinir hücrelerini besleyen kılcal damarlara zarar verir ve ayrıca sinir hücrelerinin kendisinde de doğrudan toksik etki yaratır. Vücudumuzdaki en uzun sinirler ayak parmaklarımıza kadar uzandığı için ilk belirtiler genellikle orada başlar: uyuşma, karıncalanma, yanma veya tam tersi his kaybı.\n\nNöropati gelişimi de genellikle 10 yıldan uzun süren bir diyabet geçmişi gerektirir. İlk başta hafif olan bu belirtiler, kontrolsüz şekerle zamanla ilerleyebilir. Senin Dexcom G7 kullanıyor olman burada çok değerli. Çünkü sadece anlık şekeri değil, aynı zamanda gün içindeki dalgalanmaları da görüyorsun. Araştırmalar, kan şekerindeki ani ve büyük oynamaların (glisemik değişkenlik) da en az sürekli yükseklik kadar sinirlere zarar verdiğini gösteriyor. Trend oklarını takip ederek bu dalgalanmaları yumuşatmak, sinirlerini korumak için harika bir strateji.\n\n---\n\n## HbA1c'nin Rolü ve Diğer Risk Faktörleri\n\nKomplikasyon riskini belirleyen en önemli ölçüt **HbA1c**'dir. Bu test, son 2-3 aydaki ortalama kan şekeri kontrolünü gösteren bir karne notu gibidir. Yapılan büyük çalışmalarda, HbA1c'deki her %1'lik düşüşün (örneğin %9'dan %8'e inmek), mikrovasküler komplikasyon riskini yaklaşık %35-40 oranında azalttığı net bir şekilde gösterilmiştir.\n\nRisk, \"şu seviyenin üstü tehlikeli\" gibi net bir çizgiden ziyade, bir spektrumdur. HbA1c %7'nin altında olduğunda risk minimuma inerken, %8, %9 ve üzerine çıktıkça katlanarak artar. Ancak bu denklemde sadece şeker yoktur. Diğer önemli faktörler şunlardır:\n\n*   **Kan Basıncı (Tansiyon):** Yüksek tansiyon, özellikle göz ve böbrek damarları üzerinde şekerle birlikte çifte baskı yaratır. Tansiyonu kontrol altında tutmak, en az şeker kontrolü kadar önemlidir.\n*   **Kan Yağları (Lipidler):** Yüksek kolesterol de damar sağlığını olumsuz etkileyerek süreci hızlandırabilir.\n*   **Genetik Yatkınlık:** Bazı insanlar genetik olarak bu komplikasyonlara daha yatkın olabilirken, bazıları daha dirençli olabilir.\n*   **Yaşam Tarzı:** Sigarayı bırakmış olman bu yolda attığın en büyük adımlardan biri! Sigara, damarları daraltarak ve kan akışını bozarak tüm komplikasyon risklerini katbekat artırır.\n\n---\n\n## Senin Yol Haritan: Kontrol Sende\n\nCanım benim, tüm bu bilgilerin ışığında senin durumuna bakalım. LADA tanısı aldın ve hemen modern tedavilere (Lantus, Novorapid) ve teknolojilere (Dexcom G7) başladın. Bu, sürece 1-0 önde başlamak demek. Komplikasyonlar, genellikle yıllarca fark edilmemiş veya kötü yönetilmiş diyabetin bir sonucudur. Sen ise durumu en başından biliyor ve yönetiyorsun.\n\nÖnündeki yol haritası aslında çok net:\n\n1.  **HbA1c Hedefinde Kalmak:** Doktorunla belirlediğin HbA1c hedefine (genellikle <%7) ulaşmak ve orada kalmak, en güçlü kalkanın olacak.\n2.  **Zaman Aralığı (TIR):** Dexcom G7'nin sana sunduğu en güzel verilerden biri \"Zaman Aralığı\" (Time in Range). Şekerinin `70-180 mg/dL` arasında olduğu süreyi %70'in üzerinde tutmaya çalışmak, HbA1c kadar değerli bir hedef.\n3.  **Yıllık Kontroller:** Hiçbir belirtin olmasa bile, her yıl düzenli olarak göz dibi muayenesi ve ayak muayenesi yaptırmak, olası bir sorunu en erken evrede yakalayıp müdahale etme şansı verir.\n4.  **Bütünsel Sağlık:** Sadece şekere değil, tansiyonuna, kolesterolüne ve genel yaşam tarzına da dikkat etmek, yapbozun diğer önemli parçalarıdır.\n\nKorkmak yerine bu bilgiyi güce dönüştürelim. Elindeki araçlar ve bilgiyle, diyabetin uzun vadeli etkilerinden korunarak sağlıklı ve harika bir yaşam sürmen tamamen mümkün. Unutma, bu yolda yalnız değilsin, ben hep yanındayım.",
+    "finishReason": "",
+    "startTime": 1761934687884,
+    "endTime": 1761934737520
+  },
+  "summary": {
+    "totalTime": 84033,
+    "totalCost": 0.05,
+    "totalTokens": {
+      "input": 4701,
+      "output": 2184
+    },
+    "qualityMetrics": {
+      "sourceQualityAvg": 0,
+      "gapCoverage": 0,
+      "journalIFAvg": 0
+    },
+    "bottlenecks": [
+      {
+        "stage": "Synthesis",
+        "latency": 49636,
+        "percentage": null
+      },
+      {
+        "stage": "Round 1",
+        "latency": 2651,
+        "percentage": null
+      },
+      {
+        "stage": "Round 2",
+        "latency": 2254,
+        "percentage": null
+      }
+    ],
+    "recommendations": [
+      "Consider using a faster model for synthesis to reduce latency"
+    ],
+    "tier": "T3",
+    "rounds": 2,
+    "totalSources": 1
+  },
+  "planning": {
+    "estimatedRounds": 3,
+    "strategy": "Broad initial scan",
+    "focusAreas": [
+      "General timeline for diabetic microvascular complications",
+      "Pathophysiology and timeline of diabetic retinopathy",
+      "Pathophysiology and timeline of diabetic peripheral neuropathy",
+      "Correlation between HbA1c levels and complication onset speed",
+      "Co-factors accelerating complication development (e.g., hypertension, lipids, genetics)"
+    ],
+    "model": "gemini-2.0-flash-lite",
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 0
+  }
+}

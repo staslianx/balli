@@ -78,17 +78,21 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                 )
             } ?? []
 
+            // Analyze protein variety for diversity constraints
+            let diversityConstraints = await buildDiversityConstraints(mealType: mealType, styleType: styleType)
+
             logger.info("🚀 [COORDINATOR] Starting recipe generation - mealType: \(mealType), styleType: \(styleType), userId: \(userId), recentRecipesCount: \(recentRecipes.count)")
 
             let startTime = Date()
 
-            // Call simple generation service on background thread with recent recipes
+            // Call simple generation service on background thread with recent recipes and diversity constraints
             let response = try await Task.detached(priority: .userInitiated) { [generationService] in
                 return try await generationService.generateSpontaneousRecipe(
                     mealType: mealType,
                     styleType: styleType,
                     userId: userId,
-                    recentRecipes: recentRecipes
+                    recentRecipes: recentRecipes,
+                    diversityConstraints: diversityConstraints
                 )
             }.value
 
@@ -165,16 +169,20 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                 )
             } ?? []
 
+            // Analyze protein variety for diversity constraints
+            let diversityConstraints = await buildDiversityConstraints(mealType: mealType, styleType: styleType)
+
             logger.info("🚀 [COORDINATOR] Starting recipe generation with streaming - mealType: \(mealType), styleType: \(styleType), userId: \(userId), recentRecipesCount: \(recentRecipes.count)")
 
             let startTime = Date()
 
-            // Call streaming service
+            // Call streaming service with diversity constraints
             await streamingService.generateSpontaneous(
                 mealType: mealType,
                 styleType: styleType,
                 userId: userId,
                 recentRecipes: recentRecipes,
+                diversityConstraints: diversityConstraints,
                 onConnected: {
                     Task { @MainActor in
                         self.logger.info("✅ [STREAMING] Connected to recipe generation")
@@ -333,6 +341,58 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         let result = mealTypeMap[mealType] ?? mealType
         logger.debug("🔍 [SUBCATEGORY-MAP] Using mealType mapping: '\(mealType)' → '\(result)'")
         return result
+    }
+
+    /// Build diversity constraints based on protein variety analysis
+    private func buildDiversityConstraints(mealType: String, styleType: String) async -> DiversityConstraints? {
+        logger.info("🎯 [DIVERSITY] ========== BUILDING DIVERSITY CONSTRAINTS ==========")
+
+        // Determine subcategory
+        let subcategoryName = determineSubcategory(mealType: mealType, styleType: styleType)
+        logger.info("🎯 [DIVERSITY] Subcategory: \(subcategoryName)")
+
+        // Parse subcategory from resolved name
+        guard let subcategory = RecipeSubcategory(rawValue: subcategoryName) else {
+            logger.error("🎯 [DIVERSITY] ❌ Could not parse subcategory from: \(subcategoryName)")
+            return nil
+        }
+
+        // Analyze protein variety
+        let analysis = await memoryService.analyzeProteinVariety(for: subcategory)
+
+        // Build constraints if we have meaningful data
+        var avoidProteins: [String]? = nil
+        var suggestProteins: [String]? = nil
+
+        // Combine overused proteins AND recent proteins (high priority)
+        let proteinsToAvoid = Set(analysis.overusedProteins + analysis.recentProteins)
+        if !proteinsToAvoid.isEmpty {
+            avoidProteins = Array(proteinsToAvoid).sorted()
+            logger.info("🎯 [DIVERSITY] Avoid proteins: \(avoidProteins!.joined(separator: ", "))")
+        }
+
+        // Suggest underused proteins
+        if !analysis.suggestedProteins.isEmpty {
+            suggestProteins = analysis.suggestedProteins
+            logger.info("🎯 [DIVERSITY] Suggest proteins: \(suggestProteins!.joined(separator: ", "))")
+        }
+
+        // Only create constraints if we have actionable data
+        guard avoidProteins != nil || suggestProteins != nil else {
+            logger.info("🎯 [DIVERSITY] No diversity constraints needed (insufficient memory)")
+            return nil
+        }
+
+        let constraints = DiversityConstraints(
+            avoidCuisines: nil,
+            avoidProteins: avoidProteins,
+            avoidMethods: nil,
+            suggestCuisines: nil,
+            suggestProteins: suggestProteins
+        )
+
+        logger.info("🎯 [DIVERSITY] ✅ Diversity constraints built successfully")
+        return constraints
     }
 
     /// Record generated recipe in memory

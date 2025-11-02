@@ -101,7 +101,7 @@ struct HosgeldinView: View {
                 }
                 .sheet(isPresented: $viewModel.showingVoiceInput) {
                     VoiceInputView()
-                        .presentationDetents([.height(ResponsiveDesign.safeScreenHeight() * 0.45)])
+                        .presentationDetents([.medium, .large])
                         .presentationDragIndicator(.visible)
                         .presentationBackgroundInteraction(.enabled)
                 }

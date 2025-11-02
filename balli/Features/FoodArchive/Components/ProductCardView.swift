@@ -168,7 +168,7 @@ struct ProductCardView: View {
                     if isFavorite {
                         Image(systemName: "star.fill")
                             .font(.system(size: ResponsiveDesign.Font.scaledSize(20)))
-                            .foregroundColor(Color(hex: "FFB900"))
+                            .foregroundColor(Color(red: 1, green: 0.85, blue: 0, opacity: 1))
                     }
                 }
             }
@@ -178,6 +178,7 @@ struct ProductCardView: View {
                height: height ?? width ?? ResponsiveDesign.Components.productCardSize,
                alignment: .leading)
         .background(.clear)
+        .contentShape(Rectangle())
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))

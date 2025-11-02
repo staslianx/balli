@@ -52,7 +52,7 @@ struct OnlyFavoritesView: View {
                                         carbs: "\(Int(item.totalCarbs)) gr Karb.",
                                         width: nil,
                                         isFavorite: true,
-                                        impactLevel: item.impactLevel,
+                                        impactLevel: item.impactLevelDetailed,
                                         onToggleFavorite: {
                                             toggleFavorite(item)
                                         }

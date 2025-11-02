@@ -17,7 +17,7 @@ struct RecipeMetadataSection: View {
     @Binding var editedName: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 4) {
             // Balli logo for AI-generated recipes
             if recipeSource == RecipeConstants.Source.ai {
                 Image("balli-text-logo-dark")

@@ -153,6 +153,10 @@ export interface NutritionExtractionOutput {
     detectedLanguage?: string;
   };
   rawText?: string;
+  usage?: {
+    inputTokens: number;
+    outputTokens: number;
+  };
 }
 
 /**
@@ -255,9 +259,15 @@ MANDATORY: Only respond with valid JSON, no additional text.`;
     const response = await result.response;
     const text = response.text();
 
+    // Extract usage metadata for cost tracking
+    const usageMetadata = response.usageMetadata;
+    const inputTokens = usageMetadata?.promptTokenCount || 0;
+    const outputTokens = usageMetadata?.candidatesTokenCount || 0;
+
     const processingTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
     console.log('✅ [NUTRITION-API] Received structured response from Gemini');
+    console.log(`📊 [NUTRITION-API] Token usage: ${inputTokens} in, ${outputTokens} out`);
 
     // Parse the guaranteed JSON response
     let extractedData;
@@ -296,7 +306,11 @@ MANDATORY: Only respond with valid JSON, no additional text.`;
         warnings: extractedData.metadata.warnings || [],
         detectedLanguage: input.language
       },
-      rawText: text // Store the structured response for debugging
+      rawText: text, // Store the structured response for debugging
+      usage: {
+        inputTokens,
+        outputTokens
+      }
     };
 
     console.log(`✅ [NUTRITION-API] Extracted nutrition data (confidence: ${result_output.metadata.confidence}%) in ${processingTime}s`);

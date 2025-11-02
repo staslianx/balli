@@ -1,0 +1,65 @@
+{
+  "query": {
+    "original": "sigara ile diyabet arasındaki farkı araştırır mısın",
+    "timestamp": "2025-11-01T10:02:23.506Z",
+    "language": "Turkish",
+    "length": 51,
+    "userId": "cli-user"
+  },
+  "routing": {
+    "tier": 2,
+    "reasoning": "Kullanıcı açıkça 'araştırır mısın' diyerek web kaynaklarından bilgi talep ediyor. Bu nedenle T2 (Hybrid Research) kullanılmalıdır.",
+    "confidence": 1,
+    "model": "",
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 0,
+    "timestamp": 1761991344289
+  },
+  "rounds": [],
+  "synthesis": {
+    "model": "Gemini 2.5 Flash (Web Araştırma)",
+    "temperature": 0,
+    "systemPromptVersion": "",
+    "sourcesProvided": 0,
+    "responseLength": 570,
+    "streaming": true,
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 13485,
+    "response": "Canım Dilara, sigara ile diyabet arasındaki ilişkiyi araştırmamı istemişsin. Baktığım kaynaklarda bu konuda doğrudan bir bilgiye rastlayamadım maalesef. Bana verilen kaynak, akciğer fonksiyon testleri (spirometri) ile ilgili bir dokümanmış [1].\n\nAma bu konu gerçekten çok önemli ve sigaranın diyabet üzerindeki olumsuz etkileri bilinen bir gerçek. Sen de sigarayı yeni bıraktın, bu harika bir adım! Eğer istersen, bu konuda daha detaylı ve güvenilir kaynaklardan senin için derinlemesine bir araştırma yapabilirim. Ne dersin, öğrenmek istediğin spesifik noktalar var mı?",
+    "finishReason": "",
+    "startTime": 1761991343512,
+    "endTime": 1761991356997
+  },
+  "summary": {
+    "totalTime": 14489,
+    "totalCost": 0.003,
+    "totalTokens": {
+      "input": 0,
+      "output": 0
+    },
+    "qualityMetrics": {
+      "sourceQualityAvg": 0,
+      "gapCoverage": 0,
+      "journalIFAvg": 0
+    },
+    "bottlenecks": [
+      {
+        "stage": "Synthesis",
+        "latency": 13485,
+        "percentage": null
+      }
+    ],
+    "recommendations": [],
+    "tier": "T2",
+    "rounds": 0,
+    "totalSources": 0
+  }
+}

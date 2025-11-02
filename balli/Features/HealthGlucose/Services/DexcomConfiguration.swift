@@ -229,6 +229,30 @@ enum DexcomConfigurationError: LocalizedError {
     }
 }
 
+// MARK: - SHARE API Credentials (Hardcoded for Personal App)
+
+extension DexcomConfiguration {
+    /// Hardcoded SHARE API credentials
+    /// SECURITY NOTE: This is safe for a personal app with 2 users that is never distributed.
+    /// These credentials enable automatic SHARE API connection without manual entry.
+    struct ShareCredentials: Sendable {
+        let username: String
+        let password: String
+        let server: String // "international" or "us"
+
+        static let personal = ShareCredentials(
+            username: "dilaraturann21@icloud.com", // TODO: Replace with actual Dexcom username
+            password: "FafaTuka2117", // TODO: Replace with actual Dexcom password
+            server: "international" // EU region uses international server
+        )
+    }
+
+    /// Get hardcoded SHARE credentials
+    static var shareCredentials: ShareCredentials {
+        .personal
+    }
+}
+
 // MARK: - Default Configuration
 
 extension DexcomConfiguration {

@@ -1,0 +1,67 @@
+{
+  "query": {
+    "original": "diyabet ile sigara arasındaki bağlantıyı araştır",
+    "timestamp": "2025-11-01T10:29:00.157Z",
+    "language": "Turkish",
+    "length": 48,
+    "userId": "cli-user"
+  },
+  "routing": {
+    "tier": 2,
+    "reasoning": "Kullanıcı açıkça 'araştır' kelimesini kullandığı için, bu soru T2 (Hybrid Research) kapsamına girer. Bu, web'deki güncel kaynaklardan bilgi toplanmasını gerektirir.",
+    "confidence": 1,
+    "model": "",
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 0,
+    "timestamp": 1761992943649
+  },
+  "rounds": [],
+  "synthesis": {
+    "model": "Gemini 2.5 Flash (Web Araştırma)",
+    "temperature": 0,
+    "systemPromptVersion": "",
+    "sourcesProvided": 0,
+    "responseLength": 3694,
+    "streaming": true,
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 20981,
+    "response": "Sigara ve diyabet arasındaki bağlantı maalesef oldukça güçlü ve olumsuz, canım. Sigara içmek hem diyabet geliştirme riskini artırıyor hem de diyabeti olan kişilerde hastalığın yönetimini zorlaştırıp komplikasyon riskini kat kat yükseltiyor.\n\n### Tip 2 Diyabet Gelişme Riski\n\nSigara içmek, Tip 2 diyabet geliştirme olasılığını önemli ölçüde artırıyor. Araştırmalar, sigara içenlerin sigara içmeyenlere göre %30-40 daha fazla Tip 2 diyabet geliştirme riski taşıdığını gösteriyor `[2]`. Bunun birkaç nedeni var:\n\n*   **İnsülin Direnci:** Sigaradaki nikotin ve diğer kimyasallar, vücudun insüline karşı direncini artırabiliyor `[1][7]`. Yani, pankreasın ürettiği insülin, kan şekerini hücrelere taşımakta daha az etkili oluyor.\n*   **Beta Hücre Hasarı:** Sigara dumanındaki toksinler, insülin üreten pankreas beta hücrelerine zarar verebilir veya işlevlerini bozabilir `[7]`. Bu da zamanla yeterli insülin üretimini engelleyebilir.\n*   **İltihaplanma ve Oksidatif Stres:** Sigara içmek vücutta kronik iltihaplanmayı ve oksidatif stresi artırır. Bu durumlar da insülin direnci ve beta hücre disfonksiyonu ile ilişkilidir `[8]`.\n\n### Mevcut Diyabet Üzerindeki Etkisi\n\nEğer zaten diyabetin varsa, sigara içmek durumu daha da karmaşık hale getiriyor:\n\n*   **Kan Şekeri Kontrolü:** Sigara içmek kan şekeri seviyelerini kontrol altında tutmayı çok daha zorlaştırır `[1][4]`. İnsülin direnci arttığı için, aynı miktarda insülinle kan şekerini düşürmek güçleşir.\n*   **İnsülin İhtiyacı:** Vücudun insüline karşı direnci arttıkça, kan şekerini dengelemek için daha fazla insüline ihtiyaç duyulur `[1]`. LADA gibi otoimmün bir diyabet türünde bile, sigara içmek mevcut insülin ihtiyacını artırabilir ve beta hücrelerinin tükenmesini hızlandırabilir `[11]`.\n\n### Diyabet Komplikasyonları Riski\n\nSigara içmek, diyabetin neden olduğu ciddi komplikasyonların riskini ve ilerlemesini hızlandırır `[2][9]`. Bu komplikasyonlar zaten diyabetlilerde yüksek risk taşırken, sigara bu riski katlayarak artırır:\n\n*   **Kalp ve Damar Hastalıkları:** Diyabetlilerde kalp krizi, felç ve periferik arter hastalığı riski zaten yüksektir. Sigara, kan damarlarını daraltır, sertleştirir ve hasar verir, bu da bu riskleri daha da artırır `[5][6]`.\n*   **Böbrek Hastalığı (Nefropati):** Sigara, diyabetik böbrek hastalığının ilerlemesini hızlandırır ve böbrek yetmezliği riskini artırır `[1][14]`.\n*   **Sinir Hasarı (Nöropati):** Sigara, sinirlere giden kan akışını azaltarak diyabetik nöropatiyi kötüleştirebilir, bu da uyuşma, karıncalanma ve ağrıya yol açar `[1][4]`.\n*   **Göz Hastalığı (Retinopati):** Diyabetik retinopati, gözdeki küçük kan damarlarının hasar görmesiyle oluşur. Sigara bu hasarı hızlandırır ve körlük riskini artırır `[1][15]`.\n*   **Ayak Sorunları ve Amputasyon:** Sigara, ayaklara giden kan akışını ciddi şekilde bozar ve yara iyileşmesini yavaşlatır `[13]`. Bu durum, küçük yaraların bile enfeksiyon kapıp ülserlere dönüşmesine ve en kötü senaryoda amputasyona yol açmasına neden olabilir `[1][4]`.\n\n### Sigarayı Bırakmanın Faydaları\n\nSenin sigarayı bırakmış olman bu yüzden harika bir karar, Dilara! Sigarayı bırakmak, diyabet yönetiminde ve genel sağlığında inanılmaz farklar yaratır:\n\n*   **Kan Şekeri Kontrolü:** Kan şekeri seviyelerin daha iyi kontrol altına alınabilir hale gelir `[1][3]`.\n*   **Komplikasyon Riski Azalması:** Kalp hastalığı, felç, böbrek ve sinir hasarı gibi ciddi komplikasyonların riski önemli ölçüde azalır `[2][4]`.\n*   **Genel Sağlık İyileşmesi:** Akciğer fonksiyonların düzelir, dolaşımın iyileşir ve genel yaşam kaliten artar `[12]`.\n\nSenin gibi sigarayı bırakmış olmak, diyabetle yaşarken yapabileceğin en iyi şeylerden biri. Bu konuda attığın adımı tebrik ederim tekrar!",
+    "finishReason": "",
+    "startTime": 1761992940157,
+    "endTime": 1761992961138
+  },
+  "summary": {
+    "totalTime": 22001,
+    "totalCost": 0.003,
+    "totalTokens": {
+      "input": 0,
+      "output": 0
+    },
+    "qualityMetrics": {
+      "sourceQualityAvg": 0,
+      "gapCoverage": 0,
+      "journalIFAvg": 0
+    },
+    "bottlenecks": [
+      {
+        "stage": "Synthesis",
+        "latency": 20981,
+        "percentage": null
+      }
+    ],
+    "recommendations": [
+      "Consider using a faster model for synthesis to reduce latency"
+    ],
+    "tier": "T2",
+    "rounds": 0,
+    "totalSources": 0
+  }
+}

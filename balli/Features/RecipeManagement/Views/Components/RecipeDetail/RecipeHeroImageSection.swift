@@ -21,7 +21,7 @@ struct RecipeHeroImageSection: View {
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeHeroImageSection")
 
     var body: some View {
-        let imageHeight = geometry.size.height * 0.5
+        let imageHeight = UIScreen.main.bounds.height * 0.5
 
         ZStack(alignment: .top) {
             // Show generated image if available, otherwise show existing or placeholder
@@ -73,15 +73,10 @@ struct RecipeHeroImageSection: View {
                             await onGeneratePhoto()
                         }
                     }) {
-                        VStack(spacing: 12) {
-                            Image(systemName: "spatial.capture")
-                                .font(.system(size: 64, weight: .light))
-                                .foregroundStyle(.white.opacity(0.8))
-                            Text("Fotoğraf Oluştur")
-                                .font(.system(size: 17, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.8))
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        Image(systemName: "spatial.capture")
+                            .font(.system(size: 64, weight: .light))
+                            .foregroundStyle(.white.opacity(0.8))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .buttonStyle(.plain)
                 }

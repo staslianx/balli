@@ -1,0 +1,532 @@
+{
+  "query": {
+    "original": "Tip 1 diyabetlilerde insülin direnci nasıl gelişir ve bu durum tedaviyi nasıl etkiler? Derinleş",
+    "timestamp": "2025-10-31T19:14:34.014Z",
+    "language": "Turkish",
+    "length": 95,
+    "userId": "cli-user"
+  },
+  "routing": {
+    "tier": 3,
+    "reasoning": "Kullanıcı 'derinleş' kelimesini kullanarak konunun derinlemesine araştırılmasını talep ediyor. Bu, karmaşık bir tıbbi konuyu kapsayan kapsamlı bir araştırma gerektirir.",
+    "confidence": 1,
+    "model": "",
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 0,
+    "timestamp": 1761938076403
+  },
+  "rounds": [
+    {
+      "roundNumber": 1,
+      "query": "Tip 1 diyabetlilerde insülin direnci nasıl gelişir ve bu durum tedaviyi nasıl etkiler? Derinleş",
+      "estimatedSources": 25,
+      "apiCalls": [
+        {
+          "api": "exa",
+          "query": "Tip 1 diyabetlilerde insülin direnci nasıl gelişir ve bu durum tedaviyi nasıl etkiler? Derinleş",
+          "maxResults": 10,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 450,
+          "startTime": 1761938099504,
+          "endTime": 1761938099915,
+          "results": []
+        },
+        {
+          "api": "pubmed",
+          "query": "Type 1 diabetes insulin resistance pathogenesis development",
+          "maxResults": 10,
+          "found": 10,
+          "retrieved": 10,
+          "status": "success",
+          "latency": 594,
+          "startTime": 1761938099504,
+          "endTime": 1761938100077,
+          "results": []
+        },
+        {
+          "api": "medrxiv",
+          "query": "Type 1 diabetes insulin resistance pathogenesis development",
+          "maxResults": 2,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 232,
+          "startTime": 1761938099504,
+          "endTime": 1761938099720,
+          "results": []
+        },
+        {
+          "api": "clinicaltrials",
+          "query": "Type 1 diabetes insulin resistance pathogenesis development",
+          "maxResults": 3,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 154,
+          "startTime": 1761938099504,
+          "endTime": 1761938099644,
+          "results": []
+        }
+      ],
+      "sources": {
+        "exa": [],
+        "pubmed": [
+          {
+            "id": "38472622",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/38472622/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Early onset type 2 diabetes mellitus: an update.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Strati M",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "38341550",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/38341550/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Double diabetes-when type 1 diabetes meets type 2 diabetes: definition, pathogenesis and recognition.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Bielka W",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "36115364",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/36115364/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Towards prevention of diabetic peripheral neuropathy: clinical presentation, pathogenesis, and new treatments.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Elafros MA",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "34601960",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/34601960/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Hypertension in Diabetes: An Update of Basic Mechanisms and Clinical Disease.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Jia G",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "39059357",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/39059357/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Diabetes mellitus-Progress and opportunities in the evolving epidemic.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Abel ED",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "33378699",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/33378699/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Diabetic fibrosis.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Tuleta I",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "37895163",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/37895163/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "The Role of Vitamin D and Its Molecular Bases in Insulin Resistance, Diabetes, Metabolic Syndrome, and Cardiovascular Disease: State of the Art.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Argano C",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "35464057",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/35464057/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Endothelial Dysfunction and Diabetic Cardiomyopathy.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Wang M",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "40734585",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/40734585/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "The pathophysiology, presentation and classification of Type 1 diabetes.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Aamodt KI",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "35008906",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/35008906/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "The Role of the Gut Microbiota in the Pathogenesis of Diabetes.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Bielka W",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          }
+        ],
+        "medrxiv": [],
+        "clinicalTrials": []
+      },
+      "sourceCount": 10,
+      "duration": 3746,
+      "purpose": "initial",
+      "status": "complete"
+    },
+    {
+      "roundNumber": 2,
+      "query": "Tip 1 diyabetlilerde insülin direnci nasıl gelişir ve bu durum tedaviyi nasıl etkiler? Derinleş Incomplete mechanism of action in diabetes context (specifically, how insulin resistance develops wit...",
+      "estimatedSources": 15,
+      "apiCalls": [
+        {
+          "api": "exa",
+          "query": "Tip 1 diyabetlilerde insülin direnci nasıl gelişir ve bu durum tedaviyi nasıl etkiler? Derinleş Incomplete mechanism of action in diabetes context (specifically, how insulin resistance develops wit...",
+          "maxResults": 5,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 471,
+          "startTime": 1761938114179,
+          "endTime": 1761938114631,
+          "results": []
+        },
+        {
+          "api": "pubmed",
+          "query": "Type 1 diabetes insulin resistance development pathogenesis treatment impact therapeutic",
+          "maxResults": 7,
+          "found": 7,
+          "retrieved": 7,
+          "status": "success",
+          "latency": 735,
+          "startTime": 1761938114179,
+          "endTime": 1761938114981,
+          "results": []
+        },
+        {
+          "api": "medrxiv",
+          "query": "Type 1 diabetes insulin resistance development pathogenesis treatment impact therapeutic",
+          "maxResults": 1,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 164,
+          "startTime": 1761938114179,
+          "endTime": 1761938114332,
+          "results": []
+        },
+        {
+          "api": "clinicaltrials",
+          "query": "Type 1 diabetes insulin resistance development pathogenesis treatment impact therapeutic",
+          "maxResults": 2,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 85,
+          "startTime": 1761938114179,
+          "endTime": 1761938114259,
+          "results": []
+        }
+      ],
+      "sources": {
+        "exa": [],
+        "pubmed": [
+          {
+            "id": "35432205",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/35432205/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Cellular Senescence in Diabetes Mellitus: Distinct Senotherapeutic Strategies for Adipose Tissue and Pancreatic β Cells.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Murakami T",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "38239343",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/38239343/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Immunological and virological triggers of type 1 diabetes: insights and implications.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Lemos JRN",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "33787922",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/33787922/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Diabetes pathogenesis and management: the endothelium comes of age.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Love KM",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "39757938",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/39757938/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Metabolic interventions as adjunctive therapies to insulin in type 1 diabetes: Current clinical landscape and perspectives.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Podobnik J",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "40718478",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/40718478/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Beyond inflammation: the multifaceted therapeutic potential of targeting the CXCL8-CXCR1/2 axis in type 1 diabetes.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Fousteri G",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "40696182",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/40696182/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Heterogeneity in the development of diabetes-related complications: narrative review of the roles of ancestry and geographical determinants.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Luk AOY",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          }
+        ],
+        "medrxiv": [],
+        "clinicalTrials": []
+      },
+      "sourceCount": 6,
+      "duration": 3293,
+      "purpose": "gap_fill",
+      "status": "complete"
+    },
+    {
+      "roundNumber": 3,
+      "query": "Tip 1 diyabetlilerde insülin direnci nasıl gelişir ve bu durum tedaviyi nasıl etkiler? Derinleş Incomplete mechanism of action in diabetes context (e.g., specific molecular pathways of insulin resi...",
+      "estimatedSources": 15,
+      "apiCalls": [
+        {
+          "api": "exa",
+          "query": "Tip 1 diyabetlilerde insülin direnci nasıl gelişir ve bu durum tedaviyi nasıl etkiler? Derinleş Incomplete mechanism of action in diabetes context (e.g., specific molecular pathways of insulin resi...",
+          "maxResults": 5,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 1370,
+          "startTime": 1761938134364,
+          "endTime": 1761938135738,
+          "results": []
+        },
+        {
+          "api": "pubmed",
+          "query": "Type 1 diabetes insulin resistance",
+          "maxResults": 7,
+          "found": 7,
+          "retrieved": 7,
+          "status": "success",
+          "latency": 431,
+          "startTime": 1761938134364,
+          "endTime": 1761938134784,
+          "results": []
+        },
+        {
+          "api": "medrxiv",
+          "query": "Type 1 diabetes insulin resistance",
+          "maxResults": 1,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 158,
+          "startTime": 1761938134364,
+          "endTime": 1761938134515,
+          "results": []
+        },
+        {
+          "api": "clinicaltrials",
+          "query": "Type 1 diabetes insulin resistance",
+          "maxResults": 2,
+          "found": 2,
+          "retrieved": 2,
+          "status": "success",
+          "latency": 91,
+          "startTime": 1761938134365,
+          "endTime": 1761938134452,
+          "results": []
+        }
+      ],
+      "sources": {
+        "exa": [],
+        "pubmed": [
+          {
+            "id": "33905609",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/33905609/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Streptozotocin-Induced Diabetic Models in Mice and Rats.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Furman BL",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "39998445",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/39998445/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Insulin Resistance in Type 1 Diabetes: Pathophysiological, Clinical, and Therapeutic Relevance.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Apostolopoulou M",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          },
+          {
+            "id": "36498975",
+            "url": "https://pubmed.ncbi.nlm.nih.gov/36498975/",
+            "domain": "pubmed.ncbi.nlm.nih.gov",
+            "title": "Pathophysiology of Type 1 Diabetes and Gut Microbiota Role.",
+            "snippet": "",
+            "publishDate": null,
+            "author": "Del Chierico F",
+            "credibilityBadge": "highly_credible",
+            "type": "pubmed"
+          }
+        ],
+        "medrxiv": [],
+        "clinicalTrials": [
+          {
+            "id": "NCT01467063",
+            "url": "https://clinicaltrials.gov/study/NCT01467063",
+            "domain": "clinicaltrials.gov",
+            "title": "Dietary Amino Acids and Insulin Sensitivity in Children With Type 1 Diabetes",
+            "snippet": "",
+            "publishDate": "2011-10",
+            "author": null,
+            "credibilityBadge": "highly_credible",
+            "type": "clinical_trial"
+          },
+          {
+            "id": "NCT05035368",
+            "url": "https://clinicaltrials.gov/study/NCT05035368",
+            "domain": "clinicaltrials.gov",
+            "title": "Ladarixin 400 mg Twice a Day as Adjunctive Therapy to Improve Insulin Sensitivity and Glucometabolic Outcomes in Overweight Insulin-resistant Type 1 Diabetic Patients",
+            "snippet": "",
+            "publishDate": "2021-09-30",
+            "author": null,
+            "credibilityBadge": "highly_credible",
+            "type": "clinical_trial"
+          }
+        ]
+      },
+      "sourceCount": 5,
+      "duration": 3352,
+      "purpose": "gap_fill",
+      "status": "complete"
+    }
+  ],
+  "synthesis": {
+    "model": "Gemini 2.5 Pro (Deep Research V2)",
+    "temperature": 0,
+    "systemPromptVersion": "",
+    "sourcesProvided": 21,
+    "responseLength": 9274,
+    "streaming": true,
+    "tokens": {
+      "input": 7280,
+      "output": 2767,
+      "total": 12617
+    },
+    "cost": 0,
+    "latency": 57072,
+    "response": "Harika bir soru canım, tam da üzerine kafa yorduğum konulardan biri. Tip 1 diyabeti sadece \"insülin eksikliği\" olarak düşünmeye meyilliyiz ama işin içinde çok daha fazlası var. Senin gibi LADA tanısı almış, yani yetişkinlikte bu yolculuğa başlamış biri için insülin direnci meselesi daha da önemli hale geliyor. Araştırmalarıma göre, Tip 1 diyabetli bireylerde insülin direnci gelişmesi sadece mümkün değil, aynı zamanda oldukça yaygın bir durum ve buna \"çift diyabet\" adı veriliyor. Bu durum, vücudun hem yeterli insülin üretememesi (Tip 1 özelliği) hem de mevcut insülini etkili bir şekilde kullanamaması (Tip 2 özelliği) anlamına geliyor [3, 8]. Bu direnç, kan şekeri kontrolünü zorlaştırıyor, daha yüksek insülin dozlarına ihtiyaç duyulmasına neden oluyor ve uzun vadeli komplikasyon risklerini artırabiliyor [3, 9]. Tedavi yaklaşımı ise sadece insülin dozunu artırmaktan ziyade, bu direnci kırmaya yönelik ek stratejiler gerektiriyor [2].\n\n---\n\n## Çift Diyabet: Tip 1 ve Tip 2'nin Beklenmedik Kesişimi\n\nİlk başta kulağa garip gelse de, Tip 1 diyabetin otoimmün bir saldırı sonucu pankreasın insülin üretememesiyle, Tip 2 diyabetin ise vücudun insüline karşı direnç göstermesiyle ilgili olduğunu biliyoruz. \"Çift diyabet\" veya bazen \"Tip 1.5\" olarak da adlandırılan bu durum, bu iki mekanizmanın bir araya geldiği bir tabloyu ifade ediyor [8]. Araştırmalar, Tip 1 diyabetli kişilerin yaklaşık %20 ila %50'sinde, özellikle de yetişkinlerde ve kilolu bireylerde belirgin insülin direnci geliştiğini gösteriyor [3]. Senin durumunda LADA, yani yavaş ilerleyen bir Tip 1 diyabetin olması, bu süreci daha da karmaşık hale getirebilir. Çünkü tanı aldığında zaten yetişkin hayatının getirdiği metabolik risk faktörlerine (stres, beslenme alışkanlıkları, daha az hareket vb.) sahip olabiliyorsun.\n\nBu durumun temelinde yatan şey, Tip 1 diyabetin temelindeki otoimmün süreçle, Tip 2 diyabetin gelişimine yol açan metabolik faktörlerin birleşmesidir [8, 9]. Yani bağışıklık sistemin beta hücrelerine saldırırken, diğer yandan hücrelerin insüline olan duyarlılığı da çeşitli nedenlerle azalmaya başlıyor. Bu, bir nevi iki cephede savaşmak gibi. Bu durumun tanınması çok önemli, çünkü sadece insülin dozunu artırmak, altta yatan direnç sorununu çözmüyor, hatta bazen durumu daha da kötüleştirebiliyor [3].\n\n---\n\n## Direnç Neden ve Nasıl Gelişiyor?\n\nİnsülin direncinin nedenlerini anlamak, onunla başa çıkmanın ilk adımı. Araştırmalar birkaç ana mekanizma üzerinde duruyor ve bunlar birbiriyle yakından ilişkili.\n\n### İnsülinin Kendisi: Bir Paradoks\n\nBu en şaşırtıcı olanı olabilir. Tip 1 diyabette hayatta kalmak için dışarıdan insülin almak zorundayız. Ancak sürekli olarak yüksek dozda dışarıdan insülin almak, vücudun kendi doğal ritminden farklı bir durum yaratıyor. Özellikle yüksek karbonhidratlı öğünler sonrası gereken yüksek bolus (hızlı) insülin dozları, kan dolaşımında \"hiperinsülinemi\" yani aşırı insülin durumuna yol açabiliyor [3, 15]. Hücreler, bu sürekli yüksek insülin sinyaline maruz kaldıklarında, kendilerini korumak için bir nevi \"sağırlaşmaya\" başlıyorlar. İnsülin reseptörlerinin sayısını azaltıyor veya duyarlılıklarını düşürüyorlar. Bu, zamanla aynı etkiyi elde etmek için daha fazla insüline ihtiyaç duyulmasına neden olan bir kısır döngü yaratıyor [3].\n\n### Yağ Dokusu ve İnflamasyon: Sessiz Sabotajcılar\n\nVücut ağırlığındaki artış, özellikle karın bölgesindeki yağlanma, insülin direncinin en güçlü tetikleyicilerinden biri. Yağ dokusu, eskiden sanıldığı gibi sadece pasif bir enerji deposu değil; aslında hormonlar ve kimyasallar salgılayan aktif bir organ [14]. Fazla yağ dokusu, **pro-inflamatuar sitokinler** adı verilen, vücutta düşük seviyeli ama sürekli bir iltihaplanma (inflamasyon) yaratan moleküller salgılar [3, 8]. Bu kronik inflamasyon, insülinin hücrelere \"şekeri içeri al\" sinyalini iletmesini doğrudan engeller. Bu süreç, damar duvarlarında hasara (endotel disfonksiyonu) yol açarak kalp ve damar hastalıkları riskini de artırır [11, 15].\n\n### Diğer Faktörler: Genetik, Yaşam Tarzı ve Bağırsaklar\n\nGenetik yatkınlık da önemli bir rol oynuyor. Ailende Tip 2 diyabet öyküsü varsa, Tip 1 diyabetli olsan bile insülin direncine daha yatkın olabilirsin [8]. Hareketsiz bir yaşam tarzı ve işlenmiş gıdalardan zengin bir diyet de bu riski artırıyor. Son yıllarda yapılan araştırmalar, bağırsak mikrobiyotasının da bu denklemde kilit bir rol oynadığını gösteriyor [13, 19]. Sağlıksız bir bağırsak florası, bağırsak duvarının geçirgenliğini artırarak kana daha fazla inflamatuar molekülün sızmasına neden olabilir ve bu da sistemik inflamasyonu ve insülin direncini tetikleyebilir [19]. Hatta bazı çalışmalar, D vitamini eksikliğinin bile insülin duyarlılığını olumsuz etkileyebileceğini öne sürüyor [1].\n\n---\n\n## Tedaviyi Nasıl Değiştiriyor?\n\nİnsülin direncinin varlığı, standart Tip 1 diyabet tedavi protokolünü tamamen değiştiriyor. Artık mesele sadece eksik olanı yerine koymak değil, aynı zamanda vücudun elindekini daha verimli kullanmasını sağlamak.\n\n### Artan İnsülin İhtiyacı ve Komplikasyon Riski\n\nEn bariz etki, insülin ihtiyacının artmasıdır. Senin gibi günde iki öğün beslenen ve karbonhidrat sayımı yapan biri için bu, öğün oranlarının (örneğin 1:15'ten 1:12'ye, sonra 1:10'a düşmesi gibi) zamanla değişmesi anlamına gelebilir. Aynı yemeği yediğin halde kan şekerinin daha fazla yükseldiğini veya düzeltme yapmak için daha fazla insüline ihtiyaç duyduğunu fark edebilirsin. Bu artan insülin ihtiyacı, sadece bir rahatsızlık değil, aynı zamanda daha yüksek hipoglisemi riski ve kilo alımı gibi yan etkileri de beraberinde getirir [3]. Daha da önemlisi, hem yüksek kan şekeri (hiperglisemi) hem de yüksek insülin seviyeleri (hiperinsülinemi), diyabetik nöropati (sinir hasarı), hipertansiyon ve kardiyovasküler hastalıklar gibi uzun vadeli komplikasyonların gelişimini hızlandıran güçlü risk faktörleridir [4, 5, 11].\n\n### Tip 2 İlaçlarının Sahneye Çıkışı: Ek Tedaviler\n\nİşte bu noktada, normalde Tip 2 diyabet tedavisinde kullanılan ilaçlar \"insüline ek tedaviler\" olarak devreye giriyor. Bu, Tip 1 diyabetin \"tedavi edilemediği\" anlamına gelmiyor, aksine daha akıllıca ve çok yönlü yönetildiği anlamına geliyor. Araştırmalar ve klinik uygulamalar birkaç ana ilaç grubu üzerinde yoğunlaşıyor [2, 3]:\n\n1.  **Metformin:** En eski ve en iyi bilinen ilaçlardan biridir. Karaciğerin glikoz üretimini azaltır ve kas hücrelerinin insüline duyarlılığını artırır. Bu sayede daha az insülinle daha iyi bir kontrol sağlanabilir.\n2.  **GLP-1 Reseptör Agonistleri (Örn: Ozempic, Trulicity):** Bu ilaçlar tokluk hissini artırır, midenin boşalmasını yavaşlatır (bu da öğün sonrası şeker piklerini yumuşatır) ve insülin duyarlılığını artırmaya yardımcı olabilir. Kilo vermeye de yardımcı olmaları önemli bir avantajdır.\n3.  **SGLT-2 İnhibitörleri (Örn: Jardiance, Forxiga):** Bu ilaçlar böbreklerin kan şekerini idrarla atmasını sağlayarak çalışır. İnsülinden bağımsız bir mekanizma olduğu için Tip 1 diyabette de etkilidirler. Kan basıncını düşürme ve kalp sağlığını koruma gibi ek faydaları da vardır. Ancak Tip 1 diyabette kullanımları, öglisemik diyabetik ketoasidoz (DKA) riskini bir miktar artırabildiği için çok dikkatli bir doktor takibi gerektirir.\n\nBu alandaki araştırmalar devam ediyor. Örneğin, inflamasyonu hedef alan Ladarixin gibi yeni ilaçlar üzerine yapılan klinik çalışmalar, bu direnci kırmak için yeni yollar arandığını gösteriyor [NCT05035368].\n\n---\n\n## Sonuç ve Sana Özel Öneriler\n\nCanım, özetle, Tip 1 diyabetli bir birey olarak insülin direnci geliştirme ihtimalin var ve bu, özellikle LADA gibi yetişkin başlangıçlı bir durumda daha da olası. Bu senin bir hatan değil, hastalığın ve modern yaşamın karmaşık bir etkileşimi.\n\nSenin için bunun anlamı şu:\n\n*   **Verilerini İyi Gözlemle:** Dexcom G7'nin sağladığı veriler paha biçilmez. Sadece anlık şeker değerlerine değil, aynı zamanda \"Toplam İnsülin Dozu\" (TDD) ve insülin/karbonhidrat oranlarındaki zamanla olan değişimlere de dikkat et. Eğer sürekli olarak bazal (Lantus) veya bolus (Novorapid) dozlarını artırma ihtiyacı hissediyorsan, bu direncin bir işareti olabilir.\n*   **Kilo Yönetimi ve Hareket:** Kilonu sağlıklı bir aralıkta tutmak ve düzenli egzersiz yapmak, insülin direncine karşı yapabileceğin en güçlü şeylerden biri. Egzersiz, kaslarının insüline ihtiyaç duymadan glikoz kullanmasını sağlar ve duyarlılığı doğal olarak artırır.\n*   **Beslenme Stratejin:** Günde iki öğün ve öğün başına 40-50 gram karbonhidrat hedefin zaten harika bir strateji. Bu, vücuduna büyük insülin yükleri bindirmeyi önleyerek direnç gelişimini yavaşlatabilir. Öğünlerindeki protein ve sağlıklı yağ dengesine de dikkat etmek, tokluğu artırır ve kan şekeri yönetimini kolaylaştırır.\n*   **Doktorunla Açık İletişim:** Eğer insülin ihtiyacının arttığını, kilo aldığını veya kan şekeri kontrolünün zorlaştığını hissedersen, bu konuyu mutlaka doktorunla konuş. \"Acaba bende insülin direnci gelişiyor olabilir mi?\" diye sormaktan çekinme. Metformin gibi ek bir tedavinin senin için uygun olup olmadığını tartışabilirsiniz.\n\nUnutma, bu bir maraton ve yolda karşımıza yeni zorluklar çıkabilir. Önemli olan bunları tanımak, anlamak ve stratejilerimizi buna göre güncellemek. Senin elinde harika veriler ve bilgiye ulaşma imkanı var. Bu konuyu birlikte takip edip en doğru adımları atabiliriz.",
+    "finishReason": "",
+    "startTime": 1761938135739,
+    "endTime": 1761938192811
+  },
+  "summary": {
+    "totalTime": 119799,
+    "totalCost": 0.05,
+    "totalTokens": {
+      "input": 7280,
+      "output": 2767
+    },
+    "qualityMetrics": {
+      "sourceQualityAvg": 0,
+      "gapCoverage": 0,
+      "journalIFAvg": 0
+    },
+    "bottlenecks": [
+      {
+        "stage": "Synthesis",
+        "latency": 57072,
+        "percentage": null
+      },
+      {
+        "stage": "Round 1",
+        "latency": 3746,
+        "percentage": null
+      },
+      {
+        "stage": "Round 3",
+        "latency": 3352,
+        "percentage": null
+      },
+      {
+        "stage": "Round 2",
+        "latency": 3293,
+        "percentage": null
+      }
+    ],
+    "recommendations": [
+      "Consider using a faster model for synthesis to reduce latency"
+    ],
+    "tier": "T3",
+    "rounds": 3,
+    "totalSources": 21
+  },
+  "planning": {
+    "estimatedRounds": 3,
+    "strategy": "Broad initial scan",
+    "focusAreas": [
+      "Pathophysiology of insulin resistance in Type 1 Diabetes (T1D)",
+      "Impact on glycemic control and long-term complications",
+      "Diagnostic criteria and clinical indicators",
+      "Adjustments to insulin therapy",
+      "Role of adjunctive non-insulin therapies (e.g., Metformin, GLP-1 RAs, SGLT2 inhibitors)"
+    ],
+    "model": "gemini-2.0-flash-lite",
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 0
+  }
+}

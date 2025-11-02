@@ -60,15 +60,10 @@ struct RecipeGenerationHeroImage: View {
                 } else if preparedImage == nil {
                     // Show photo generation button if no image yet
                     Button(action: onGeneratePhoto) {
-                        VStack(spacing: 12) {
-                            Image(systemName: "spatial.capture")
-                                .font(.system(size: 64, weight: .light))
-                                .foregroundStyle(.white.opacity(0.8))
-                            Text("Fotoğraf Oluştur")
-                                .font(.system(size: 17, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.8))
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        Image(systemName: "spatial.capture")
+                            .font(.system(size: 64, weight: .light))
+                            .foregroundStyle(.white.opacity(0.8))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .buttonStyle(.plain)
                 }
@@ -89,7 +84,7 @@ struct RecipeGenerationMetadata: View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
                 // Logo - Shows balli logo if AI-generated recipe
                 if !recipeContent.isEmpty {
                     Image("balli-text-logo-dark")
@@ -113,7 +108,7 @@ struct RecipeGenerationMetadata: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
-            .padding(.bottom, 24) // Minimum gap between name and story card
+            .padding(.bottom, 12) // Minimum gap between name and story card
         }
         .frame(height: max(UIScreen.main.bounds.height * 0.5, 350) - 49) // Ends where story card begins
     }
@@ -136,7 +131,7 @@ struct RecipeGenerationStoryCard: View {
 
             RecipeStoryCard(
                 title: storyCardTitle,
-                description: "Besin değeri analizi",
+                description: "Besin değerlerini analiz et",
                 thumbnailURL: nil,
                 isLoading: isCalculatingNutrition,
                 loadingStep: currentLoadingStep,

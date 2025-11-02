@@ -220,7 +220,7 @@ struct FavoritesSection: View {
                                 carbs: "\(Int(wrapper.item.totalCarbs)) gr Karb.",
                                 width: cardWidth,
                                 isFavorite: true,
-                                impactLevel: wrapper.item.impactLevel,
+                                impactLevel: wrapper.item.impactLevelDetailed,
                                 onToggleFavorite: {
                                     toggleFavorite(wrapper.item)
                                 }

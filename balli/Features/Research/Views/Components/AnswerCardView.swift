@@ -66,6 +66,21 @@ struct AnswerCardView: View {
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
+            // Image attachment (if present) - show thumbnail below question
+            if let imageAttachment = answer.imageAttachment,
+               let thumbnail = imageAttachment.thumbnail {
+                Image(uiImage: thumbnail)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 120, height: 120)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+            }
+
             // Badges row - tier badge and source pill side by side
             // Reserve minimum height to prevent layout shift when sources appear
             HStack(spacing: 8) {

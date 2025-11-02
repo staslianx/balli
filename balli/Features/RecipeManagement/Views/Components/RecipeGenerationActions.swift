@@ -15,7 +15,8 @@ import OSLog
 class RecipeGenerationActionsHandler: ObservableObject {
     @Published var isFavorited = false
     @Published var showingNotesModal = false
-    @Published var showingShoppingConfirmation = false
+
+    var onShowToast: ((ToastType) -> Void)?
 
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.balli",
@@ -44,19 +45,9 @@ class RecipeGenerationActionsHandler: ObservableObject {
             await viewModel.addIngredientsToShoppingList()
             logger.info("✅ [ACTIONS] Ingredients successfully added to shopping list")
 
-            // Show confirmation toast
+            // Show toast notification
             await MainActor.run {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    showingShoppingConfirmation = true
-                }
-            }
-
-            // Hide confirmation after 2 seconds
-            try? await Task.sleep(for: .seconds(2))
-            await MainActor.run {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    showingShoppingConfirmation = false
-                }
+                onShowToast?(.success("Alışveriş listesine eklendi!"))
             }
         }
     }
@@ -79,12 +70,13 @@ class RecipeGenerationActionsHandler: ObservableObject {
 
 struct RecipeGenerationActionButtons: View {
     let isFavorited: Bool
+    let hasUncheckedIngredientsInShoppingList: Bool  // Dynamic shopping basket state
     let onAction: (RecipeAction) -> Void
 
     var body: some View {
         RecipeActionRow(
             actions: [.favorite, .notes, .shopping],
-            activeStates: [isFavorited, false, false],
+            activeStates: [isFavorited, false, hasUncheckedIngredientsInShoppingList],
             loadingStates: [false, false, false],
             completedStates: [false, false, false],
             progressStates: [0, 0, 0]

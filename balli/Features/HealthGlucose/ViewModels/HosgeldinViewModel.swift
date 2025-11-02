@@ -33,7 +33,6 @@ final class HosgeldinViewModel: ObservableObject {
     private let dexcomService: DexcomService
     private let dexcomShareService: DexcomShareService
     private let logger = AppLoggers.Health.glucose
-    private var syncTimer: Timer?
     private var cancellables = Set<AnyCancellable>()
 
     // PERFORMANCE: Debouncing to prevent excessive refreshes on tab switches
@@ -90,21 +89,20 @@ final class HosgeldinViewModel: ObservableObject {
             logger.info("🔄 Initial data load on first appear")
         }
 
-        // Start automatic Dexcom sync timer (every 5 minutes) - only if not already running
-        if syncTimer == nil {
-            syncTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
-                Task { @MainActor in
-                    self?.syncDexcomData()
-                }
-            }
-        }
+        // NOTE: Continuous sync is now handled by DexcomSyncCoordinator.shared
+        // which runs independently of view lifecycle via AppLifecycleCoordinator
+        // No need for view-based Timer that dies when view disappears
 
         // Only refresh data if threshold met
         if shouldRefresh {
             lastAppearTime = now
-            syncDexcomData()
             glucoseChartViewModel.loadGlucoseData()
             activityMetricsViewModel.loadActivityData()
+
+            // Trigger immediate sync in the background
+            Task {
+                await DexcomSyncCoordinator.shared.syncNow()
+            }
         }
 
         // Subscribe to glucose data updates (only once)
@@ -118,34 +116,19 @@ final class HosgeldinViewModel: ObservableObject {
     }
 
     func onDisappear() {
-        // Clean up timer to prevent memory leak
-        syncTimer?.invalidate()
-        syncTimer = nil
+        // NOTE: No need to stop sync - DexcomSyncCoordinator continues running
+        // Only clean up view-specific subscriptions
         cancellables.removeAll()
     }
 
     func onDexcomConnectionChange(_ isConnected: Bool) {
         // Reload data when Dexcom connection status changes
         if isConnected {
-            syncDexcomData()
-        }
-    }
-
-    // MARK: - Private Methods
-
-    private func syncDexcomData() {
-        Task {
-            guard dexcomService.isConnected else { return }
-
-            do {
-                try await dexcomService.syncData()
-                // After sync, reload glucose data to get fresh readings
-                glucoseChartViewModel.loadGlucoseData()
-            } catch {
-                // Background sync errors are expected and not critical
-                // Log for diagnostics but don't alert user
-                logger.debug("Background Dexcom sync failed (expected): \(error.localizedDescription)")
+            // Connection restored - trigger immediate sync
+            Task {
+                await DexcomSyncCoordinator.shared.syncNow()
             }
+            glucoseChartViewModel.loadGlucoseData()
         }
     }
 }

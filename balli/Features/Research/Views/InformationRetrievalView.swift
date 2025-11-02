@@ -12,6 +12,7 @@ struct InformationRetrievalView: View {
     @StateObject private var viewModel = MedicalResearchViewModel()
     @Environment(\.colorScheme) private var colorScheme
     @State private var searchQuery = ""
+    @State private var attachedImage: UIImage? = nil
     @State private var showLibrary = false
     @State private var showingSettings = false
     @State private var displayedAnswerIds: Set<String> = []
@@ -117,12 +118,14 @@ struct InformationRetrievalView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 // New conversation button
                 Button {
-                    // Save current conversation to library before starting new one
+                    // Immediately clear UI state for instant visual feedback
+                    searchQuery = ""
+                    displayedAnswerIds.removeAll()
+                    showScrollPadding = false
+
+                    // Then save and clear conversation data
                     Task {
                         await viewModel.startNewConversation()
-                        searchQuery = ""
-                        displayedAnswerIds.removeAll()
-                        showScrollPadding = false
                     }
                 } label: {
                     Image(systemName: "plus.message")
@@ -135,6 +138,7 @@ struct InformationRetrievalView: View {
             // Fixed search bar at bottom
             SearchBarView(
                 searchQuery: $searchQuery,
+                attachedImage: $attachedImage,
                 onSubmit: {
                     performSearch()
                 },
@@ -167,11 +171,15 @@ struct InformationRetrievalView: View {
     // MARK: - Actions
 
     private func performSearch() {
-        guard !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        let hasText = !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty
+        let hasImage = attachedImage != nil
+
+        guard hasText || hasImage else { return }
 
         Task {
-            await viewModel.search(query: searchQuery)
-            // Don't clear query to allow easy refinement
+            await viewModel.search(query: searchQuery, image: attachedImage)
+            // Clear image after sending
+            attachedImage = nil
         }
     }
 }

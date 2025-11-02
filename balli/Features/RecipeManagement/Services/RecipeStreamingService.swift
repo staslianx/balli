@@ -55,6 +55,7 @@ class RecipeStreamingService {
         styleType: String,
         userId: String,
         recentRecipes: [SimpleRecentRecipe] = [],
+        diversityConstraints: DiversityConstraints? = nil,
         onConnected: @escaping @Sendable () -> Void,
         onChunk: @escaping @Sendable (String, String, Int) -> Void,  // (chunkText, fullContent, tokenCount)
         onComplete: @escaping @Sendable (RecipeGenerationResponse) -> Void,
@@ -69,12 +70,35 @@ class RecipeStreamingService {
             ]
         }
 
-        let requestBody: [String: Any] = [
+        var requestBody: [String: Any] = [
             "mealType": mealType,
             "styleType": styleType,
             "userId": userId,
             "recentRecipes": recentRecipesData
         ]
+
+        // Add diversity constraints if provided
+        if let constraints = diversityConstraints {
+            var constraintsDict: [String: Any] = [:]
+            if let avoidProteins = constraints.avoidProteins {
+                constraintsDict["avoidProteins"] = avoidProteins
+            }
+            if let suggestProteins = constraints.suggestProteins {
+                constraintsDict["suggestProteins"] = suggestProteins
+            }
+            if let avoidCuisines = constraints.avoidCuisines {
+                constraintsDict["avoidCuisines"] = avoidCuisines
+            }
+            if let suggestCuisines = constraints.suggestCuisines {
+                constraintsDict["suggestCuisines"] = suggestCuisines
+            }
+            if let avoidMethods = constraints.avoidMethods {
+                constraintsDict["avoidMethods"] = avoidMethods
+            }
+            if !constraintsDict.isEmpty {
+                requestBody["diversityConstraints"] = constraintsDict
+            }
+        }
 
         await performStreaming(
             url: generateSpontaneousURL,

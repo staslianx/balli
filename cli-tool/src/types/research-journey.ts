@@ -226,7 +226,13 @@ export type SSEEvent =
   | { type: 'keywords_extracted'; keywords: string }
   | { type: 'research_stage'; stage: 'starting' | 'scanning' | 'fetching' | 'synthesizing'; message: string }
   | { type: 'api_started'; api: 'pubmed' | 'medrxiv' | 'clinicaltrials' | 'exa'; count: number; message: string; query?: string }
-  | { type: 'api_completed'; api: 'pubmed' | 'medrxiv' | 'clinicaltrials' | 'exa'; count: number; duration: number; message: string; success: boolean }
+  | { type: 'api_completed'; api: 'pubmed' | 'medrxiv' | 'clinicaltrials' | 'exa'; count: number; duration: number; message: string; success: boolean; searchQuery?: string; topSources?: Array<{index: number; title: string; url: string; domain: string}> }
+  | { type: 't2_query_enrichment_started'; message: string }
+  | { type: 't2_query_enrichment_complete'; enrichedQuery: string; contextUsed: boolean; originalQuery?: string; duration?: number }
+  | { type: 't2_translation_started'; message: string }
+  | { type: 't2_translation_complete'; originalQuery: string; translatedQuery: string; duration: number }
+  | { type: 't2_source_analysis_started'; message: string }
+  | { type: 't2_source_analysis_complete'; totalSources: number; breakdown: { exa: number } }
   | { type: 'research_progress'; fetched: number; total: number; message: string }
   | { type: 'planning_started'; message: string; sequence: number }
   | { type: 'planning_complete'; plan: any; sequence: number }

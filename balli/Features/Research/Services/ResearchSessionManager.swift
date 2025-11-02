@@ -36,14 +36,22 @@ struct SessionMessageData: Sendable {
     let timestamp: Date
     let tier: ResponseTier?
     let sources: [ResearchSource]?
+    let imageAttachment: ImageAttachment?
 
-    init(role: MessageRole, content: String, tier: ResponseTier? = nil, sources: [ResearchSource]? = nil) {
+    init(
+        role: MessageRole,
+        content: String,
+        tier: ResponseTier? = nil,
+        sources: [ResearchSource]? = nil,
+        imageAttachment: ImageAttachment? = nil
+    ) {
         self.id = UUID()
         self.role = role
         self.content = content
         self.timestamp = Date()
         self.tier = tier
         self.sources = sources
+        self.imageAttachment = imageAttachment
     }
 }
 
@@ -114,7 +122,8 @@ final class ResearchSessionManager: ObservableObject {
                 content: message.content,
                 timestamp: message.timestamp,
                 tier: message.tier?.rawValue,
-                sourcesData: message.sources.flatMap { try? JSONEncoder().encode($0) }
+                sourcesData: message.sources.flatMap { try? JSONEncoder().encode($0) },
+                imageAttachmentData: message.imageAttachment.flatMap { try? JSONEncoder().encode($0) }
             )
         }
 
@@ -167,7 +176,8 @@ final class ResearchSessionManager: ObservableObject {
                 content: message.content,
                 timestamp: message.timestamp,
                 tier: message.tier?.rawValue,
-                sourcesData: message.sources.flatMap { try? JSONEncoder().encode($0) }
+                sourcesData: message.sources.flatMap { try? JSONEncoder().encode($0) },
+                imageAttachmentData: message.imageAttachment.flatMap { try? JSONEncoder().encode($0) }
             )
         }
 
@@ -204,7 +214,7 @@ final class ResearchSessionManager: ObservableObject {
     // MARK: - Message Management
 
     /// Appends a user message to the active session
-    func appendUserMessage(_ content: String) async throws {
+    func appendUserMessage(_ content: String, imageAttachment: ImageAttachment? = nil) async throws {
         // Create session if none exists
         if activeSession == nil {
             logger.warning("⚠️ [SESSION-LIFECYCLE] No active session found, creating new one!")
@@ -218,7 +228,11 @@ final class ResearchSessionManager: ObservableObject {
         }
 
         // Create message
-        let message = SessionMessageData(role: .user, content: content)
+        let message = SessionMessageData(
+            role: .user,
+            content: content,
+            imageAttachment: imageAttachment
+        )
 
         // Append to history
         session.conversationHistory.append(message)
@@ -228,6 +242,9 @@ final class ResearchSessionManager: ObservableObject {
         activeSession = session
 
         logger.info("📝 [SESSION-LIFECYCLE] Appended user message (total messages: \(session.messageCount)) to session: \(session.sessionId)")
+        if imageAttachment != nil {
+            logger.info("🖼️ [SESSION-LIFECYCLE] Message includes image attachment")
+        }
 
         // Reset inactivity timer (user is active)
         resetInactivityTimer()
@@ -288,10 +305,18 @@ final class ResearchSessionManager: ObservableObject {
         }
 
         let formatted = history.map { message in
-            return [
+            var dict: [String: String] = [
                 "role": message.role.rawValue,
                 "content": message.content
             ]
+
+            // Add image if present
+            if let imageAttachment = message.imageAttachment {
+                dict["imageBase64"] = imageAttachment.base64String
+                logger.info("🖼️ [SESSION-DEBUG] Including image attachment (\(imageAttachment.fileSizeDescription)) in message")
+            }
+
+            return dict
         }
 
         if !formatted.isEmpty {
@@ -458,7 +483,8 @@ final class ResearchSessionManager: ObservableObject {
                     content: message.content,
                     timestamp: message.timestamp,
                     tier: message.tier?.rawValue,
-                    sourcesData: message.sources.flatMap { try? JSONEncoder().encode($0) }
+                    sourcesData: message.sources.flatMap { try? JSONEncoder().encode($0) },
+                    imageAttachmentData: message.imageAttachment.flatMap { try? JSONEncoder().encode($0) }
                 )
             }
 
@@ -474,6 +500,92 @@ final class ResearchSessionManager: ObservableObject {
                 keyTopics: []
             )
             logger.info("Auto-saved session backup: \(session.sessionId)")
+        }
+    }
+
+    // MARK: - Highlight Persistence
+
+    /// Save a highlight for a specific message
+    func saveHighlight(_ highlight: TextHighlight, for messageId: String) async throws {
+        guard let uuid = UUID(uuidString: messageId) else {
+            throw SessionError.persistenceFailed(underlying: NSError(
+                domain: "com.balli.highlights",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid message ID format"]
+            ))
+        }
+
+        // Load existing highlights
+        var highlights = try storageActor.loadMessageHighlights(messageId: uuid)
+
+        // Append new highlight
+        highlights.append(highlight)
+
+        // Save updated highlights
+        try storageActor.updateMessageHighlights(messageId: uuid, highlights: highlights)
+        logger.info("Saved highlight for message: \(messageId)")
+    }
+
+    /// Update a highlight for a specific message
+    func updateHighlight(_ highlight: TextHighlight, for messageId: String) async throws {
+        guard let uuid = UUID(uuidString: messageId) else {
+            throw SessionError.persistenceFailed(underlying: NSError(
+                domain: "com.balli.highlights",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid message ID format"]
+            ))
+        }
+
+        // Load existing highlights
+        var highlights = try storageActor.loadMessageHighlights(messageId: uuid)
+
+        // Update specific highlight
+        if let index = highlights.firstIndex(where: { $0.id == highlight.id }) {
+            highlights[index] = highlight
+
+            // Save updated highlights
+            try storageActor.updateMessageHighlights(messageId: uuid, highlights: highlights)
+            logger.info("Updated highlight \(highlight.id) for message: \(messageId)")
+        } else {
+            logger.warning("Highlight not found: \(highlight.id)")
+        }
+    }
+
+    /// Delete a highlight from a specific message
+    func deleteHighlight(id highlightId: UUID, from messageId: String) async throws {
+        guard let uuid = UUID(uuidString: messageId) else {
+            throw SessionError.persistenceFailed(underlying: NSError(
+                domain: "com.balli.highlights",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "Invalid message ID format"]
+            ))
+        }
+
+        // Load existing highlights
+        var highlights = try storageActor.loadMessageHighlights(messageId: uuid)
+
+        // Remove highlight
+        highlights.removeAll { $0.id == highlightId }
+
+        // Save updated highlights
+        try storageActor.updateMessageHighlights(messageId: uuid, highlights: highlights)
+        logger.info("Deleted highlight \(highlightId) from message: \(messageId)")
+    }
+
+    /// Load highlights for a specific message
+    func loadHighlights(for messageId: String) async -> [TextHighlight]? {
+        do {
+            guard let uuid = UUID(uuidString: messageId) else {
+                logger.error("Invalid message ID format: \(messageId)")
+                return nil
+            }
+
+            let highlights = try storageActor.loadMessageHighlights(messageId: uuid)
+            logger.info("Loaded \(highlights.count) highlights for message: \(messageId)")
+            return highlights
+        } catch {
+            logger.error("Failed to load highlights: \(error.localizedDescription)")
+            return nil
         }
     }
 }

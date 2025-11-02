@@ -21,7 +21,6 @@ struct CameraView: View {
     @StateObject private var permissionManager = SystemPermissionCoordinator.shared
     @State private var navigateToManualEntry = false
     @State private var captureAnimation = false
-    @State private var showingPermissionView = false
     @State private var showingProcessingView = false
     @State private var showingResultView = false
     @State private var extractedNutrition: NutritionExtractionResult?
@@ -39,12 +38,8 @@ struct CameraView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                // Show permission view if not authorized
-                if shouldShowPermissionView {
-                    permissionView
-                }
                 // Show unified AI view (handles both analysis and results)
-                else if shouldShowProcessingView || shouldShowResultView {
+                if shouldShowProcessingView || shouldShowResultView {
                     unifiedAIView
                 }
                 // Show AI preview view when image is captured
@@ -80,8 +75,22 @@ struct CameraView: View {
                 Task {
                     // Check permission first
                     let permissionState = await permissionManager.checkPermission(.camera)
+
                     if permissionState == .authorized {
+                        // Already authorized - prepare camera
                         await cameraManager.prepare()
+                    } else if permissionState == .notDetermined {
+                        // Not determined - request permission (will show native iOS dialog)
+                        let granted = await permissionManager.requestPermission(.camera)
+                        if granted {
+                            await cameraManager.prepare()
+                        } else {
+                            // Permission denied - navigate to manual entry
+                            navigateToManualEntry = true
+                        }
+                    } else {
+                        // Permission denied or restricted - navigate to manual entry
+                        navigateToManualEntry = true
                     }
                 }
             } else {
@@ -125,10 +134,6 @@ struct CameraView: View {
 
     // MARK: - Computed Properties
 
-    private var shouldShowPermissionView: Bool {
-        !permissionManager.isAuthorized(for: .camera) && permissionManager.status(for: .camera) != .checking
-    }
-
     private var shouldShowResultView: Bool {
         showingResultView && extractedNutrition != nil && captureFlowManager.capturedImage != nil
     }
@@ -139,26 +144,6 @@ struct CameraView: View {
 
     private var shouldShowPreviewView: Bool {
         captureFlowManager.showingCapturedImage && captureFlowManager.capturedImage != nil
-    }
-
-    @ViewBuilder
-    private var permissionView: some View {
-        CameraPermissionView(
-            permissionManager: permissionManager,
-            onPermissionGranted: {
-                Task {
-                    // Re-check permission state after grant
-                    let state = await permissionManager.checkPermission(.camera)
-                    if state.isUsable {
-                        await cameraManager.prepare()
-                    }
-                }
-            },
-            onManualEntry: {
-                navigateToManualEntry = true
-            }
-        )
-        .zIndex(3)
     }
 
 

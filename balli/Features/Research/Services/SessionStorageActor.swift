@@ -264,4 +264,51 @@ class SessionStorageActor {
         try modelContext.save()
         logger.info("Deleted \(sessions.count) completed sessions from SwiftData")
     }
+
+    // MARK: - Highlight Operations
+
+    /// Update highlights for a specific message
+    func updateMessageHighlights(messageId: UUID, highlights: [TextHighlight]) throws {
+        let modelContext = createContext()
+
+        let fetchDescriptor = FetchDescriptor<SessionMessage>(
+            predicate: #Predicate { $0.id == messageId }
+        )
+
+        let messages = try modelContext.fetch(fetchDescriptor)
+        guard let message = messages.first else {
+            logger.error("Message not found for highlight update: \(messageId)")
+            throw NSError(
+                domain: "com.balli.highlights",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "Message not found"]
+            )
+        }
+
+        // Update highlights
+        message.highlights = highlights
+
+        // Save changes
+        try modelContext.save()
+        logger.info("Updated \(highlights.count) highlights for message: \(messageId)")
+    }
+
+    /// Load highlights for a specific message
+    func loadMessageHighlights(messageId: UUID) throws -> [TextHighlight] {
+        let modelContext = createContext()
+
+        let fetchDescriptor = FetchDescriptor<SessionMessage>(
+            predicate: #Predicate { $0.id == messageId }
+        )
+
+        let messages = try modelContext.fetch(fetchDescriptor)
+        guard let message = messages.first else {
+            logger.warning("Message not found for highlight load: \(messageId)")
+            return []
+        }
+
+        let highlights = message.highlights
+        logger.info("Loaded \(highlights.count) highlights for message: \(messageId)")
+        return highlights
+    }
 }

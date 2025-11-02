@@ -123,8 +123,8 @@ struct GlucoseChartCard: View {
                 }
 
                 // Meal log markers - vertical lines in international orange
-                // Tap on lines to see carb values
-                ForEach(viewModel.mealLogs, id: \.id) { meal in
+                // Tap on lines to see carb values (with safety check for deleted objects)
+                ForEach(viewModel.mealLogs.filter { !$0.isFault && !$0.isDeleted && $0.managedObjectContext != nil }, id: \.id) { meal in
                     RuleMark(x: .value("Öğün", meal.timestamp))
                         .foregroundStyle(Color(red: 1.0, green: 0.31, blue: 0.0)) // International Orange
                         .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
@@ -165,8 +165,11 @@ struct GlucoseChartCard: View {
                     }
             }
             .overlay(alignment: .top) {
-                // Show carb tooltip when meal is selected
-                if let selectedMeal = selectedMeal {
+                // Show carb tooltip when meal is selected (with safety check)
+                if let selectedMeal = selectedMeal,
+                   !selectedMeal.isFault,
+                   !selectedMeal.isDeleted,
+                   selectedMeal.managedObjectContext != nil {
                     let carbValue = selectedMeal.consumedCarbs
                     if carbValue > 0 {
                         mealTooltip(meal: selectedMeal, carbs: carbValue)
@@ -195,8 +198,15 @@ struct GlucoseChartCard: View {
             return
         }
 
-        // Find the closest meal to the tapped time
-        let closestMeal = viewModel.mealLogs.min { meal1, meal2 in
+        // Safety check: Filter out any deleted/invalid meal entries
+        let validMeals = viewModel.mealLogs.filter { meal in
+            // Check if the managed object is still valid (not deleted/faulted)
+            guard !meal.isFault, !meal.isDeleted else { return false }
+            return meal.managedObjectContext != nil
+        }
+
+        // Find the closest valid meal to the tapped time
+        let closestMeal = validMeals.min { meal1, meal2 in
             abs(meal1.timestamp.timeIntervalSince(tappedDate)) <
             abs(meal2.timestamp.timeIntervalSince(tappedDate))
         }
@@ -262,4 +272,36 @@ struct GlucoseChartCard: View {
         default: return type.capitalized
         }
     }
+}
+
+// MARK: - Previews
+
+#Preview("With Glucose Data") {
+    GlucoseChartCard(viewModel: GlucoseChartViewModel.preview)
+        .previewWithPadding()
+        .frame(height: ResponsiveDesign.Components.chartHeight + 100)
+}
+
+#Preview("High Glucose") {
+    GlucoseChartCard(viewModel: GlucoseChartViewModel.previewHighGlucose)
+        .previewWithPadding()
+        .frame(height: ResponsiveDesign.Components.chartHeight + 100)
+}
+
+#Preview("Loading State") {
+    GlucoseChartCard(viewModel: GlucoseChartViewModel.previewLoading)
+        .previewWithPadding()
+        .frame(height: ResponsiveDesign.Components.chartHeight + 100)
+}
+
+#Preview("Error State") {
+    GlucoseChartCard(viewModel: GlucoseChartViewModel.previewError)
+        .previewWithPadding()
+        .frame(height: ResponsiveDesign.Components.chartHeight + 100)
+}
+
+#Preview("Empty State") {
+    GlucoseChartCard(viewModel: GlucoseChartViewModel.previewEmpty)
+        .previewWithPadding()
+        .frame(height: ResponsiveDesign.Components.chartHeight + 100)
 }

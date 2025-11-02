@@ -37,7 +37,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.calculateRecipeNutrition = exports.testEdamamNutrition = exports.syncUserPreferences = exports.syncGlucosePatterns = exports.syncRecipePreferences = exports.syncConversationSummaries = exports.syncUserFacts = exports.generateSessionMetadata = exports.diabetesAssistantStream = exports.transcribeMeal = exports.extractNutritionFromImage = exports.generateRecipePhoto = exports.generateSpontaneousRecipe = exports.generateRecipeFromIngredients = void 0;
+exports.calculateRecipeNutrition = exports.testEdamamNutrition = exports.syncUserPreferences = exports.syncGlucosePatterns = exports.syncRecipePreferences = exports.syncConversationSummaries = exports.syncUserFacts = exports.generateSessionMetadata = exports.diabetesAssistantStream = exports.getFeatureCosts = exports.getMonthlyCosts = exports.getWeeklyCosts = exports.getTodayCosts = exports.transcribeMeal = exports.extractNutritionFromImage = exports.generateRecipePhoto = exports.generateSpontaneousRecipe = exports.generateRecipeFromIngredients = void 0;
 // Load environment variables first (required for development)
 require("dotenv/config");
 const admin = __importStar(require("firebase-admin"));
@@ -50,6 +50,8 @@ const providers_1 = require("./providers");
 const cache_manager_1 = require("./cache-manager");
 const genkit_instance_1 = require("./genkit-instance");
 const recipe_memory_1 = require("./services/recipe-memory");
+const cost_tracker_1 = require("./cost-tracking/cost-tracker");
+const model_pricing_1 = require("./cost-tracking/model-pricing");
 // Initialize Firebase Admin (guard against duplicate initialization in tests)
 if (!admin.apps.length) {
     (0, app_1.initializeApp)();
@@ -76,96 +78,6 @@ const corsHandler = cors.default({
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
-});
-// ============================================
-// GENKIT FLOWS FOR MEMORY MANAGEMENT
-// ============================================
-// Flow: Generate text embeddings using text-embedding-004
-const generateEmbeddingFlow = genkit_instance_1.ai.defineFlow({
-    name: 'generateEmbedding',
-    inputSchema: genkit_1.z.object({
-        text: genkit_1.z.string().describe('Text to generate embedding for')
-    }),
-    outputSchema: genkit_1.z.object({
-        embedding: genkit_1.z.array(genkit_1.z.number()).describe('Embedding vector'),
-        dimensions: genkit_1.z.number().describe('Number of dimensions')
-    })
-}, async (input) => {
-    try {
-        const response = await genkit_instance_1.ai.embed({
-            embedder: (0, providers_1.getEmbedder)(),
-            content: input.text
-        });
-        // Extract the actual embedding vector from the response
-        const embeddingVector = Array.isArray(response) ? response[0]?.embedding : response;
-        const embedding = Array.isArray(embeddingVector) ? embeddingVector : [];
-        return {
-            embedding: embedding,
-            dimensions: embedding.length
-        };
-    }
-    catch (error) {
-        console.error('❌ Embedding generation failed:', error);
-        throw error;
-    }
-});
-// Flow: Summarize conversation using Gemini 2.5 Flash Lite
-const summarizeConversationFlow = genkit_instance_1.ai.defineFlow({
-    name: 'summarizeConversation',
-    inputSchema: genkit_1.z.object({
-        messages: genkit_1.z.array(genkit_1.z.object({
-            text: genkit_1.z.string(),
-            isUser: genkit_1.z.boolean()
-        })).describe('Messages to summarize'),
-        userId: genkit_1.z.string().describe('User ID for context')
-    }),
-    outputSchema: genkit_1.z.object({
-        summary: genkit_1.z.string().describe('Concise summary of conversation'),
-        keyFacts: genkit_1.z.array(genkit_1.z.string()).describe('Important facts extracted'),
-        topics: genkit_1.z.array(genkit_1.z.string()).describe('Main topics discussed')
-    })
-}, async (input) => {
-    const conversationText = input.messages
-        .map(msg => `${msg.isUser ? 'User' : 'Assistant'}: ${msg.text}`)
-        .join('\n');
-    const prompt = `Summarize this conversation between a diabetes patient and their assistant.
-Extract key facts about the user and main topics discussed.
-
-Conversation:
-${conversationText}
-
-Provide:
-1. A concise summary (2-3 sentences)
-2. Key facts about the user (health info, preferences, etc)
-3. Main topics discussed
-
-Format as JSON with fields: summary, keyFacts (array), topics (array)`;
-    try {
-        // Using Gemini 2.5 Flash Lite for efficient summarization
-        const response = await genkit_instance_1.ai.generate({
-            model: (0, providers_1.getSummaryModel)(),
-            prompt: prompt,
-            output: { format: 'json' },
-            config: {
-                temperature: 0.3,
-                maxOutputTokens: 1024
-            }
-        });
-        const result = JSON.parse(response.text);
-        return {
-            summary: result.summary || 'No summary generated',
-            keyFacts: result.keyFacts || [],
-            topics: result.topics || []
-        };
-    }
-    catch (error) {
-        console.error('❌ Summarization failed:', error);
-        return {
-            summary: 'Failed to generate summary',
-            keyFacts: [],
-            topics: []
-        };
-    }
 });
 // ============================================
 // RECIPE GENERATION FLOWS
@@ -200,6 +112,16 @@ const generateRecipeFromIngredientsFlow = genkit_instance_1.ai.defineFlow({
             spontaneous: false
         }, {
             model: (0, providers_1.getRecipeModel)() // Use provider-specific model for caching
+        });
+        // Track cost for recipe generation
+        const tokenCounts = (0, cost_tracker_1.extractTokenCounts)(response);
+        await (0, cost_tracker_1.logTokenUsage)({
+            featureName: model_pricing_1.FeatureName.RECIPE_GENERATION,
+            modelName: (0, providers_1.getRecipeModel)(),
+            inputTokens: tokenCounts.inputTokens,
+            outputTokens: tokenCounts.outputTokens,
+            userId: input.userId,
+            metadata: { mealType: input.mealType, styleType: input.styleType }
         });
         // Transform the response to match iOS app's expected format
         const promptOutput = response.output;
@@ -319,6 +241,19 @@ const generateRecipePhotoFlow = genkit_instance_1.ai.defineFlow({
                 }
             }
             console.log(`✅ [PHOTO] Final image URL format: ${imageUrl.substring(0, 50)}...`);
+            // Track cost for image generation (Imagen models are priced per image, not tokens)
+            await (0, cost_tracker_1.logImageUsage)({
+                featureName: model_pricing_1.FeatureName.IMAGE_GENERATION,
+                modelName: 'imagen-4.0-ultra', // Using Imagen 4 Ultra
+                imageCount: 1,
+                userId: input.userId,
+                metadata: {
+                    recipeName: input.recipeName,
+                    aspectRatio: input.aspectRatio || '4:3',
+                    qualityLevel: input.qualityLevel || 'ultra',
+                    resolution: input.resolution || '2K'
+                }
+            });
             // Build enhanced prompt description for transparency
             const enhancedPromptDesc = `Ultra-high quality professional food photography of ${input.recipeName} using Canon EOS R5, ${input.aspectRatio} aspect ratio, with ${aspectRatioConfig.description.toLowerCase()}`;
             return {
@@ -546,8 +481,8 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                 res.status(405).json({ error: 'Method not allowed' });
                 return;
             }
-            const { mealType, memoryEntries } = req.body;
-            let { styleType } = req.body;
+            const { mealType, memoryEntries, diversityConstraints } = req.body;
+            let { styleType, recentRecipes } = req.body;
             if (!mealType) {
                 res.status(400).json({ error: 'mealType is required' });
                 return;
@@ -560,6 +495,20 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
             // Log memory info if provided
             if (memoryEntries && Array.isArray(memoryEntries) && memoryEntries.length > 0) {
                 console.log(`📚 [ENDPOINT] Received ${memoryEntries.length} memory entries for diversity`);
+            }
+            // Log diversity constraints if provided
+            if (diversityConstraints) {
+                console.log(`🎯 [ENDPOINT] Received diversity constraints:`);
+                if (diversityConstraints.avoidProteins) {
+                    console.log(`   ❌ Avoid proteins: ${diversityConstraints.avoidProteins.join(', ')}`);
+                }
+                if (diversityConstraints.suggestProteins) {
+                    console.log(`   ✅ Suggest proteins: ${diversityConstraints.suggestProteins.join(', ')}`);
+                }
+            }
+            // Extract recent recipes if provided
+            if (!recentRecipes) {
+                recentRecipes = [];
             }
             // Always use streaming
             res.writeHead(200, {
@@ -583,7 +532,8 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                     mealType,
                     styleType,
                     spontaneous: true,
-                    recentRecipes: [] // Memory system is handled client-side via extractedIngredients
+                    recentRecipes: recentRecipes || [],
+                    diversityConstraints: diversityConstraints || undefined
                 }, {
                     model: (0, providers_1.getRecipeModel)() // Use provider-specific model for caching
                 });
@@ -858,494 +808,8 @@ async function processSessionBoundary(userId, sessionId) {
         console.error('Failed to process session boundary:', error);
     }
 }
-// Refactored to be intent-aware (unused - kept for future use)
-// @ts-ignore - unused but kept for reference
-async function _getMemoryContext(userId, query, intent) {
-    try {
-        console.log(`🧠 [MEMORY] Getting context for intent: ${intent.category} (confidence: ${intent.confidence})`);
-        let context = '';
-        const contextNeeded = intent.contextNeeded;
-        // IMMEDIATE CONTEXT: Always include last few messages for conversation continuity
-        if (contextNeeded.immediate) {
-            const immediateMessages = sessionManager.getLastNMessages(userId, 3);
-            if (immediateMessages.length > 0) {
-                context += '## Immediate Context (Last Messages):\n';
-                immediateMessages.forEach(msg => {
-                    context += `${msg.isUser ? 'User' : 'Assistant'}: ${msg.text}\n`;
-                });
-                context += '\n';
-            }
-        }
-        // SESSION CONTEXT: Include current session messages (beyond immediate)
-        if (contextNeeded.session) {
-            const sessionMessages = sessionManager.getSessionMessages(userId);
-            if (sessionMessages.length > 3) { // More than immediate context
-                const olderSessionMessages = sessionMessages.slice(0, -3); // Exclude last 3 already included
-                if (olderSessionMessages.length > 0) {
-                    context += '## Session Context (Earlier in Conversation):\n';
-                    // Limit to last 10 messages to avoid context overload
-                    const limitedMessages = olderSessionMessages.slice(-10);
-                    limitedMessages.forEach(msg => {
-                        context += `${msg.isUser ? 'User' : 'Assistant'}: ${msg.text}\n`;
-                    });
-                    context += '\n';
-                }
-            }
-        }
-        // HISTORICAL CONTEXT: Search previous sessions for relevant information
-        if (contextNeeded.historical) {
-            console.log(`🔍 [MEMORY] Searching historical context for: ${query}`);
-            try {
-                const longTermMemory = await searchLongTermMemory(userId, query);
-                if (longTermMemory) {
-                    context += '## Historical Context (Previous Sessions):\n';
-                    context += longTermMemory;
-                    context += '\n';
-                }
-            }
-            catch (searchError) {
-                console.warn('⚠️ [MEMORY] Historical context search failed:', searchError);
-            }
-        }
-        // VECTOR SEARCH: Semantic similarity for relevant past conversations
-        if (contextNeeded.vectorSearch) {
-            console.log(`🎯 [MEMORY] Performing vector search for: ${query}`);
-            try {
-                const vector = await vectorSimilarMessages(userId, query, 5);
-                if (vector.results.length > 0) {
-                    context += '## Semantic Matches (Relevant Past Discussions):\n';
-                    vector.results.forEach(m => {
-                        context += `${m.isUser ? 'User' : 'Assistant'}: ${m.text}\n`;
-                    });
-                    context += '\n';
-                }
-            }
-            catch (e) {
-                console.warn('⚠️ [MEMORY] Vector similarity search failed:', e);
-            }
-        }
-        // Add intent information for debugging
-        console.log(`📊 [MEMORY] Context built - Intent: ${intent.category}, Length: ${context.length} chars`);
-        return context || null;
-    }
-    catch (error) {
-        console.error('❌ [MEMORY] Failed to get memory context:', error);
-        return null;
-    }
-}
-// Legacy function removed - now using intent-aware getMemoryContext directly
-// Search long-term memory using keyword search
-async function searchLongTermMemory(userId, query) {
-    try {
-        const memoryDoc = await db.collection('longTermMemory').doc(userId).get();
-        if (!memoryDoc.exists) {
-            return null;
-        }
-        const memory = memoryDoc.data();
-        let relevantContent = '';
-        // Simple keyword search in summaries
-        const queryKeywords = query.toLowerCase().split(' ').filter(word => word.length > 2);
-        if (memory.summaries?.length > 0) {
-            const relevantSummaries = memory.summaries.filter(summary => {
-                const summaryText = summary.summary.toLowerCase();
-                return queryKeywords.some(keyword => summaryText.includes(keyword));
-            });
-            if (relevantSummaries.length > 0) {
-                relevantContent += 'Relevant previous conversations:\n';
-                relevantSummaries.slice(-3).forEach(summary => {
-                    relevantContent += `- ${summary.summary}\n`;
-                });
-            }
-        }
-        // Search in user facts
-        if (memory.facts?.length > 0) {
-            const relevantFacts = memory.facts.filter(fact => {
-                const factText = fact.toLowerCase();
-                return queryKeywords.some(keyword => factText.includes(keyword));
-            });
-            if (relevantFacts.length > 0) {
-                relevantContent += 'Relevant user information:\n';
-                relevantFacts.slice(0, 3).forEach(fact => {
-                    relevantContent += `- ${fact}\n`;
-                });
-            }
-        }
-        return relevantContent || null;
-    }
-    catch (error) {
-        console.error('Error searching long-term memory:', error);
-        return null;
-    }
-}
-// Session boundary detection and handoff (unused - kept for future use)
-// @ts-ignore - unused but kept for reference
-async function _checkAndHandoffSession(userId) {
-    try {
-        // Get recent messages to check session length
-        const recentMessagesQuery = await db.collection('chat_messages')
-            .where('userId', '==', userId)
-            .orderBy('timestamp', 'desc')
-            .limit(12) // Look at slightly more than our short-term limit
-            .get();
-        if (recentMessagesQuery.empty)
-            return;
-        const messages = recentMessagesQuery.docs.map(doc => doc.data());
-        // Session boundary criteria:
-        // 1. More than 10 messages (5 turns) - need to handoff older messages
-        // 2. OR time gap > 30 minutes since last message group
-        if (messages.length >= 12) {
-            console.log(`📚 [HANDOFF] Session has ${messages.length} messages, triggering handoff for user: ${userId}`);
-            // Take the older messages (beyond our short-term memory limit) for summarization
-            const messagesToSummarize = messages.slice(10).reverse(); // Get oldest messages beyond our 10-message limit
-            if (messagesToSummarize.length >= 2) { // Need at least one exchange to summarize
-                await handoffToLongTermMemory(userId, messagesToSummarize);
-            }
-        }
-    }
-    catch (error) {
-        console.error('Error in session boundary check:', error);
-    }
-}
-// Handoff messages to long-term memory with summarization
-async function handoffToLongTermMemory(userId, messages) {
-    try {
-        console.log(`🔄 [HANDOFF] Processing ${messages.length} messages for long-term storage`);
-        // Prepare messages for summarization
-        const messagesForSummary = messages.map(msg => ({
-            text: msg.text,
-            isUser: msg.isUser
-        }));
-        // Use Gemini 2.5 Flash Lite for summarization
-        const summaryResult = await summarizeConversationFlow({
-            messages: messagesForSummary,
-            userId: userId
-        });
-        console.log('📝 [HANDOFF] Generated summary:', summaryResult.summary);
-        // Store in long-term memory
-        const memoryRef = db.collection('longTermMemory').doc(userId);
-        const memoryDoc = await memoryRef.get();
-        const sessionSummary = {
-            sessionId: `session_${Date.now()}`,
-            summary: summaryResult.summary,
-            timestamp: new Date().toISOString(),
-            messageCount: messages.length
-        };
-        if (memoryDoc.exists) {
-            // Update existing memory
-            await memoryRef.update({
-                summaries: firestore_1.FieldValue.arrayUnion(sessionSummary),
-                facts: firestore_1.FieldValue.arrayUnion(...summaryResult.keyFacts),
-                lastUpdated: new Date().toISOString()
-            });
-        }
-        else {
-            // Create new memory document
-            const newMemory = {
-                userId,
-                facts: summaryResult.keyFacts,
-                patterns: [],
-                summaries: [sessionSummary],
-                preferences: {},
-                lastUpdated: new Date().toISOString()
-            };
-            await memoryRef.set(newMemory);
-        }
-        // Delete the summarized messages from chat_messages to keep only recent ones
-        const batch = db.batch();
-        const messagesToDelete = await db.collection('chat_messages')
-            .where('userId', '==', userId)
-            .orderBy('timestamp', 'asc')
-            .limit(messages.length)
-            .get();
-        messagesToDelete.docs.forEach(doc => {
-            batch.delete(doc.ref);
-        });
-        await batch.commit();
-        console.log(`✅ [HANDOFF] Completed handoff for ${messages.length} messages`);
-    }
-    catch (error) {
-        console.error('❌ [HANDOFF] Error in handoff process:', error);
-    }
-}
-// ============================================
-// INTENT CLASSIFICATION SYSTEM
-// ============================================
-// @ts-ignore - unused but kept for reference
-async function _classifyMessageIntent(message) {
-    try {
-        const classifierModel = (0, providers_1.getClassifierModel)();
-        const classificationPrompt = `Sen bir mesaj analiz uzmanısın. Kullanıcı mesajını analiz ederek hangi tür yanıt ve bağlam gerektirdiğini belirle.
-
-Mesaj: "${message}"
-
-Aşağıdaki kategorilerden birini seç:
-1. "greeting" - Basit selamlaşma (Günaydın, Merhaba, Nasılsın, vb.)
-2. "health_query" - Sağlık/diyabet ile ilgili soru veya bilgi talebi
-3. "memory_recall" - Geçmiş konuşmaları hatırlatma ("hatırlıyor musun", "daha önce konuştuk", vb.)
-4. "follow_up" - Mevcut konuya devam etme ("peki ya", "bir de", "ayrıca", vb.)
-5. "general" - Diğer genel konuşma
-
-JSON formatında yanıt ver:
-{
-  "category": "kategori_adı",
-  "confidence": 0.95,
-  "keywords": ["anahtar", "kelimeler"],
-  "contextNeeded": {
-    "immediate": true,
-    "session": false,
-    "historical": false,
-    "vectorSearch": false
-  },
-  "reasoning": "Kısa açıklama"
-}
-
-Kurallar:
-- Tek kelime selamlaşmalar (Günaydın, Merhaba) → sadece immediate: true
-- Sağlık soruları → session: true, vectorSearch: true
-- Hatırlama istekleri → historical: true, vectorSearch: true
-- Takip soruları → session: true
-
-Sadece JSON yanıt ver, başka bir şey yazma.`;
-        const response = await genkit_instance_1.ai.generate({
-            model: classifierModel,
-            prompt: classificationPrompt,
-            config: {
-                temperature: 0.1,
-                maxOutputTokens: 300
-            }
-        });
-        const responseText = response.text.trim();
-        console.log(`🔍 [CLASSIFY] Raw response: ${responseText}`);
-        // Parse JSON response
-        try {
-            const intent = JSON.parse(responseText);
-            console.log(`🎯 [CLASSIFY] Message: "${message}" → Category: ${intent.category} (confidence: ${intent.confidence})`);
-            return intent;
-        }
-        catch (parseError) {
-            console.warn(`⚠️ [CLASSIFY] Failed to parse JSON, using fallback`, parseError);
-            return createFallbackIntent(message);
-        }
-    }
-    catch (error) {
-        console.error('❌ [CLASSIFY] Intent classification failed:', error);
-        return createFallbackIntent(message);
-    }
-}
-function createFallbackIntent(message) {
-    // Simple fallback logic based on keywords
-    const lowerMessage = message.toLowerCase().trim();
-    const turkishGreetings = ['günaydın', 'merhaba', 'selam', 'nasılsın', 'naber', 'iyi misin'];
-    const memoryKeywords = ['hatırla', 'daha önce', 'geçen', 'konuştuk', 'söylemiştim'];
-    const healthKeywords = ['şeker', 'kan', 'insülin', 'diyabet', 'glikoz', 'ölçüm', 'kahvaltı', 'yemek'];
-    if (turkishGreetings.some(greeting => lowerMessage.includes(greeting) && lowerMessage.length < 15)) {
-        return {
-            category: 'greeting',
-            confidence: 0.8,
-            keywords: [lowerMessage],
-            contextNeeded: {
-                immediate: true,
-                session: false,
-                historical: false,
-                vectorSearch: false
-            },
-            reasoning: 'Basit selamlaşma tespit edildi'
-        };
-    }
-    if (memoryKeywords.some(keyword => lowerMessage.includes(keyword))) {
-        return {
-            category: 'memory_recall',
-            confidence: 0.7,
-            keywords: memoryKeywords.filter(k => lowerMessage.includes(k)),
-            contextNeeded: {
-                immediate: true,
-                session: true,
-                historical: true,
-                vectorSearch: true
-            },
-            reasoning: 'Hafıza hatırlatma anahtar kelimesi bulundu'
-        };
-    }
-    if (healthKeywords.some(keyword => lowerMessage.includes(keyword))) {
-        return {
-            category: 'health_query',
-            confidence: 0.7,
-            keywords: healthKeywords.filter(k => lowerMessage.includes(k)),
-            contextNeeded: {
-                immediate: true,
-                session: true,
-                historical: false,
-                vectorSearch: true
-            },
-            reasoning: 'Sağlık anahtar kelimesi bulundu'
-        };
-    }
-    return {
-        category: 'general',
-        confidence: 0.5,
-        keywords: [],
-        contextNeeded: {
-            immediate: true,
-            session: true,
-            historical: false,
-            vectorSearch: false
-        },
-        reasoning: 'Genel kategori (fallback)'
-    };
-}
-class SessionContextManager {
-    sessionCaches = new Map();
-    MAX_SESSION_MESSAGES = 50; // Keep last 50 messages in session
-    SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes timeout
-    constructor() {
-        // Clean up expired sessions every 10 minutes
-        setInterval(() => this.cleanupExpiredSessions(), 10 * 60 * 1000);
-    }
-    generateSessionId() {
-        return `session_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-    }
-    getSessionKey(userId) {
-        return `session_${userId}`;
-    }
-    addMessage(userId, message) {
-        const sessionKey = this.getSessionKey(userId);
-        let session = this.sessionCaches.get(sessionKey);
-        if (!session) {
-            // Create new session
-            session = {
-                userId,
-                sessionId: this.generateSessionId(),
-                messages: [],
-                lastActivity: new Date().toISOString(),
-                startTime: new Date().toISOString()
-            };
-            this.sessionCaches.set(sessionKey, session);
-            console.log(`🆕 [SESSION] Created new session ${session.sessionId} for user ${userId}`);
-        }
-        // Add message to session
-        session.messages.push(message);
-        session.lastActivity = new Date().toISOString();
-        // Keep only recent messages to prevent memory bloat
-        if (session.messages.length > this.MAX_SESSION_MESSAGES) {
-            const removed = session.messages.splice(0, session.messages.length - this.MAX_SESSION_MESSAGES);
-            console.log(`🧹 [SESSION] Trimmed ${removed.length} old messages from session`);
-        }
-        console.log(`💬 [SESSION] Added message to session ${session.sessionId} (${session.messages.length} total messages)`);
-    }
-    getSessionMessages(userId) {
-        const sessionKey = this.getSessionKey(userId);
-        const session = this.sessionCaches.get(sessionKey);
-        if (!session) {
-            console.log(`📭 [SESSION] No session found for user ${userId}`);
-            return [];
-        }
-        // Check if session is expired
-        const now = Date.now();
-        const lastActivity = new Date(session.lastActivity).getTime();
-        if (now - lastActivity > this.SESSION_TIMEOUT) {
-            console.log(`⏰ [SESSION] Session ${session.sessionId} expired, removing`);
-            this.sessionCaches.delete(sessionKey);
-            return [];
-        }
-        console.log(`📚 [SESSION] Retrieved ${session.messages.length} messages from session ${session.sessionId}`);
-        return [...session.messages]; // Return copy to prevent external mutations
-    }
-    getLastNMessages(userId, count) {
-        const messages = this.getSessionMessages(userId);
-        return messages.slice(-count);
-    }
-    clearSession(userId) {
-        const sessionKey = this.getSessionKey(userId);
-        const session = this.sessionCaches.get(sessionKey);
-        if (session) {
-            console.log(`🗑️ [SESSION] Manually clearing session ${session.sessionId} for user ${userId}`);
-            this.sessionCaches.delete(sessionKey);
-        }
-    }
-    cleanupExpiredSessions() {
-        const now = Date.now();
-        let expiredCount = 0;
-        for (const [key, session] of this.sessionCaches.entries()) {
-            const lastActivity = new Date(session.lastActivity).getTime();
-            if (now - lastActivity > this.SESSION_TIMEOUT) {
-                this.sessionCaches.delete(key);
-                expiredCount++;
-            }
-        }
-        if (expiredCount > 0) {
-            console.log(`🧹 [SESSION] Cleaned up ${expiredCount} expired sessions`);
-        }
-    }
-    getSessionStats() {
-        let totalMessages = 0;
-        for (const session of this.sessionCaches.values()) {
-            totalMessages += session.messages.length;
-        }
-        return {
-            totalSessions: this.sessionCaches.size,
-            totalMessages
-        };
-    }
-}
-// Global session manager instance
-const sessionManager = new SessionContextManager();
-// ============================================
-// MONITORING ENDPOINTS
-// ============================================
-// REMOVED: sessionStats - health/debug endpoint not needed
-// ============================================
-// ===== Vector Similarity Helpers =====
-function cosineSimilarity(a, b) {
-    if (!a || !b || a.length === 0 || b.length === 0 || a.length !== b.length)
-        return -1;
-    let dot = 0;
-    let na = 0;
-    let nb = 0;
-    for (let i = 0; i < a.length; i++) {
-        const x = a[i] || 0;
-        const y = b[i] || 0;
-        dot += x * y;
-        na += x * x;
-        nb += y * y;
-    }
-    const denom = Math.sqrt(na) * Math.sqrt(nb);
-    return denom > 0 ? dot / denom : -1;
-}
-async function vectorSimilarMessages(userId, query, limit = 5) {
-    // 1) Compute query embedding
-    const embed = await generateEmbeddingFlow({ text: query });
-    const queryVec = embed.embedding || [];
-    // 2) Fetch recent candidates (bounded for latency)
-    const candidateLimit = 400;
-    const recent = await db.collection('chat_messages')
-        .where('userId', '==', userId)
-        .orderBy('timestamp', 'desc')
-        .limit(candidateLimit)
-        .get();
-    const scored = [];
-    recent.forEach(doc => {
-        const data = doc.data();
-        const vec = Array.isArray(data.embedding) ? data.embedding : [];
-        if (vec.length > 0 && vec.length === queryVec.length) {
-            const sim = cosineSimilarity(queryVec, vec);
-            if (isFinite(sim)) {
-                scored.push({
-                    id: doc.id,
-                    text: data.text,
-                    isUser: !!data.isUser,
-                    timestamp: data.timestamp,
-                    similarity: sim,
-                    dimensions: vec.length
-                });
-            }
-        }
-    });
-    scored.sort((a, b) => b.similarity - a.similarity);
-    const top = scored.slice(0, Math.max(1, limit));
-    return { queryEmbedding: queryVec, results: top };
-}
-// ============================================
-// REMOVED: healthCheck and memoryMetrics - not used by iOS app
+// REMOVED: Unused memory management system (intent classification, session management, vector similarity)
+// The iOS app uses a different memory architecture via memory-sync endpoints
 // ============================================
 // NUTRITION EXTRACTION ENDPOINT
 // ============================================
@@ -1383,6 +847,17 @@ exports.extractNutritionFromImage = (0, https_1.onRequest)({
                 maxWidth,
                 userId
             });
+            // Track cost for nutrition extraction
+            if (result.usage) {
+                await (0, cost_tracker_1.logTokenUsage)({
+                    featureName: model_pricing_1.FeatureName.NUTRITION_CALCULATION,
+                    modelName: 'gemini-2.5-flash', // gemini-flash-latest maps to 2.5 Flash
+                    inputTokens: result.usage.inputTokens,
+                    outputTokens: result.usage.outputTokens,
+                    userId,
+                    metadata: { language, confidence: result.metadata.confidence }
+                });
+            }
             const totalTime = ((Date.now() - startTime) / 1000).toFixed(2);
             console.log(`✅ [NUTRITION-DIRECT] Completed extraction in ${totalTime}s with 99%+ reliability`);
             res.json({
@@ -1482,6 +957,90 @@ exports.transcribeMeal = (0, https_1.onRequest)({
                 message: errorMessage,
                 timestamp: new Date().toISOString()
             });
+        }
+    });
+});
+// ============================================
+// COST TRACKING & REPORTING ENDPOINTS
+// ============================================
+const cost_reporter_1 = require("./cost-tracking/cost-reporter");
+// Get today's cost summary
+exports.getTodayCosts = (0, https_1.onRequest)({
+    timeoutSeconds: 30,
+    memory: '256MiB'
+}, async (req, res) => {
+    corsHandler(req, res, async () => {
+        try {
+            const report = await (0, cost_reporter_1.getTodayCostReport)();
+            res.json({
+                success: true,
+                data: report,
+                formatted: (0, cost_reporter_1.formatCostReport)(report)
+            });
+        }
+        catch (error) {
+            console.error('Failed to get today costs:', error);
+            res.status(500).json({ error: 'Failed to retrieve cost data' });
+        }
+    });
+});
+// Get this week's cost summary
+exports.getWeeklyCosts = (0, https_1.onRequest)({
+    timeoutSeconds: 30,
+    memory: '256MiB'
+}, async (req, res) => {
+    corsHandler(req, res, async () => {
+        try {
+            const report = await (0, cost_reporter_1.getWeeklyCostReport)();
+            res.json({
+                success: true,
+                data: report,
+                formatted: (0, cost_reporter_1.formatCostReport)(report)
+            });
+        }
+        catch (error) {
+            console.error('Failed to get weekly costs:', error);
+            res.status(500).json({ error: 'Failed to retrieve cost data' });
+        }
+    });
+});
+// Get this month's cost summary
+exports.getMonthlyCosts = (0, https_1.onRequest)({
+    timeoutSeconds: 30,
+    memory: '256MiB'
+}, async (req, res) => {
+    corsHandler(req, res, async () => {
+        try {
+            const report = await (0, cost_reporter_1.getMonthlyCostReport)();
+            res.json({
+                success: true,
+                data: report,
+                formatted: (0, cost_reporter_1.formatCostReport)(report)
+            });
+        }
+        catch (error) {
+            console.error('Failed to get monthly costs:', error);
+            res.status(500).json({ error: 'Failed to retrieve cost data' });
+        }
+    });
+});
+// Get feature comparison report
+exports.getFeatureCosts = (0, https_1.onRequest)({
+    timeoutSeconds: 30,
+    memory: '256MiB'
+}, async (req, res) => {
+    corsHandler(req, res, async () => {
+        try {
+            const days = parseInt(req.query.days) || 7;
+            const report = await (0, cost_reporter_1.getFeatureComparisonReport)(days);
+            res.json({
+                success: true,
+                data: report
+            });
+        }
+        catch (error) {
+            console.error('Failed to get feature costs:', error);
+            res.status(500).json({ error: 'Failed to retrieve cost data' });
         }
     });
 });

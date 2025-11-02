@@ -71,36 +71,37 @@ struct ActivityMetricsCard: View {
             HStack(spacing: 12) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(String(format: "%.0f", viewModel.todaySteps))
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
                         .offset(y: 1)
                         .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
+                        .minimumScaleFactor(0.8)
 
                     Text("adım")
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: true, vertical: false)
 
                     Image(systemName: "figure.walk")
-                        .font(.system(size: 32))
+                        .font(.system(size: 28))
                         .foregroundStyle(AppTheme.primaryPurple)
                         .alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
-                        .offset(y: 3)
+                        .offset(y: 2)
                 }
                 .layoutPriority(1)
 
-                Spacer(minLength: 8)
+                Spacer(minLength: 12)
 
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("Düne göre değişim")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(AppTheme.primaryPurple)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
 
                     Text("\(viewModel.stepsChangePercent >= 0 ? "+" : "")\(viewModel.stepsChangePercent)%")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
                         .foregroundStyle(AppTheme.primaryPurple)
                 }
-                .frame(minWidth: 80)
+                .frame(minWidth: 90)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -115,36 +116,37 @@ struct ActivityMetricsCard: View {
             HStack(spacing: 12) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(String(format: "%.0f", viewModel.todayCalories))
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
                         .offset(y: 1)
                         .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
+                        .minimumScaleFactor(0.8)
 
                     Text("kcal")
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: true, vertical: false)
 
                     Image(systemName: "flame.fill")
-                        .font(.system(size: 32))
+                        .font(.system(size: 28))
                         .foregroundStyle(AppTheme.primaryPurple)
-                        .offset(y: 4)
+                        .offset(y: 3)
                         .alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
                 }
                 .layoutPriority(1)
 
-                Spacer(minLength: 8)
+                Spacer(minLength: 12)
 
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("Düne göre değişim")
-                        .font(.system(size: 13, weight: .medium, design: .rounded))
+                        .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(AppTheme.primaryPurple)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
 
                     Text("\(viewModel.caloriesChangePercent >= 0 ? "+" : "")\(viewModel.caloriesChangePercent)%")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .font(.system(size: 24, weight: .bold, design: .rounded))
                         .foregroundStyle(AppTheme.primaryPurple)
                 }
-                .frame(minWidth: 80)
+                .frame(minWidth: 90)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
@@ -153,4 +155,51 @@ struct ActivityMetricsCard: View {
         }
         .frame(height: ResponsiveDesign.Components.chartHeight)
     }
+}
+
+// MARK: - Previews
+
+#Preview("Healthy Activity") {
+    ActivityMetricsCard(
+        viewModel: ActivityMetricsViewModel.preview,
+        healthKitPermissions: HealthKitPermissionManager.preview
+    )
+    .previewWithPadding()
+    .frame(height: ResponsiveDesign.Components.chartHeight + 100)
+}
+
+#Preview("High Activity") {
+    ActivityMetricsCard(
+        viewModel: ActivityMetricsViewModel.previewHighActivity,
+        healthKitPermissions: HealthKitPermissionManager.preview
+    )
+    .previewWithPadding()
+    .frame(height: ResponsiveDesign.Components.chartHeight + 100)
+}
+
+#Preview("Low Activity") {
+    ActivityMetricsCard(
+        viewModel: ActivityMetricsViewModel.previewLowActivity,
+        healthKitPermissions: HealthKitPermissionManager.preview
+    )
+    .previewWithPadding()
+    .frame(height: ResponsiveDesign.Components.chartHeight + 100)
+}
+
+#Preview("Error State") {
+    ActivityMetricsCard(
+        viewModel: ActivityMetricsViewModel.previewError,
+        healthKitPermissions: HealthKitPermissionManager.previewDenied
+    )
+    .previewWithPadding()
+    .frame(height: ResponsiveDesign.Components.chartHeight + 100)
+}
+
+#Preview("Loading State") {
+    ActivityMetricsCard(
+        viewModel: ActivityMetricsViewModel.previewLoading,
+        healthKitPermissions: HealthKitPermissionManager.preview
+    )
+    .previewWithPadding()
+    .frame(height: ResponsiveDesign.Components.chartHeight + 100)
 }

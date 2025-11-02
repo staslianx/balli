@@ -18,7 +18,9 @@ struct SearchAnswer: Identifiable, Codable, Sendable, Equatable {
         lhs.sources.count == rhs.sources.count &&
         lhs.thinkingSummary == rhs.thinkingSummary &&
         lhs.processingTierRaw == rhs.processingTierRaw &&
-        lhs.completedRounds.count == rhs.completedRounds.count
+        lhs.completedRounds.count == rhs.completedRounds.count &&
+        lhs.imageAttachment == rhs.imageAttachment &&
+        lhs.highlights.count == rhs.highlights.count
     }
     let id: String
     let query: String
@@ -34,6 +36,12 @@ struct SearchAnswer: Identifiable, Codable, Sendable, Equatable {
     // Multi-round research journey
     let completedRounds: [ResearchRound]
 
+    // Image attachment (if user sent a photo with their question)
+    let imageAttachment: ImageAttachment?
+
+    // Text highlights (user-created annotations)
+    let highlights: [TextHighlight]
+
     init(
         id: String = UUID().uuidString,
         query: String,
@@ -45,7 +53,9 @@ struct SearchAnswer: Identifiable, Codable, Sendable, Equatable {
         tier: ResponseTier? = nil,
         thinkingSummary: String? = nil,
         processingTierRaw: String? = nil,
-        completedRounds: [ResearchRound] = []
+        completedRounds: [ResearchRound] = [],
+        imageAttachment: ImageAttachment? = nil,
+        highlights: [TextHighlight] = []
     ) {
         self.id = id
         self.query = query
@@ -58,6 +68,8 @@ struct SearchAnswer: Identifiable, Codable, Sendable, Equatable {
         self.thinkingSummary = thinkingSummary
         self.processingTierRaw = processingTierRaw
         self.completedRounds = completedRounds
+        self.imageAttachment = imageAttachment
+        self.highlights = highlights
     }
 }
 

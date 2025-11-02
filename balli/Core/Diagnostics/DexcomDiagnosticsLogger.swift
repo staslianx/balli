@@ -263,7 +263,7 @@ actor DexcomDiagnosticsLogger {
     }
 
     /// Export logs as JSON
-    func exportLogsAsJSON() throws -> Data {
+    func exportLogsAsJSON() async throws -> Data {
         struct ExportData: Codable {
             let exportDate: Date
             let deviceInfo: DeviceInfo
@@ -292,11 +292,16 @@ actor DexcomDiagnosticsLogger {
         }
 
         let stats = getStatistics()
+
+        // Access @MainActor-isolated UIDevice properties safely
+        let deviceModel = await MainActor.run { UIDevice.current.model }
+        let systemVersion = await MainActor.run { UIDevice.current.systemVersion }
+
         let exportData = ExportData(
             exportDate: Date(),
             deviceInfo: ExportData.DeviceInfo(
-                model: UIDevice.current.model,
-                systemVersion: UIDevice.current.systemVersion,
+                model: deviceModel,
+                systemVersion: systemVersion,
                 appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
             ),
             statistics: ExportData.StatisticsData(
@@ -322,7 +327,7 @@ actor DexcomDiagnosticsLogger {
     }
 
     /// Save logs to a file and return the file URL
-    func saveLogsToFile(format: ExportFormat = .text) throws -> URL {
+    func saveLogsToFile(format: ExportFormat = .text) async throws -> URL {
         let filename: String
         let data: Data
 
@@ -335,7 +340,7 @@ actor DexcomDiagnosticsLogger {
             data = exportLogsAsText().data(using: .utf8) ?? Data()
         case .json:
             filename = "dexcom-diagnostics-\(timestamp).json"
-            data = try exportLogsAsJSON()
+            data = try await exportLogsAsJSON()
         }
 
         let tempDir = FileManager.default.temporaryDirectory

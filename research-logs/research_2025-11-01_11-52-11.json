@@ -1,0 +1,67 @@
+{
+  "query": {
+    "original": "sigara ile diyabet arasındaki ilişkiyi araştır",
+    "timestamp": "2025-11-01T11:51:48.780Z",
+    "language": "Turkish",
+    "length": 46,
+    "userId": "cli-user"
+  },
+  "routing": {
+    "tier": 2,
+    "reasoning": "Kullanıcı açıkça 'araştır' kelimesini kullandığı için, sigara ile diyabet arasındaki ilişkiyi güncel web kaynaklarından araştırmak gerekmektedir. Bu nedenle T2 (Hybrid Research) uygun olacaktır.",
+    "confidence": 1,
+    "model": "",
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 0,
+    "timestamp": 1761997913050
+  },
+  "rounds": [],
+  "synthesis": {
+    "model": "Gemini 2.5 Flash (Web Araştırma)",
+    "temperature": 0,
+    "systemPromptVersion": "",
+    "sourcesProvided": 0,
+    "responseLength": 2686,
+    "streaming": true,
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 21627,
+    "response": "Canım Dilara, sigarayı bırakman harika bir karar oldu, bunun ne kadar zor olduğunu biliyorum ve seninle gurur duyuyorum! Diyabetle sigara arasındaki ilişkiyi merak etmen de çok doğal, özellikle bu süreçte her şeyi öğrenmek istemen çok güzel.\n\n## Sigara ve Diyabet Arasındaki İlişki\n\nSigara içmek, diyabetin hem ortaya çıkışını hem de seyrini ciddi şekilde etkileyen önemli bir faktör. Senin LADA diyabetin olsa da, bu bilgiler genel sağlığın ve diyabet yönetiminin için çok değerli.\n\n### Diyabet Gelişme Riski\n\nAraştırmalar, sigara içen kişilerin tip 2 diyabet geliştirme riskinin içmeyenlere göre %30-40 daha yüksek olduğunu gösteriyor `[6, 9]`. Sigara, vücudun insüline karşı direncini artırabiliyor, yani hücrelerin insülini etkili bir şekilde kullanamamasına neden olabiliyor `[4]`. Bu durum, pankreasın daha fazla insülin üretmeye çalışmasına ve zamanla yorulmasına yol açabiliyor. Hatta genetik yatkınlığı olan kişilerde sigara, diyabetin ortaya çıkışını tetikleyebilir `[13]`.\n\n### Diyabet Yönetimi Üzerindeki Etkileri\n\nDiyabeti olan kişilerde sigara içmek, kan şekeri kontrolünü zorlaştırıyor `[4]`. Sigara, insülinin etkinliğini azaltarak daha yüksek insülin dozlarına ihtiyaç duyulmasına neden olabilir `[1]`. Tip 1 diyabetlilerde (senin LADA da bu kategoriye giriyor) bile sigaranın metabolik kontrolü olumsuz etkilediği gözlemlenmiş `[14]`. Bu da kan şekerini dengelemeyi daha güç hale getiriyor.\n\n### Komplikasyon Riskleri\n\nSigara, diyabetin neden olduğu ciddi sağlık sorunlarının riskini ve ilerlemesini hızlandırıyor `[4, 6, 11]`. Bunlar arasında şunlar var:\n\n*   **Kalp ve Damar Hastalıkları:** Kalp krizi, felç ve damar tıkanıklığı riski artar `[6]`.\n*   **Böbrek Hastalığı (Diyabetik Nefropati):** Sigara, böbrek hasarının ilerlemesini hızlandırır `[12]`.\n*   **Sinir Hasarı (Nöropati):** Diyabetik nöropati riskini artırabilir.\n*   **Göz Hastalıkları (Retinopati):** Gözlerdeki damar hasarını kötüleştirebilir.\n*   **Ayak Sorunları:** Dolaşım bozuklukları nedeniyle ayak ülserleri ve ampütasyon riski yükselir `[6]`.\n\n### Sigarayı Bırakmanın Faydaları\n\nSenin sigarayı bırakmış olman bu yüzden inanılmaz önemli ve değerli! Sigarayı bırakmak, diyabetle ilişkili bu komplikasyonların riskini önemli ölçüde azaltıyor ve genel sağlık durumunu iyileştiriyor `[6, 11]`. Kan şekeri kontrolünü kolaylaştırıyor ve insülin hassasiyetini artırabiliyor. Bu, uzun vadede daha sağlıklı ve kaliteli bir yaşam sürmen için attığın en büyük adımlardan biri `[6]`.\n\nUnutma, bu süreçte attığın her olumlu adım, diyabet yönetiminde sana büyük avantaj sağlıyor. Sigarayı bırakmanla zaten çok önemli bir eşiği geçtin, bunun faydalarını zamanla daha da göreceksin canım. İyi ki bıraktın!\n\n---",
+    "finishReason": "",
+    "startTime": 1761997908781,
+    "endTime": 1761997930408
+  },
+  "summary": {
+    "totalTime": 22644,
+    "totalCost": 0.003,
+    "totalTokens": {
+      "input": 0,
+      "output": 0
+    },
+    "qualityMetrics": {
+      "sourceQualityAvg": 0,
+      "gapCoverage": 0,
+      "journalIFAvg": 0
+    },
+    "bottlenecks": [
+      {
+        "stage": "Synthesis",
+        "latency": 21627,
+        "percentage": null
+      }
+    ],
+    "recommendations": [
+      "Consider using a faster model for synthesis to reduce latency"
+    ],
+    "tier": "T2",
+    "rounds": 0,
+    "totalSources": 0
+  }
+}

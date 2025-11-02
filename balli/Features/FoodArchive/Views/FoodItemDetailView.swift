@@ -264,11 +264,26 @@ struct FoodItemDetailView: View {
         guard let result = currentImpactResult else {
             return .low
         }
-        // Use three-threshold evaluation for accurate safety assessment
+
+        // CRITICAL FIX: Scale fat/protein to match what will be saved to database
+        // This ensures the badge shown during editing EXACTLY matches the badge
+        // that will appear in the Food Archive after saving.
+        //
+        // Why: The save logic (handleSave) scales ALL nutrition values when the
+        // portion changes. The archive badge then calculates from these SCALED
+        // saved values. To show consistent badges, we must scale fat/protein here
+        // to match what will be in the database after save.
+        let baseServing = Double(servingSize) ?? 100.0
+        let adjustmentRatio = portionGrams / baseServing
+
+        let scaledFat = (Double(fat) ?? 0.0) * adjustmentRatio
+        let scaledProtein = (Double(protein) ?? 0.0) * adjustmentRatio
+
+        // Use three-threshold evaluation with SCALED values (matches saved state)
         return ImpactLevel.from(
             score: result.score,
-            fat: Double(fat) ?? 0.0,
-            protein: Double(protein) ?? 0.0
+            fat: scaledFat,        // Scaled to current portion (matches what will be saved)
+            protein: scaledProtein  // Scaled to current portion (matches what will be saved)
         )
     }
 

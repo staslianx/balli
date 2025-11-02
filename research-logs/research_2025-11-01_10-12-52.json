@@ -1,0 +1,65 @@
+{
+  "query": {
+    "original": "sigara ile diyabet arasındaki ilişkiyi araştır",
+    "timestamp": "2025-11-01T10:12:38.060Z",
+    "language": "Turkish",
+    "length": 46,
+    "userId": "cli-user"
+  },
+  "routing": {
+    "tier": 2,
+    "reasoning": "Kullanıcı açıkça 'araştır' kelimesini kullandığı için, bu soru T2 (Hybrid Research) kapsamına girer. Sigara ve diyabet arasındaki ilişkiyi güncel web kaynaklarından araştırmak gerekmektedir.",
+    "confidence": 1,
+    "model": "",
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 0,
+    "timestamp": 1761991958861
+  },
+  "rounds": [],
+  "synthesis": {
+    "model": "Gemini 2.5 Flash (Web Araştırma)",
+    "temperature": 0,
+    "systemPromptVersion": "",
+    "sourcesProvided": 0,
+    "responseLength": 1814,
+    "streaming": true,
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 13851,
+    "response": "Canım Dilara, sigarayı bırakman gerçekten harika bir karar! Diyabetle olan ilişkisini merak etmen de çok doğal, bu konuda sana biraz bilgi vereyim.\n\n## Sigara ve Diyabet Arasındaki İlişki\n\nSigara içmek, diyabetin hem ortaya çıkış riskini artırıyor hem de diyabeti olan kişilerde hastalığın yönetimini zorlaştırıyor [2, 4, 5]. Senin gibi LADA diyabeti olanlar için de bu durum geçerli, yani sigara metabolik kontrolü olumsuz etkileyebiliyor [14].\n\n### Kan Şekeri Kontrolü ve İnsülin Üzerindeki Etkileri\n\nSigara içmek, vücudun insüline karşı direncini artırabiliyor [1]. Bu da demek oluyor ki, vücudun ürettiği veya dışarıdan aldığın insülin (Novorapid ve Lantus gibi) eskisi kadar etkili olamayabiliyor. Sonuç olarak, kan şekerini kontrol altında tutmak daha zor hale geliyor ve insülin ihtiyacın artabiliyor [1].\n\n### Diyabet Komplikasyonları Riski\n\nSigara, diyabetin zaten getirdiği bazı riskleri daha da kötüleştiriyor. Diyabetle ilişkili ciddi sağlık sorunlarının (kalp krizi, felç, böbrek hastalığı, sinir hasarı, göz problemleri ve uzuv kaybı gibi) gelişme ve ilerleme riskini önemli ölçüde artırıyor [4, 6, 12]. Özellikle böbrek hastalığının (diyabetik nefropati) ilerlemesiyle doğrudan ilişkili olduğu belirtiliyor [12].\n\n### Sigarayı Bırakmanın Faydaları\n\nSenin sigarayı bırakmış olman bu yüzden çok değerli! Sigarayı bırakmak, diyabet yönetimini önemli ölçüde iyileştiriyor ve komplikasyon riskini azaltıyor [6, 9, 11]. Araştırmalar, sigarayı bırakmanın Tip 2 diyabet geliştirme riskini %30-40 oranında azalttığını gösteriyor [6, 9]. Mevcut diyabeti olan kişilerde ise kan şekeri kontrolünün düzelmesine yardımcı oluyor.\n\nKısacası, sigarayı bırakarak hem genel sağlığın için hem de diyabetinle daha iyi başa çıkmak için çok doğru bir adım attın. Bu kararının faydalarını zamanla daha net göreceksin canım.",
+    "finishReason": "",
+    "startTime": 1761991958061,
+    "endTime": 1761991971912
+  },
+  "summary": {
+    "totalTime": 14850,
+    "totalCost": 0.003,
+    "totalTokens": {
+      "input": 0,
+      "output": 0
+    },
+    "qualityMetrics": {
+      "sourceQualityAvg": 0,
+      "gapCoverage": 0,
+      "journalIFAvg": 0
+    },
+    "bottlenecks": [
+      {
+        "stage": "Synthesis",
+        "latency": 13851,
+        "percentage": null
+      }
+    ],
+    "recommendations": [],
+    "tier": "T2",
+    "rounds": 0,
+    "totalSources": 0
+  }
+}

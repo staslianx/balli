@@ -220,10 +220,9 @@ struct RecipeIngredientsSheet: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(AppTheme.primaryPurple)
-                            .liquidGlassButton(style: .thin, tint: AppTheme.primaryPurple)
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.secondary)
                     }
                 }
             }

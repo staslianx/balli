@@ -19,8 +19,8 @@ struct RecipeStoryCardSection: View {
     var body: some View {
         if hasStory {
             RecipeStoryCard(
-                title: "balli'nin Tarif Analizi",
-                description: "Besin değeri analizi",
+                title: "balli'nin tarif analizi",
+                description: "Besin değerlerini analiz et",
                 thumbnailURL: nil,
                 isLoading: isCalculatingNutrition,
                 loadingStep: currentLoadingStep,

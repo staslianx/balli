@@ -66,9 +66,10 @@ struct RecipeStoryCard: View {
 
                 // Content
                 VStack(alignment: .leading, spacing: 4) {
-                    // Use custom font combination for "balli'nin Tarif Analizi", otherwise regular text
-                    if title == "balli'nin Tarif Analizi" {
-                        BalliNoteTitle(size: 16, customText: "balli'nin Tarif Analizi")
+                    // Use Galano font for "balli'nin tarif analizi", otherwise regular text
+                    if title == "balli'nin tarif analizi" {
+                        Text(title)
+                            .font(.custom("GalanoGrotesqueAlt-SemiBold", size: 16))
                             .foregroundColor(.primary)
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)

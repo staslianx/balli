@@ -9,6 +9,28 @@
 import Foundation
 import OSLog
 
+/// Result of protein variety analysis for diversity recommendations
+public struct ProteinVarietyAnalysis: Sendable {
+    /// Proteins that appear >= 4 times in last 10 recipes (overused)
+    public let overusedProteins: [String]
+
+    /// Proteins that appear in the last 3 recipes (high priority to avoid)
+    public let recentProteins: [String]
+
+    /// Proteins that appear < 2 times in history (suggested for variety)
+    public let suggestedProteins: [String]
+
+    /// Full frequency map of all proteins
+    public let proteinCounts: [String: Int]
+
+    public init(overusedProteins: [String], recentProteins: [String], suggestedProteins: [String], proteinCounts: [String: Int]) {
+        self.overusedProteins = overusedProteins
+        self.recentProteins = recentProteins
+        self.suggestedProteins = suggestedProteins
+        self.proteinCounts = proteinCounts
+    }
+}
+
 /// Service providing business logic for recipe memory management
 /// Handles ingredient analysis, frequency tracking, and recipe recording
 @MainActor
@@ -201,6 +223,90 @@ final class RecipeMemoryService {
     /// - Returns: Dictionary mapping subcategory name to entry count
     func getMemoryStats() async throws -> [String: Int] {
         try await repository.getMemoryStats()
+    }
+
+    /// Analyze protein variety across recent recipes for diversity recommendations
+    /// - Parameter subcategory: The subcategory to analyze
+    /// - Returns: Analysis containing overused/suggested proteins and frequency map
+    func analyzeProteinVariety(for subcategory: RecipeSubcategory) async -> ProteinVarietyAnalysis {
+        logger.info("🎯 [VARIETY-ANALYSIS] ========== ANALYZING PROTEIN VARIETY ==========")
+        logger.info("🎯 [VARIETY-ANALYSIS] Subcategory: \(subcategory.rawValue)")
+
+        do {
+            let recentEntries = try await repository.fetchRecentMemory(for: subcategory, limit: 10)
+            logger.info("🎯 [VARIETY-ANALYSIS] Analyzing \(recentEntries.count) recent recipes")
+
+            var proteinCounts: [String: Int] = [:]
+            var recentProteins: [String] = []  // Last 3 recipes
+
+            // Count protein occurrences and track recent proteins
+            for (index, entry) in recentEntries.enumerated() {
+                for ingredient in entry.mainIngredients {
+                    if Self.isProtein(ingredient) {
+                        proteinCounts[ingredient, default: 0] += 1
+
+                        // Track last 3 recipes' proteins for high-priority avoidance
+                        if index < 3 {
+                            recentProteins.append(ingredient)
+                        }
+                    }
+                }
+            }
+
+            logger.info("🎯 [VARIETY-ANALYSIS] Found \(proteinCounts.count) unique proteins in history")
+            logger.info("🎯 [VARIETY-ANALYSIS] Protein frequency map: \(proteinCounts)")
+
+            // Identify overused proteins (>= 40% = 4 out of 10 recipes)
+            let overusedProteins = proteinCounts.filter { $0.value >= 4 }.map { $0.key }.sorted()
+
+            if !overusedProteins.isEmpty {
+                logger.warning("🎯 [VARIETY-ANALYSIS] ⚠️ OVERUSED PROTEINS (>= 4 out of 10): \(overusedProteins.joined(separator: ", "))")
+            } else {
+                logger.info("🎯 [VARIETY-ANALYSIS] ✅ No overused proteins detected")
+            }
+
+            // Recent proteins (last 3 recipes) for high-priority avoidance
+            let uniqueRecentProteins = Array(Set(recentProteins)).sorted()
+            if !uniqueRecentProteins.isEmpty {
+                logger.info("🎯 [VARIETY-ANALYSIS] Recent proteins (last 3): \(uniqueRecentProteins.joined(separator: ", "))")
+            }
+
+            // All available proteins for suggestions
+            let allProteins = [
+                "tavuk göğsü", "tavuk but", "hindi",
+                "somon", "levrek", "çipura", "ton balığı", "hamsi", "sardalya", "karides",
+                "dana eti", "kuzu eti", "kıyma", "köfte",
+                "tofu", "tempeh", "edamame",
+                "kırmızı mercimek", "yeşil mercimek", "nohut"
+            ]
+
+            // Identify underused proteins (< 2 in history OR never used)
+            let underusedProteins = allProteins.filter { (proteinCounts[$0] ?? 0) < 2 }.sorted()
+
+            logger.info("🎯 [VARIETY-ANALYSIS] Suggested proteins (used < 2 times): \(underusedProteins.joined(separator: ", "))")
+
+            let analysis = ProteinVarietyAnalysis(
+                overusedProteins: overusedProteins,
+                recentProteins: uniqueRecentProteins,
+                suggestedProteins: underusedProteins,
+                proteinCounts: proteinCounts
+            )
+
+            logger.info("🎯 [VARIETY-ANALYSIS] ========== ANALYSIS COMPLETE ==========")
+            logger.info("🎯 [VARIETY-ANALYSIS] Overused: \(analysis.overusedProteins.count), Recent: \(analysis.recentProteins.count), Suggested: \(analysis.suggestedProteins.count)")
+
+            return analysis
+
+        } catch {
+            logger.error("🎯 [VARIETY-ANALYSIS] ❌ Analysis failed: \(error.localizedDescription)")
+            // Return empty analysis on error - don't block generation
+            return ProteinVarietyAnalysis(
+                overusedProteins: [],
+                recentProteins: [],
+                suggestedProteins: [],
+                proteinCounts: [:]
+            )
+        }
     }
 
     // MARK: - Private Classification Methods

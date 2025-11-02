@@ -312,6 +312,6 @@ struct MarkdownRenderer {
         Rectangle()
             .fill(AppTheme.primaryPurple.opacity(0.5))
             .frame(height: 1)
-            .padding(.vertical, 12)
+            .padding(.vertical, 4)
     }
 }

@@ -136,8 +136,8 @@ struct ShoppingListViewSimple: View {
                         }
                     }
 
-                    // Empty state with Liquid Glass
-                    if uncheckedItems.isEmpty && completedItems.isEmpty {
+                    // Empty state with Liquid Glass - only show if ALL lists are empty
+                    if uncheckedItems.isEmpty && completedItems.isEmpty && recipeGroups.isEmpty {
                         VStack(spacing: ResponsiveDesign.Spacing.medium) {
                             Spacer()
                                 .frame(height: ResponsiveDesign.height(60))

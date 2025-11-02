@@ -242,7 +242,7 @@ struct VoiceInputView: View {
     @ViewBuilder
     private func mealPreviewView(_ data: ParsedMealData) -> some View {
         ScrollView {
-            VStack(spacing: ResponsiveDesign.Spacing.medium) {
+            VStack(spacing: 24) {
                 // TOP ROW: Meal Type (left) and Carb Stepper (right)
                 HStack(alignment: .top, spacing: 16) {
                     // EDITABLE Meal Type Picker - LEFT SIDE
@@ -308,14 +308,14 @@ struct VoiceInputView: View {
                     .padding(.horizontal)
 
                 // EDITABLE Foods Array
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 16) {
                     Text("Yiyecekler")
                         .font(.system(size: 18, weight: .semibold, design: .rounded))
                         .foregroundStyle(.primary)
                         .padding(.horizontal)
 
                     ForEach($editableFoods) { $food in
-                        VStack(spacing: 8) {
+                        VStack(spacing: 12) {
                             // Food name
                             HStack {
                                 Text("İsim:")
@@ -362,9 +362,10 @@ struct VoiceInputView: View {
                                 }
                             }
                         }
-                        .padding()
+                        .padding(16)
                         .background(Color.gray.opacity(0.05))
                         .cornerRadius(12)
+                        .padding(.horizontal)
                     }
 
                     // Add food button
@@ -377,7 +378,6 @@ struct VoiceInputView: View {
                     .buttonStyle(.bordered)
                     .padding(.horizontal)
                 }
-                .padding(.horizontal)
 
                 // EDITABLE Timestamp
                 VStack(alignment: .leading, spacing: 8) {
@@ -433,10 +433,11 @@ struct VoiceInputView: View {
                             .cornerRadius(12)
                     }
                     .padding(.horizontal)
-                    .padding(.bottom, ResponsiveDesign.Spacing.medium)
+                    .padding(.bottom, 32)
                 }
             }
-            .padding(.top, ResponsiveDesign.Spacing.large)
+            .padding(.top, 32)
+            .padding(.bottom, 24)
         }
     }
 

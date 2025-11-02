@@ -41,6 +41,29 @@ public struct SimpleRecentRecipe: Codable, Sendable {
     }
 }
 
+/// Diversity constraints for recipe generation to avoid repetition
+public struct DiversityConstraints: Codable, Sendable {
+    public let avoidCuisines: [String]?
+    public let avoidProteins: [String]?
+    public let avoidMethods: [String]?
+    public let suggestCuisines: [String]?
+    public let suggestProteins: [String]?
+
+    public init(
+        avoidCuisines: [String]? = nil,
+        avoidProteins: [String]? = nil,
+        avoidMethods: [String]? = nil,
+        suggestCuisines: [String]? = nil,
+        suggestProteins: [String]? = nil
+    ) {
+        self.avoidCuisines = avoidCuisines
+        self.avoidProteins = avoidProteins
+        self.avoidMethods = avoidMethods
+        self.suggestCuisines = suggestCuisines
+        self.suggestProteins = suggestProteins
+    }
+}
+
 /// Request model for spontaneous recipe generation
 public struct SpontaneousRecipeRequest: Codable, Sendable {
     public let mealType: String
@@ -48,13 +71,22 @@ public struct SpontaneousRecipeRequest: Codable, Sendable {
     public let userId: String?
     public let streamingEnabled: Bool
     public let recentRecipes: [SimpleRecentRecipe]
+    public let diversityConstraints: DiversityConstraints?
 
-    public init(mealType: String, styleType: String, userId: String? = nil, streamingEnabled: Bool = false, recentRecipes: [SimpleRecentRecipe] = []) {
+    public init(
+        mealType: String,
+        styleType: String,
+        userId: String? = nil,
+        streamingEnabled: Bool = false,
+        recentRecipes: [SimpleRecentRecipe] = [],
+        diversityConstraints: DiversityConstraints? = nil
+    ) {
         self.mealType = mealType
         self.styleType = styleType
         self.userId = userId
         self.streamingEnabled = streamingEnabled
         self.recentRecipes = recentRecipes
+        self.diversityConstraints = diversityConstraints
     }
 }
 
@@ -84,13 +116,15 @@ public actor RecipeGenerationService {
     ///   - styleType: The style subcategory for the meal type
     ///   - userId: Optional user ID for personalization
     ///   - recentRecipes: Recent recipes for diversity (empty array = no diversity constraints)
+    ///   - diversityConstraints: Constraints for avoiding overused ingredients/proteins
     /// - Returns: Generated recipe with all fields populated
     /// - Throws: NetworkError if the request fails
     public func generateSpontaneousRecipe(
         mealType: String,
         styleType: String,
         userId: String? = nil,
-        recentRecipes: [SimpleRecentRecipe] = []
+        recentRecipes: [SimpleRecentRecipe] = [],
+        diversityConstraints: DiversityConstraints? = nil
     ) async throws -> RecipeGenerationResponse {
 
         let request = SpontaneousRecipeRequest(
@@ -98,7 +132,8 @@ public actor RecipeGenerationService {
             styleType: styleType,
             userId: userId,
             streamingEnabled: false, // Non-streaming for complete response
-            recentRecipes: recentRecipes
+            recentRecipes: recentRecipes,
+            diversityConstraints: diversityConstraints
         )
 
         let url = try buildGenerateURL()

@@ -246,7 +246,7 @@ actor ResearchStageDiagnosticsLogger {
     }
 
     /// Save logs to file and return URL for sharing
-    func saveLogsToFile(format: ExportFormat) throws -> URL {
+    func saveLogsToFile(format: ExportFormat) async throws -> URL {
         let fileName: String
         let content: String
 
@@ -257,10 +257,10 @@ actor ResearchStageDiagnosticsLogger {
         switch format {
         case .text:
             fileName = "research_stage_diagnostics_\(timestamp).txt"
-            content = generateTextExport()
+            content = await generateTextExport()
         case .json:
             fileName = "research_stage_diagnostics_\(timestamp).json"
-            content = try generateJSONExport()
+            content = try await generateJSONExport()
         }
 
         let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
@@ -270,15 +270,19 @@ actor ResearchStageDiagnosticsLogger {
         return tempURL
     }
 
-    private func generateTextExport() -> String {
+    private func generateTextExport() async -> String {
+        // Access @MainActor-isolated UIDevice properties safely
+        let deviceModel = await MainActor.run { UIDevice.current.model }
+        let systemVersion = await MainActor.run { UIDevice.current.systemVersion }
+
         var output = """
         ===============================================
         RESEARCH STAGE DIAGNOSTICS EXPORT
         ===============================================
         Export Date: \(Date())
         Total Logs: \(logEntries.count)
-        Device: \(UIDevice.current.model)
-        iOS Version: \(UIDevice.current.systemVersion)
+        Device: \(deviceModel)
+        iOS Version: \(systemVersion)
         ===============================================
 
 
@@ -291,11 +295,15 @@ actor ResearchStageDiagnosticsLogger {
         return output
     }
 
-    private func generateJSONExport() throws -> String {
+    private func generateJSONExport() async throws -> String {
+        // Access @MainActor-isolated UIDevice properties safely
+        let deviceModel = await MainActor.run { UIDevice.current.model }
+        let systemVersion = await MainActor.run { UIDevice.current.systemVersion }
+
         let exportData: [String: Any] = [
             "exportDate": ISO8601DateFormatter().string(from: Date()),
-            "device": UIDevice.current.model,
-            "iosVersion": UIDevice.current.systemVersion,
+            "device": deviceModel,
+            "iosVersion": systemVersion,
             "totalLogs": logEntries.count,
             "logs": logEntries.map { entry in
                 var dict: [String: Any] = [

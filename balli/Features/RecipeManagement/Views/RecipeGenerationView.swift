@@ -24,21 +24,28 @@ struct RecipeGenerationView: View {
     @State private var selectedStyleType = ""
     @State private var isGenerating = false
     @State private var isSaved = false
-    @State private var showingSaveConfirmation = false
     @State private var isAddingIngredient = false
     @State private var isAddingStep = false
     @State private var newIngredientText = ""
     @State private var newStepText = ""
     @State private var manualIngredients: [RecipeItem] = []
     @State private var manualSteps: [RecipeItem] = []
-    @State private var storyCardTitle = "balli'nin Tarif Analizi"
+    @State private var storyCardTitle = "balli'nin tarif analizi"
     @State private var userNotes: String = ""
+    @State private var toastMessage: ToastType? = nil
     @FocusState private var focusedField: FocusField?
 
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.balli",
         category: "RecipeGenerationView"
     )
+
+    // MARK: - Shopping List Query for Dynamic Basket Icon
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \ShoppingListItem.dateCreated, ascending: false)],
+        animation: .default
+    )
+    private var allShoppingItems: FetchedResults<ShoppingListItem>
 
     enum FocusField {
         case ingredient
@@ -47,6 +54,40 @@ struct RecipeGenerationView: View {
 
     init(viewContext: NSManagedObjectContext) {
         _viewModel = StateObject(wrappedValue: RecipeViewModel(context: viewContext))
+    }
+
+    // MARK: - Computed Properties
+
+    /// Determines if save button should be visible
+    /// Shows for AI-generated recipes OR manual recipes with content
+    private var shouldShowSaveButton: Bool {
+        if isSaved { return false }
+
+        // AI-generated recipe
+        if !viewModel.recipeName.isEmpty {
+            return true
+        }
+
+        // Manual recipe with ingredients or steps
+        let hasManualContent = !manualIngredients.isEmpty || !manualSteps.isEmpty
+        return hasManualContent
+    }
+
+    /// Determines if recipe is a manual entry (vs AI-generated)
+    private var isManualRecipe: Bool {
+        viewModel.recipeName.isEmpty && (!manualIngredients.isEmpty || !manualSteps.isEmpty)
+    }
+
+    /// Check if this recipe has unchecked ingredients in shopping list (for dynamic basket icon)
+    /// Matches by recipe name since generated recipes may not be saved yet
+    private var hasUncheckedIngredientsForRecipe: Bool {
+        let recipeName = viewModel.recipeName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !recipeName.isEmpty else { return false }
+
+        return allShoppingItems.contains { item in
+            item.recipeName == recipeName && !item.isCompleted
+        }
     }
 
     var body: some View {
@@ -78,12 +119,13 @@ struct RecipeGenerationView: View {
                             VStack(spacing: 0) {
                                 // Action buttons
                                 RecipeGenerationActionButtons(
-                                    isFavorited: actionsHandler.isFavorited
+                                    isFavorited: actionsHandler.isFavorited,
+                                    hasUncheckedIngredientsInShoppingList: hasUncheckedIngredientsForRecipe
                                 ) { action in
                                     actionsHandler.handleAction(action, viewModel: viewModel)
                                 }
                                 .padding(.horizontal, 20)
-                                .padding(.top, 16)
+                                .padding(.top, 0)
                                 .padding(.bottom, 32)
 
                                 // Recipe content (markdown or manual input)
@@ -125,14 +167,9 @@ struct RecipeGenerationView: View {
                 .scrollIndicators(.hidden)
                 .background(Color(.secondarySystemBackground))
                 .ignoresSafeArea(edges: .top)
-
-                // MARK: - Confirmation Overlays
-                RecipeGenerationOverlays(
-                    showingSaveConfirmation: showingSaveConfirmation,
-                    showingShoppingConfirmation: actionsHandler.showingShoppingConfirmation
-                )
             }
         }
+        .toast($toastMessage)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {
@@ -146,8 +183,8 @@ struct RecipeGenerationView: View {
 
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
-                    // Save button (only visible when recipe generated and not saved)
-                    if !viewModel.recipeName.isEmpty && !isSaved {
+                    // Save button (visible for AI-generated recipes or manual entries)
+                    if shouldShowSaveButton {
                         Button {
                             Task {
                                 await saveRecipe()
@@ -212,6 +249,12 @@ struct RecipeGenerationView: View {
                 userNotes = newNotes
             }
         }
+        .onAppear {
+            // Set up toast callback
+            actionsHandler.onShowToast = { toast in
+                toastMessage = toast
+            }
+        }
         .onChange(of: viewModel.isCalculatingNutrition) { oldValue, newValue in
             handleNutritionCalculationChange(oldValue: oldValue, newValue: newValue)
         }
@@ -238,6 +281,12 @@ struct RecipeGenerationView: View {
         // Build manual recipe content if needed
         if !manualIngredients.isEmpty || !manualSteps.isEmpty {
             buildManualRecipeContent()
+
+            // Generate default name for manual recipes
+            if viewModel.recipeName.isEmpty {
+                viewModel.recipeName = generateDefaultRecipeName()
+                logger.info("📝 [VIEW] Generated default recipe name: \(viewModel.recipeName)")
+            }
         }
 
         // Load image data if present
@@ -258,11 +307,7 @@ struct RecipeGenerationView: View {
         if viewModel.persistenceCoordinator.showingSaveConfirmation {
             logger.info("✅ [VIEW] Save confirmed - showing success state")
             isSaved = true
-            showingSaveConfirmation = true
-
-            // Hide confirmation after 2 seconds
-            try? await Task.sleep(for: .seconds(2))
-            showingSaveConfirmation = false
+            toastMessage = .success("Tarif kaydedildi!")
         } else {
             logger.warning("⚠️ [VIEW] Save confirmation not shown")
         }
@@ -286,6 +331,39 @@ struct RecipeGenerationView: View {
         viewModel.recipeContent = sections.joined(separator: "\n\n")
         viewModel.ingredients = manualIngredients.map { $0.text }
         viewModel.directions = manualSteps.map { $0.text }
+    }
+
+    /// Generate a default name for manually entered recipes
+    private func generateDefaultRecipeName() -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "dd MMM"
+        dateFormatter.locale = Locale(identifier: "tr_TR")
+        let dateString = dateFormatter.string(from: Date())
+
+        // Try to infer recipe type from first ingredient
+        if let firstIngredient = manualIngredients.first?.text.lowercased() {
+            let ingredientWords = firstIngredient.components(separatedBy: " ")
+            let commonIngredients = [
+                "tavuk": "Tavuk",
+                "balık": "Balık",
+                "et": "Et",
+                "sebze": "Sebze",
+                "salata": "Salata",
+                "çorba": "Çorba",
+                "makarna": "Makarna",
+                "pilav": "Pilav",
+                "börek": "Börek",
+                "tatlı": "Tatlı"
+            ]
+
+            for (key, value) in commonIngredients {
+                if ingredientWords.contains(key) {
+                    return "\(value) Tarifi - \(dateString)"
+                }
+            }
+        }
+
+        return "Manuel Tarif - \(dateString)"
     }
 
     // MARK: - Photo Generation
@@ -315,6 +393,18 @@ struct RecipeGenerationView: View {
             showingNutritionModal = true
         } else {
             logger.info("🔄 [STORY] Starting nutrition calculation")
+
+            // Build manual recipe content if needed before calculating nutrition
+            if isManualRecipe {
+                buildManualRecipeContent()
+
+                // Generate default name for manual recipes
+                if viewModel.recipeName.isEmpty {
+                    viewModel.recipeName = generateDefaultRecipeName()
+                    logger.info("📝 [STORY] Generated default recipe name for nutrition: \(viewModel.recipeName)")
+                }
+            }
+
             viewModel.calculateNutrition()
         }
     }

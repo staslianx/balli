@@ -22,11 +22,11 @@ struct RecipeDetailView: View {
     @State private var showingNotesModal = false
     @State private var isGeneratingPhoto = false
     @State private var generatedImageData: Data?
-    @State private var showingShoppingConfirmation = false
     @State private var isCalculatingNutrition = false
     @State private var nutritionCalculationProgress = 0
     @State private var currentLoadingStep: String?
     @State private var digestionTimingInsights: DigestionTiming? = nil
+    @State private var toastMessage: ToastType? = nil
 
     // Inline editing state
     @State private var isEditing = false
@@ -46,6 +46,13 @@ struct RecipeDetailView: View {
 
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeDetailView")
 
+    // MARK: - Shopping List Query for Dynamic Basket Icon
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \ShoppingListItem.dateCreated, ascending: false)],
+        animation: .default
+    )
+    private var allShoppingItems: FetchedResults<ShoppingListItem>
+
     // Loading animation steps for nutrition calculation
     private let loadingSteps: [(label: String, duration: TimeInterval, progress: Int)] = [
         ("Tarife tekrar bakıyorum", 5.0, 6),
@@ -61,6 +68,15 @@ struct RecipeDetailView: View {
         ("Glisemik yükü hesaplıyorum", 7.0, 92),
         ("Sağlamasını yapıyorum", 8.0, 100)
     ]
+
+    // MARK: - Computed Properties
+
+    /// Check if this recipe has unchecked ingredients in shopping list (for dynamic basket icon)
+    private var hasUncheckedIngredientsForRecipe: Bool {
+        allShoppingItems.contains { item in
+            item.recipeId == recipeData.recipe.id && !item.isCompleted
+        }
+    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -88,11 +104,11 @@ struct RecipeDetailView: View {
                                 RecipeActionButtonsSection(
                                     recipe: recipeData.recipe,
                                     isEditing: isEditing,
-                                    showingShoppingConfirmation: showingShoppingConfirmation,
+                                    hasUncheckedIngredientsInShoppingList: hasUncheckedIngredientsForRecipe,
                                     onAction: handleAction
                                 )
                                 .padding(.horizontal, 20)
-                                .padding(.top, 16)
+                                .padding(.top, 0)
                                 .padding(.bottom, 32)
 
                                 // Recipe Content (Ingredients + Instructions)
@@ -119,7 +135,7 @@ struct RecipeDetailView: View {
                                 editedName: $editedName
                             )
                             .padding(.horizontal, 20)
-                            .padding(.bottom, 24)
+                            .padding(.bottom, 12)
                         }
                         .frame(height: UIScreen.main.bounds.height * 0.5 - 49)
 
@@ -145,30 +161,10 @@ struct RecipeDetailView: View {
                 .safeAreaInset(edge: .top, spacing: 0) {
                     Color.clear.frame(height: 0)
                 }
-
-                // Shopping confirmation toast
-                if showingShoppingConfirmation {
-                    VStack {
-                        Spacer()
-                        HStack(spacing: 12) {
-                            Image(systemName: "cart.fill.badge.plus")
-                                .font(.system(size: 20))
-                                .foregroundColor(ThemeColors.primaryPurple)
-                            Text("Alışveriş listesine eklendi!")
-                                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                                .foregroundColor(.primary)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 16)
-                        .recipeGlass(tint: .warm, cornerRadius: 100)
-                        .padding(.bottom, 100)
-                    }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingShoppingConfirmation)
-                }
             }
             .ignoresSafeArea(edges: .top)
         }
+        .toast($toastMessage)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 if isEditing {
@@ -265,6 +261,15 @@ struct RecipeDetailView: View {
         }
         .onAppear {
             userNotes = recipeData.recipe.notes ?? ""
+
+            // Track recipe opening by updating lastModified
+            recipeData.recipe.lastModified = Date()
+            do {
+                try viewContext.save()
+                logger.debug("📖 Recipe opened, lastModified updated for tracking")
+            } catch {
+                logger.error("❌ Failed to update recipe lastModified: \(error.localizedDescription)")
+            }
         }
     }
 
@@ -447,16 +452,7 @@ struct RecipeDetailView: View {
                 logger.info("✅ [DETAIL] Successfully added \(ingredients.count) ingredients to shopping list")
 
                 await MainActor.run {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        showingShoppingConfirmation = true
-                    }
-                }
-
-                try? await Task.sleep(for: .seconds(2))
-                await MainActor.run {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                        showingShoppingConfirmation = false
-                    }
+                    toastMessage = .success("Alışveriş listesine eklendi!")
                 }
 
             } catch {

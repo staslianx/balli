@@ -22,6 +22,12 @@ final class SessionMessage {
     /// Sources used in research responses (serialized JSON)
     var sourcesData: Data?
 
+    /// Image attachment data (serialized JSON)
+    var imageAttachmentData: Data?
+
+    /// Text highlights data (serialized JSON)
+    var highlightsData: Data?
+
     /// Computed property for role (maps 'model' from core MessageRole)
     var role: MessageRole {
         get { MessageRole(rawValue: roleRaw) ?? .user }
@@ -48,14 +54,42 @@ final class SessionMessage {
         }
     }
 
+    /// Computed property for image attachment
+    var imageAttachment: ImageAttachment? {
+        get {
+            guard let imageAttachmentData else { return nil }
+            return try? JSONDecoder().decode(ImageAttachment.self, from: imageAttachmentData)
+        }
+        set {
+            imageAttachmentData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
+    /// Computed property for text highlights
+    var highlights: [TextHighlight] {
+        get {
+            guard let highlightsData else { return [] }
+            return (try? JSONDecoder().decode([TextHighlight].self, from: highlightsData)) ?? []
+        }
+        set {
+            highlightsData = try? JSONEncoder().encode(newValue)
+        }
+    }
+
     /// Initializer for user messages
-    init(role: MessageRole, content: String, timestamp: Date = Date()) {
+    init(
+        role: MessageRole,
+        content: String,
+        timestamp: Date = Date(),
+        imageAttachment: ImageAttachment? = nil
+    ) {
         self.id = UUID()
         self.roleRaw = role.rawValue
         self.content = content
         self.timestamp = timestamp
         self.tierRaw = nil
         self.sourcesData = nil
+        self.imageAttachmentData = try? JSONEncoder().encode(imageAttachment)
     }
 
     /// Initializer for assistant messages with research metadata

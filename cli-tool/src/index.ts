@@ -127,6 +127,47 @@ program
           } else if (event.type === 'api_completed') {
             if (currentSpinner) currentSpinner.stop();
             console.log(colors.success(`   ✓ ${event.api.toUpperCase()}: ${event.count} sources in ${event.duration}ms`));
+
+            // NEW: Display search details if available
+            if (event.searchQuery) {
+              console.log(colors.system(`   Search Query: "${event.searchQuery}"`));
+            }
+            if (event.topSources && event.topSources.length > 0) {
+              console.log(colors.highlight(`\n   📚 Top Sources Found:`));
+              event.topSources.forEach((source: any) => {
+                console.log(colors.system(`   ${source.index}. ${source.title}`));
+                console.log(colors.meta(`      ${source.domain}`));
+              });
+              console.log('');
+            }
+
+            if (currentSpinner) currentSpinner.start();
+          } else if (event.type === 't2_query_enrichment_complete') {
+            // NEW: Display query enrichment details
+            if (currentSpinner) currentSpinner.stop();
+            console.log('\n' + colors.meta('┌' + '─'.repeat(78) + '┐'));
+            console.log(colors.meta('│') + colors.highlight(' 🔍 QUERY ENRICHMENT') + ' '.repeat(57) + colors.meta('│'));
+            console.log(colors.meta('├' + '─'.repeat(78) + '┤'));
+            if (event.originalQuery) {
+              console.log(colors.meta('│') + ' Original: ' + colors.system(`"${event.originalQuery.substring(0, 60)}..."`) + ' '.repeat(Math.max(0, 67 - event.originalQuery.substring(0, 60).length)) + colors.meta('│'));
+            }
+            console.log(colors.meta('│') + ' Enriched: ' + colors.success(`"${event.enrichedQuery.substring(0, 60)}..."`) + ' '.repeat(Math.max(0, 67 - event.enrichedQuery.substring(0, 60).length)) + colors.meta('│'));
+            console.log(colors.meta('│') + ' Context Used: ' + (event.contextUsed ? colors.success('Yes') : colors.warning('No')) + ' '.repeat(60) + colors.meta('│'));
+            if (event.duration) {
+              console.log(colors.meta('│') + ` Duration: ${colors.metric(event.duration + 'ms')}` + ' '.repeat(62) + colors.meta('│'));
+            }
+            console.log(colors.meta('└' + '─'.repeat(78) + '┘'));
+            if (currentSpinner) currentSpinner.start();
+          } else if (event.type === 't2_translation_complete') {
+            // NEW: Display translation details
+            if (currentSpinner) currentSpinner.stop();
+            console.log('\n' + colors.meta('┌' + '─'.repeat(78) + '┐'));
+            console.log(colors.meta('│') + colors.highlight(' 🌍 QUERY TRANSLATION') + ' '.repeat(56) + colors.meta('│'));
+            console.log(colors.meta('├' + '─'.repeat(78) + '┤'));
+            console.log(colors.meta('│') + ' Turkish: ' + colors.system(`"${event.originalQuery.substring(0, 62)}..."`) + ' '.repeat(Math.max(0, 68 - event.originalQuery.substring(0, 62).length)) + colors.meta('│'));
+            console.log(colors.meta('│') + ' English: ' + colors.success(`"${event.translatedQuery.substring(0, 62)}..."`) + ' '.repeat(Math.max(0, 68 - event.translatedQuery.substring(0, 62).length)) + colors.meta('│'));
+            console.log(colors.meta('│') + ` Duration: ${colors.metric(event.duration + 'ms')}` + ' '.repeat(62) + colors.meta('│'));
+            console.log(colors.meta('└' + '─'.repeat(78) + '┘'));
             if (currentSpinner) currentSpinner.start();
           } else if (event.type === 'round_complete') {
             if (currentSpinner) currentSpinner.stop();

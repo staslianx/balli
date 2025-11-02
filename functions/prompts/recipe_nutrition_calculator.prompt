@@ -41,7 +41,8 @@ output:
         description: "Fat per 100g in grams"
       glycemicLoad:
         type: number
-        description: "Estimated GL per portion (same as perPortion.glycemicLoad)"
+        description: "MUST equal perPortion.glycemicLoad (GL is per-portion only, not per 100g)"
+        constraint: "value === perPortion.glycemicLoad"
       perPortion:
         type: object
         description: "Nutrition values for one portion"
@@ -69,7 +70,8 @@ output:
             description: "Fat per portion in grams"
           glycemicLoad:
             type: number
-            description: "GL per portion (same as top-level glycemicLoad)"
+            description: "MUST equal top-level glycemicLoad (same value in both fields)"
+            constraint: "value === parent.glycemicLoad"
       nutritionCalculation:
         type: object
         description: "Detailed breakdown"
@@ -149,14 +151,26 @@ output:
                     enum: ["PASS", "FAIL"]
                   message:
                     type: string
-
-**NOTE:** glycemicLoad at top-level and perPortion.glycemicLoad must be identical values (GL is a per-portion metric only)
+              fiberAnomalyCheck:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: ["PASS", "FAIL", "WARNING"]
+                  message:
+                    type: string
 
 ---
 
 # MEDICAL-GRADE NUTRITION CALCULATOR
 
-Calculate nutrition with medical precision for diabetic patients using USDA FoodData Central.
+Target precision:
+- Calories: ±5 kcal per 100g
+- Macros: ±0.5g per 100g
+- Fiber: ±0.3g per 100g
+- GL: ±1 unit per portion
+
+Calculate nutrition with this precision for diabetic patients using USDA FoodData Central.
 
 ---
 
@@ -245,7 +259,7 @@ Sum all ingredients to get pre-cooking totals.
 - Grains: quinoa (kinoa), bulgur, rice (pirinç), oats (yulaf), lentils (mercimek)
 - Fats/oils: zeytinyağı, tereyağı (always 1.00 retention)
 
-**STEP 2: Calculate base retention**
+**STEP 2: Start with base retention (before time/method adjustments)**
 
 | Category | Base Retention |
 |----------|---------------|
@@ -333,6 +347,26 @@ Final liquid weight = retained ml (1ml = 1g for water-based)
 
 </liquid_handling>
 
+<fiber_handling>
+
+**FIBER HANDLING (CRITICAL)**
+
+Fiber is structural carbohydrate and does NOT cook out:
+
+1. Calculate raw fiber: ingredient_weight × fiber_per_100g / 100
+2. Fiber total stays constant through cooking
+3. After cooking, fiber_per_100g increases due to water loss
+4. Formula: cooked_fiber_per_100g = raw_fiber_total / (cooked_weight / 100)
+
+Example:
+- 50g spinach, 2.2g fiber/100g → 1.1g total fiber
+- Cooks down to 37.5g
+- Cooked density: 1.1g / (37.5g / 100) = 2.93g fiber/100g cooked weight
+
+**CRITICAL: Never apply cooking retention to fiber content. Only ingredient weight changes.**
+
+</fiber_handling>
+
 Total cooked weight = Σ(cooked ingredient weights) + retained liquid weight
 
 ### 4. CALCULATE PER 100G
@@ -367,13 +401,20 @@ Estimate GI based on primary carb source:
 
 ### 6. CROSS-VALIDATE
 
-For each macro (calories, protein, fat, carbs, fiber, sugar):
+Cross-validate against raw totals (source of truth):
+
 ```
-check = (per_portion_value ÷ per_portion_weight) × 100
-If |check - per_100g_value| > 0.1: FAIL (arithmetic error)
+For each macro (calories, protein, fat, carbs, fiber, sugar):
+1. Sum per_portion values across all servings
+2. Must equal total_nutrition (within ±1% for rounding)
+3. Check: (per_portion_value × servings) ≈ total_nutrition_value
+
+If |difference| > 1%: FAIL (arithmetic error)
 ```
 
 ### 7. SANITY CHECKS
+
+Run these checks BEFORE outputting JSON:
 
 **Erythritol:** If present, verify carbs contribution = 0g (CRITICAL)
 
@@ -383,9 +424,39 @@ If |check - per_100g_value| > 0.1: FAIL (arithmetic error)
 
 **Macros:** Sum of protein + fat + carbs + fiber should be 3-50g per 100g
 
+**Fiber Anomaly:**
+- If fiber >15g per 100g → FAIL
+- If fiber >40% of carbs → FAIL
+- Expected range for most dishes: 1-8g fiber per 100g
+
 **Cross-validation:** Must pass for all macros
 
-If any check fails with FAIL status, report error and stop.
+**If any check fails with FAIL status:**
+1. DO NOT output the JSON yet
+2. Identify the specific calculation error
+3. Recalculate the affected values
+4. Re-run all sanity checks
+5. Only then output JSON
+
+### 8. SELF-CORRECTION PROTOCOL
+
+After calculating all values, check for anomalies:
+
+**Fiber anomaly check:**
+- If fiber >15g per 100g → Likely error
+- If fiber >40% of carbs → Likely error
+- Recovery: Recalculate fiber using raw totals, not cooked density
+
+**Weight anomaly check:**
+- If cooked_weight >200% of raw_weight (except grains) → Likely error
+- If cooked_weight <40% of raw_weight → Likely error
+- Recovery: Review retention calculations, show work
+
+**If you detect an anomaly:**
+1. State in reasoningSteps: "Detected anomaly in [X]"
+2. Show: Expected range vs. calculated value
+3. Recheck: Show step-by-step recalculation
+4. Correct: Output corrected values with explanation
 
 ---
 
@@ -505,9 +576,12 @@ Before outputting JSON, verify:
 2. **Grains:** Used dry USDA values, applied 3× expansion ✓
 3. **Brief cooking:** < 3 min got +0.10 adjustment ✓
 4. **Garnishes:** "servis için" got 1.00 retention ✓
-5. **Cross-validation:** All macros pass check ✓
-6. **Retention clamped:** All retention factors between 0.50-1.00 ✓
-7. **Glycemic Load:** Top-level glycemicLoad = perPortion.glycemicLoad (same value in both fields) ✓
+5. **Fiber:** Calculated from raw totals, not affected by cooking retention ✓
+6. **Cross-validation:** All macros pass check against raw totals (within ±1%) ✓
+7. **Retention clamped:** All retention factors between 0.50-1.00 ✓
+8. **Glycemic Load:** Top-level glycemicLoad = perPortion.glycemicLoad (same value in both fields) ✓
+9. **Sanity checks:** All checks passed, no FAIL status ✓
+10. **Self-correction:** If anomalies detected, recalculated and documented ✓
 
 ---
 

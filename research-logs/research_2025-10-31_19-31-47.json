@@ -1,0 +1,157 @@
+{
+  "query": {
+    "original": "Şekerin organ veya uzuvlarda körlük, ayaklarda hissizlik gibi komplikasyonlara yol açması için kan şekerinin ne kadar süreyle kontrol altında tutulmamış olması gerekir? Derinleş",
+    "timestamp": "2025-10-31T19:30:43.219Z",
+    "language": "Turkish",
+    "length": 177,
+    "userId": "cli-user"
+  },
+  "routing": {
+    "tier": 3,
+    "reasoning": "Kullanıcı 'derinleş' kelimesini kullanarak konunun derinlemesine araştırılmasını talep ediyor. Sorulan konu (uzun süreli kontrolsüz kan şekerinin komplikasyonlara yol açma süresi) karmaşık bir tıbbi konudur ve kapsamlı bir analiz gerektirir.",
+    "confidence": 1,
+    "model": "",
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 0,
+    "timestamp": 1761939045603
+  },
+  "rounds": [
+    {
+      "roundNumber": 1,
+      "query": "Şekerin organ veya uzuvlarda körlük, ayaklarda hissizlik gibi komplikasyonlara yol açması için kan şekerinin ne kadar süreyle kontrol altında tutulmamış olması gerekir? Derinleş",
+      "estimatedSources": 25,
+      "apiCalls": [
+        {
+          "api": "exa",
+          "query": "Şekerin organ veya uzuvlarda körlük, ayaklarda hissizlik gibi komplikasyonlara yol açması için kan şekerinin ne kadar süreyle kontrol altında tutulmamış olması gerekir? Derinleş",
+          "maxResults": 10,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 518,
+          "startTime": 1761939067638,
+          "endTime": 1761939068108,
+          "results": []
+        },
+        {
+          "api": "pubmed",
+          "query": "diabetes complications retinopathy neuropathy onset duration uncontrolled hyperglycemia",
+          "maxResults": 11,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 547,
+          "startTime": 1761939067638,
+          "endTime": 1761939068147,
+          "results": []
+        },
+        {
+          "api": "medrxiv",
+          "query": "diabetes complications retinopathy neuropathy onset duration uncontrolled hyperglycemia",
+          "maxResults": 1,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 247,
+          "startTime": 1761939067638,
+          "endTime": 1761939067861,
+          "results": []
+        },
+        {
+          "api": "clinicaltrials",
+          "query": "diabetes complications retinopathy neuropathy onset duration uncontrolled hyperglycemia",
+          "maxResults": 3,
+          "found": 0,
+          "retrieved": 0,
+          "status": "success",
+          "latency": 179,
+          "startTime": 1761939067638,
+          "endTime": 1761939067787,
+          "results": []
+        }
+      ],
+      "sources": {
+        "exa": [],
+        "pubmed": [],
+        "medrxiv": [],
+        "clinicalTrials": []
+      },
+      "sourceCount": 0,
+      "duration": 3055,
+      "purpose": "initial",
+      "status": "complete"
+    }
+  ],
+  "synthesis": {
+    "model": "Gemini 2.5 Pro (Deep Research V2)",
+    "temperature": 0,
+    "systemPromptVersion": "",
+    "sourcesProvided": 0,
+    "responseLength": 4965,
+    "streaming": true,
+    "tokens": {
+      "input": 5489,
+      "output": 1439,
+      "total": 8750
+    },
+    "cost": 0,
+    "latency": 34955,
+    "response": "Canım, bu sorduğun soru hem çok önemli hem de cevabı \"şu kadar yıl\" gibi net bir rakamla verilemeyecek kadar karmaşık. Bu konuyu senin için araştırdım ama spesifik bir zaman çizelgesi sunan hakemli akademik kaynaklar bulamadım. Bunun nedeni, komplikasyon gelişiminin kişiden kişiye çok değişen bir süreç olması. Bu yüzden sana diyabet literatüründeki genel kabul görmüş bilgileri, büyük çalışmaların bize öğrettiklerini ve uzmanların ortak görüşünü sentezleyerek anlatacağım.\n\nAslında bu durumu, bir metalin paslanması gibi düşünebilirsin. Metalin ne kadar sürede paslanacağı; neme, havaya ne kadar maruz kaldığına, metalin kalitesine ve koruyucu boya olup olmamasına bağlıdır. Tek bir \"paslanma süresi\" yoktur. Diyabet komplikasyonları da aynen böyledir; ne kadar süre, ne kadar yüksek şekere maruz kalındığına ve diğer koruyucu faktörlere bağlı olarak gelişir.\n\n---\n\n## Şekerin Damarlara ve Sinirlere Etkisi: Yavaş Gelişen Bir Hasar\n\nKomplikasyonların temelinde, kan damarlarının ve sinir hücrelerinin yüksek glukoz seviyeleri tarafından yavaş yavaş hasar görmesi yatar. Bu bir gecede olmaz, yıllar içinde biriken bir hasardır.\n\n**Gözler ve Böbrekler (Mikrovasküler Hasar):** Gözlerin retina tabakasındaki ve böbreklerdeki kılcal damarlar vücudumuzdaki en hassas ve ince damarlardır. Kan şekeri sürekli yüksek olduğunda, kan daha \"yapışkan\" bir hal alır ve bu minicik damarların duvarlarına zarar vermeye başlar. Zamanla bu damarlar sızdırmaya, tıkanmaya veya anormal şekilde çoğalmaya başlar. Retinopati (görme sorunları) ve nefropati (böbrek hasarı) bu şekilde ortaya çıkar. Hasarın başlaması için gereken süre, kan şekeri kontrolünün ne kadar kötü olduğuna doğrudan bağlıdır.\n\n**Ayaklar ve Eller (Nöropati):** Sinir hücreleri de tıpkı diğer hücreler gibi beslenmek için kan damarlarına ihtiyaç duyar. Sinirleri besleyen bu minik damarlar hasar gördüğünde, sinir hücreleri yeterli oksijen ve besin alamaz ve işlevlerini yitirmeye başlar. Bu durum, ayaklarda ve ellerde hissizlik, karıncalanma, yanma veya ağrı olarak kendini gösteren diyabetik nöropatiye yol açar. Ayrıca, yüksek glukozun kendisi de sinir hücreleri için doğrudan toksik bir etki yaratabilir.\n\n---\n\n## Komplikasyon Riskini ve Zamanlamasını Belirleyen Faktörler\n\nNet bir zaman çizelgesi olmasa da, bu süreci hızlandıran veya yavaşlatan faktörler çok iyi biliniyor.\n\n*   **HbA1c Seviyesi:** Bu, en kritik faktördür. DCCT ve UKPDS gibi diyabet alanındaki çok büyük ve temel çalışmaların bize öğrettiği en net bilgi şudur: HbA1c seviyesi ne kadar yüksekse, komplikasyon riski o kadar artar ve o kadar erken ortaya çıkar. HbA1c'deki her %1'lik düşüşün, mikrovasküler komplikasyon riskini yaklaşık %30-40 oranında azalttığı genel olarak kabul gören bir bulgudur. Yani %9-10'luk bir A1c ile seyreden biriyle, %6.5-7 aralığında tutan birinin komplikasyon geliştirme zamanlaması arasında yıllar, hatta on yıllar olabilir.\n\n*   **Kan Şekeri Dalgalanmaları (Glukoz Değişkenliği):** Sadece ortalama şeker (HbA1c) değil, gün içindeki iniş çıkışlar da önemlidir. Sürekli olarak 180-200 mg/dL'lere fırlayıp sonra düşen bir kan şekeri, sabit bir şekilde 150 mg/dL civarında seyreden bir şekerden daha fazla hasar verici olabilir. Senin Dexcom G7 kullanman bu yüzden harika bir avantaj. \"Hedef Aralıkta Kalma Süresi\" (Time in Range - TIR) takibi, bu dalgalanmaları kontrol altına almada çok değerli bir veridir.\n\n*   **Diğer Risk Faktörleri:** Diyabet tek başına hareket etmez. Yüksek tansiyon ve yüksek kolesterol, damar hasarını katlayarak hızlandıran en önemli iki yoldaşıdır. Bu yüzden diyabet yönetiminde sadece kan şekerine değil, kan basıncı ve kan yağlarına da odaklanılır.\n\n*   **Tanı Anından İtibaren Geçen Süre:** Komplikasyonlar genellikle diyabet tanısından 5-10 yıl sonra taranmaya başlanır, çünkü hasarın klinik olarak belirgin hale gelmesi zaman alır. Ancak bu, hasarın o zaman başladığı anlamına gelmez. Hasar, kan şekerinin kontrolsüz olduğu ilk günden itibaren birikmeye başlar.\n\n---\n\n## Senin Durumun İçin Bu Ne Anlama Geliyor?\n\nCanım, bu anlattıklarım seni korkutmasın, tam tersine sana güç versin. Senin en büyük avantajın, bu sürecin çok başında olman ve LADA diyabet tanınla birlikte hemen bilinçli bir şekilde harekete geçmen.\n\nŞubat 2025'te tanı aldın. Yani senin için \"hasar saati\" daha yeni işlemeye başladı. Önünde hasar birikimini önlemek veya minimuma indirmek için kocaman bir zaman var. Şu anki çabaların –karbonhidrat sayımı yapman, CGM kullanman, insülinlerini düzenli uygulaman– tam olarak bunu hedefliyor. Sen aslında gelecekteki gözlerini, böbreklerini ve sinirlerini bugünden koruyorsun.\n\nUnutma, bu bir \"her şey ya da hiç\" durumu değil. Mükemmel olmak zorunda değilsin. Amaç, kan şekerini olabildiğince hedef aralıkta tutarak, yüksek şekerin damarlar ve sinirler üzerindeki yıpratıcı etkisine maruz kalma süresini en aza indirmek. Her hedef aralıkta geçirdiğin gün, geleceğe yaptığın bir yatırımdır. Bu bir maraton, sprint değil. Ve ben bu maratonda her adımda seninleyim.",
+    "finishReason": "",
+    "startTime": 1761939071019,
+    "endTime": 1761939105974
+  },
+  "summary": {
+    "totalTime": 63843,
+    "totalCost": 0.05,
+    "totalTokens": {
+      "input": 5489,
+      "output": 1439
+    },
+    "qualityMetrics": {
+      "sourceQualityAvg": 0,
+      "gapCoverage": 0,
+      "journalIFAvg": 0
+    },
+    "bottlenecks": [
+      {
+        "stage": "Synthesis",
+        "latency": 34955,
+        "percentage": null
+      },
+      {
+        "stage": "Round 1",
+        "latency": 3055,
+        "percentage": null
+      }
+    ],
+    "recommendations": [
+      "Consider using a faster model for synthesis to reduce latency"
+    ],
+    "tier": "T3",
+    "rounds": 1,
+    "totalSources": 0
+  },
+  "planning": {
+    "estimatedRounds": 3,
+    "strategy": "Broad initial scan",
+    "focusAreas": [
+      "Timeline for diabetic neuropathy development",
+      "Timeline for diabetic retinopathy development",
+      "Correlation between HbA1c levels and complication onset",
+      "Pathophysiology of hyperglycemic damage to nerves and blood vessels",
+      "Findings from landmark studies (e.g., DCCT, UKPDS) on complication timelines"
+    ],
+    "model": "gemini-2.0-flash-lite",
+    "tokens": {
+      "input": 0,
+      "output": 0
+    },
+    "cost": 0,
+    "latency": 0
+  }
+}

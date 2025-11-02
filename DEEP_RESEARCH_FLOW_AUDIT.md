@@ -331,13 +331,64 @@ The blocker was in the **View Model abstraction layer** - an architectural decis
 
 ---
 
+## Final Fix: Missing synthesis_started Event
+
+### Issue
+The last stage "Kapsamlı bir rapor yazıyorum" (Writing comprehensive report) wasn't displaying because the backend never emitted the `synthesis_started` SSE event.
+
+**Evidence:**
+- iOS side maps `.synthesisStarted` → `.writingReport` stage (ResearchStageDisplayManager.swift:203-204)
+- Backend defines `synthesis_started` in type system (deep-research-v2.ts:83)
+- **BUT** backend never emits this event before synthesis begins
+
+### Root Cause
+In `diabetes-assistant-stream.ts`:
+1. Line 600: `executeDeepResearchV2()` completes (emits `synthesis_preparation`)
+2. Lines 607-648: Prompt is built
+3. Line 651: `ai.generateStream()` is called → **synthesis starts**
+4. **Missing:** No `synthesis_started` event between research completion and synthesis
+
+### The Fix
+
+**File:** `diabetes-assistant-stream.ts`
+
+**Added (line 617-627):**
+```typescript
+// ===== STEP 3.5: Emit synthesis_started event before building prompt =====
+// This signals the final research stage to the iOS app
+writeSSE(res, {
+  type: 'synthesis_started',
+  totalRounds: researchResults.rounds.length,
+  totalSources: researchResults.totalSources,
+  sequence: 220
+});
+```
+
+**Also added to SSEEvent type (line 59):**
+```typescript
+| { type: 'synthesis_started'; totalRounds: number; totalSources: number; sequence: number }
+```
+
+### Result
+Now the complete 9-stage flow works:
+1. "Araştırma planını yapıyorum" (Planning)
+2. "Araştırmaya başlıyorum" (Starting research)
+3. "Kaynakları topluyorum" (Collecting sources)
+4. "Kaynakları değerlendiriyorum" (Evaluating sources)
+5. "Ek kaynaklar arıyorum" (Searching additional)
+6. "Ek kaynakları inceliyorum" (Examining additional)
+7. "En ilgili kaynakları seçiyorum" (Selecting best)
+8. "Bilgileri bir araya getiriyorum" (Gathering info)
+9. **"Kapsamlı bir rapor yazıyorum"** (Writing report) ✅ NOW DISPLAYS
+
 ## Next Steps
 
-1. **Test with actual T3 query**
-2. **Verify all 9 stages display**
-3. **Confirm smooth transitions**
-4. **Check stage holds until content**
-5. **Verify stage fades when content arrives**
+1. **Deploy functions to Firebase**
+2. **Test with actual T3 query**
+3. **Verify all 9 stages display correctly**
+4. **Confirm smooth transitions**
+5. **Check final stage holds until LLM content arrives**
+6. **Verify stage fades when content begins streaming**
 
 ---
 

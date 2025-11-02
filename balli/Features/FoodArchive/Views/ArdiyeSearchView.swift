@@ -35,13 +35,20 @@ struct ArdiyeSearchView: View {
     )
     private var recipes: FetchedResults<Recipe>
 
+    // Get recently opened recipes (latest 3)
+    private var recentlyOpenedRecipes: [Recipe] {
+        let sortedByLastOpened = recipes.filter { recipe in
+            // Only include recipes that have been opened (lastModified is recent)
+            // We'll use this as a proxy until we add dedicated tracking
+            recipe.lastModified > Date().addingTimeInterval(-30 * 24 * 60 * 60) // Last 30 days
+        }
+        .sorted { $0.lastModified > $1.lastModified }
+
+        return Array(sortedByLastOpened.prefix(3))
+    }
+
     // Get all items and filter by search
     private var displayedItems: [ArdiyeItem] {
-        // Don't show any results if search is empty
-        guard !searchText.isEmpty else {
-            return []
-        }
-
         var items: [ArdiyeItem] = []
 
         // Add recipes
@@ -89,6 +96,28 @@ struct ArdiyeSearchView: View {
             typeFilteredItems = items.filter { !$0.isRecipe }
         }
 
+        // If search is empty, show recently opened recipes (only for recipes filter)
+        if searchText.isEmpty {
+            if selectedFilter == .recipes {
+                return recentlyOpenedRecipes.map { recipe in
+                    ArdiyeItem(
+                        id: recipe.id,
+                        name: recipe.name,
+                        displayTitle: recipe.name,
+                        subtitle: "",
+                        totalCarbs: recipe.totalCarbs,
+                        servingSize: 100.0,
+                        servingUnit: "gr",
+                        isFavorite: recipe.isFavorite,
+                        isRecipe: true,
+                        recipe: recipe,
+                        foodItem: nil
+                    )
+                }
+            }
+            return []
+        }
+
         let lowercasedSearch = searchText.lowercased()
 
         return typeFilteredItems.filter { item in
@@ -113,7 +142,17 @@ struct ArdiyeSearchView: View {
                 carbMatches = carbText.lowercased().contains(lowercasedSearch)
             }
 
-            return nameMatches || carbMatches
+            // Search by ingredient (only for recipes)
+            var ingredientMatches = false
+            if item.isRecipe, let recipe = item.recipe {
+                if let ingredientsObject = recipe.ingredients as? [String] {
+                    ingredientMatches = ingredientsObject.contains { ingredient in
+                        ingredient.lowercased().contains(lowercasedSearch)
+                    }
+                }
+            }
+
+            return nameMatches || carbMatches || ingredientMatches
         }
     }
 
@@ -134,7 +173,7 @@ struct ArdiyeSearchView: View {
                                 .font(.system(size: 20, weight: .semibold, design: .rounded))
                                 .foregroundColor(.primary)
 
-                            Text("İsme veya karbonhidrat miktarına göre ara")
+                            Text("İsme, malzemeye veya karbonhidrat miktarına göre ara")
                                 .font(.system(size: 15, weight: .regular, design: .rounded))
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
@@ -157,7 +196,7 @@ struct ArdiyeSearchView: View {
             } else {
                 // Results list
                 if selectedFilter == .recipes {
-                    recipeListView
+                    recipeListViewWithHeader
                 } else {
                     productGridLayout
                 }
@@ -194,6 +233,55 @@ struct ArdiyeSearchView: View {
     }
 
     // MARK: - Recipe List View
+
+    @ViewBuilder
+    private var recipeListViewWithHeader: some View {
+        List {
+            // Show header only when displaying recently opened recipes
+            if searchText.isEmpty && !displayedItems.isEmpty {
+                Section {
+                    ForEach(displayedItems) { item in
+                        if let recipe = item.recipe {
+                            Button(action: {
+                                selectedRecipe = recipe
+                            }) {
+                                recipeCardContent(for: item, recipe: recipe)
+                            }
+                            .buttonStyle(.plain)
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                        }
+                    }
+                } header: {
+                    Text("Son Açılanlar")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundColor(.secondary)
+                        .textCase(.none)
+                        .padding(.leading, 4)
+                        .padding(.top, 8)
+                }
+                .listRowBackground(Color.clear)
+            } else {
+                // Search results without header
+                ForEach(displayedItems) { item in
+                    if let recipe = item.recipe {
+                        Button(action: {
+                            selectedRecipe = recipe
+                        }) {
+                            recipeCardContent(for: item, recipe: recipe)
+                        }
+                        .buttonStyle(.plain)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                    }
+                }
+            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+    }
 
     @ViewBuilder
     private var recipeListView: some View {
@@ -239,7 +327,7 @@ struct ArdiyeSearchView: View {
                                 carbs: "\(Int(foodItem.totalCarbs)) gr Karb.",
                                 width: nil,
                                 isFavorite: foodItem.isFavorite,
-                                impactLevel: foodItem.impactLevel,
+                                impactLevel: foodItem.impactLevelDetailed,
                                 onToggleFavorite: {
                                     foodItem.toggleFavorite()
                                     try? viewContext.save()
@@ -315,12 +403,13 @@ struct ArdiyeSearchView: View {
             }
         }
         .frame(height: 140)
-        .background(Color(.secondarySystemBackground))
+        .background(.clear)
         .glassEffect(
             .regular.interactive(),
             in: RoundedRectangle(cornerRadius: 32, style: .continuous)
         )
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
         .contentShape(Rectangle())
     }
 }

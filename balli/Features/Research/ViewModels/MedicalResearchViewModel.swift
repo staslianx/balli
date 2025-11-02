@@ -249,7 +249,8 @@ class MedicalResearchViewModel: ObservableObject {
             tokenCount: nil,
             tier: predictedTier,
             thinkingSummary: nil,
-            processingTierRaw: predictedTier?.rawValue
+            processingTierRaw: predictedTier?.rawValue,
+            imageAttachment: imageAttachment
         )
 
         logger.info("Starting search - Query: \(query, privacy: .private)")
@@ -494,7 +495,9 @@ class MedicalResearchViewModel: ObservableObject {
                     tokenCount: currentAnswer.tokenCount,
                     tier: currentAnswer.tier,
                     thinkingSummary: currentAnswer.thinkingSummary,
-                    processingTierRaw: currentAnswer.processingTierRaw
+                    processingTierRaw: currentAnswer.processingTierRaw,
+                    completedRounds: currentAnswer.completedRounds,
+                    imageAttachment: currentAnswer.imageAttachment
                 )
 
                 if currentAnswer.content.isEmpty {
@@ -525,7 +528,9 @@ class MedicalResearchViewModel: ObservableObject {
             tokenCount: currentAnswer.tokenCount,
             tier: resolvedTier,
             thinkingSummary: currentAnswer.thinkingSummary,
-            processingTierRaw: resolvedTier?.rawValue ?? currentAnswer.processingTierRaw
+            processingTierRaw: resolvedTier?.rawValue ?? currentAnswer.processingTierRaw,
+            completedRounds: currentAnswer.completedRounds,
+            imageAttachment: currentAnswer.imageAttachment
         )
         answers[index] = updatedAnswer
         currentSearchTier = resolvedTier
@@ -561,7 +566,9 @@ class MedicalResearchViewModel: ObservableObject {
             tokenCount: currentAnswer.tokenCount,
             tier: currentAnswer.tier,
             thinkingSummary: currentAnswer.thinkingSummary,
-            processingTierRaw: currentAnswer.processingTierRaw
+            processingTierRaw: currentAnswer.processingTierRaw,
+            completedRounds: currentAnswer.completedRounds,
+            imageAttachment: currentAnswer.imageAttachment
         )
         answers[index] = updatedAnswer
         searchingSourcesForAnswer[answerId] = false
@@ -586,7 +593,8 @@ class MedicalResearchViewModel: ObservableObject {
                             tier: currentAnswer.tier,
                             thinkingSummary: currentAnswer.thinkingSummary,
                             processingTierRaw: currentAnswer.processingTierRaw,
-                            completedRounds: currentAnswer.completedRounds
+                            completedRounds: currentAnswer.completedRounds,
+                            imageAttachment: currentAnswer.imageAttachment
                         )
                         self.answers[index] = updatedAnswer
                     }
@@ -621,7 +629,8 @@ class MedicalResearchViewModel: ObservableObject {
             tier: resolvedTier,
             thinkingSummary: response.thinkingSummary,
             processingTierRaw: response.processingTier ?? currentAnswer.processingTierRaw,
-            completedRounds: stageCoordinator.getCompletedRounds(for: answerId)
+            completedRounds: stageCoordinator.getCompletedRounds(for: answerId),
+            imageAttachment: currentAnswer.imageAttachment
         )
 
         answers[index] = finalAnswer
@@ -659,7 +668,8 @@ class MedicalResearchViewModel: ObservableObject {
                     content: currentAnswer.content,
                     sources: [],
                     timestamp: Date(),
-                    tokenCount: nil
+                    tokenCount: nil,
+                    imageAttachment: currentAnswer.imageAttachment
                 )
                 answers[index] = finalAnswer
                 logger.warning("Stream incomplete but preserved \(currentAnswer.content.count, privacy: .public) chars")

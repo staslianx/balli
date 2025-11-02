@@ -101,6 +101,10 @@ actor AppLifecycleCoordinator {
             // 🔐 DEXCOM TOKEN REFRESH: Proactively refresh token on foreground
             // This prevents auto-logout by refreshing tokens before they expire
             await refreshDexcomTokenIfNeeded()
+
+            // 🔄 START CONTINUOUS SYNC: Ensure glucose data updates continue
+            // This survives view navigation and keeps real-time data flowing
+            DexcomSyncCoordinator.shared.startContinuousSync()
         }
     }
 
@@ -166,6 +170,11 @@ actor AppLifecycleCoordinator {
         // Mark that app gracefully entered background (not terminated)
         userDefaults.set(true, forKey: "AppWentToBackgroundGracefully")
         userDefaults.set(Date(), forKey: "LastBackgroundTime")
+
+        // 🛑 STOP CONTINUOUS SYNC: iOS will suspend anyway, clean up gracefully
+        Task { @MainActor in
+            DexcomSyncCoordinator.shared.stopContinuousSync()
+        }
 
         // 💾 SESSION MANAGEMENT: Save active research session (without clearing it)
         Task { @MainActor in

@@ -30,7 +30,8 @@ struct ManualIngredientsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Malzemeler")
-                .font(.custom("GalanoGrotesqueAlt-Bold", size: 33.32))
+                .font(.custom("Playfair Display", size: 33.32))
+                .fontWeight(.bold)
                 .foregroundColor(.primary.opacity(0.3))
 
             // Show existing manual ingredients
@@ -110,7 +111,8 @@ struct ManualStepsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Yapılışı")
-                .font(.custom("GalanoGrotesqueAlt-Bold", size: 33.32))
+                .font(.custom("Playfair Display", size: 33.32))
+                .fontWeight(.bold)
                 .foregroundColor(.primary.opacity(0.3))
 
             // Show existing manual steps

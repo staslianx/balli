@@ -385,8 +385,9 @@ These will be REJECTED in code review:
 
 ---
 
-## 🤝 Agent Coordination
+## 🤝 Agent Coordination & Prompt Engineering
 
+### Available Specialist Agents
 When Claude Code deploys specialist agents:
 - **contextor**: Always use before feature work - finds relevant files efficiently
 - **planner**: Feature planning and project breakdown
@@ -399,8 +400,9 @@ When Claude Code deploys specialist agents:
 - **llm-chat-architect**: LLM streaming, chat features, markdown rendering, AI workflows
 - **technical-documentation-architect**: System documentation, architecture docs, ADRs
 - **memory-systems-architect**: RAG/LLM memory systems (if applicable)
+- **prompt-engineer**: Prompt optimization, LLM instruction crafting, AI system design
 
-### **Agent Ownership & Responsibility**
+### Agent Ownership & Responsibility
 
 **CRITICAL RULE FOR ALL AGENTS:**
 When any agent is deployed, they take FULL OWNERSHIP of making their work succeed. This means:
@@ -429,39 +431,219 @@ The rigorous-tester agent CANNOT report success until:
 **Why This Matters:**
 A broken test suite means the project is in a bad state. Any agent that encounters this MUST fix it, not work around it. This prevents technical debt accumulation and ensures the project is always in a buildable, testable state.
 
-**Example - What Should Happen:**
-```
-User: "Write tests for the ProfileViewModel"
+---
 
-rigorous-tester agent:
-1. Writes ProfileViewModelTests.swift
-2. Attempts to build test target
-3. DISCOVERS: ResearchViewModelTests.swift has 3 compilation errors
-4. FIXES: All 3 errors in ResearchViewModelTests.swift
-5. DISCOVERS: LabelScannerTests.swift is missing import statement
-6. FIXES: Adds missing import
-7. Builds successfully
-8. Runs full test suite
-9. Reports: "Created ProfileViewModelTests with 8 tests (all passing).
-   Also fixed compilation errors in ResearchViewModelTests and
-   LabelScannerTests. Full test suite now builds and runs successfully."
+## 🎯 Prompt Engineering Standards for AI Agents
+
+When deploying AI agents or writing prompts for LLM integration:
+
+### 1. Clarity Principles
+**ALWAYS:**
+- Be specific and concrete - replace vague terms with measurable criteria
+- Use imperative form: "Analyze..." not "Could you please analyze..."
+- State requirements explicitly, never assume context
+- Remove filler words and polite padding
+
+**NEVER:**
+- Use "role-play trap" (excessive persona descriptions)
+- Be ambiguous about success criteria
+- Assume the agent knows your domain
+- Use generic variable names in examples
+
+### 2. Structure and Organization
+Use clear XML-style boundaries:
+
+```xml
+<context>
+Background information
+</context>
+
+<task>
+Specific action to take
+</task>
+
+<format>
+Output structure requirements
+</format>
+
+<constraints>
+- Critical constraint 1
+- Critical constraint 2
+</constraints>
 ```
 
-**Example - What Should NOT Happen:**
-```
-User: "Write tests for the ProfileViewModel"
+### 3. Priority Hierarchy (P0/P1/P2)
+When multiple requirements exist:
 
-rigorous-tester agent:
-"I've written the tests but there are compilation errors in other
-test files preventing the test suite from running. You'll need to
-fix those first." ❌ WRONG - The agent should have fixed them
 ```
+P0 (MUST - output invalid without):
+✓ Security requirements
+✓ Schema/format requirements
+✓ Breaking functionality
+
+P1 (SHOULD - quality suffers without):
+✓ Performance standards
+✓ Code quality rules
+✓ UX requirements
+
+P2 (NICE TO HAVE):
+✓ Stylistic preferences
+✓ Optional features
+```
+
+**Why:** When everything is "critical", nothing is. Clear priorities enable intelligent tradeoffs.
+
+### 4. Examples Over Explanation
+Show patterns, not text to copy:
+
+❌ **WRONG:**
+```
+Write clean code like: "func fetchUser() async throws -> User"
+```
+
+✅ **RIGHT:**
+```
+⚠️ Example shows STRUCTURE, not text to copy!
+
+Pattern: func [actionName]() async throws -> [ReturnType]
+
+Use YOUR function names following this pattern.
+```
+
+### 5. Prevent Verbatim Copying
+Add explicit warnings:
+
+```
+⚠️ This example shows PATTERN, not text to copy!
+- Write your own implementation
+- Use different variable names
+- NEVER copy example text verbatim
+```
+
+### 6. Token Efficiency
+Maximize information density:
+
+**Before (43 tokens):**
+```
+I would really appreciate it if you could please help me understand 
+how to implement authentication in SwiftUI using Firebase Auth.
+```
+
+**After (11 tokens):**
+```
+Implement SwiftUI Firebase Auth.
+Requirements: async/await, error handling, secure storage.
+```
+
+### 7. Depth Control for Technical Agents
+Prevent over/under-complexity:
+
+```
+Explanation depth levels:
+- Layer 1: WHAT (concept) ✅
+- Layer 2: HOW (mechanism) ✅  
+- Layer 3: WHY (theory) - Only if requested
+- Layer 4: IMPLEMENTATION DETAILS ❌
+
+Stop signals:
+- 3+ technical terms in one sentence → Simplify
+- Requires PhD-level knowledge → Add context first
+```
+
+### 8. Self-Correction Loops
+For quality-critical outputs:
+
+```
+1. Generate initial response
+
+2. Self-check:
+   ☐ Swift 6 concurrency compliant
+   ☐ No force unwraps
+   ☐ Proper error handling
+   ☐ Under 300 lines
+
+3. If any check fails:
+   - Identify issue
+   - Fix immediately
+   - Re-verify
+```
+
+### 9. Common Anti-Patterns to Avoid
+
+**The Kitchen Sink:**
+❌ 50 requirements in one prompt
+✅ 3-5 prioritized requirements
+
+**The Moving Target:**
+❌ "Make it better, more professional, higher quality"
+✅ "Reduce to 200 lines, add error handling, remove force unwraps"
+
+**The Wall of Text:**
+❌ 500-word paragraph with buried instructions
+✅ Structured sections with clear boundaries
+
+**The Perfection Demand:**
+❌ "This must be absolutely perfect with zero mistakes"
+✅ P0/P1/P2 hierarchy with clear acceptance criteria
+
+### 10. Agent-Specific Prompt Patterns
+
+**For ios-expert:**
+```
+<task>Implement [feature]</task>
+<constraints>
+- Swift 6 strict concurrency
+- iOS 26+ APIs only
+- Max 200 lines
+- Comprehensive error handling
+</constraints>
+<verification>
+- Builds without warnings
+- Passes all tests
+- SwiftUI previews work
+</verification>
+```
+
+**For code-quality-manager:**
+```
+<task>Refactor [component]</task>
+<priorities>
+P0: Fix force unwraps and try!
+P1: Reduce file to <300 lines
+P2: Improve naming
+</priorities>
+<standards>Follow CLAUDE.md section 1</standards>
+```
+
+**For rigorous-tester:**
+```
+<task>Test [component]</task>
+<coverage>
+- Happy path: All critical flows
+- Unhappy path: All error states
+- Edge cases: Boundary conditions
+</coverage>
+<must_fix>All compilation errors in test target</must_fix>
+```
+
+### 11. Prompt Quality Checklist
+
+Before deploying any agent with a prompt, verify:
+- [ ] Clear P0/P1/P2 priorities
+- [ ] Specific success criteria (no vague terms)
+- [ ] Structured sections (XML-style tags)
+- [ ] Examples with anti-copy warnings
+- [ ] No polite padding or filler
+- [ ] Imperative form used
+- [ ] Token-efficient (removed redundancy)
+- [ ] Self-verification steps included
+- [ ] Consequences stated for P0 violations
 
 ---
 
-**IMPORTANT:** You are the MANAGER OF ALL SUBAGENTS. You MUST verify your agents follow these rules. If an agent reports blockers without fixing them, redeploy that agent with explicit instructions to fix ALL blockers.
+**IMPORTANT:** You are the MANAGER OF ALL SUBAGENTS. You MUST verify your agents follow these rules. If an agent reports blockers without fixing them, redeploy that agent with explicit instructions to fix ALL blockers following the prompt engineering standards above.
 
 ---
 
-**Last Updated:** [Date]
+**Last Updated:** 2025-11-01
 **Enforced By:** Claude Code + Code Review

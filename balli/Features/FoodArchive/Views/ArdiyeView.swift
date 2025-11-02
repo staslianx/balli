@@ -72,6 +72,13 @@ struct ArdiyeView: View {
     )
     private var foodItems: FetchedResults<FoodItem>
 
+    // Core Data fetch request for Shopping List items to show dynamic basket icon
+    @FetchRequest(
+        sortDescriptors: [NSSortDescriptor(keyPath: \ShoppingListItem.dateCreated, ascending: false)],
+        animation: .default
+    )
+    private var allShoppingItems: FetchedResults<ShoppingListItem>
+
     // Core Data fetch request for Recipes with fetch limits for performance
     @FetchRequest(
         sortDescriptors: [
@@ -134,6 +141,11 @@ struct ArdiyeView: View {
         lastRefreshDate = Date()
     }
 
+    // Check if there are any unchecked items in shopping list (for dynamic basket icon)
+    private var hasUncheckedItems: Bool {
+        allShoppingItems.contains { !$0.isCompleted }
+    }
+
     // Get filtered items based on selected filter and search text
     private var displayedItems: [ArdiyeItem] {
         // First filter by type (recipes or products)
@@ -176,7 +188,17 @@ struct ArdiyeView: View {
                 carbMatches = carbText.lowercased().contains(lowercasedSearch)
             }
 
-            return nameMatches || carbMatches
+            // Search by ingredient (only for recipes)
+            var ingredientMatches = false
+            if item.isRecipe, let recipe = item.recipe {
+                if let ingredientsObject = recipe.ingredients as? [String] {
+                    ingredientMatches = ingredientsObject.contains { ingredient in
+                        ingredient.lowercased().contains(lowercasedSearch)
+                    }
+                }
+            }
+
+            return nameMatches || carbMatches || ingredientMatches
         }
     }
 
@@ -222,12 +244,12 @@ struct ArdiyeView: View {
                     }
             }
 
-            // Shopping basket — top-left
+            // Shopping basket — top-left (dynamic: filled when unchecked items exist)
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: {
                     showingShoppingList = true
                 }) {
-                    Image(systemName: "basket")
+                    Image(systemName: hasUncheckedItems ? "basket.fill" : "basket")
                         .font(.system(size: 18, weight: .medium, design: .rounded))
                         .foregroundColor(AppTheme.primaryPurple)
                 }
@@ -294,6 +316,10 @@ struct ArdiyeView: View {
                     }
                 }
 
+                // Refresh all objects in the view context to ensure we have latest data
+                logger.info("🔄 [ARDIYE] Refreshing all Core Data objects")
+                viewContext.refreshAllObjects()
+
                 // Refresh cached items when Core Data is saved (e.g., from detail view)
                 logger.info("🔄 [ARDIYE] Calling updateCachedItems() to refresh display")
                 updateCachedItems()
@@ -355,9 +381,6 @@ struct ArdiyeView: View {
                         }
                     }
             }
-            .onDelete { indexSet in
-                deleteItems(at: indexSet)
-            }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -384,7 +407,7 @@ struct ArdiyeView: View {
                                 carbs: "\(Int(foodItem.totalCarbs)) gr Karb.",
                                 width: nil, // Let ProductCardView use default size
                                 isFavorite: foodItem.isFavorite,
-                                impactLevel: foodItem.impactLevel,
+                                impactLevel: foodItem.impactLevelDetailed,
                                 onToggleFavorite: {
                                     withAnimation {
                                         let newStatus = !foodItem.isFavorite
