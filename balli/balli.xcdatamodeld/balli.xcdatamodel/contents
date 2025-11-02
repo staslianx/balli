@@ -663,6 +663,9 @@
         <attribute name="relatedQuestionsJSON" optional="YES" attributeType="String"/>
         <attribute name="completedRoundsJSON" optional="YES" attributeType="String"/>
 
+        <!-- Highlights (JSON encoded array of TextHighlight) -->
+        <attribute name="highlightsJSON" optional="YES" attributeType="String"/>
+
         <!-- Indexes -->
         <fetchIndex name="byTimestampIndex">
             <fetchIndexElement property="timestamp" type="Binary" order="descending"/>

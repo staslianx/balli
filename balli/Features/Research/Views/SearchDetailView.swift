@@ -14,6 +14,15 @@ struct SearchDetailView: View {
     @State private var showBadge = false
     @State private var showSourcePill = false
 
+    // Highlight management
+    @StateObject private var highlightManager = HighlightManager()
+    @State private var toastMessage: ToastType?
+
+    // Note: Toolbar button is always enabled to avoid SwiftUI re-renders
+    // that would dismiss the context menu. Instead, we show a toast
+    // if user taps highlighter without selecting text first.
+    // Selection is stored in TextSelectionStorage.shared (not @State) to prevent re-renders
+
     private let researchFontSize: Double = 19.0
 
     var body: some View {
@@ -42,9 +51,11 @@ struct SearchDetailView: View {
                         .frame(height: 30)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(Color(.secondarySystemBackground))
+                        .background {
+                            Capsule()
+                                .fill(Color(.systemBackground))
+                        }
                         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                         .transition(.scale.combined(with: .opacity))
                         .layoutPriority(1)
                     }
@@ -66,14 +77,14 @@ struct SearchDetailView: View {
 
                 // Answer Content - matching AnswerCardView style
                 if !answer.content.isEmpty {
-                    MarkdownText(
+                    SelectableMarkdownText(
                         content: answer.content,
                         fontSize: researchFontSize,
-                        enableSelection: true,
-                        sourceCount: answer.sources.count,
                         sources: answer.sources,
                         headerFontSize: researchFontSize * 1.88,
-                        fontName: "Manrope"
+                        fontName: "Manrope",
+                        highlights: highlightManager.highlights[answer.id] ?? []
+                        // No onSelectionChange - avoids SwiftUI re-renders that dismiss context menu
                     )
                     .padding(.vertical, 8)
 
@@ -91,6 +102,47 @@ struct SearchDetailView: View {
             .padding(.vertical, 16)
         }
         .navigationBarTitleDisplayMode(.inline)
+        .toast($toastMessage)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    ForEach(TextHighlight.HighlightColor.allCases, id: \.self) { color in
+                        Button {
+                            addHighlight(with: color)
+                        } label: {
+                            HStack {
+                                Image(systemName: "circle.fill")
+                                    .foregroundStyle(Color(uiColor: color.uiColor))
+                                Text(color.displayName)
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "highlighter")
+                        .foregroundStyle(Color.purple)
+                        .font(.system(size: 20))
+                }
+                // Always enabled - show toast if no selection instead
+            }
+        }
+        .task {
+            print("📂 [SearchDetailView] Task started for answer: \(answer.id)")
+
+            // Initialize session manager and inject into highlight manager
+            let container = ResearchSessionModelContainer.shared.container
+            let metadataGenerator = SessionMetadataGenerator()
+            let sessionManager = ResearchSessionManager(
+                modelContainer: container,
+                userId: "demo_user",
+                metadataGenerator: metadataGenerator
+            )
+            highlightManager.setSessionManager(sessionManager)
+            print("📂 [SearchDetailView] Session manager set")
+
+            // Load existing highlights
+            await highlightManager.loadHighlights(for: answer.id)
+            print("📂 [SearchDetailView] Highlights loaded: \(highlightManager.highlights[answer.id]?.count ?? 0)")
+        }
         .onAppear {
             // Animate badge appearance
             if answer.tier != nil {
@@ -104,6 +156,43 @@ struct SearchDetailView: View {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7).delay(0.15)) {
                     showSourcePill = true
                 }
+            }
+        }
+    }
+
+    // MARK: - Highlight Actions
+
+    private func addHighlight(with color: TextHighlight.HighlightColor) {
+        // Read selection from shared storage (no SwiftUI state)
+        guard let selection = TextSelectionStorage.shared.getSelection() else {
+            toastMessage = .error("Lütfen metin seçin")
+            return
+        }
+
+        let highlight = TextHighlight(
+            color: color,
+            startOffset: selection.range.location,
+            length: selection.range.length,
+            text: selection.text
+        )
+
+        print("🎨 [SearchDetailView] Adding highlight to answer: \(answer.id)")
+        print("🎨 [SearchDetailView] Highlight: \(color.displayName) at \(selection.range.location)+\(selection.range.length)")
+
+        Task {
+            do {
+                try await highlightManager.addHighlight(
+                    highlight,
+                    to: answer.id
+                )
+                toastMessage = .success("Vurgu eklendi")
+                print("✅ [SearchDetailView] Highlight added successfully")
+
+                // Clear selection after adding highlight
+                TextSelectionStorage.shared.clearSelection()
+            } catch {
+                print("❌ [SearchDetailView] Failed to add highlight: \(error)")
+                toastMessage = .error("Vurgu eklenemedi: \(error.localizedDescription)")
             }
         }
     }

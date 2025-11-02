@@ -52,6 +52,7 @@ actor ResearchHistoryRepository {
             entity.citationsJSON = try self.encodeToJSON(answer.citations)
             entity.relatedQuestionsJSON = try self.encodeToJSON(answer.completedRounds)
             entity.completedRoundsJSON = try self.encodeToJSON(answer.completedRounds)
+            entity.highlightsJSON = try self.encodeToJSON(answer.highlights)
 
             try context.save()
 
@@ -103,6 +104,7 @@ actor ResearchHistoryRepository {
                 entity.citationsJSON = try self.encodeToJSON(answer.citations)
                 entity.relatedQuestionsJSON = try self.encodeToJSON(answer.completedRounds)
                 entity.completedRoundsJSON = try self.encodeToJSON(answer.completedRounds)
+                entity.highlightsJSON = try self.encodeToJSON(answer.highlights)
             }
 
             try context.save()
@@ -191,6 +193,7 @@ actor ResearchHistoryRepository {
         let sources: [ResearchSource] = try decodeFromJSON(entity.sourcesJSON) ?? []
         let citations: [InlineCitation] = try decodeFromJSON(entity.citationsJSON) ?? []
         let completedRounds: [ResearchRound] = try decodeFromJSON(entity.completedRoundsJSON) ?? []
+        let highlights: [TextHighlight] = try decodeFromJSON(entity.highlightsJSON) ?? []
 
         let tier: ResponseTier?
         if let tierRaw = entity.tierRawValue {
@@ -210,7 +213,92 @@ actor ResearchHistoryRepository {
             tier: tier,
             thinkingSummary: entity.thinkingSummary,
             processingTierRaw: entity.processingTierRaw,
-            completedRounds: completedRounds
+            completedRounds: completedRounds,
+            highlights: highlights
         )
+    }
+
+    // MARK: - Highlight Operations
+
+    /// Save highlights for a specific answer ID
+    func saveHighlights(_ highlights: [TextHighlight], for answerId: String) async throws {
+        try await persistence.performBackgroundTask { context in
+            let request = NSFetchRequest<ResearchAnswer>(entityName: "ResearchAnswer")
+            request.predicate = NSPredicate(format: "id == %@", answerId)
+            request.fetchLimit = 1
+
+            guard let entity = try context.fetch(request).first else {
+                self.logger.error("❌ ResearchAnswer not found for highlight save: \(answerId)")
+                throw RepositoryError.answerNotFound
+            }
+
+            // Encode highlights to JSON
+            entity.highlightsJSON = try self.encodeToJSON(highlights)
+            try context.save()
+
+            self.logger.info("✅ Saved \(highlights.count) highlights for answer: \(answerId)")
+        }
+    }
+
+    /// Load highlights for a specific answer ID
+    func loadHighlights(for answerId: String) async throws -> [TextHighlight] {
+        try await persistence.performBackgroundTask { context in
+            let request = NSFetchRequest<ResearchAnswer>(entityName: "ResearchAnswer")
+            request.predicate = NSPredicate(format: "id == %@", answerId)
+            request.fetchLimit = 1
+
+            guard let entity = try context.fetch(request).first else {
+                self.logger.error("❌ ResearchAnswer not found for highlight load: \(answerId)")
+                return []
+            }
+
+            let highlights: [TextHighlight] = try self.decodeFromJSON(entity.highlightsJSON) ?? []
+            self.logger.info("✅ Loaded \(highlights.count) highlights for answer: \(answerId)")
+            return highlights
+        }
+    }
+
+    /// Load all highlights across all research answers
+    /// Returns tuples of (question, answerId, highlight) sorted by newest first
+    func loadAllHighlights() async throws -> [(question: String, answerId: String, highlight: TextHighlight)] {
+        try await persistence.performBackgroundTask { context in
+            let request = NSFetchRequest<ResearchAnswer>(entityName: "ResearchAnswer")
+            request.sortDescriptors = [NSSortDescriptor(keyPath: \ResearchAnswer.timestamp, ascending: false)]
+
+            let entities = try context.fetch(request)
+            var results: [(String, String, TextHighlight)] = []
+
+            for entity in entities {
+                guard let highlightsJSON = entity.highlightsJSON,
+                      let highlights: [TextHighlight] = try? self.decodeFromJSON(highlightsJSON),
+                      !highlights.isEmpty else { continue }
+
+                let question = entity.query ?? ""
+                let answerId = entity.id ?? ""
+
+                // Each highlight gets its own tuple (one card per highlight)
+                // Sort highlights by creation date (newest first)
+                let sortedHighlights = highlights.sorted { $0.createdAt > $1.createdAt }
+                for highlight in sortedHighlights {
+                    results.append((question, answerId, highlight))
+                }
+            }
+
+            self.logger.info("✅ Loaded \(results.count) total highlights across all answers")
+            return results
+        }
+    }
+}
+
+// MARK: - Repository Errors
+
+enum RepositoryError: LocalizedError {
+    case answerNotFound
+
+    var errorDescription: String? {
+        switch self {
+        case .answerNotFound:
+            return "Research answer not found in database"
+        }
     }
 }
