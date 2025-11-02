@@ -33,49 +33,29 @@ struct balliApp: App {
 
     var body: some Scene {
         WindowGroup {
-            Group {
-                // Show loading only on FIRST launch or if sync fails
-                // After initial sync, app launches directly to main UI
-                if syncCoordinator.state == .completed {
-                    ContentView()
-                } else if case .failed(let error) = syncCoordinator.state {
-                    SyncErrorView(
-                        error: error,
-                        retry: {
-                            Task {
-                                await syncCoordinator.retrySync()
-                            }
-                        }
-                    )
-                } else {
-                    // Loading only shown on FIRST app launch
-                    LoadingSplashView(
-                        progress: syncCoordinator.progress,
-                        operation: syncCoordinator.currentOperation
-                    )
-                }
-            }
-            .environment(\.managedObjectContext, persistenceController.viewContext)
-            .environmentObject(appConfiguration)
-            .environmentObject(healthKitPermissions)
-            .injectDependencies() // This sets up all our AI/Memory services!
-            .captureWindow() // Capture window for ASWebAuthenticationSession
-            .tint(AppTheme.primaryPurple)
-            .accentColor(AppTheme.primaryPurple)
-            .enableSettingsOpener() // Enable SwiftUI-native Settings opener
-            .preferredColorScheme(.light)
-            .task {
-                // CRITICAL: Perform sync ONCE on first launch
-                if syncCoordinator.state == .idle {
-                    await syncCoordinator.performInitialSync()
-                }
+            // Show main UI immediately - launch screen displays while sync runs in background
+            ContentView()
+                .environment(\.managedObjectContext, persistenceController.viewContext)
+                .environmentObject(appConfiguration)
+                .environmentObject(healthKitPermissions)
+                .injectDependencies() // This sets up all our AI/Memory services!
+                .captureWindow() // Capture window for ASWebAuthenticationSession
+                .tint(AppTheme.primaryPurple)
+                .accentColor(AppTheme.primaryPurple)
+                .enableSettingsOpener() // Enable SwiftUI-native Settings opener
+                .preferredColorScheme(.light)
+                .task {
+                    // Perform sync in background while launch screen is visible
+                    if syncCoordinator.state == .idle {
+                        await syncCoordinator.performInitialSync()
+                    }
 
-                // Sync memory on app launch (non-blocking)
-                await MemorySyncCoordinator.shared.syncOnAppLaunch()
-            }
-            .onAppear {
-                configureApp()
-            }
+                    // Sync memory on app launch (non-blocking)
+                    await MemorySyncCoordinator.shared.syncOnAppLaunch()
+                }
+                .onAppear {
+                    configureApp()
+                }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 handleScenePhaseChange(oldPhase: oldPhase, newPhase: newPhase)
             }

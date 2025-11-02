@@ -442,6 +442,11 @@ enum MemorySyncStatus: String, Codable, Sendable {
 
 // MARK: - Sendable Conformance
 
-/// SwiftData @Model macro automatically provides Sendable conformance
-/// No manual conformance needed - the @Model macro handles this
-/// Thread Safety: SwiftData manages thread safety via ModelContext bound to specific actor
+/// SwiftData @Model macro provides thread safety via ModelContext
+/// Explicit @unchecked Sendable conformance required for use in @Sendable closures
+/// These extensions are NOT redundant - they enable sending @Model arrays across actor boundaries
+extension PersistentUserFact: @unchecked Sendable {}
+extension PersistentConversationSummary: @unchecked Sendable {}
+extension PersistentRecipePreference: @unchecked Sendable {}
+extension PersistentGlucosePattern: @unchecked Sendable {}
+extension PersistentUserPreference: @unchecked Sendable {}

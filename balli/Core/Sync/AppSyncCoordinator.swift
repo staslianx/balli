@@ -94,7 +94,7 @@ final class AppSyncCoordinator: ObservableObject {
 
     private let maxSyncTime: TimeInterval = 30.0  // 30 second timeout
     private let coreDataTimeout: TimeInterval = 10.0  // 10 second Core Data timeout
-    private let minimumDisplayTime: TimeInterval = 0.1  // Minimum loading screen display (instant on fast devices)
+    private let minimumDisplayTime: TimeInterval = 1.5  // Minimum loading screen display for smooth logo animation
 
     private var syncStartTime: Date?
     private var isSyncing = false
