@@ -30,6 +30,7 @@ import SwiftUI
 /// )
 /// ```
 struct BlurredImageContinuation: View {
+    @Environment(\.colorScheme) private var colorScheme
     let image: UIImage?
     let height: CGFloat
     let blurRadius: CGFloat
@@ -186,6 +187,8 @@ extension BlurredImageContinuation {
 }
 
 #Preview("Smooth Fade Transition") {
+    @Previewable @State var colorScheme: ColorScheme = .light
+
     ZStack {
         // Warm background (what shows through the fade)
         Color(red: 0.95, green: 0.90, blue: 0.75)
@@ -208,7 +211,7 @@ extension BlurredImageContinuation {
                     // Simulate photo content
                     Image(systemName: "fork.knife")
                         .font(.system(size: 100))
-                        .foregroundColor(.white.opacity(0.3))
+                        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.3))
                 )
                 .frame(height: 400)
 

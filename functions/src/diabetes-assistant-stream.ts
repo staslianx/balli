@@ -264,10 +264,24 @@ async function streamTier1(
 
   // ===== STEP 3: Call ai.generate() with full conversation context =====
   // Build generate request with optional image
+  // FIX: Genkit requires multimodal prompts as array with media + text objects
+  let promptContent;
+  if (imageBase64) {
+    // Multimodal: array format with media object first, then text
+    promptContent = [
+      { media: { url: `data:image/jpeg;base64,${imageBase64}` } },
+      { text: prompt }
+    ];
+    console.log(`🖼️ [TIER1-IMAGE] Including image in multimodal array format`);
+  } else {
+    // Text-only: simple string
+    promptContent = prompt;
+  }
+
   const generateRequest: any = {
     model: getTier1Model(),
     system: systemPrompt,
-    prompt: prompt,
+    prompt: promptContent,
     config: {
       temperature: 0.1,
       maxOutputTokens: 2500,
@@ -283,15 +297,6 @@ async function streamTier1(
       ]
     }
   };
-
-  // Add image if present (multimodal request)
-  if (imageBase64) {
-    generateRequest.media = {
-      url: `data:image/jpeg;base64,${imageBase64}`,
-      contentType: 'image/jpeg'
-    };
-    console.log(`🖼️ [TIER1-IMAGE] Including image in multimodal request`);
-  }
 
   const { stream, response } = await ai.generateStream(generateRequest);
 
@@ -621,10 +626,24 @@ async function streamTier2Hybrid(
   let stream, response;
   try {
     // Build generate request with optional image
+    // FIX: Genkit requires multimodal prompts as array with media + text objects
+    let promptContent;
+    if (imageBase64) {
+      // Multimodal: array format with media object first, then text
+      promptContent = [
+        { media: { url: `data:image/jpeg;base64,${imageBase64}` } },
+        { text: userPrompt }
+      ];
+      console.log(`🖼️ [T2-IMAGE] Including image in multimodal array format`);
+    } else {
+      // Text-only: simple string
+      promptContent = userPrompt;
+    }
+
     const generateRequest: any = {
       model: getTier2Model(),
       system: systemPrompt,
-      prompt: userPrompt,
+      prompt: promptContent,
       config: {
         temperature: 0.2,
         maxOutputTokens: 3000,
@@ -640,15 +659,6 @@ async function streamTier2Hybrid(
         ]
       }
     };
-
-    // Add image if present (multimodal request)
-    if (imageBase64) {
-      generateRequest.media = {
-        url: `data:image/jpeg;base64,${imageBase64}`,
-        contentType: 'image/jpeg'
-      };
-      console.log(`🖼️ [T2-IMAGE] Including image in multimodal request`);
-    }
 
     const result = await ai.generateStream(generateRequest);
     stream = result.stream;
@@ -937,10 +947,24 @@ async function streamDeepResearch(
 
   // ===== STEP 5: Call ai.generate() with full conversation context =====
   // Build generate request with optional image
+  // FIX: Genkit requires multimodal prompts as array with media + text objects
+  let promptContent;
+  if (imageBase64) {
+    // Multimodal: array format with media object first, then text
+    promptContent = [
+      { media: { url: `data:image/jpeg;base64,${imageBase64}` } },
+      { text: userPrompt }
+    ];
+    console.log(`🖼️ [T3-IMAGE] Including image in multimodal array format`);
+  } else {
+    // Text-only: simple string
+    promptContent = userPrompt;
+  }
+
   const generateRequest: any = {
     model: getTier3Model(),
     system: systemPrompt,
-    prompt: userPrompt,
+    prompt: promptContent,
     config: {
       temperature: 0.15,
       maxOutputTokens: 12000,
@@ -953,15 +977,6 @@ async function streamDeepResearch(
       ]
     }
   };
-
-  // Add image if present (multimodal request)
-  if (imageBase64) {
-    generateRequest.media = {
-      url: `data:image/jpeg;base64,${imageBase64}`,
-      contentType: 'image/jpeg'
-    };
-    console.log(`🖼️ [T3-IMAGE] Including image in multimodal request`);
-  }
 
   const { stream, response } = await ai.generateStream(generateRequest);
 

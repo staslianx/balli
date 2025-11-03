@@ -248,7 +248,7 @@ struct MealDetailView: View {
         case "kahvaltı":
             return "sun.max"
         case "ara öğün", "atıştırmalık":
-            return "circle.hexagongrid"
+            return "circle.badge.plus"
         case "akşam yemeği":
             return "fork.knife"
         default:

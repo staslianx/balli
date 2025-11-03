@@ -17,9 +17,13 @@ struct RecipeGenerationHeroImage: View {
     let recipeContent: String
     let geometry: GeometryProxy
     let onGeneratePhoto: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        let imageHeight = max(UIScreen.main.bounds.height * 0.5, 350)
+        // Calculate 50% of true screen height including safe area
+        let safeAreaTop = geometry.safeAreaInsets.top
+        let screenHeight = geometry.size.height + safeAreaTop
+        let imageHeight = max(screenHeight * 0.5, 350)
 
         ZStack(alignment: .top) {
             // Show generated image if available, otherwise show placeholder gradient
@@ -62,7 +66,7 @@ struct RecipeGenerationHeroImage: View {
                     Button(action: onGeneratePhoto) {
                         Image(systemName: "spatial.capture")
                             .font(.system(size: 64, weight: .light))
-                            .foregroundStyle(.white.opacity(0.8))
+                            .foregroundStyle(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.8))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .buttonStyle(.plain)
@@ -79,8 +83,14 @@ struct RecipeGenerationMetadata: View {
     let recipeName: String
     let recipeContent: String
     let geometry: GeometryProxy
+    @Environment(\.colorScheme) private var colorScheme
 
-    var body: some View {
+    var body: some View{
+        // Calculate consistent hero image height (50% of screen including safe area)
+        let safeAreaTop = geometry.safeAreaInsets.top
+        let screenHeight = geometry.size.height + safeAreaTop
+        let heroImageHeight = max(screenHeight * 0.5, 350)
+
         VStack(spacing: 0) {
             Spacer(minLength: 0)
 
@@ -97,20 +107,20 @@ struct RecipeGenerationMetadata: View {
                 if !recipeName.isEmpty {
                     Text(recipeName)
                         .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundColor(.white)
-                        .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
+                        .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
                 } else {
                     Text("Tarif ismi")
                         .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundColor(.white.opacity(0.3))
-                        .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.3))
+                        .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)
             .padding(.bottom, 12) // Minimum gap between name and story card
         }
-        .frame(height: max(UIScreen.main.bounds.height * 0.5, 350) - 49) // Ends where story card begins
+        .frame(height: heroImageHeight - 49) // Ends where story card begins
     }
 }
 
@@ -125,9 +135,14 @@ struct RecipeGenerationStoryCard: View {
     let onTap: () -> Void
 
     var body: some View {
+        // Calculate consistent hero image height (50% of screen including safe area)
+        let safeAreaTop = geometry.safeAreaInsets.top
+        let screenHeight = geometry.size.height + safeAreaTop
+        let heroImageHeight = max(screenHeight * 0.5, 350)
+
         VStack(spacing: 0) {
             Spacer()
-                .frame(height: max(UIScreen.main.bounds.height * 0.5, 350) - 49)
+                .frame(height: heroImageHeight - 49)
 
             RecipeStoryCard(
                 title: storyCardTitle,

@@ -9,6 +9,7 @@
 
 import Foundation
 import SwiftUI
+import SwiftData
 import OSLog
 import Combine
 
@@ -90,6 +91,10 @@ class MedicalResearchViewModel: ObservableObject {
     private let tokenBuffer = TokenBuffer()
     private let sessionManager: ResearchSessionManager
 
+    // Extracted components
+    private let eventHandler: ResearchEventHandler
+    private let sessionCoordinator: ResearchSessionCoordinator
+
     // MARK: - Loggers
 
     private let logger = AppLoggers.Research.search
@@ -111,12 +116,35 @@ class MedicalResearchViewModel: ObservableObject {
 
     init() {
         // Initialize session manager with ModelContainer, userId, and metadata generator
-        let container = ResearchSessionModelContainer.shared.container
+        let container: ModelContainer
+        do {
+            container = try ResearchSessionModelContainer.shared.makeContext().container
+        } catch {
+            // Fallback to in-memory container if storage fails
+            let schema = Schema([ResearchSession.self, SessionMessage.self])
+            let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            container = try! ModelContainer(for: schema, configurations: [config])
+        }
         let metadataGenerator = SessionMetadataGenerator()
         self.sessionManager = ResearchSessionManager(
             modelContainer: container,
             userId: currentUserId,
             metadataGenerator: metadataGenerator
+        )
+
+        // Initialize extracted components
+        self.eventHandler = ResearchEventHandler(
+            tokenBuffer: tokenBuffer,
+            streamProcessor: streamProcessor,
+            stageCoordinator: stageCoordinator,
+            searchCoordinator: searchCoordinator,
+            persistenceManager: persistenceManager,
+            sessionManager: sessionManager
+        )
+
+        self.sessionCoordinator = ResearchSessionCoordinator(
+            persistenceManager: persistenceManager,
+            sessionManager: sessionManager
         )
 
         // Setup notification observers
@@ -166,29 +194,27 @@ class MedicalResearchViewModel: ObservableObject {
     // MARK: - Session Management
 
     private func recoverActiveSession() async {
-        await persistenceManager.recoverActiveSession(using: sessionManager)
+        await sessionCoordinator.recoverActiveSession()
     }
 
     private func saveCurrentSession() async {
-        await persistenceManager.saveCurrentSession(using: sessionManager)
+        await sessionCoordinator.saveCurrentSession()
     }
 
     private func endCurrentSession() async {
-        await persistenceManager.endCurrentSession(using: sessionManager)
+        await sessionCoordinator.endCurrentSession()
     }
 
     private func loadSessionHistory() async {
-        let loadedAnswers = await persistenceManager.loadSessionHistory()
-        if !loadedAnswers.isEmpty {
-            searchState = .loading
-            answers = loadedAnswers
-            rebuildAnswerIndexLookup()
-            searchState = .loaded(())
-        }
+        await sessionCoordinator.loadSessionHistory(
+            setSearchState: { @MainActor [weak self] state in self?.searchState = state },
+            setAnswers: { @MainActor [weak self] loadedAnswers in self?.answers = loadedAnswers },
+            rebuildLookup: { @MainActor [weak self] in self?.rebuildAnswerIndexLookup() }
+        )
     }
 
     private func syncAnswersToPersistence() async {
-        await persistenceManager.syncAnswersToPersistence(answers)
+        await sessionCoordinator.syncAnswersToPersistence(answers)
     }
 
     // MARK: - Public API
@@ -470,306 +496,158 @@ class MedicalResearchViewModel: ObservableObject {
     // MARK: - Event Handlers
 
     private func handleToken(_ token: String, answerId: String) async {
-        await tokenBuffer.appendToken(token, for: answerId) { batchedContent in
-            Task { @MainActor [weak self] in
-                guard let self = self,
-                      let index = self.answerIndexLookup[answerId] else { return }
-
-                let currentAnswer = self.answers[index]
-
-                // Handle first token arrival - only once per answer
-                // Check if this is genuinely the first content AND we haven't already processed it
-                if currentAnswer.content.isEmpty && !self.firstTokenProcessed.contains(answerId) {
-                    self.firstTokenProcessed.insert(answerId)
-                    await self.stageCoordinator.handleFirstTokenArrival(answerId: answerId)
-                }
-
-                let updatedContent = currentAnswer.content + batchedContent
-                let updatedAnswer = SearchAnswer(
-                    id: currentAnswer.id,
-                    query: currentAnswer.query,
-                    content: updatedContent,
-                    sources: currentAnswer.sources,
-                    citations: currentAnswer.citations,
-                    timestamp: currentAnswer.timestamp,
-                    tokenCount: currentAnswer.tokenCount,
-                    tier: currentAnswer.tier,
-                    thinkingSummary: currentAnswer.thinkingSummary,
-                    processingTierRaw: currentAnswer.processingTierRaw,
-                    completedRounds: currentAnswer.completedRounds,
-                    imageAttachment: currentAnswer.imageAttachment
-                )
-
-                if currentAnswer.content.isEmpty {
+        await eventHandler.handleToken(
+            token,
+            answerId: answerId,
+            getAnswers: { @MainActor [weak self] in self?.answers ?? [] },
+            getAnswerIndex: { @MainActor [weak self] id in self?.answerIndexLookup[id] },
+            getFirstTokenProcessed: { @MainActor [weak self] in self?.firstTokenProcessed ?? [] },
+            updateAnswer: { @MainActor [weak self] index, answer, shouldAnimate in
+                guard let self = self else { return }
+                if shouldAnimate {
                     withAnimation(.easeIn(duration: 0.4)) {
-                        self.answers[index] = updatedAnswer
+                        self.answers[index] = answer
                     }
                 } else {
-                    self.answers[index] = updatedAnswer
+                    self.answers[index] = answer
                 }
-            }
-        }
+            },
+            markFirstTokenProcessed: { @MainActor [weak self] id in self?.firstTokenProcessed.insert(id) }
+        )
     }
 
     private func handleTierSelected(_ tier: String, answerId: String) async {
-        guard let index = answers.firstIndex(where: { $0.id == answerId }) else { return }
-
-        let currentAnswer = answers[index]
-        // Convert String to Int for ResponseTier
-        let tierInt = Int(tier) ?? 1
-        let resolvedTier = ResponseTier(tier: tierInt, processingTier: nil)
-        let updatedAnswer = SearchAnswer(
-            id: currentAnswer.id,
-            query: currentAnswer.query,
-            content: currentAnswer.content,
-            sources: currentAnswer.sources,
-            citations: currentAnswer.citations,
-            timestamp: currentAnswer.timestamp,
-            tokenCount: currentAnswer.tokenCount,
-            tier: resolvedTier,
-            thinkingSummary: currentAnswer.thinkingSummary,
-            processingTierRaw: resolvedTier?.rawValue ?? currentAnswer.processingTierRaw,
-            completedRounds: currentAnswer.completedRounds,
-            imageAttachment: currentAnswer.imageAttachment
+        await eventHandler.handleTierSelected(
+            tier,
+            answerId: answerId,
+            getAnswers: { @MainActor [weak self] in self?.answers ?? [] },
+            updateAnswer: { @MainActor [weak self] index, answer in
+                self?.answers[index] = answer
+            },
+            setCurrentTier: { @MainActor [weak self] tier in
+                self?.currentSearchTier = tier
+            }
         )
-        answers[index] = updatedAnswer
-        currentSearchTier = resolvedTier
-        logger.notice("Tier updated to: \(tier, privacy: .public)")
     }
 
     private func handleSearchComplete(count: Int, source: String, answerId: String) async {
-        logger.info("Search complete: \(count, privacy: .public) results from \(source, privacy: .public)")
-
-        if source.lowercased().contains("knowledge") || source == "knowledge_base" {
-            searchingSourcesForAnswer[answerId] = false
-            return
-        }
-
-        searchingSourcesForAnswer[answerId] = true
+        await eventHandler.handleSearchComplete(
+            count: count,
+            source: source,
+            answerId: answerId,
+            setSearchingSource: { @MainActor [weak self] id, value in
+                self?.searchingSourcesForAnswer[id] = value
+            }
+        )
     }
 
     private func handleSourcesReady(_ sources: [SourceResponse], answerId: String) async {
-        logger.info("🎯 Sources ready: \(sources.count, privacy: .public) sources received")
-
-        guard let index = answers.firstIndex(where: { $0.id == answerId }) else { return }
-
-        let currentAnswer = answers[index]
-        let researchSources = sources.map { searchCoordinator.convertToResearchSource($0) }
-
-        let updatedAnswer = SearchAnswer(
-            id: currentAnswer.id,
-            query: currentAnswer.query,
-            content: currentAnswer.content,
-            sources: researchSources,
-            citations: currentAnswer.citations,
-            timestamp: currentAnswer.timestamp,
-            tokenCount: currentAnswer.tokenCount,
-            tier: currentAnswer.tier,
-            thinkingSummary: currentAnswer.thinkingSummary,
-            processingTierRaw: currentAnswer.processingTierRaw,
-            completedRounds: currentAnswer.completedRounds,
-            imageAttachment: currentAnswer.imageAttachment
+        await eventHandler.handleSourcesReady(
+            sources,
+            answerId: answerId,
+            getAnswers: { @MainActor [weak self] in self?.answers ?? [] },
+            updateAnswer: { @MainActor [weak self] index, answer in
+                self?.answers[index] = answer
+            },
+            setSearchingSource: { @MainActor [weak self] id, value in
+                self?.searchingSourcesForAnswer[id] = value
+            }
         )
-        answers[index] = updatedAnswer
-        searchingSourcesForAnswer[answerId] = false
     }
 
     private func handleComplete(_ response: ResearchSearchResponse, query: String, answerId: String) async {
-        // Flush remaining tokens
-        await tokenBuffer.flushRemaining(answerId) { remainingContent in
-            if !remainingContent.isEmpty {
-                Task { @MainActor in
-                    if let index = self.answers.firstIndex(where: { $0.id == answerId }) {
-                        let currentAnswer = self.answers[index]
-                        let finalContent = currentAnswer.content + remainingContent
-                        let updatedAnswer = SearchAnswer(
-                            id: currentAnswer.id,
-                            query: currentAnswer.query,
-                            content: finalContent,
-                            sources: currentAnswer.sources,
-                            citations: currentAnswer.citations,
-                            timestamp: currentAnswer.timestamp,
-                            tokenCount: currentAnswer.tokenCount,
-                            tier: currentAnswer.tier,
-                            thinkingSummary: currentAnswer.thinkingSummary,
-                            processingTierRaw: currentAnswer.processingTierRaw,
-                            completedRounds: currentAnswer.completedRounds,
-                            imageAttachment: currentAnswer.imageAttachment
-                        )
-                        self.answers[index] = updatedAnswer
-                    }
-                }
-            }
-        }
-
-        currentSearchTier = ResponseTier(tier: response.tier, processingTier: response.processingTier)
-
-        // Filter sources
-        let allSources = response.sourcesFormatted.map { searchCoordinator.convertToResearchSource($0) }
-        let sources = allSources.filter { source in
-            let isKnowledgeBase = source.domain.lowercased().contains("knowledge") ||
-                                source.domain.isEmpty ||
-                                source.url.absoluteString == "https://balli.app"
-            return !isKnowledgeBase
-        }
-
-        guard let index = answers.firstIndex(where: { $0.id == answerId }) else { return }
-
-        let currentAnswer = answers[index]
-        let finalContent = currentAnswer.content.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedTier = ResponseTier(tier: response.tier, processingTier: response.processingTier) ?? currentAnswer.tier
-
-        let finalAnswer = SearchAnswer(
-            id: answerId,
+        await eventHandler.handleComplete(
+            response,
             query: query,
-            content: finalContent,
-            sources: sources,
-            timestamp: Date(),
-            tokenCount: nil,
-            tier: resolvedTier,
-            thinkingSummary: response.thinkingSummary,
-            processingTierRaw: response.processingTier ?? currentAnswer.processingTierRaw,
-            completedRounds: stageCoordinator.getCompletedRounds(for: answerId),
-            imageAttachment: currentAnswer.imageAttachment
-        )
-
-        answers[index] = finalAnswer
-
-        // Save to persistence
-        Task {
-            do {
-                try await persistenceManager.saveAnswer(finalAnswer)
-                try await sessionManager.appendAssistantMessage(from: finalAnswer)
-            } catch {
-                logger.error("Failed to persist answer: \(error.localizedDescription)")
+            answerId: answerId,
+            getAnswers: { @MainActor [weak self] in self?.answers ?? [] },
+            updateAnswer: { @MainActor [weak self] index, answer in
+                self?.answers[index] = answer
+            },
+            setSearchState: { @MainActor [weak self] state in
+                self?.searchState = state
+            },
+            setCurrentTier: { @MainActor [weak self] tier in
+                self?.currentSearchTier = tier
             }
-        }
-
-        searchState = .loaded(())
-        currentSearchTier = nil
-
-        streamProcessor.cleanupSearchState(for: answerId)
-        stageCoordinator.cleanupSearchState(for: answerId)
+        )
     }
 
     private func handleError(_ error: Error, query: String, answerId: String) async {
-        await tokenBuffer.cancel(answerId)
-
-        logger.error("Streaming error: \(error.localizedDescription, privacy: .public)")
-        searchState = .error(error)
-        currentSearchTier = nil
-
-        if let index = answers.firstIndex(where: { $0.id == answerId }) {
-            let currentAnswer = answers[index]
-            if !currentAnswer.content.isEmpty {
-                let finalAnswer = SearchAnswer(
-                    id: answerId,
-                    query: query,
-                    content: currentAnswer.content,
-                    sources: [],
-                    timestamp: Date(),
-                    tokenCount: nil,
-                    imageAttachment: currentAnswer.imageAttachment
-                )
-                answers[index] = finalAnswer
-                logger.warning("Stream incomplete but preserved \(currentAnswer.content.count, privacy: .public) chars")
+        await eventHandler.handleError(
+            error,
+            query: query,
+            answerId: answerId,
+            getAnswers: { @MainActor [weak self] in self?.answers ?? [] },
+            updateAnswer: { @MainActor [weak self] index, answer in
+                self?.answers[index] = answer
+            },
+            setSearchState: { @MainActor [weak self] state in
+                self?.searchState = state
+            },
+            setCurrentTier: { @MainActor [weak self] tier in
+                self?.currentSearchTier = tier
             }
-        }
+        )
     }
 
     // MARK: - Multi-Round Event Handlers
 
     private func handlePlanningStarted(message: String, sequence: Int, answerId: String) async {
-        await stageCoordinator.processStageTransition(
-            event: .planningStarted(message: message, sequence: sequence),
-            answerId: answerId
-        )
+        await eventHandler.handlePlanningStarted(message: message, sequence: sequence, answerId: answerId)
     }
 
     private func handlePlanningComplete(plan: ResearchPlan, answerId: String) async {
-        stageCoordinator.storePlan(plan, for: answerId)
+        await eventHandler.handlePlanningComplete(plan: plan, answerId: answerId)
     }
 
     private func handleRoundStarted(round: Int, query: String, estimatedSources: Int, sequence: Int, answerId: String) async {
-        await stageCoordinator.processStageTransition(
-            event: .roundStarted(round: round, query: query, estimatedSources: estimatedSources, sequence: sequence),
-            answerId: answerId
-        )
+        await eventHandler.handleRoundStarted(round: round, query: query, estimatedSources: estimatedSources, sequence: sequence, answerId: answerId)
     }
 
     private func handleRoundComplete(round: Int, sources: [SourceResponse], status: RoundStatus, sequence: Int, answerId: String) async {
-        guard let index = answerIndexLookup[answerId] else { return }
-        let currentAnswer = answers[index]
-
-        if let roundData = await streamProcessor.handleRoundComplete(
+        await eventHandler.handleRoundComplete(
             round: round,
             sources: sources,
             status: status,
             sequence: sequence,
             answerId: answerId,
-            currentAnswer: currentAnswer,
-            convertSource: { self.searchCoordinator.convertToResearchSource($0) },
-            onUpdate: { updatedAnswer in
-                self.answers[index] = updatedAnswer
+            getAnswer: { @MainActor [weak self] id in
+                self?.answers.first(where: { $0.id == id })
             },
-            onError: { error in
-                self.searchState = .error(error)
-                self.streamProcessor.cleanupSearchState(for: answerId)
-                self.stageCoordinator.cleanupSearchState(for: answerId)
+            updateAnswer: { @MainActor [weak self] index, answer in
+                self?.answers[index] = answer
+            },
+            setSearchState: { @MainActor [weak self] state in
+                self?.searchState = state
+            },
+            getAnswerIndex: { @MainActor [weak self] id in
+                self?.answerIndexLookup[id]
             }
-        ) {
-            stageCoordinator.addCompletedRound(roundData, for: answerId)
-        }
+        )
     }
 
     private func handleApiStarted(api: String, message: String, answerId: String) async {
-        // Convert String back to ResearchAPI enum
-        let researchAPI = ResearchAPI(rawValue: api) ?? .exa
-        await stageCoordinator.processStageTransition(
-            event: .apiStarted(api: researchAPI, count: 0, message: message),
-            answerId: answerId
-        )
+        await eventHandler.handleApiStarted(api: api, message: message, answerId: answerId)
     }
 
     private func handleReflectionStarted(round: Int, sequence: Int, answerId: String) async {
-        await stageCoordinator.processStageTransition(
-            event: .reflectionStarted(round: round, sequence: sequence),
-            answerId: answerId
-        )
+        await eventHandler.handleReflectionStarted(round: round, sequence: sequence, answerId: answerId)
     }
 
     private func handleReflectionComplete(round: Int, reflection: ResearchReflection, sequence: Int, answerId: String) async {
-        let currentRounds = stageCoordinator.getCompletedRounds(for: answerId)
-
-        if let updatedRounds = await streamProcessor.handleReflectionComplete(
-            round: round,
-            reflection: reflection,
-            sequence: sequence,
-            answerId: answerId,
-            rounds: currentRounds
-        ) {
-            stageCoordinator.updateRoundWithReflection(updatedRounds, for: answerId)
-        }
+        await eventHandler.handleReflectionComplete(round: round, reflection: reflection, sequence: sequence, answerId: answerId)
     }
 
     private func handleSourceSelectionStarted(message: String, sequence: Int, answerId: String) async {
-        await stageCoordinator.processStageTransition(
-            event: .sourceSelectionStarted(message: message, sequence: sequence),
-            answerId: answerId
-        )
+        await eventHandler.handleSourceSelectionStarted(message: message, sequence: sequence, answerId: answerId)
     }
 
     private func handleSynthesisPreparation(message: String, sequence: Int, answerId: String) async {
-        await stageCoordinator.processStageTransition(
-            event: .synthesisPreparation(message: message, sequence: sequence),
-            answerId: answerId
-        )
+        await eventHandler.handleSynthesisPreparation(message: message, sequence: sequence, answerId: answerId)
     }
 
     private func handleSynthesisStarted(totalRounds: Int, totalSources: Int, sequence: Int, answerId: String) async {
-        await stageCoordinator.processStageTransition(
-            event: .synthesisStarted(totalRounds: totalRounds, totalSources: totalSources, sequence: sequence),
-            answerId: answerId
-        )
+        await eventHandler.handleSynthesisStarted(totalRounds: totalRounds, totalSources: totalSources, sequence: sequence, answerId: answerId)
     }
 }

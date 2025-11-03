@@ -212,10 +212,9 @@ class RecipeStreamingService {
             onConnected()
 
         case "chunk":
-            if let chunkData = event.data as? [String: Any],
-               let chunkText = chunkData["content"] as? String,
-               let fullContent = chunkData["fullContent"] as? String,
-               let tokenCount = chunkData["tokenCount"] as? Int {
+            if let chunkText = event.data["content"] as? String,
+               let fullContent = event.data["fullContent"] as? String,
+               let tokenCount = event.data["tokenCount"] as? Int {
 
                 onChunk(chunkText, fullContent, tokenCount)
             }
@@ -279,8 +278,7 @@ class RecipeStreamingService {
 
         case "error":
             logger.error("❌ [STREAMING] Recipe generation error")
-            if let errorData = event.data as? [String: Any],
-               let errorMessage = errorData["message"] as? String {
+            if let errorMessage = event.data["message"] as? String {
                 onError(RecipeStreamingError.serverError(message: errorMessage))
             } else {
                 onError(RecipeStreamingError.unknownError)

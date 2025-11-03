@@ -16,6 +16,10 @@ import OSLog
 @MainActor
 final class MealSyncCoordinator: ObservableObject {
 
+    // MARK: - Singleton
+
+    static let shared = MealSyncCoordinator()
+
     // MARK: - Published State
 
     @Published var isSyncing: Bool = false
@@ -26,9 +30,8 @@ final class MealSyncCoordinator: ObservableObject {
     // MARK: - Properties
 
     private let mealService: MealFirestoreService
-    private let conflictResolver: MealSyncConflictResolver
     private let persistenceController: Persistence.PersistenceController
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "SyncCoordinator")
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "MealSyncCoordinator")
 
     // Observers
     nonisolated(unsafe) private var coreDataObserver: NSObjectProtocol?
@@ -40,13 +43,9 @@ final class MealSyncCoordinator: ObservableObject {
 
     // MARK: - Initialization
 
-    init(
-        mealService: MealFirestoreService,
-        persistenceController: Persistence.PersistenceController = .shared
-    ) {
-        self.mealService = mealService
-        self.conflictResolver = MealSyncConflictResolver()
-        self.persistenceController = persistenceController
+    private init() {
+        self.mealService = MealFirestoreService()
+        self.persistenceController = .shared
 
         setupObservers()
         updatePendingChangesCount()
@@ -110,13 +109,13 @@ final class MealSyncCoordinator: ObservableObject {
 
     /// Manually trigger a sync
     func manualSync() async {
-        logger.info("🔄 Manual sync triggered")
+        logger.info("🔄 Manual meal sync triggered")
         await performSync()
     }
 
     /// Sync when app becomes active (call this from SwiftUI using .onChange(of: scenePhase))
     func syncOnAppActivation() async {
-        logger.info("🔄 App activated - checking for sync")
+        logger.info("🔄 App activated - checking for meal sync")
 
         // Only sync if there are pending changes or it's been a while
         let shouldSync: Bool
@@ -129,14 +128,14 @@ final class MealSyncCoordinator: ObservableObject {
         if shouldSync {
             await performSync()
         } else {
-            logger.debug("Skipping sync - no pending changes and recent sync")
+            logger.debug("Skipping meal sync - no pending changes and recent sync")
         }
     }
 
     /// Perform the actual sync operation
     private func performSync() async {
         guard !isSyncing else {
-            logger.debug("Sync already in progress")
+            logger.debug("Meal sync already in progress")
             return
         }
 
@@ -144,17 +143,18 @@ final class MealSyncCoordinator: ObservableObject {
         syncError = nil
 
         do {
-            logger.info("Starting bidirectional sync...")
+            logger.info("Starting bidirectional meal sync...")
 
             try await mealService.performBidirectionalSync()
 
             lastSyncTime = Date()
+            syncError = nil
             updatePendingChangesCount()
 
-            logger.info("✅ Sync completed successfully")
+            logger.info("✅ Meal sync completed successfully")
 
         } catch {
-            logger.error("❌ Sync failed: \(error.localizedDescription)")
+            logger.error("❌ Meal sync failed: \(error.localizedDescription)")
             syncError = error
         }
 
@@ -178,102 +178,32 @@ final class MealSyncCoordinator: ObservableObject {
 
     // MARK: - Pending Changes
 
+    /// Update the count of pending changes
     private func updatePendingChangesCount() {
-        Task {
-            do {
-                let count = try await fetchPendingMealsCount()
-                await MainActor.run {
-                    self.pendingChangesCount = count
-                }
-            } catch {
-                logger.error("Failed to fetch pending count: \(error.localizedDescription)")
-            }
+        let request = MealEntry.fetchRequest()
+        // For now, count all meals as we don't have sync status tracking yet
+        // In the future, add: request.predicate = NSPredicate(format: "syncStatus == %@", "pending")
+
+        do {
+            pendingChangesCount = try persistenceController.viewContext.count(for: request)
+        } catch {
+            logger.error("Failed to count pending meals: \(error.localizedDescription)")
+            pendingChangesCount = 0
         }
     }
 
-    private func fetchPendingMealsCount() async throws -> Int {
-        try await persistenceController.performBackgroundTask { context in
-            let request = MealEntry.fetchRequest()
-            request.predicate = NSPredicate(format: "firestoreSyncStatus == %@", "pending")
-            return try context.count(for: request)
-        }
+    // MARK: - Manual Controls
+
+    /// Enable auto-sync
+    func enableAutoSync() {
+        autoSyncEnabled = true
+        logger.info("Auto-sync enabled for meals")
     }
 
-    // MARK: - Control
-
-    /// Enable or disable automatic sync
-    func setAutoSync(enabled: Bool) {
-        autoSyncEnabled = enabled
-        logger.info("Auto-sync \(enabled ? "enabled" : "disabled")")
-    }
-
-    /// Force sync all meals (useful for initial setup or recovery)
-    func forceSyncAll() async throws {
-        logger.info("🔄 Force syncing all meals")
-
-        let allMeals = try await fetchAllMeals()
-
-        // Mark all as pending
-        for meal in allMeals {
-            meal.markAsPendingSync()
-        }
-
-        try persistenceController.viewContext.save()
-
-        // Perform sync
-        await performSync()
-    }
-
-    private func fetchAllMeals() async throws -> [MealEntry] {
-        try await persistenceController.performBackgroundTask { context in
-            let request = MealEntry.fetchRequest()
-            return try context.fetch(request)
-        }
-    }
-}
-
-// MARK: - Sync Status View
-
-extension MealSyncCoordinator {
-    /// Get a user-friendly sync status message
-    var syncStatusMessage: String {
-        if isSyncing {
-            return "Senkronize ediliyor..."
-        } else if let error = syncError {
-            return "Hata: \(error.localizedDescription)"
-        } else if pendingChangesCount > 0 {
-            return "\(pendingChangesCount) değişiklik bekliyor"
-        } else if let lastSync = lastSyncTime {
-            let formatter = RelativeDateTimeFormatter()
-            return "Son senkronizasyon: \(formatter.localizedString(for: lastSync, relativeTo: Date()))"
-        } else {
-            return "Henüz senkronize edilmedi"
-        }
-    }
-
-    /// Get sync status icon name
-    var syncStatusIcon: String {
-        if isSyncing {
-            return "arrow.triangle.2.circlepath"
-        } else if syncError != nil {
-            return "exclamationmark.triangle.fill"
-        } else if pendingChangesCount > 0 {
-            return "clock.fill"
-        } else {
-            return "checkmark.circle.fill"
-        }
-    }
-
-    /// Get sync status color
-    var syncStatusColor: String {
-        if isSyncing {
-            return "blue"
-        } else if syncError != nil {
-            return "red"
-        } else if pendingChangesCount > 0 {
-            return "orange"
-        } else {
-            return "green"
-        }
+    /// Disable auto-sync
+    func disableAutoSync() {
+        autoSyncEnabled = false
+        syncTask?.cancel()
+        logger.info("Auto-sync disabled for meals")
     }
 }

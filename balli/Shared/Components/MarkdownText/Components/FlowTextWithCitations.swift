@@ -46,16 +46,30 @@ struct FlowTextWithCitations: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .sheet(item: Binding(
-            get: { selectedCitationIndex.map { IndexWrapper(index: $0) } },
-            set: { selectedCitationIndex = $0?.index }
-        )) { wrapper in
+        .sheet(item: citationBinding) { wrapper in
             if wrapper.index < sources.count {
                 SourceDetailSheet(source: sources[wrapper.index], index: wrapper.index + 1)
                     .presentationDetents([.medium, .large])
                     .presentationDragIndicator(.visible)
             }
         }
+    }
+
+    private var citationBinding: Binding<IndexWrapper?> {
+        Binding(
+            get: {
+                // Safe: Views are always accessed on MainActor
+                MainActor.assumeIsolated {
+                    selectedCitationIndex.map { IndexWrapper(index: $0) }
+                }
+            },
+            set: { newValue in
+                // Safe: Views are always accessed on MainActor
+                MainActor.assumeIsolated {
+                    selectedCitationIndex = newValue?.index
+                }
+            }
+        )
     }
 
     // Helper to make Int identifiable for sheet

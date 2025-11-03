@@ -404,7 +404,7 @@ struct DexcomConnectionView: View {
                     // Fallback: Get window directly from active window scene
                     logger.warning("⚠️ Window not in environment, attempting direct window scene access...")
 
-                    guard let scene = await UIApplication.shared.connectedScenes
+                    guard let scene = UIApplication.shared.connectedScenes
                         .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
                           let sceneWindow = scene.windows.first(where: { $0.isKeyWindow }) else {
                         logger.error("❌ Failed to get window from window scene")

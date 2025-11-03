@@ -61,6 +61,12 @@ struct VoiceInputView: View {
     @State private var editableMealTime: String = ""
     @State private var editableTimestamp: Date = Date()
 
+    // Editable insulin data
+    @State private var editableInsulinDosage: Double = 0
+    @State private var editableInsulinType: String? = nil
+    @State private var editableInsulinName: String? = nil
+    @State private var hasInsulin: Bool = false
+
     // Haptic feedback
     private let hapticManager = HapticManager()
 
@@ -379,6 +385,115 @@ struct VoiceInputView: View {
                     .padding(.horizontal)
                 }
 
+                // INSULIN SECTION (if insulin was detected or user wants to add)
+                if hasInsulin {
+                    Divider()
+                        .padding(.horizontal)
+
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Text("İnsülin")
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
+
+                            Spacer()
+
+                            Button {
+                                hasInsulin = false
+                                editableInsulinDosage = 0
+                            } label: {
+                                Label("Kaldır", systemImage: "trash")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal)
+
+                        VStack(spacing: 16) {
+                            // Insulin dosage stepper
+                            HStack {
+                                Text("Doz:")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 60, alignment: .leading)
+
+                                Spacer()
+
+                                // Decrease button
+                                Button {
+                                    editableInsulinDosage = max(0, editableInsulinDosage - 0.5)
+                                } label: {
+                                    Image(systemName: "minus.circle.fill")
+                                        .font(.system(size: 28))
+                                        .foregroundStyle(AppTheme.primaryPurple)
+                                }
+                                .buttonStyle(.plain)
+
+                                // Dosage value
+                                Text("\(editableInsulinDosage, specifier: "%.1f")")
+                                    .font(.system(size: 24, weight: .bold, design: .rounded).monospacedDigit())
+                                    .frame(width: 70)
+
+                                Text("ünite")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(.secondary)
+
+                                // Increase button
+                                Button {
+                                    editableInsulinDosage += 0.5
+                                } label: {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 28))
+                                        .foregroundStyle(AppTheme.primaryPurple)
+                                }
+                                .buttonStyle(.plain)
+                            }
+
+                            // Insulin type display (if detected)
+                            if let insulinName = editableInsulinName {
+                                HStack {
+                                    Text("İsim:")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 60, alignment: .leading)
+
+                                    Text(insulinName)
+                                        .font(.system(size: 16, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.primary)
+
+                                    Spacer()
+
+                                    if let insulinType = editableInsulinType {
+                                        Text(insulinType == "bolus" ? "Hızlı Etkili" : "Uzun Etkili")
+                                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(insulinType == "bolus" ? AppTheme.primaryPurple : .blue)
+                                            .cornerRadius(6)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(16)
+                        .background(AppTheme.primaryPurple.opacity(0.05))
+                        .cornerRadius(12)
+                        .padding(.horizontal)
+                    }
+                } else {
+                    // Button to add insulin manually
+                    Button {
+                        hasInsulin = true
+                        editableInsulinDosage = 5.0 // Default starting value
+                    } label: {
+                        Label("İnsülin Ekle", systemImage: "plus.circle")
+                            .font(.system(size: 16, weight: .medium, design: .rounded))
+                    }
+                    .buttonStyle(.bordered)
+                    .padding(.horizontal)
+                }
+
                 // EDITABLE Timestamp
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Tarih ve Saat")
@@ -402,7 +517,7 @@ struct VoiceInputView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .foregroundStyle(.orange)
-                        Text("Bazı bilgiler tahmin edildi, lütfen kontrol edin")
+                        Text("Bazı bilgileri tahmin ettim, lütfen kontrol et")
                             .font(.system(size: 13, weight: .medium, design: .rounded))
                             .foregroundStyle(.orange)
                     }
@@ -588,6 +703,19 @@ struct VoiceInputView: View {
                         editableTimestamp = Date()
                     }
 
+                    // Initialize insulin data if present
+                    if let insulinDosage = mealData.insulinDosage, insulinDosage > 0 {
+                        editableInsulinDosage = insulinDosage
+                        editableInsulinType = mealData.insulinType
+                        editableInsulinName = mealData.insulinName
+                        hasInsulin = true
+                    } else {
+                        editableInsulinDosage = 0
+                        editableInsulinType = nil
+                        editableInsulinName = nil
+                        hasInsulin = false
+                    }
+
                     showingPreview = true
                     hapticManager.notification(.success)
 
@@ -727,8 +855,74 @@ struct VoiceInputView: View {
                     mealEntry.consumedCarbs = Double(carbsValue)
                 }
 
+                // CREATE INSULIN MEDICATION ENTRY (if insulin was specified)
+                if hasInsulin && editableInsulinDosage > 0 {
+                    // Capture insulin values
+                    let insulinDosage = editableInsulinDosage
+                    let insulinType = editableInsulinType
+                    let insulinName = editableInsulinName
+
+                    // Get the first meal entry for relationship (bolus insulin is linked to meals)
+                    let mealEntries = try context.fetch(MealEntry.fetchRequest()) as [MealEntry]
+                    let firstMealEntry = mealEntries.filter { $0.timestamp == timestamp }.first
+
+                    // Create MedicationEntry
+                    let medication = MedicationEntry(context: context)
+                    medication.id = UUID()
+                    medication.timestamp = timestamp
+                    medication.dosage = insulinDosage
+                    medication.dosageUnit = "ünite"
+
+                    // Set medication name and type
+                    if let name = insulinName {
+                        medication.medicationName = name
+                    } else {
+                        // Default names based on type
+                        medication.medicationName = insulinType == "basal" ? "Bazal İnsülin" : "Bolus İnsülin"
+                    }
+
+                    // Determine medication type
+                    if let type = insulinType {
+                        medication.medicationType = type == "basal" ? "basal_insulin" : "bolus_insulin"
+                    } else {
+                        // If type not specified, assume bolus if connected to meal, basal otherwise
+                        medication.medicationType = firstMealEntry != nil ? "bolus_insulin" : "basal_insulin"
+                    }
+
+                    medication.administrationRoute = "subcutaneous"
+                    medication.timingRelation = firstMealEntry != nil ? "with_meal" : "standalone"
+                    medication.isScheduled = false
+                    medication.dateAdded = Date()
+                    medication.lastModified = Date()
+                    medication.source = "voice-gemini"
+                    medication.glucoseAtTime = 0 // Could be set if we have current glucose
+
+                    // Link to meal entry if this is bolus insulin
+                    if medication.medicationType == "bolus_insulin", let mealEntry = firstMealEntry {
+                        medication.mealEntry = mealEntry
+                    }
+
+                    logger.info("💉 Created insulin medication: \(medication.medicationName) \(insulinDosage) units")
+                }
+
                 // Save on background thread
                 try context.save()
+            }
+
+            // CRITICAL: Merge changes from private context into viewContext
+            // This ensures the glucose chart immediately receives the meal markers
+            await MainActor.run {
+                viewContext.performAndWait {
+                    viewContext.mergeChanges(fromContextDidSave: Notification(
+                        name: .NSManagedObjectContextDidSave,
+                        object: context,
+                        userInfo: [
+                            NSInsertedObjectsKey: context.insertedObjects,
+                            NSUpdatedObjectsKey: context.updatedObjects,
+                            NSDeletedObjectsKey: context.deletedObjects
+                        ]
+                    ))
+                }
             }
 
             // Success

@@ -22,8 +22,7 @@ struct LoggedMealsView: View {
     @State private var showErrorAlert = false
 
     init() {
-        let mealService = MealFirestoreService()
-        _syncCoordinator = StateObject(wrappedValue: MealSyncCoordinator(mealService: mealService))
+        _syncCoordinator = StateObject(wrappedValue: MealSyncCoordinator.shared)
     }
 
     // Fetch all meal entries sorted by timestamp (newest first)
@@ -80,7 +79,7 @@ struct LoggedMealsView: View {
         case "kahvaltı":
             return "sun.max"
         case "ara öğün", "atıştırmalık":
-            return "circle.hexagongrid"
+            return "circle.badge.plus"
         case "akşam yemeği":
             return "fork.knife"
         default:

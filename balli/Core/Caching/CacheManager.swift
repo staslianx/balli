@@ -11,7 +11,7 @@ import UIKit
 
 /// Actor-based cache manager for thread-safe caching operations
 /// Supports both memory and disk caching with automatic eviction
-actor CacheManager<Key: Hashable & Codable, Value: Codable> {
+actor CacheManager<Key: Hashable & Codable & Sendable, Value: Codable & Sendable> {
 
     // MARK: - Configuration
 
@@ -307,7 +307,7 @@ actor CacheManager<Key: Hashable & Codable, Value: Codable> {
 
 // MARK: - Supporting Types
 
-private struct DiskCacheEntry<Value: Codable>: Codable {
+private struct DiskCacheEntry<Value: Codable & Sendable>: Codable, Sendable {
     let value: Value
     let timestamp: Date
 }

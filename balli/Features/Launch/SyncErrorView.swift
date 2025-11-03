@@ -9,6 +9,7 @@
 import SwiftUI
 
 struct SyncErrorView: View {
+    @Environment(\.colorScheme) private var colorScheme
 
     // MARK: - Properties
 
@@ -119,7 +120,7 @@ struct SyncErrorView: View {
                     .font(.headline)
                     .fontWeight(.semibold)
             }
-            .foregroundColor(.white)
+            .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .background(primaryActionColor)

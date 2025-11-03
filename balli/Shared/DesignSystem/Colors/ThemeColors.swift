@@ -45,6 +45,18 @@ struct ThemeColors {
         colorScheme == .dark ? modelPurpleDark : modelPurple
     }
 
+    /// Adaptive foreground color for text on colored backgrounds
+    /// Returns white in light mode, primary (black) in dark mode
+    static func foregroundOnColor(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color.primary : .white
+    }
+
+    /// Adaptive overlay background
+    /// Returns white in light mode, system background in dark mode
+    static func overlayBackground(for colorScheme: ColorScheme) -> Color {
+        colorScheme == .dark ? Color(.systemBackground) : .white
+    }
+
     // MARK: - Semantic Colors
     static let accentColor = primaryPurple
     static let secondaryText = Color.secondary

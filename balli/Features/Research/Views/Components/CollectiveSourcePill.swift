@@ -79,12 +79,13 @@ struct FaviconView: View {
     let source: ResearchSource
     let index: Int
     @State private var shouldLoad = false
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ZStack {
-            // White background circle for ALL logos (prevents transparency issues)
+            // Adaptive background circle for ALL logos (prevents transparency issues)
             Circle()
-                .fill(Color.white)
+                .fill(AppTheme.overlayBackground(for: colorScheme))
                 .frame(width: 22, height: 22)
 
             if shouldLoad {

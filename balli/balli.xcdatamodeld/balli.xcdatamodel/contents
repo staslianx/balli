@@ -368,6 +368,7 @@
         <attribute name="fatPerServing" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="glycemicLoadPerServing" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="totalRecipeWeight" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="portionMultiplier" attributeType="Double" defaultValueString="1.0" usesScalarValueType="YES"/>
         
         <!-- Recipe Metadata -->
         <attribute name="source" attributeType="String" defaultValueString="manual"/>

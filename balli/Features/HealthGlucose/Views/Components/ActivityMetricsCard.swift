@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ActivityMetricsCard: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var viewModel: ActivityMetricsViewModel
     let healthKitPermissions: HealthKitPermissionManager
     @Environment(\.scenePhase) private var scenePhase
@@ -50,7 +51,7 @@ struct ActivityMetricsCard: View {
                 } label: {
                     Text("Ayarları Aç")
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(AppTheme.foregroundOnColor(for: colorScheme))
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
                         .background(AppTheme.primaryPurple)

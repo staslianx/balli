@@ -179,7 +179,7 @@ struct PaginationLoadingView: View {
                         .foregroundStyle(.secondary)
                 }
                 .padding()
-            } else if let error = error {
+            } else if error != nil {
                 VStack(spacing: 8) {
                     Text("Failed to load")
                         .font(.caption)

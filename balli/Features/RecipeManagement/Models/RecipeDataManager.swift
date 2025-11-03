@@ -174,6 +174,7 @@ public class RecipeDataManager {
         recipe.fatPerServing = Double(data.fatPerServing) ?? recipe.fatPerServing
         recipe.glycemicLoadPerServing = Double(data.glycemicLoadPerServing) ?? recipe.glycemicLoadPerServing
         recipe.totalRecipeWeight = Double(data.totalRecipeWeight) ?? recipe.totalRecipeWeight
+        recipe.portionMultiplier = data.portionMultiplier
 
         // Update time fields
         recipe.prepTime = Int16(data.prepTime) ?? recipe.prepTime
@@ -236,6 +237,7 @@ public class RecipeDataManager {
         recipe.fatPerServing = Double(data.fatPerServing) ?? 0.0
         recipe.glycemicLoadPerServing = Double(data.glycemicLoadPerServing) ?? 0.0
         recipe.totalRecipeWeight = Double(data.totalRecipeWeight) ?? 0.0
+        recipe.portionMultiplier = data.portionMultiplier
 
         // Save time fields
         recipe.prepTime = Int16(data.prepTime) ?? 0
@@ -315,6 +317,7 @@ public struct RecipeSaveData {
     let sugarPerServing: String
     let glycemicLoadPerServing: String
     let totalRecipeWeight: String
+    let portionMultiplier: Double
     let imageURL: String?
     let imageData: Data?
 }

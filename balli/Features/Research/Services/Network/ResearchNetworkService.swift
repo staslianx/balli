@@ -219,7 +219,7 @@ actor ResearchNetworkService {
 
     /// Execute feedback submission with retry logic
     func submitFeedback(request: URLRequest) async throws {
-        try await NetworkRetryHandler.retryWithBackoff(configuration: .quick) {
+        _ = try await NetworkRetryHandler.retryWithBackoff(configuration: .quick) {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             // Check HTTP status

@@ -69,13 +69,10 @@ struct RecipeContentSection: View {
                             .foregroundColor(AppTheme.primaryPurple)
                             .padding(.top, 8)
 
-                        TextField("", text: Binding(
-                            get: { editedIngredients[index] },
-                            set: { editedIngredients[index] = $0 }
-                        ), axis: .vertical)
-                        .font(.custom("Manrope", size: 20))
-                        .foregroundColor(.primary)
-                        .textFieldStyle(.plain)
+                        TextField("", text: $editedIngredients[index], axis: .vertical)
+                            .font(.custom("Manrope", size: 20))
+                            .foregroundColor(.primary)
+                            .textFieldStyle(.plain)
                     }
                     .padding(.vertical, 4)
                 }
@@ -97,13 +94,10 @@ struct RecipeContentSection: View {
                             .foregroundColor(AppTheme.primaryPurple)
                             .padding(.top, 8)
 
-                        TextField("", text: Binding(
-                            get: { editedInstructions[index] },
-                            set: { editedInstructions[index] = $0 }
-                        ), axis: .vertical)
-                        .font(.custom("Manrope", size: 20))
-                        .foregroundColor(.primary)
-                        .textFieldStyle(.plain)
+                        TextField("", text: $editedInstructions[index], axis: .vertical)
+                            .font(.custom("Manrope", size: 20))
+                            .foregroundColor(.primary)
+                            .textFieldStyle(.plain)
                     }
                     .padding(.vertical, 4)
                 }

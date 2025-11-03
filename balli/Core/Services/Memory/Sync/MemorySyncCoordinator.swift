@@ -29,22 +29,18 @@ final class MemorySyncCoordinator {
 
     private let syncService: MemorySyncService
     private let persistence: MemoryPersistenceService
-
-    // Configuration
-    private let backgroundSyncInterval: TimeInterval = 30 * 60 // 30 minutes
+    private let backgroundManager: MemorySyncBackgroundManager
 
     // State tracking
     private var isSyncing = false
     private var lastSyncTime: Date?
-
-    // Observer cleanup
-    nonisolated(unsafe) private var networkObserver: (any NSObjectProtocol)?
 
     // MARK: - Initialization
 
     private init() {
         self.persistence = MemoryPersistenceService()
         self.syncService = MemorySyncService()
+        self.backgroundManager = MemorySyncBackgroundManager()
         logger.info("MemorySyncCoordinator initialized")
     }
 
@@ -78,63 +74,24 @@ final class MemorySyncCoordinator {
 
     /// Register background task for periodic sync
     func registerBackgroundTasks() {
-        BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: "com.anaxoniclabs.balli.memory-sync",
-            using: nil
-        ) { task in
-            Task { @MainActor in
-                guard let processingTask = task as? BGProcessingTask else {
-                    logger.error("❌ Invalid task type received in background sync handler")
-                    task.setTaskCompleted(success: false)
-                    return
-                }
-                await self.handleBackgroundSync(task: processingTask)
-            }
+        backgroundManager.registerBackgroundTasks {
+            await self.performBackgroundSync()
         }
-
-        logger.info("📋 Background sync task registered")
-    }
-
-    /// Handle background sync task execution
-    private func handleBackgroundSync(task: BGProcessingTask) async {
-        logger.info("🌙 Background sync started")
-
-        // Set expiration handler
-        task.expirationHandler = {
-            logger.warning("⏰ Background sync expired before completion")
-            task.setTaskCompleted(success: false)
-        }
-
-        do {
-            let userId = await getCurrentUserId()
-            try await syncService.syncAll(userId: userId)
-
-            lastSyncTime = Date()
-            task.setTaskCompleted(success: true)
-            logger.info("✅ Background sync completed successfully")
-        } catch {
-            logger.error("❌ Background sync failed: \(error.localizedDescription)")
-            task.setTaskCompleted(success: false)
-        }
-
-        // Schedule next background sync
-        scheduleNextBackgroundSync()
     }
 
     /// Schedule next background sync task
     func scheduleNextBackgroundSync() {
-        let request = BGProcessingTaskRequest(
-            identifier: "com.anaxoniclabs.balli.memory-sync"
-        )
-        request.requiresNetworkConnectivity = true
-        request.requiresExternalPower = false
-        request.earliestBeginDate = Date(timeIntervalSinceNow: self.backgroundSyncInterval)
+        backgroundManager.scheduleNextBackgroundSync()
+    }
 
+    /// Perform sync for background task
+    private func performBackgroundSync() async {
         do {
-            try BGTaskScheduler.shared.submit(request)
-            logger.info("📅 Next background sync scheduled in \(self.backgroundSyncInterval / 60) minutes")
+            let userId = await getCurrentUserId()
+            try await syncService.syncAll(userId: userId)
+            lastSyncTime = Date()
         } catch {
-            logger.error("❌ Failed to schedule background sync: \(error.localizedDescription)")
+            logger.error("❌ Background sync failed: \(error.localizedDescription)")
         }
     }
 
@@ -142,17 +99,9 @@ final class MemorySyncCoordinator {
 
     /// Setup network observer for connectivity restoration
     func setupNetworkObserver() {
-        networkObserver = NotificationCenter.default.addObserver(
-            forName: .networkDidBecomeReachable,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
-                await self?.syncOnNetworkRestore()
-            }
+        backgroundManager.setupNetworkObserver {
+            await self.syncOnNetworkRestore()
         }
-
-        logger.info("📡 Network observer setup complete")
     }
 
     /// Sync when network becomes reachable after being offline
@@ -226,13 +175,5 @@ final class MemorySyncCoordinator {
     /// Get time of last successful sync
     func getLastSyncTime() -> Date? {
         return lastSyncTime
-    }
-
-    // MARK: - Cleanup
-
-    deinit {
-        if let observer = networkObserver {
-            NotificationCenter.default.removeObserver(observer)
-        }
     }
 }

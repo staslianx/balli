@@ -439,7 +439,7 @@ final class ResearchSessionManager: ObservableObject {
 
     /// Attempts to recover an active session from storage (e.g., after app crash)
     func recoverActiveSession() async throws -> Bool {
-        guard let sessionData = try await storageActor.loadActiveSession() else {
+        guard let sessionData = try storageActor.loadActiveSession() else {
             logger.info("No active session found to recover")
             return false
         }

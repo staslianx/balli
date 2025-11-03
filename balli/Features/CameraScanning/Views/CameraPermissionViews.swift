@@ -10,6 +10,7 @@ import AVFoundation
 
 // MARK: - Main Permission View
 public struct CameraPermissionView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var permissionManager = SystemPermissionCoordinator.shared
     let onPermissionGranted: () -> Void
     let onManualEntry: () -> Void
@@ -60,6 +61,7 @@ public struct CameraPermissionView: View {
 
 // MARK: - Permission Request View
 struct PermissionRequestView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var permissionManager = SystemPermissionCoordinator.shared
     let onPermissionGranted: () -> Void
     let onManualEntry: () -> Void
@@ -125,7 +127,7 @@ struct PermissionRequestView: View {
                 }) {
                     Text("Kamera İznini Ver")
                         .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(AppTheme.primaryPurple)
@@ -147,6 +149,7 @@ struct PermissionRequestView: View {
 
 // MARK: - Educational Prompt View
 struct EducationalPromptView: View {
+    @Environment(\.colorScheme) private var colorScheme
     let onContinue: () -> Void
     let onDismiss: () -> Void
     @Environment(\.dismiss) private var dismiss
@@ -212,7 +215,7 @@ struct EducationalPromptView: View {
                 }) {
                     Text("Devam Et")
                         .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(AppTheme.primaryPurple)
@@ -236,6 +239,7 @@ struct EducationalPromptView: View {
 
 // MARK: - Permission Denied View
 struct PermissionDeniedView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var permissionManager = SystemPermissionCoordinator.shared
     let onManualEntry: () -> Void
     
@@ -264,7 +268,7 @@ struct PermissionDeniedView: View {
                 Button(action: { permissionManager.openSettings() }) {
                     Label("Ayarları Aç", systemImage: "gear")
                         .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        .foregroundColor(.white)
+                        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                         .frame(maxWidth: .infinity)
                         .padding()
                         .background(AppTheme.primaryPurple)
@@ -290,6 +294,7 @@ struct PermissionDeniedView: View {
 
 // MARK: - Permission Restricted View
 struct PermissionRestrictedView: View {
+    @Environment(\.colorScheme) private var colorScheme
     let onManualEntry: () -> Void
     
     var body: some View {
@@ -316,7 +321,7 @@ struct PermissionRestrictedView: View {
             Button(action: onManualEntry) {
                 Text("Besin Değerlerini Manuel Gir")
                     .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(AppTheme.primaryPurple)
@@ -356,6 +361,7 @@ struct FeatureRow: View {
 
 // MARK: - Permission-Aware Camera Button
 public struct CameraButton: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var permissionManager: CameraPermissionHandler
     let action: () -> Void
     
@@ -379,7 +385,7 @@ public struct CameraButton: View {
         }) {
             Label("Etiketi Tara", systemImage: "camera.fill")
                 .font(.system(size: 17, weight: .semibold, design: .rounded))
-                .foregroundColor(.white)
+                .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                 .padding()
                 .background(backgroundColor)
                 .cornerRadius(ResponsiveDesign.CornerRadius.button)

@@ -52,10 +52,10 @@ struct ImageAttachment: Identifiable, Codable, Sendable, Equatable {
             return nil
         }
 
-        // Create thumbnail (max 200x200)
-        let thumbnailSize = CGSize(width: 200, height: 200)
+        // Create thumbnail (max 400x400 for sharper display on Retina)
+        let thumbnailSize = CGSize(width: 400, height: 400)
         let thumbnail = image.preparingThumbnail(of: thumbnailSize)
-        guard let thumbnailData = thumbnail?.jpegData(compressionQuality: 0.7) else {
+        guard let thumbnailData = thumbnail?.jpegData(compressionQuality: 0.85) else {
             return nil
         }
 

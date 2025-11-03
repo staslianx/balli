@@ -248,42 +248,41 @@ final class AppSyncCoordinator: ObservableObject {
 
         // Wait for Core Data ready notification with timeout
         return try await withCheckedThrowingContinuation { continuation in
-            var observer: NSObjectProtocol?
-            var timeoutTask: Task<Void, Never>?
-            var hasResumed = false
+            // Use actor-isolated state to manage synchronization
+            let synchronizer = NotificationSynchronizer()
 
             // Setup notification observer
-            observer = NotificationCenter.default.addObserver(
+            let observerToken = NotificationCenter.default.addObserver(
                 forName: .coreDataReady,
                 object: nil,
                 queue: .main
-            ) { _ in
-                guard !hasResumed else { return }
-                hasResumed = true
+            ) { [weak synchronizer] _ in
+                Task { @MainActor in
+                    guard let sync = synchronizer, await sync.tryResume() else { return }
 
-                if let observer = observer {
-                    NotificationCenter.default.removeObserver(observer)
+                    await sync.removeObserver()
+                    let elapsed = Date().timeIntervalSince(startTime)
+                    self.logger.info("✅ Core Data ready in \(String(format: "%.3f", elapsed))s")
+                    continuation.resume(returning: true)
                 }
-                timeoutTask?.cancel()
-
-                let elapsed = Date().timeIntervalSince(startTime)
-                self.logger.info("✅ Core Data ready in \(String(format: "%.3f", elapsed))s")
-                continuation.resume(returning: true)
             }
 
             // Setup timeout
-            timeoutTask = Task {
+            Task {
                 try? await Task.sleep(nanoseconds: UInt64(maxWait * 1_000_000_000))
 
-                guard !hasResumed else { return }
-                hasResumed = true
+                guard await synchronizer.tryResume() else { return }
 
-                if let observer = observer {
-                    NotificationCenter.default.removeObserver(observer)
-                }
-
-                self.logger.error("❌ Core Data timeout after \(maxWait)s")
+                await synchronizer.removeObserver()
+                await Task { @MainActor in
+                    self.logger.error("❌ Core Data timeout after \(maxWait)s")
+                }.value
                 continuation.resume(throwing: SyncError.coreDataTimeout)
+            }
+
+            // Store observer token for cleanup
+            Task {
+                await synchronizer.setObserver(observerToken)
             }
         }
     }
@@ -295,7 +294,7 @@ final class AppSyncCoordinator: ObservableObject {
 
         do {
             // Get UIApplication instance
-            guard let app = await UIApplication.shared as UIApplication? else {
+            guard let app = UIApplication.shared as UIApplication? else {
                 throw SyncError.appConfigurationFailed("Could not access UIApplication")
             }
 
@@ -328,12 +327,12 @@ final class AppSyncCoordinator: ObservableObject {
             logger.info("ℹ️ HealthKit permissions not granted (will request later)")
 
             // Request permissions in background (don't wait)
-            Task.detached(priority: .userInitiated) {
+            Task.detached(priority: .userInitiated) { [logger] in
                 do {
                     try await healthKitManager.requestAllPermissions()
                 } catch {
                     // Non-critical - app works without HealthKit
-                    await self.logger.warning("HealthKit permission request failed: \(error.localizedDescription)")
+                    logger.warning("HealthKit permission request failed: \(error.localizedDescription)")
                 }
             }
         }
@@ -423,5 +422,37 @@ final class AppSyncCoordinator: ObservableObject {
     /// Check if bypass is enabled
     var isBypassEnabled: Bool {
         UserDefaults.standard.bool(forKey: bypassSyncKey)
+    }
+}
+
+// MARK: - Notification Synchronizer
+
+/// Actor to safely manage notification observer state across concurrent contexts
+private actor NotificationSynchronizer {
+    private var hasResumed = false
+
+    // Safe to mark as nonisolated(unsafe) because:
+    // 1. NSObjectProtocol is only used for NotificationCenter cleanup
+    // 2. Access is synchronized through the actor
+    // 3. Token is never accessed after removeObserver() is called
+    nonisolated(unsafe) private var observerToken: NSObjectProtocol?
+
+    func tryResume() -> Bool {
+        guard !hasResumed else { return false }
+        hasResumed = true
+        return true
+    }
+
+    func setObserver(_ token: NSObjectProtocol) {
+        observerToken = token
+    }
+
+    func removeObserver() {
+        if let token = observerToken {
+            Task { @MainActor in
+                NotificationCenter.default.removeObserver(token)
+            }
+            observerToken = nil
+        }
     }
 }

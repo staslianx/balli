@@ -61,7 +61,7 @@ actor HTTPCacheConfiguration {
     func getCachedResponse(for request: URLRequest) -> CachedURLResponse? {
         let cached = cache.cachedResponse(for: request)
 
-        if let cached = cached {
+        if cached != nil {
             logger.debug("✅ Cache HIT for \(request.url?.lastPathComponent ?? "unknown")")
         } else {
             logger.debug("❌ Cache MISS for \(request.url?.lastPathComponent ?? "unknown")")

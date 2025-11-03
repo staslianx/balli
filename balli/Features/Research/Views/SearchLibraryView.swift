@@ -63,6 +63,7 @@ struct SearchLibraryView: View {
                     fullAnswersView
                 }
             }
+            .background(Color(.systemBackground))
             .searchable(text: $searchText, prompt: isShowingHighlightsOnly ? "Vurgularda ara" : "Araştırmalarda ara")
             .navigationTitle("Kütüphane")
             .navigationBarTitleDisplayMode(.inline)
@@ -170,7 +171,7 @@ struct SearchLibraryView: View {
                             answerId: item.answerId,
                             onTap: {
                                 // Navigate to full answer with this highlight
-                                if let thread = threads.first(where: { $0.id == item.answerId }) {
+                                if threads.contains(where: { $0.id == item.answerId }) {
                                     // TODO: Navigate to SearchDetailView with thread
                                 }
                             }
@@ -180,7 +181,6 @@ struct SearchLibraryView: View {
                 .padding()
             }
         }
-        .background(Color(.systemGroupedBackground))
     }
 
     // MARK: - Actions

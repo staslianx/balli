@@ -36,10 +36,27 @@ final class MemoryPersistenceService {
 
     init() {
         // Access MainActor-isolated singleton (we're already on MainActor)
-        self.modelContext = ModelContext(MemoryModelContainer.shared.container)
-        self.writer = MemoryPersistenceWriter(modelContext: modelContext)
-        self.reader = MemoryPersistenceReader(modelContext: modelContext)
-        logger.info("MemoryPersistenceService initialized")
+        do {
+            self.modelContext = try MemoryModelContainer.shared.makeContext()
+            self.writer = MemoryPersistenceWriter(modelContext: modelContext)
+            self.reader = MemoryPersistenceReader(modelContext: modelContext)
+            logger.info("MemoryPersistenceService initialized")
+        } catch {
+            // If memory storage fails, create in-memory fallback
+            logger.error("Failed to initialize memory storage, using in-memory fallback: \(error)")
+            let schema = Schema([
+                PersistentUserFact.self,
+                PersistentConversationSummary.self,
+                PersistentRecipePreference.self,
+                PersistentGlucosePattern.self,
+                PersistentUserPreference.self
+            ])
+            let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            let fallbackContainer = try! ModelContainer(for: schema, configurations: [config])
+            self.modelContext = ModelContext(fallbackContainer)
+            self.writer = MemoryPersistenceWriter(modelContext: modelContext)
+            self.reader = MemoryPersistenceReader(modelContext: modelContext)
+        }
     }
 
     // MARK: - User Facts CRUD

@@ -153,6 +153,11 @@ public class RecipeViewModel: ObservableObject {
         set { formState.totalRecipeWeight = newValue }
     }
 
+    public var portionMultiplier: Double {
+        get { formState.portionMultiplier }
+        set { formState.portionMultiplier = newValue }
+    }
+
     public var digestionTiming: DigestionTiming? {
         get { formState.digestionTiming }
         set { formState.digestionTiming = newValue }

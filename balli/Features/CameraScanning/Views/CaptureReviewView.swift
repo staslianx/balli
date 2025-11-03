@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct CaptureReviewView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var captureFlowManager: CaptureFlowManager
     @Environment(\.dismiss) private var dismiss
     @State private var showingError = false
@@ -88,7 +89,7 @@ struct CaptureReviewView: View {
                                 if let duration = session.processingDuration {
                                     Text("\(String(format: "%.1f", duration))s")
                                         .font(.system(size: 12, weight: .regular, design: .rounded))
-                                        .foregroundColor(.white.opacity(0.7))
+                                        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.7))
                                 }
                             }
                             .padding(.horizontal)
@@ -179,10 +180,10 @@ struct CaptureReviewView: View {
         VStack {
             Image(systemName: "photo.slash")
                 .font(.system(size: ResponsiveDesign.Font.scaledSize(60), weight: .regular, design: .rounded))
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.5))
             Text("Görüntü bulunamadı")
                 .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .foregroundColor(.white.opacity(0.5))
+                .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.5))
         }
     }
     
@@ -215,9 +216,9 @@ struct CaptureReviewView: View {
             switch state {
             case .idle:
                 Image(systemName: "circle")
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.5))
                 Text("Hazır")
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.5))
                 
             case .capturing:
                 ProgressView()
@@ -268,7 +269,7 @@ struct CaptureReviewView: View {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundColor(.gray)
                 Text("İptal edildi")
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.5))
             }
         }
         .font(.system(size: 12, weight: .regular, design: .rounded))

@@ -48,6 +48,7 @@ public final class RecipeFormState: ObservableObject {
     @Published public var sugarPerServing = ""
     @Published public var glycemicLoadPerServing = ""
     @Published public var totalRecipeWeight = ""
+    @Published public var portionMultiplier: Double = 1.0
 
     // MARK: - Digestion Timing Insights
     // API-provided insights about insulin-glucose curve mismatch
@@ -143,6 +144,7 @@ public final class RecipeFormState: ObservableObject {
         sugarPerServing = ""
         glycemicLoadPerServing = ""
         totalRecipeWeight = ""
+        portionMultiplier = 1.0
         digestionTiming = nil
         portionGrams = 100.0  // Reset to 100g default
     }
@@ -183,6 +185,7 @@ public final class RecipeFormState: ObservableObject {
             sugarPerServing = recipe.sugarsPerServing > 0 ? String(Int(recipe.sugarsPerServing)) : ""
             glycemicLoadPerServing = recipe.glycemicLoadPerServing > 0 ? String(Int(recipe.glycemicLoadPerServing)) : ""
             totalRecipeWeight = recipe.totalRecipeWeight > 0 ? String(Int(recipe.totalRecipeWeight)) : ""
+            portionMultiplier = recipe.portionMultiplier > 0 ? recipe.portionMultiplier : 1.0
             portionGrams = 100.0  // Nutrition values are per 100g (standard)
         }
     }

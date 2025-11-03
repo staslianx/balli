@@ -24,19 +24,7 @@ struct UserNotesModalView: View {
 
     var body: some View {
         NavigationView {
-            ZStack {
-                // Background
-                LinearGradient(
-                    colors: [
-                        ThemeColors.primaryPurple.opacity(0.05),
-                        ThemeColors.lightPurple.opacity(0.08)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                .ignoresSafeArea()
-
-                VStack(spacing: 0) {
+            VStack(spacing: 0) {
                     // Text Editor
                     TextEditor(text: $editedNotes)
                         .font(.sfRounded(16, weight: .regular))
@@ -64,9 +52,9 @@ struct UserNotesModalView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 16)
 
-                    Spacer()
-                }
+                Spacer()
             }
+            .background(Color(.systemBackground))
             .navigationTitle("Notlarım")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

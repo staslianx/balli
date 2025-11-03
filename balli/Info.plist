@@ -2,16 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleIdentifier</key>
-	<string>com.anaxoniclabs.balli</string>
-	<key>CFBundleName</key>
-	<string>balli</string>
-	<key>CFBundleDisplayName</key>
-	<string>balli</string>
-	<key>CFBundleVersion</key>
-	<string>1.0</string>
-	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.anaxoniclabs.balli.healthsync</string>
+		<string>com.anaxoniclabs.balli.memory-sync</string>
+		<string>com.anaxoniclabs.balli.dexcom-refresh</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -24,24 +20,6 @@
 				<string>com.anaxoniclabs.balli</string>
 			</array>
 		</dict>
-	</array>
-	<key>NSHealthShareUsageDescription</key>
-	<string>balli, kişiselleştirilmiş yemek önerileri sunmak ve kan şekeri paternlerinizi takip etmek için Dexcom glikoz verilerinize erişmelidir.</string>
-	<key>NSHealthUpdateUsageDescription</key>
-	<string>balli, yemek bilgileriniz ve glikoz paternlerinizle sağlık verilerinizi güncellemek ister.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Sesli komutlarla tarif adımları arasında geçiş yapmanızı ve yemek girişlerini sesle kaydetmenizi sağlar.</string>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Mikrofon erişimi sesli komutlar ve &quot;hey balli&quot; uyandırma kelimesi için gereklidir.</string>
-	<key>NSCameraUsageDescription</key>
-	<string>Besin etiketlerini ve barkodları taramak için kamera erişimi gereklidir.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Alışveriş listeniz için yakındaki marketleri ve mağazaları bulmak için konum bilginize ihtiyaç var.</string>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>com.anaxoniclabs.balli.healthsync</string>
-		<string>com.anaxoniclabs.balli.memory-sync</string>
-		<string>com.anaxoniclabs.balli.dexcom-refresh</string>
 	</array>
 	<key>PICOVOICE_ACCESS_KEY</key>
 	<string>$(PICOVOICE_ACCESS_KEY)</string>

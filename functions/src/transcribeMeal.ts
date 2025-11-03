@@ -54,6 +54,22 @@ const mealTranscriptionResponseSchema = {
       description: "Time in HH:MM format if mentioned, null otherwise",
       nullable: true
     },
+    insulinDosage: {
+      type: SchemaType.NUMBER,
+      description: "Insulin dosage in units if mentioned (0 if not mentioned)",
+      nullable: true
+    },
+    insulinType: {
+      type: SchemaType.STRING,
+      description: "Type of insulin if mentioned: bolus (meal insulin like Humalog, NovoRapid) or basal (long-acting like Lantus, Tresiba)",
+      enum: ["bolus", "basal"],
+      nullable: true
+    },
+    insulinName: {
+      type: SchemaType.STRING,
+      description: "Brand name of insulin if mentioned (e.g. Lantus, Humalog, NovoRapid, Tresiba)",
+      nullable: true
+    },
     confidence: {
       type: SchemaType.STRING,
       description: "Confidence level: high, medium, or low",
@@ -84,6 +100,9 @@ export interface TranscribeMealOutput {
     totalCarbs: number;
     mealType: string;
     mealTime: string | null;
+    insulinDosage: number | null;
+    insulinType: string | null;
+    insulinName: string | null;
     confidence: string;
   };
   error?: string;
@@ -125,7 +144,7 @@ export async function transcribeMealAudio(
       }
     });
 
-    // Turkish prompt for meal logging (from spec)
+    // Turkish prompt for meal logging with insulin extraction
     const promptText = `Bu Türkçe ses kaydını dinle ve öğün bilgilerini çıkar.
 
 Kullanıcı doğal bir şekilde konuşuyor. İki farklı şekilde konuşabilir:
@@ -146,6 +165,15 @@ Diğer örnekler:
 - "2 dilim ekmek yedim bu 15 gram, yumurta 2 tane o da 10 gram"
 - "makarna yaptım, yoğurt yedim, meyve salatası yedim, 60 gram toplam"
 
+İNSÜLİN BİLGİSİ:
+Kullanıcı insülin dozunu da söyleyebilir. İnsülin öğünle birlikte (bolus) veya ayrı (basal) olabilir:
+- BOLUS (öğünle): "5 ünite vurdum", "3 ünite Humalog", "NovoRapid 4 ünite"
+- BASAL (uzun etkili): "10 ünite Lantus", "Tresiba 8 ünite", "bazal insülin"
+
+İnsülin isimleri:
+- Bolus: Humalog, NovoRapid, Apidra, Fiasp, Lyumjev (hızlı etkili, öğünle kullanılır)
+- Basal: Lantus, Tresiba, Levemir, Toujeo, Basaglar (uzun etkili, günde 1-2 kez)
+
 Şu bilgileri çıkar:
 {
   "transcription": "Kullanıcının söylediği tam metin",
@@ -159,6 +187,9 @@ Diğer örnekler:
   "totalCarbs": "toplam karbonhidrat (sayı)",
   "mealType": "kahvaltı" | "öğle yemeği" | "akşam yemeği" | "atıştırmalık",
   "mealTime": "belirtilen saat varsa HH:MM formatında, yoksa null",
+  "insulinDosage": "insülin dozu (ünite) belirtildiyse sayı, yoksa null",
+  "insulinType": "bolus (öğünle) veya basal (uzun etkili), belirtilmediyse null",
+  "insulinName": "insülin markası (Lantus, Humalog vb.) belirtildiyse, yoksa null",
   "confidence": "çıkarım güvenilirliği - high, medium, veya low"
 }
 
@@ -170,6 +201,9 @@ Diğer örnekler:
 - "onu saymıyoruz", "onda yok" gibi ifadeler = carbs: 0
 - Zaman formatları: "dokuz buçuk" = "09:30", "saat 13:00" = "13:00"
 - Öğün türünü yiyeceklere ve zamana göre tahmin et (belirtilmediyse)
+- İnsülin türünü isme göre otomatik belirle (Lantus/Tresiba/Levemir = basal, Humalog/NovoRapid = bolus)
+- Sadece "5 ünite" denirse ve öğün varsa bolus, öğün yoksa basal kabul et
+- İnsülin belirtilmediyse insulinDosage/insulinType/insulinName = null
 
 JSON formatında dön.`;
 
@@ -218,6 +252,9 @@ JSON formatında dön.`;
         totalCarbs: extractedData.totalCarbs || 0,
         mealType: extractedData.mealType || 'atıştırmalık',
         mealTime: extractedData.mealTime || null,
+        insulinDosage: extractedData.insulinDosage || null,
+        insulinType: extractedData.insulinType || null,
+        insulinName: extractedData.insulinName || null,
         confidence: extractedData.confidence || 'low'
       }
     };

@@ -17,11 +17,15 @@ struct RecipeHeroImageSection: View {
     let generatedImageData: Data?
     let isGeneratingPhoto: Bool
     let onGeneratePhoto: () async -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeHeroImageSection")
 
     var body: some View {
-        let imageHeight = UIScreen.main.bounds.height * 0.5
+        // Calculate 50% of true screen height including safe area
+        let safeAreaTop = geometry.safeAreaInsets.top
+        let screenHeight = geometry.size.height + safeAreaTop
+        let imageHeight = screenHeight * 0.5
 
         ZStack(alignment: .top) {
             // Show generated image if available, otherwise show existing or placeholder
@@ -75,7 +79,7 @@ struct RecipeHeroImageSection: View {
                     }) {
                         Image(systemName: "spatial.capture")
                             .font(.system(size: 64, weight: .light))
-                            .foregroundStyle(.white.opacity(0.8))
+                            .foregroundStyle(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.8))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     }
                     .buttonStyle(.plain)

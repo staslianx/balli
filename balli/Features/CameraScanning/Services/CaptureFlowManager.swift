@@ -47,20 +47,15 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
     private let delegateHandler: CaptureDelegateHandler
     private let hapticManager: HapticManager
     private let configuration: CaptureConfiguration
-    
+    private let imageProcessorHelper: CaptureImageProcessor
+    private let lifecycleHandler: CaptureLifecycleHandler
+
     // MARK: - Dependencies
     private let cameraManager: CameraManager
-    private let imageProcessor = ImageProcessor()
-    private let labelAnalysisService = LabelAnalysisService.shared
-    private let securityManager = SecurityManager.shared
-    
+
     // MARK: - Internal State
     private var processingTask: Task<Void, Never>?
     nonisolated(unsafe) private var cancellables = Set<AnyCancellable>()
-
-    // MARK: - Lifecycle Observers
-    nonisolated(unsafe) private var backgroundObserver: (any NSObjectProtocol)?
-    nonisolated(unsafe) private var foregroundObserver: (any NSObjectProtocol)?
     
     // MARK: - Initialization
     
@@ -68,6 +63,8 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
         self.cameraManager = cameraManager
         self.configuration = .default
         self.hapticManager = HapticManager()
+        self.imageProcessorHelper = CaptureImageProcessor(configuration: .default)
+        self.lifecycleHandler = CaptureLifecycleHandler()
 
         // Initialize persistence with graceful degradation
         // If this fails, we still allow the app to function but with limited persistence
@@ -140,25 +137,14 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
     }
     
     private func setupObservers() {
-        backgroundObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.didEnterBackgroundNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { [weak self] in
+        lifecycleHandler.setupObservers(
+            onEnterBackground: { [weak self] in
                 await self?.handleEnterBackground()
-            }
-        }
-
-        foregroundObserver = NotificationCenter.default.addObserver(
-            forName: UIApplication.willEnterForegroundNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { [weak self] in
+            },
+            onEnterForeground: { [weak self] in
                 await self?.handleEnterForeground()
             }
-        }
+        )
     }
     
     // MARK: - CaptureFlowCoordinating Implementation
@@ -257,123 +243,95 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
     }
     
     // MARK: - Image Processing
-    
+
     private func handleCapturedImage(_ image: UIImage, for sessionId: UUID) async {
         // Haptic feedback
         hapticManager.captureCompleted()
-        
+
         // Transition state
         await stateMachine.transition(to: .captured)
-        
-        // Generate thumbnail
-        let thumbnail = await imageProcessor.generateThumbnail(from: image, cacheKey: sessionId.uuidString)
 
-        // Save image data
-        async let imageDataTask = imageProcessor.jpegData(
-            from: image,
-            compressionQuality: configuration.compressionQuality
-        )
-        async let thumbnailDataTask = imageProcessor.jpegData(
-            from: thumbnail,
-            compressionQuality: configuration.thumbnailCompressionQuality
-        )
+        // Process image
+        do {
+            let result = try await imageProcessorHelper.processImageCapture(image, sessionId: sessionId)
 
-        guard let imageData = await imageDataTask,
-              let thumbnailData = await thumbnailDataTask else {
-            await handleCaptureError(CaptureError.imageConversionFailed, for: sessionId)
-            return
+            // Update session
+            await sessionManager.updateSession(sessionId) { session in
+                session.imageData = result.imageData
+                session.thumbnailData = result.thumbnailData
+                session.imageSize = image.size
+                session.state = .captured
+            }
+
+            // Update UI
+            self.capturedImage = image
+            self.isCapturing = false
+            self.showingCapturedImage = true
+
+            // Notify delegates
+            delegateHandler.notifyCaptureDidComplete(with: image)
+
+            logger.info("✅ Capture completed: image size = \(image.size.width)x\(image.size.height)")
+
+        } catch {
+            await handleCaptureError(error, for: sessionId)
         }
-        
-        // Update session
-        await sessionManager.updateSession(sessionId) { session in
-            session.imageData = imageData
-            session.thumbnailData = thumbnailData
-            session.imageSize = image.size
-            session.state = .captured
-        }
-        
-        // Update UI
-        self.capturedImage = image
-        self.isCapturing = false
-        self.showingCapturedImage = true
-        
-        // Notify delegates
-        delegateHandler.notifyCaptureDidComplete(with: image)
-        
-        logger.info("✅ Capture completed: image size = \(image.size.width)x\(image.size.height)")
     }
     
     private func processCapture(_ sessionID: UUID) async {
         guard currentSession?.id == sessionID else { return }
-        
+
         do {
             // Optimize image
             await stateMachine.transition(to: .optimizing)
-            
+
             guard let imageData = currentSession?.imageData,
                   let originalImage = UIImage(data: imageData) else {
                 throw CaptureError.imageConversionFailed
             }
-            
-            let optimized = try await imageProcessor.optimizeForAI(image: originalImage)
-            self.optimizedImage = optimized
-            
+
+            // AI Processing
+            await stateMachine.transition(to: .processingAI)
+
+            let result = try await imageProcessorHelper.processWithAI(
+                originalImage: originalImage,
+                sessionID: sessionID
+            ) { [self] progressMessage in
+                logger.info("🏷️ AI Processing: \(progressMessage)")
+            }
+
+            self.optimizedImage = result.optimizedImage
+            self.extractedNutrition = result.nutritionResult
+
             // Save optimized image
-            if let optimizedData = await imageProcessor.compressForStorage(image: optimized) {
+            if let optimizedData = await imageProcessorHelper.compressOptimizedImage(result.optimizedImage) {
                 await sessionManager.updateSession(sessionID) { session in
                     session.optimizedImageData = optimizedData
                 }
             }
-            
-            // AI Processing
-            await stateMachine.transition(to: .processingAI)
-            
-            // Check rate limits
-            guard await securityManager.canPerformAIScan() else {
-                throw CaptureError.rateLimitExceeded
-            }
-            
-            // Analyze the label using real AI processing via Firebase Functions
-            let nutritionResult = try await labelAnalysisService.analyzeLabel(
-                image: optimized,
-                language: "tr"
-            ) { [self] progressMessage in
-                // Optional: Could update UI with progress messages
-                logger.info("🏷️ AI Processing: \(progressMessage)")
-            }
 
-            // Validate the extracted data
-            guard labelAnalysisService.validateNutritionData(nutritionResult) else {
-                throw CaptureError.aiProcessingFailed("Extracted nutrition data failed validation")
-            }
-
-            self.extractedNutrition = nutritionResult
-            
             // Create FoodItem if successful
             // Check if we have valid nutrition data
-            if nutritionResult.metadata.confidence > 0.5 {
+            if result.nutritionResult.metadata.confidence > 0.5 {
                 // Note: FoodItem conversion from nutrition result requires Core Data mapping implementation
                 // The CaptureFlowManager is MainActor-bound, so we can safely use viewContext when implemented
                 // let context = PersistenceController.shared.viewContext
                 // self.foodItem = nutritionResult.toFoodItem(in: context)
                 self.foodItem = nil // Stub - set to nil for now
             }
-            
-            // Record successful scan
-            await securityManager.recordAIScan()
-            
+
             // Complete session
             await stateMachine.transition(to: .completed)
             await sessionManager.markSessionCompleted(sessionID)
-            
+
             // Success feedback
             hapticManager.processingCompleted()
-            delegateHandler.notifyAnalysisDidComplete(with: nutritionResult)
-            
+            delegateHandler.notifyAnalysisDidComplete(with: result.nutritionResult)
+
             // Set analyzing to false AFTER notifying delegates and setting the result
             // This ensures the UI can detect completion properly
             isAnalyzing = false
-            
+
         } catch {
             await handleProcessingError(error, for: sessionID)
         }
@@ -400,25 +358,10 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
     private func handleProcessingError(_ error: Error, for sessionId: UUID) async {
         logger.error("Processing failed: \(error)")
 
-        // Map LabelAnalysisError to appropriate CaptureError
+        // Map error to CaptureError
         let captureError: CaptureError
         if let labelError = error as? LabelAnalysisError {
-            switch labelError {
-            case .networkError, .networkTimeout:
-                captureError = .networkUnavailable
-            case .serverError:
-                captureError = .aiProcessingFailed(labelError.localizedDescription)
-            case .imageProcessingFailed:
-                captureError = .imageConversionFailed
-            case .validationFailed, .noDataReceived:
-                captureError = .aiProcessingFailed(labelError.localizedDescription)
-            case .invalidURL, .encodingFailed:
-                captureError = .processingFailed(labelError.localizedDescription)
-            case .firebaseQuotaExceeded, .firebaseRateLimitExceeded:
-                captureError = .rateLimitExceeded
-            case .geminiVisionError:
-                captureError = .aiProcessingFailed(labelError.localizedDescription)
-            }
+            captureError = imageProcessorHelper.mapLabelAnalysisError(labelError)
         } else {
             captureError = error as? CaptureError ?? .unknownError(error.localizedDescription)
         }
@@ -434,81 +377,62 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
     }
     
     // MARK: - Session Recovery
-    
+
     private func resumeProcessing(session: CaptureSession) async {
-        logger.info("Resuming processing for session: \(session.id)")
-        
         isAnalyzing = true
-        
-        switch session.state {
-        case .captured, .optimizing, .processingAI:
-            await processCapture(session.id)
 
-        case .waitingForNetwork:
-            // Note: Network availability check could be implemented here if needed
-            await processCapture(session.id)
+        await lifecycleHandler.resumeProcessing(session: session) { [weak self] sessionId in
+            await self?.processCapture(sessionId)
+        }
 
-        default:
+        // If processing didn't trigger, reset analyzing flag
+        if session.state == .failed || session.state == .cancelled || session.state == .completed {
             isAnalyzing = false
         }
     }
     
     // MARK: - Lifecycle Handling
-    
+
     private func handleEnterBackground() async {
-        logger.info("Handling background transition")
-        
-        if let session = currentSession {
-            try? await sessionManager.saveSession(session)
-        }
-        
-        await cameraManager.stop()
-        processingTask?.cancel()
+        await lifecycleHandler.handleEnterBackground(
+            currentSession: currentSession,
+            sessionManager: sessionManager,
+            cameraManager: cameraManager,
+            processingTask: processingTask
+        )
     }
-    
+
     private func handleEnterForeground() async {
-        logger.info("Handling foreground transition")
-        
-        if !showingCapturedImage {
-            await cameraManager.prepare()
-        }
-        
-        // Check for active session to resume
-        if let activeSession = await sessionManager.getActiveSession() {
-            if activeSession.isActive && !sessionManager.isSessionExpired(activeSession) {
-                await resumeProcessing(session: activeSession)
-            }
+        await lifecycleHandler.handleEnterForeground(
+            showingCapturedImage: showingCapturedImage,
+            cameraManager: cameraManager,
+            sessionManager: sessionManager
+        ) { [weak self] session in
+            await self?.resumeProcessing(session: session)
         }
     }
     
     // MARK: - Public Utilities
-    
+
     public func getRemainingScans() async -> Int {
-        return await securityManager.getRemainingScans()
+        return await imageProcessorHelper.getRemainingScans()
     }
-    
+
     public func deleteSession(id: UUID) async {
         await sessionManager.deleteSession(id: id)
     }
-    
+
     public func clearHistory() async {
         await sessionManager.clearHistory()
     }
-    
+
     // MARK: - Cleanup
 
     nonisolated public func cleanup() {
-        if let observer = backgroundObserver {
-            NotificationCenter.default.removeObserver(observer)
-            backgroundObserver = nil
-        }
-        if let observer = foregroundObserver {
-            NotificationCenter.default.removeObserver(observer)
-            foregroundObserver = nil
-        }
+        lifecycleHandler.cleanup()
         cancellables.removeAll()
     }
-    
+
     deinit {
         cleanup()
     }

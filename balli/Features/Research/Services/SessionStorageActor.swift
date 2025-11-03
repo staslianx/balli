@@ -104,7 +104,7 @@ class SessionStorageActor {
         let sessions = try modelContext.fetch(fetchDescriptor)
         let session = sessions.first
 
-        if let session {
+        if session != nil {
             logger.info("Loaded session: \(id)")
         } else {
             logger.warning("Session not found: \(id)")

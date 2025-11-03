@@ -3,6 +3,16 @@
     {
       "filename" : "balli-text-logo.pdf",
       "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "balli_text_logo_dark.pdf",
+      "idiom" : "universal"
     }
   ],
   "info" : {

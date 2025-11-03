@@ -113,6 +113,7 @@ public final class RecipePersistenceCoordinator: ObservableObject {
         recipe.sugarsPerServing = Double(formState.sugarPerServing) ?? recipe.sugarsPerServing
         recipe.glycemicLoadPerServing = Double(formState.glycemicLoadPerServing) ?? recipe.glycemicLoadPerServing
         recipe.totalRecipeWeight = Double(formState.totalRecipeWeight) ?? recipe.totalRecipeWeight
+        recipe.portionMultiplier = formState.portionMultiplier
 
         recipe.lastModified = Date()
 
@@ -175,6 +176,7 @@ public final class RecipePersistenceCoordinator: ObservableObject {
             sugarPerServing: formState.sugarPerServing,
             glycemicLoadPerServing: formState.glycemicLoadPerServing,
             totalRecipeWeight: formState.totalRecipeWeight,
+            portionMultiplier: formState.portionMultiplier,
             imageURL: imageURL,
             imageData: imageData
         )

@@ -26,6 +26,7 @@ struct SourcePill: View {
     let source: ResearchSource
     let index: Int
     @State private var showDetail = false
+    @Environment(\.colorScheme) private var colorScheme
 
     // Truncate title to max characters
     private var truncatedTitle: String {
@@ -44,7 +45,7 @@ struct SourcePill: View {
                 // Numbered badge
                 Text("\(index)")
                     .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(AppTheme.foregroundOnColor(for: colorScheme))
                     .frame(width: 18, height: 18)
                     .background(AppTheme.primaryPurple)
                     .clipShape(Circle())
@@ -54,7 +55,7 @@ struct SourcePill: View {
                     // Background circle for arXiv (transparent logo fix)
                     if source.domain.lowercased().contains("arxiv") {
                         Circle()
-                            .fill(Color.white)
+                            .fill(AppTheme.overlayBackground(for: colorScheme))
                             .frame(width: 16, height: 16)
                     }
 

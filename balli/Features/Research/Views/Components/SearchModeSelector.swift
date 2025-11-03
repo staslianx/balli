@@ -10,6 +10,7 @@ import SwiftUI
 
 struct SearchModeSelector: View {
     @Binding var selectedMode: ResearchMode
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -20,7 +21,7 @@ struct SearchModeSelector: View {
                     } label: {
                         Label(mode.rawValue, systemImage: mode.icon)
                             .font(.system(size: 14, weight: .medium, design: .rounded))
-                            .foregroundStyle(selectedMode == mode ? .white : .primary)
+                            .foregroundStyle(selectedMode == mode ? AppTheme.foregroundOnColor(for: colorScheme) : .primary)
                     }
                     .buttonStyle(.plain)
                     .padding(.horizontal, 16)

@@ -130,7 +130,7 @@ struct RecipeActionButton: View {
                 startPulseAnimation()
             }
         }
-        .onChange(of: isLoading) { newValue in
+        .onChange(of: isLoading) { oldValue, newValue in
             if newValue {
                 startPulseAnimation()
             } else {

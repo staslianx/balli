@@ -24,6 +24,9 @@ struct GeminiMealResponse: Codable, Sendable {
         let totalCarbs: Int
         let mealType: String
         let mealTime: String?
+        let insulinDosage: Double?
+        let insulinType: String?
+        let insulinName: String?
         let confidence: String
 
         enum CodingKeys: String, CodingKey {
@@ -32,6 +35,9 @@ struct GeminiMealResponse: Codable, Sendable {
             case totalCarbs
             case mealType
             case mealTime
+            case insulinDosage
+            case insulinType
+            case insulinName
             case confidence
         }
     }

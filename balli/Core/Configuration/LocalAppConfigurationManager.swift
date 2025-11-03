@@ -141,15 +141,14 @@ public final class AppConfigurationManager: ObservableObject {
     
     func refreshConfiguration() async {
         os_log(.info, log: logger, "Refreshing app configuration")
-        
+
         // Perform health check
         let healthReport = await performHealthCheck()
         await MainActor.run {
             self.lastHealthCheck = healthReport
+            // Load default configuration on main thread
+            self.loadDefaultConfiguration()
         }
-        
-        // Load default configuration
-        loadDefaultConfiguration()
     }
     
     // MARK: - Service Type Management

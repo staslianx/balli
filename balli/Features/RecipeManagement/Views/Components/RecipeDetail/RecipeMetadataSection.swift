@@ -15,6 +15,7 @@ struct RecipeMetadataSection: View {
     let recipeName: String
     let isEditing: Bool
     @Binding var editedName: String
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -30,21 +31,21 @@ struct RecipeMetadataSection: View {
             if let author = author {
                 Text(author)
                     .font(.sfRounded(17, weight: .regular))
-                    .foregroundColor(.white.opacity(0.95))
+                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.95))
             }
 
             // Recipe title - conditionally editable
             if isEditing {
                 TextField("", text: $editedName, axis: .vertical)
                     .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                     .textFieldStyle(.plain)
-                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                    .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
             } else {
                 Text(recipeName)
                     .font(.system(size: 34, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.2), radius: 4, x: 0, y: 2)
+                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
+                    .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

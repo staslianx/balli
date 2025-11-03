@@ -10,6 +10,8 @@ import SwiftUI
 
 /// Story card with glass effect for related recipe content
 struct RecipeStoryCard: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let title: String
     let description: String?
     let thumbnailURL: String?
@@ -170,7 +172,7 @@ struct RecipeStoryCard: View {
             .overlay(
                 Image(systemName: "long.text.page.and.pencil.fill")
                     .font(.system(size: 20))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.8))
             )
     }
 }

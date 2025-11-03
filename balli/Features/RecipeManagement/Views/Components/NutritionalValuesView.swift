@@ -37,6 +37,9 @@ struct NutritionalValuesView: View {
     // API insights (optional - from nutrition calculation)
     let digestionTiming: DigestionTiming?
 
+    // Portion multiplier binding for persistence
+    @Binding var portionMultiplier: Double
+
     @State private var selectedTab = 0  // 0 = Porsiyon, 1 = 100g
 
     var body: some View {
@@ -50,6 +53,12 @@ struct NutritionalValuesView: View {
                     }
                     .pickerStyle(.segmented)
                     .padding(.bottom, 8)
+
+                    // Portion Stepper (only show in Porsiyon tab)
+                    if selectedTab == 0 {
+                        portionStepperView
+                            .padding(.bottom, 8)
+                    }
 
                     // Info Text
                     infoText
@@ -127,7 +136,8 @@ struct NutritionalValuesView: View {
         if selectedTab == 0 {
             // Porsiyon tab
             if !totalRecipeWeight.isEmpty && totalRecipeWeight != "0" {
-                return Text("1 porsiyon: ") + Text("\(totalRecipeWeight)g").fontWeight(.semibold)
+                let multipliedWeight = (Double(totalRecipeWeight) ?? 0) * portionMultiplier
+                return Text("1 porsiyon: **\(String(format: "%.0f", multipliedWeight))g**")
             } else {
                 return Text("1 porsiyon")
             }
@@ -138,34 +148,108 @@ struct NutritionalValuesView: View {
     }
 
     private var displayedCalories: String {
-        selectedTab == 0 ? caloriesPerServing : calories
+        if selectedTab == 0 {
+            let value = (Double(caloriesPerServing) ?? 0) * portionMultiplier
+            return String(format: "%.0f", value)
+        } else {
+            return calories
+        }
     }
 
     private var displayedCarbohydrates: String {
-        selectedTab == 0 ? carbohydratesPerServing : carbohydrates
+        if selectedTab == 0 {
+            let value = (Double(carbohydratesPerServing) ?? 0) * portionMultiplier
+            return String(format: "%.1f", value)
+        } else {
+            return carbohydrates
+        }
     }
 
     private var displayedFiber: String {
-        selectedTab == 0 ? fiberPerServing : fiber
+        if selectedTab == 0 {
+            let value = (Double(fiberPerServing) ?? 0) * portionMultiplier
+            return String(format: "%.1f", value)
+        } else {
+            return fiber
+        }
     }
 
     private var displayedSugar: String {
-        selectedTab == 0 ? sugarPerServing : sugar
+        if selectedTab == 0 {
+            let value = (Double(sugarPerServing) ?? 0) * portionMultiplier
+            return String(format: "%.1f", value)
+        } else {
+            return sugar
+        }
     }
 
     private var displayedProtein: String {
-        selectedTab == 0 ? proteinPerServing : protein
+        if selectedTab == 0 {
+            let value = (Double(proteinPerServing) ?? 0) * portionMultiplier
+            return String(format: "%.1f", value)
+        } else {
+            return protein
+        }
     }
 
     private var displayedFat: String {
-        selectedTab == 0 ? fatPerServing : fat
+        if selectedTab == 0 {
+            let value = (Double(fatPerServing) ?? 0) * portionMultiplier
+            return String(format: "%.1f", value)
+        } else {
+            return fat
+        }
     }
 
     private var displayedGlycemicLoad: String {
-        selectedTab == 0 ? glycemicLoadPerServing : glycemicLoad
+        if selectedTab == 0 {
+            let value = (Double(glycemicLoadPerServing) ?? 0) * portionMultiplier
+            return String(format: "%.0f", value)
+        } else {
+            return glycemicLoad
+        }
     }
 
     // MARK: - Components
+
+    private var portionStepperView: some View {
+        HStack {
+            Text("Porsiyon Miktarı")
+                .font(.system(size: 17, weight: .medium, design: .rounded))
+                .foregroundColor(.primary)
+
+            Spacer()
+
+            HStack(spacing: 12) {
+                Button {
+                    if portionMultiplier > 0.5 {
+                        portionMultiplier -= 0.5
+                    }
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(ThemeColors.primaryPurple)
+                }
+                .disabled(portionMultiplier <= 0.5)
+
+                Text(String(format: "%.1f", portionMultiplier) + "x")
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
+                    .foregroundColor(.primary)
+                    .frame(minWidth: 60)
+
+                Button {
+                    portionMultiplier += 0.5
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(ThemeColors.primaryPurple)
+                }
+            }
+        }
+        .padding(16)
+        .recipeGlass(tint: .warm, cornerRadius: 30)
+        .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+    }
 
     private func nutritionRow(
         label: String,
@@ -200,7 +284,9 @@ struct NutritionalValuesView: View {
 // MARK: - Preview
 
 #Preview("With Both Values - Low Warning") {
-    NutritionalValuesView(
+    @Previewable @State var multiplier = 1.0
+
+    return NutritionalValuesView(
         recipeName: "Izgara Tavuk Salatası",
         // Per-100g
         calories: "165",
@@ -219,12 +305,15 @@ struct NutritionalValuesView: View {
         fatPerServing: "12.6",
         glycemicLoadPerServing: "14",
         totalRecipeWeight: "350",
-        digestionTiming: nil
+        digestionTiming: nil,
+        portionMultiplier: $multiplier
     )
 }
 
 #Preview("High Fat Recipe - Danger Warning") {
-    NutritionalValuesView(
+    @Previewable @State var multiplier = 1.0
+
+    return NutritionalValuesView(
         recipeName: "Carbonara Makarna",
         // Per-100g
         calories: "180",
@@ -243,12 +332,15 @@ struct NutritionalValuesView: View {
         fatPerServing: "35",  // High fat triggers danger warning
         glycemicLoadPerServing: "20",
         totalRecipeWeight: "400",
-        digestionTiming: nil
+        digestionTiming: nil,
+        portionMultiplier: $multiplier
     )
 }
 
 #Preview("Empty Values") {
-    NutritionalValuesView(
+    @Previewable @State var multiplier = 1.0
+
+    return NutritionalValuesView(
         recipeName: "Test Tarifi",
         calories: "",
         carbohydrates: "",
@@ -265,6 +357,7 @@ struct NutritionalValuesView: View {
         fatPerServing: "",
         glycemicLoadPerServing: "",
         totalRecipeWeight: "",
-        digestionTiming: nil
+        digestionTiming: nil,
+        portionMultiplier: $multiplier
     )
 }

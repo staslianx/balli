@@ -20,7 +20,6 @@ struct FoodItemDetailView: View {
 
     // UI States
     @State private var isEditMode: Bool = false
-    @State private var showingSaveConfirmation = false
     @State private var showingValidationAlert = false
 
     // Form state for editing
@@ -187,13 +186,6 @@ struct FoodItemDetailView: View {
                     }
                 }
             }
-        }
-        .alert("Ardiye'ye Kaydedildi", isPresented: $showingSaveConfirmation) {
-            Button("Tamam") {
-                dismiss()
-            }
-        } message: {
-            Text("\(productName.isEmpty ? "Ürün" : productName) başarıyla güncellendi.")
         }
         .onChange(of: validationErrors) { _, newErrors in
             if !newErrors.isEmpty {
@@ -388,7 +380,6 @@ struct FoodItemDetailView: View {
                 logger.info("✅ Core Data save successful")
 
                 toastMessage = .success("Kaydedildi")
-                showingSaveConfirmation = true
 
                 logger.info("Successfully updated food item: \(foodItem.name)")
             } catch {

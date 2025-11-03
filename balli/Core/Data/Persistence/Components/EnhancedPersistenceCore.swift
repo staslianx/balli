@@ -29,6 +29,14 @@ public final class EnhancedPersistenceCore: ObservableObject {
     @Published public private(set) var lastSyncDate: Date?
     @Published public private(set) var dataHealth: DataHealth = DataHealth()
     @Published public private(set) var cacheStatistics = CacheStatistics()
+
+    /// Critical error encountered during initialization (if any)
+    @Published public private(set) var catastrophicError: Error?
+
+    /// Whether Core Data is ready for operations
+    public var isReady: Bool {
+        catastrophicError == nil
+    }
     
     // MARK: - Operation Queues
     private let saveQueue: OperationQueue
@@ -446,9 +454,18 @@ public final class EnhancedPersistenceCore: ObservableObject {
     
     private func handleCatastrophicError(_ error: Error) async {
         logger.critical("Catastrophic error: \(error)")
-        
+
+        // Store error for UI to display recovery options
+        await MainActor.run {
+            self.catastrophicError = error
+        }
+
         #if DEBUG
         fatalError("Core Data failed: \(error)")
+        #else
+        // In production, log the error and allow the app to continue
+        // UI can show recovery options based on catastrophicError property
+        logger.error("App will continue with limited functionality")
         #endif
     }
 }

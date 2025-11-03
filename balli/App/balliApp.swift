@@ -14,6 +14,7 @@ import OSLog
 struct balliApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("selectedTheme") private var selectedTheme = "Sistem"
 
     let persistenceController = Persistence.PersistenceController.shared
 
@@ -29,6 +30,27 @@ struct balliApp: App {
             MemorySyncCoordinator.shared.registerBackgroundTasks()
             MemorySyncCoordinator.shared.setupNetworkObserver()
         }
+
+        // Initialize medication sync coordinator for basal insulin tracking
+        // This ensures automatic sync for standalone medications (e.g., Lantus)
+        // The singleton pattern ensures the coordinator is ready to observe CoreData changes
+        Task { @MainActor in
+            _ = MedicationSyncCoordinator.shared
+        }
+
+        // Initialize recipe sync coordinator for automatic recipe syncing
+        // This ensures recipes with photos are synced to Firestore and Firebase Storage
+        // The singleton pattern ensures the coordinator is ready to observe CoreData changes
+        Task { @MainActor in
+            _ = RecipeSyncCoordinator.shared
+        }
+
+        // Initialize meal sync coordinator for automatic meal syncing
+        // This ensures meal entries are synced to Firestore in real-time
+        // The singleton pattern ensures the coordinator is ready to observe CoreData changes
+        Task { @MainActor in
+            _ = MealSyncCoordinator.shared
+        }
     }
 
     var body: some Scene {
@@ -43,7 +65,6 @@ struct balliApp: App {
                 .tint(AppTheme.primaryPurple)
                 .accentColor(AppTheme.primaryPurple)
                 .enableSettingsOpener() // Enable SwiftUI-native Settings opener
-                .preferredColorScheme(.light)
                 .task {
                     // Perform sync in background while launch screen is visible
                     if syncCoordinator.state == .idle {
@@ -55,6 +76,9 @@ struct balliApp: App {
                 }
                 .onAppear {
                     configureApp()
+                }
+                .onChange(of: selectedTheme) { _, newTheme in
+                    applyTheme(newTheme)
                 }
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 handleScenePhaseChange(oldPhase: oldPhase, newPhase: newPhase)
@@ -79,8 +103,8 @@ struct balliApp: App {
     private func configureApp() {
         logger.info("🚀 Balli app initializing (non-blocking operations)")
 
-        // Force light mode (synchronous, no blocking)
-        applyLightMode()
+        // Apply selected theme (synchronous, no blocking)
+        applyTheme(selectedTheme)
 
         // NOTE: Mock meal data generation removed - use real meal logging instead
         // NOTE: App configuration and HealthKit permissions moved to AppSyncCoordinator
@@ -89,6 +113,16 @@ struct balliApp: App {
         // Schedule glucose data cleanup (runs every 7 days)
         Task.detached(priority: .background) {
             await AppLifecycleCoordinator.shared.checkAndCleanupGlucoseDataIfNeeded()
+        }
+
+        // Request notification permission and schedule meal reminders
+        Task { @MainActor in
+            let granted = await MealReminderManager.shared.requestPermission()
+            if granted {
+                logger.info("✅ Meal reminders scheduled")
+            } else {
+                logger.info("ℹ️ User declined notification permission")
+            }
         }
     }
 
@@ -119,7 +153,7 @@ struct balliApp: App {
             // Perform background save and cleanup with guaranteed completion time
             Task { @MainActor in
                 // Request background execution time to ensure save completes
-                let backgroundTaskID = await UIApplication.shared.beginBackgroundTask(withName: "SaveContext") {
+                let backgroundTaskID = UIApplication.shared.beginBackgroundTask(withName: "SaveContext") {
                     self.logger.warning("⚠️ Background save task expired")
                 }
 
@@ -131,7 +165,7 @@ struct balliApp: App {
                 DexcomBackgroundRefreshManager.shared.scheduleBackgroundRefresh()
 
                 // End background task
-                await UIApplication.shared.endBackgroundTask(backgroundTaskID)
+                UIApplication.shared.endBackgroundTask(backgroundTaskID)
             }
 
         case .inactive:
@@ -181,11 +215,18 @@ struct balliApp: App {
 
     // MARK: - Utilities
 
-    private func applyLightMode() {
+    private func applyTheme(_ theme: String) {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
 
         for window in windowScene.windows {
-            window.overrideUserInterfaceStyle = .light
+            switch theme {
+            case "Açık":
+                window.overrideUserInterfaceStyle = .light
+            case "Koyu":
+                window.overrideUserInterfaceStyle = .dark
+            default: // "Sistem"
+                window.overrideUserInterfaceStyle = .unspecified
+            }
         }
     }
 }

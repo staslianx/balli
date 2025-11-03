@@ -16,6 +16,7 @@ struct CurvePeakMarkerView: View {
 
     private let dotRadius: CGFloat = 6
     private let labelOffset: CGFloat = 15
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 4) {
@@ -36,7 +37,7 @@ struct CurvePeakMarkerView: View {
                 .frame(width: dotRadius * 2, height: dotRadius * 2)
                 .overlay(
                     Circle()
-                        .stroke(Color.white, lineWidth: 2)
+                        .stroke(AppTheme.overlayBackground(for: colorScheme), lineWidth: 2)
                 )
                 .shadow(color: color.opacity(0.3), radius: 3, x: 0, y: 2)
         }

@@ -149,7 +149,7 @@ extension View {
     func showSaveErrorToast(_ toast: Binding<ToastType?>) -> some View {
         self.onReceive(NotificationCenter.default.publisher(for: .persistenceSaveFailure)) { notification in
             if let error = notification.userInfo?["error"] as? PersistenceError {
-                toast.wrappedValue = .error(error.localizedDescription ?? "Kaydetme hatası")
+                toast.wrappedValue = .error(error.localizedDescription)
             } else {
                 toast.wrappedValue = .error("Kaydetme hatası")
             }

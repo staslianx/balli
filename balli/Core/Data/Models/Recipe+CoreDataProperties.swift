@@ -45,6 +45,7 @@ extension Recipe: Identifiable {
     @NSManaged public var fatPerServing: Double
     @NSManaged public var glycemicLoadPerServing: Double
     @NSManaged public var totalRecipeWeight: Double
+    @NSManaged public var portionMultiplier: Double
 
     // MARK: - Recipe Metadata
     @NSManaged public var source: String

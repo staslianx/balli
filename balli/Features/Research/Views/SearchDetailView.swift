@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct SearchDetailView: View {
     let answer: SearchAnswer
@@ -129,7 +130,15 @@ struct SearchDetailView: View {
             print("📂 [SearchDetailView] Task started for answer: \(answer.id)")
 
             // Initialize session manager and inject into highlight manager
-            let container = ResearchSessionModelContainer.shared.container
+            let container: ModelContainer
+            do {
+                container = try ResearchSessionModelContainer.shared.makeContext().container
+            } catch {
+                // Fallback to in-memory container if storage fails
+                let schema = Schema([ResearchSession.self, SessionMessage.self])
+                let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+                container = try! ModelContainer(for: schema, configurations: [config])
+            }
             let metadataGenerator = SessionMetadataGenerator()
             let sessionManager = ResearchSessionManager(
                 modelContainer: container,

@@ -103,8 +103,16 @@ final class ConversationStore: ObservableObject {
     // MARK: - Properties
 
     private let logger = Logger(subsystem: "com.anaxoniclabs.balli", category: "ConversationStore")
-    private let modelContainer: ModelContainer
-    private let modelContext: ModelContext
+    private let modelContainer: ModelContainer?
+    private let modelContext: ModelContext?
+
+    /// Error encountered during initialization (if any)
+    @Published private(set) var initializationError: Error?
+
+    /// Whether the store is ready for operations
+    var isReady: Bool {
+        modelContainer != nil && modelContext != nil
+    }
 
     // MARK: - Configuration
 
@@ -126,17 +134,44 @@ final class ConversationStore: ObservableObject {
                 allowsSave: true
             )
 
-            self.modelContainer = try ModelContainer(
+            let container = try ModelContainer(
                 for: schema,
                 configurations: [modelConfiguration]
             )
 
-            self.modelContext = ModelContext(modelContainer)
+            self.modelContainer = container
+            self.modelContext = ModelContext(container)
+            self.initializationError = nil
 
             logger.info("✅ ConversationStore initialized with SwiftData persistence")
 
         } catch {
-            fatalError("❌ Failed to initialize SwiftData container: \(error.localizedDescription)")
+            logger.error("❌ Failed to initialize SwiftData container: \(error.localizedDescription)")
+            self.modelContainer = nil
+            self.modelContext = nil
+            self.initializationError = error
+        }
+    }
+
+    // MARK: - Error Handling
+
+    /// Error types for ConversationStore operations
+    enum StorageError: LocalizedError {
+        case storageUnavailable
+
+        var errorDescription: String? {
+            switch self {
+            case .storageUnavailable:
+                return "Conversation storage is unavailable. Please restart the app."
+            }
+        }
+    }
+
+    /// Helper to ensure storage is ready before operations
+    private func ensureReady() throws {
+        guard isReady else {
+            logger.error("❌ Operation attempted on unavailable storage")
+            throw StorageError.storageUnavailable
         }
     }
 
@@ -151,6 +186,9 @@ final class ConversationStore: ObservableObject {
         sessionId: String? = nil,
         syncStatus: MessageSyncStatus = .pending
     ) throws {
+        try ensureReady()
+        guard let context = modelContext else { throw StorageError.storageUnavailable }
+
         let message = StoredMessage(
             id: id,
             text: text,
@@ -161,10 +199,10 @@ final class ConversationStore: ObservableObject {
             sessionId: sessionId
         )
 
-        modelContext.insert(message)
+        context.insert(message)
 
         do {
-            try modelContext.save()
+            try context.save()
             logger.info("💾 Saved message locally: \(id) (status: \(syncStatus.rawValue))")
         } catch {
             logger.error("❌ Failed to save message: \(error.localizedDescription)")
@@ -174,11 +212,14 @@ final class ConversationStore: ObservableObject {
 
     /// Update message sync status
     func updateSyncStatus(messageId: String, status: MessageSyncStatus, error: String? = nil) throws {
+        try ensureReady()
+        guard let context = modelContext else { throw StorageError.storageUnavailable }
+
         let descriptor = FetchDescriptor<StoredMessage>(
             predicate: #Predicate { $0.id == messageId }
         )
 
-        guard let message = try modelContext.fetch(descriptor).first else {
+        guard let message = try context.fetch(descriptor).first else {
             logger.warning("⚠️ Message not found for sync status update: \(messageId)")
             return
         }
@@ -190,7 +231,7 @@ final class ConversationStore: ObservableObject {
         }
 
         do {
-            try modelContext.save()
+            try context.save()
             logger.debug("🔄 Updated sync status for \(messageId): \(status.rawValue)")
         } catch {
             logger.error("❌ Failed to update sync status: \(error.localizedDescription)")
@@ -200,6 +241,9 @@ final class ConversationStore: ObservableObject {
 
     /// Fetch all messages for a user
     func fetchMessages(userId: String, limit: Int = 100) throws -> [StoredMessage] {
+        try ensureReady()
+        guard let context = modelContext else { throw StorageError.storageUnavailable }
+
         var descriptor = FetchDescriptor<StoredMessage>(
             predicate: #Predicate { $0.userId == userId },
             sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
@@ -207,7 +251,7 @@ final class ConversationStore: ObservableObject {
         descriptor.fetchLimit = limit
 
         do {
-            let messages = try modelContext.fetch(descriptor)
+            let messages = try context.fetch(descriptor)
             logger.debug("📖 Fetched \(messages.count) messages for user")
             return messages
         } catch {
@@ -218,6 +262,9 @@ final class ConversationStore: ObservableObject {
 
     /// Fetch messages pending sync (offline queue)
     func fetchPendingSyncMessages() throws -> [StoredMessage] {
+        try ensureReady()
+        guard let context = modelContext else { throw StorageError.storageUnavailable }
+
         let pendingValue = MessageSyncStatus.pending.rawValue
         let failedValue = MessageSyncStatus.failed.rawValue
 
@@ -229,7 +276,7 @@ final class ConversationStore: ObservableObject {
         )
 
         do {
-            let messages = try modelContext.fetch(descriptor)
+            let messages = try context.fetch(descriptor)
             logger.info("📤 Found \(messages.count) messages pending sync")
             return messages
         } catch {
@@ -240,19 +287,22 @@ final class ConversationStore: ObservableObject {
 
     /// Delete a message
     func deleteMessage(id: String) throws {
+        try ensureReady()
+        guard let context = modelContext else { throw StorageError.storageUnavailable }
+
         let descriptor = FetchDescriptor<StoredMessage>(
             predicate: #Predicate { $0.id == id }
         )
 
-        guard let message = try modelContext.fetch(descriptor).first else {
+        guard let message = try context.fetch(descriptor).first else {
             logger.warning("⚠️ Message not found for deletion: \(id)")
             return
         }
 
-        modelContext.delete(message)
+        context.delete(message)
 
         do {
-            try modelContext.save()
+            try context.save()
             logger.info("🗑️ Deleted message: \(id)")
         } catch {
             logger.error("❌ Failed to delete message: \(error.localizedDescription)")
@@ -262,17 +312,20 @@ final class ConversationStore: ObservableObject {
 
     /// Clear old messages (older than maxCacheAge)
     func clearOldMessages() throws {
+        try ensureReady()
+        guard let context = modelContext else { throw StorageError.storageUnavailable }
+
         let cutoffDate = Date().addingTimeInterval(-Self.maxCacheAge)
         let descriptor = FetchDescriptor<StoredMessage>(
             predicate: #Predicate { $0.timestamp < cutoffDate }
         )
 
         do {
-            let oldMessages = try modelContext.fetch(descriptor)
+            let oldMessages = try context.fetch(descriptor)
             for message in oldMessages {
-                modelContext.delete(message)
+                context.delete(message)
             }
-            try modelContext.save()
+            try context.save()
 
             logger.info("🧹 Cleared \(oldMessages.count) old messages (older than 7 days)")
         } catch {
@@ -283,6 +336,9 @@ final class ConversationStore: ObservableObject {
 
     /// Get storage statistics
     func getStorageStats() throws -> StorageStatistics {
+        try ensureReady()
+        guard let context = modelContext else { throw StorageError.storageUnavailable }
+
         let pendingValue = MessageSyncStatus.pending.rawValue
         let failedValue = MessageSyncStatus.failed.rawValue
 
@@ -295,9 +351,9 @@ final class ConversationStore: ObservableObject {
         )
 
         do {
-            let totalCount = try modelContext.fetchCount(allDescriptor)
-            let pendingCount = try modelContext.fetchCount(pendingDescriptor)
-            let failedCount = try modelContext.fetchCount(failedDescriptor)
+            let totalCount = try context.fetchCount(allDescriptor)
+            let pendingCount = try context.fetchCount(pendingDescriptor)
+            let failedCount = try context.fetchCount(failedDescriptor)
 
             return StorageStatistics(
                 totalMessages: totalCount,

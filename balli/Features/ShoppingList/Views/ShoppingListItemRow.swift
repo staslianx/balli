@@ -39,27 +39,27 @@ struct ShoppingListItemRow: View {
                     // Item name and quantity
                     HStack {
                         Text(item.displayName)
-                            .font(.system(size: 28, weight: .semibold, design: .rounded))
+                            .font(.system(size: 25, weight: .semibold, design: .rounded))
                             .foregroundColor(isCompleted ? .secondary : .primary)
                             .strikethrough(isCompleted)
                             .animation(.easeInOut(duration: 0.2), value: isCompleted)
-                        
+
                         Spacer()
-                        
+
                         // Category icon
                         Text(item.categoryIcon)
                             .font(.caption)
                     }
-                    
+
                     // Category and brand
                     HStack {
                         Text(item.displayCategory)
-                            .font(.system(size: 12, weight: .regular, design: .rounded))
+                            .font(.system(size: 9, weight: .regular, design: .rounded))
                             .foregroundColor(.secondary)
-                        
+
                         if let brand = item.brand, !brand.isEmpty {
                             Text("• \(brand)")
-                                .font(.system(size: 12, weight: .regular, design: .rounded))
+                                .font(.system(size: 9, weight: .regular, design: .rounded))
                                 .foregroundColor(.secondary)
                         }
                         
@@ -91,7 +91,7 @@ struct ShoppingListItemRow: View {
                     // Completion date for completed items
                     if isCompleted, let completedDate = item.dateCompleted {
                         Text(completedDate, style: .relative)
-                            .font(.system(size: 12, weight: .regular, design: .rounded))
+                            .font(.system(size: 9, weight: .regular, design: .rounded))
                             .foregroundColor(.secondary.opacity(0.7))
                             .italic()
                     }
@@ -133,18 +133,18 @@ struct ShoppingListItemRow: View {
                         Image(systemName: "note.text")
                             .font(.caption)
                             .foregroundColor(.secondary)
-                        
+
                         Text("Notlar:")
-                            .font(.system(size: 12, weight: .regular, design: .rounded))
+                            .font(.system(size: 9, weight: .regular, design: .rounded))
                             .foregroundColor(.secondary)
                             .fontWeight(.medium)
-                        
+
                         Spacer()
                     }
                     .padding(.horizontal, ResponsiveDesign.Spacing.medium)
-                    
+
                     Text(item.notes ?? "")
-                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                        .font(.system(size: 13, weight: .regular, design: .rounded))
                         .foregroundColor(.primary)
                         .padding(.horizontal, ResponsiveDesign.Spacing.medium)
                         .padding(.bottom, ResponsiveDesign.Spacing.small)

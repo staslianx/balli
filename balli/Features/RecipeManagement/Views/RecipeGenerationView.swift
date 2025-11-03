@@ -18,6 +18,8 @@ struct RecipeGenerationView: View {
     @StateObject private var actionsHandler = RecipeGenerationActionsHandler()
     @StateObject private var loadingHandler = LoadingAnimationHandler()
 
+    private let helper = RecipeGenerationViewHelper()
+
     @State private var showingMealSelection = false
     @State private var showingNutritionModal = false
     @State private var selectedMealType = "Kahvaltı"
@@ -110,6 +112,7 @@ struct RecipeGenerationView: View {
                                     }
                                 }
                             )
+                            .ignoresSafeArea(edges: .top)
 
                             // Spacer to accommodate story card overlap
                             Spacer()
@@ -126,7 +129,7 @@ struct RecipeGenerationView: View {
                                 }
                                 .padding(.horizontal, 20)
                                 .padding(.top, 0)
-                                .padding(.bottom, 32)
+                                .padding(.bottom, 16)
 
                                 // Recipe content (markdown or manual input)
                                 RecipeGenerationContentSection(
@@ -239,7 +242,8 @@ struct RecipeGenerationView: View {
                 fatPerServing: viewModel.fatPerServing,
                 glycemicLoadPerServing: viewModel.glycemicLoadPerServing,
                 totalRecipeWeight: viewModel.totalRecipeWeight,
-                digestionTiming: viewModel.digestionTiming
+                digestionTiming: viewModel.digestionTiming,
+                portionMultiplier: $viewModel.portionMultiplier
             )
             .presentationDetents([.large])
         }
@@ -314,56 +318,19 @@ struct RecipeGenerationView: View {
     }
 
     private func buildManualRecipeContent() {
-        var sections: [String] = []
+        let result = helper.buildManualRecipeContent(
+            ingredients: manualIngredients,
+            steps: manualSteps
+        )
 
-        if !manualIngredients.isEmpty {
-            var ingredientLines = ["## Malzemeler", "---"]
-            ingredientLines.append(contentsOf: manualIngredients.map { "- \($0.text)" })
-            sections.append(ingredientLines.joined(separator: "\n"))
-        }
-
-        if !manualSteps.isEmpty {
-            var stepLines = ["## Yapılışı", "---"]
-            stepLines.append(contentsOf: manualSteps.enumerated().map { "\($0.offset + 1). \($0.element.text)" })
-            sections.append(stepLines.joined(separator: "\n"))
-        }
-
-        viewModel.recipeContent = sections.joined(separator: "\n\n")
-        viewModel.ingredients = manualIngredients.map { $0.text }
-        viewModel.directions = manualSteps.map { $0.text }
+        viewModel.recipeContent = result.content
+        viewModel.ingredients = result.ingredientList
+        viewModel.directions = result.directions
     }
 
     /// Generate a default name for manually entered recipes
     private func generateDefaultRecipeName() -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "dd MMM"
-        dateFormatter.locale = Locale(identifier: "tr_TR")
-        let dateString = dateFormatter.string(from: Date())
-
-        // Try to infer recipe type from first ingredient
-        if let firstIngredient = manualIngredients.first?.text.lowercased() {
-            let ingredientWords = firstIngredient.components(separatedBy: " ")
-            let commonIngredients = [
-                "tavuk": "Tavuk",
-                "balık": "Balık",
-                "et": "Et",
-                "sebze": "Sebze",
-                "salata": "Salata",
-                "çorba": "Çorba",
-                "makarna": "Makarna",
-                "pilav": "Pilav",
-                "börek": "Börek",
-                "tatlı": "Tatlı"
-            ]
-
-            for (key, value) in commonIngredients {
-                if ingredientWords.contains(key) {
-                    return "\(value) Tarifi - \(dateString)"
-                }
-            }
-        }
-
-        return "Manuel Tarif - \(dateString)"
+        return helper.generateDefaultRecipeName(from: manualIngredients)
     }
 
     // MARK: - Photo Generation
@@ -384,9 +351,11 @@ struct RecipeGenerationView: View {
     private func handleStoryCardTap() {
         logger.info("🔍 [STORY] Story card tapped")
 
-        let hasNutrition = !viewModel.calories.isEmpty &&
-                          !viewModel.carbohydrates.isEmpty &&
-                          !viewModel.protein.isEmpty
+        let hasNutrition = helper.hasNutritionData(
+            calories: viewModel.calories,
+            carbohydrates: viewModel.carbohydrates,
+            protein: viewModel.protein
+        )
 
         if hasNutrition {
             logger.info("✅ [STORY] Nutrition data exists, showing modal")

@@ -39,17 +39,18 @@ final class ResearchSearchCoordinator {
             "klinik", "clinical", "deneme", "trial"
         ]
 
+        // Variables for future tier prediction logic (currently disabled)
         // Check for Pro tier keywords
-        let hasProKeyword = proKeywords.contains { lowercaseQuery.contains($0) }
+        let _ = proKeywords.contains { lowercaseQuery.contains($0) }
 
         // Check query length (longer queries often need comprehensive research)
-        let isLongQuery = query.count > 60
+        let _ = query.count > 60
 
         // Check for question words that indicate decision-making
-        let hasDecisionQuestion = lowercaseQuery.contains("meli") || // "geçmeli", "kullanmalı"
-                                  lowercaseQuery.contains("should") ||
-                                  lowercaseQuery.contains("hangisi") ||
-                                  lowercaseQuery.contains("which")
+        let _ = lowercaseQuery.contains("meli") || // "geçmeli", "kullanmalı"
+                lowercaseQuery.contains("should") ||
+                lowercaseQuery.contains("hangisi") ||
+                lowercaseQuery.contains("which")
 
         // TEMPORARILY DISABLED: Deep Research (T3) tier
         // TODO: Re-enable after fixing deep research issues

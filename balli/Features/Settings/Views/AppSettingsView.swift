@@ -66,7 +66,7 @@ struct AppSettingsView: View {
                             Text("TEST")
                                 .font(.system(size: 12, weight: .regular, design: .rounded))
                                 .fontWeight(.bold)
-                                .foregroundColor(.white)
+                                .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2)
                                 .background(Color.orange)
@@ -113,6 +113,19 @@ struct AppSettingsView: View {
                     .foregroundStyle(.red)
                 }
 
+                // Appearance Section
+                Section("Görünüm") {
+                    Picker("Tema", selection: $selectedTheme) {
+                        ForEach(themes, id: \.self) { theme in
+                            Text(theme).tag(theme)
+                        }
+                    }
+                    .tint(AppTheme.primaryPurple)
+                    .onChange(of: selectedTheme) { _, newValue in
+                        updateAppearance(newValue)
+                    }
+                }
+
                 // Health & Data Section
                 Section("Sağlık & Veri") {
                     NavigationLink(destination: HealthKitManagerView()) {
@@ -130,11 +143,6 @@ struct AppSettingsView: View {
                     }
                     .tint(AppTheme.primaryPurple)
 
-                    NavigationLink(destination: DexcomDiagnosticsView()) {
-                        Label("Dexcom Diagnostics", systemImage: "stethoscope")
-                    }
-                    .tint(AppTheme.primaryPurple)
-
                     Toggle(isOn: $notificationsEnabled) {
                         Label("Bildirimler", systemImage: "bell.fill")
                     }
@@ -142,6 +150,19 @@ struct AppSettingsView: View {
 
                     NavigationLink(destination: ExportDataView()) {
                         Label("Verileri Dışarı Aktar", systemImage: "square.and.arrow.up.fill")
+                    }
+                    .tint(AppTheme.primaryPurple)
+                }
+
+                // Diagnostics Section
+                Section("Tanı") {
+                    NavigationLink(destination: DexcomDiagnosticsView()) {
+                        Label("Dexcom Tanılama", systemImage: "stethoscope")
+                    }
+                    .tint(AppTheme.primaryPurple)
+
+                    NavigationLink(destination: AIDiagnosticsView()) {
+                        Label("AI İşlemleri Tanılama", systemImage: "brain")
                     }
                     .tint(AppTheme.primaryPurple)
                 }
@@ -404,7 +425,7 @@ struct AppSettingsView: View {
                                 .font(.system(size: 12, weight: .regular, design: .rounded))
                                 .fontWeight(.medium)
                         }
-                        .foregroundColor(userManager.currentUser == user ? .white : .primary)
+                        .foregroundColor(userManager.currentUser == user ? AppTheme.foregroundOnColor(for: colorScheme) : .primary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(
@@ -926,6 +947,8 @@ struct DataPrivacyRow: View {
 }
 
 struct ExportDataView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         VStack(spacing: ResponsiveDesign.Spacing.large) {
             Image(systemName: "square.and.arrow.up")
@@ -946,7 +969,7 @@ struct ExportDataView: View {
             }) {
                 Text("Verileri Dışa Aktar")
                     .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(AppTheme.primaryPurple)

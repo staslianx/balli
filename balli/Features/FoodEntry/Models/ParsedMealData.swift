@@ -20,6 +20,11 @@ struct ParsedMealData: Sendable {
     let foods: [ParsedFoodItem]?
     let confidence: String?
 
+    // Insulin fields
+    let insulinDosage: Double?
+    let insulinType: String?
+    let insulinName: String?
+
     // MARK: - Initializers
 
     /// Legacy initializer for Apple Speech Recognition
@@ -30,6 +35,9 @@ struct ParsedMealData: Sendable {
         self.transcription = nil
         self.foods = nil
         self.confidence = nil
+        self.insulinDosage = nil
+        self.insulinType = nil
+        self.insulinName = nil
     }
 
     /// Gemini initializer with full meal data
@@ -39,13 +47,19 @@ struct ParsedMealData: Sendable {
         totalCarbs: Int,
         mealType: String,
         mealTime: String?,
-        confidence: String
+        confidence: String,
+        insulinDosage: Double? = nil,
+        insulinType: String? = nil,
+        insulinName: String? = nil
     ) {
         self.transcription = transcription
         self.foods = foods
         self.carbsGrams = totalCarbs
         self.mealType = mealType
         self.confidence = confidence
+        self.insulinDosage = insulinDosage
+        self.insulinType = insulinType
+        self.insulinName = insulinName
 
         // Parse mealTime if provided
         if let timeString = mealTime {
@@ -81,6 +95,9 @@ struct ParsedMealData: Sendable {
         self.mealType = response.mealType
         self.confidence = response.confidence
         self.timestamp = parsedTimestamp
+        self.insulinDosage = response.insulinDosage
+        self.insulinType = response.insulinType
+        self.insulinName = response.insulinName
     }
 
     // MARK: - Computed Properties

@@ -189,7 +189,7 @@ class ResearchStreamingAPIClient {
             let remainingBufferSize = await streamParser.getDataBufferSize()
             if remainingBufferSize > 0 {
                 streamingLogger.warning("⚠️ Stream ended with \(remainingBufferSize) bytes in buffer")
-                await streamParser.processDataBuffer()
+                _ = await streamParser.processDataBuffer()
 
                 // Process any remaining events
                 let remainingEvents = await streamParser.processCompleteEvents()

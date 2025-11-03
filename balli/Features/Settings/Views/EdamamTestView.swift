@@ -147,7 +147,7 @@ struct EdamamTestView: View {
             }) {
                 Label("Start Test", systemImage: "play.fill")
                     .font(.system(size: 17, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(ThemeColors.primaryPurple)

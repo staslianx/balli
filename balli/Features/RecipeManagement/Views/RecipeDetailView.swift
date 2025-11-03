@@ -80,6 +80,11 @@ struct RecipeDetailView: View {
 
     var body: some View {
         GeometryReader { geometry in
+            // Calculate consistent hero image height (50% of screen including safe area)
+            let safeAreaTop = geometry.safeAreaInsets.top
+            let screenHeight = geometry.size.height + safeAreaTop
+            let heroImageHeight = screenHeight * 0.5
+
             ZStack {
                 ScrollView {
                     ZStack(alignment: .top) {
@@ -93,6 +98,7 @@ struct RecipeDetailView: View {
                                 isGeneratingPhoto: isGeneratingPhoto,
                                 onGeneratePhoto: generatePhoto
                             )
+                            .ignoresSafeArea(edges: .top)
 
                             // Spacer to accommodate story card overlap
                             Spacer()
@@ -109,7 +115,7 @@ struct RecipeDetailView: View {
                                 )
                                 .padding(.horizontal, 20)
                                 .padding(.top, 0)
-                                .padding(.bottom, 32)
+                                .padding(.bottom, 16)
 
                                 // Recipe Content (Ingredients + Instructions)
                                 RecipeContentSection(
@@ -128,7 +134,7 @@ struct RecipeDetailView: View {
                             Spacer(minLength: 0)
 
                             RecipeMetadataSection(
-                                recipeSource: recipeData.recipe.source ?? "manual",
+                                recipeSource: recipeData.recipe.source,
                                 author: recipeData.author,
                                 recipeName: recipeData.recipeName,
                                 isEditing: isEditing,
@@ -137,13 +143,13 @@ struct RecipeDetailView: View {
                             .padding(.horizontal, 20)
                             .padding(.bottom, 12)
                         }
-                        .frame(height: UIScreen.main.bounds.height * 0.5 - 49)
+                        .frame(height: heroImageHeight - 49)
 
                         // Story card - positioned absolutely at fixed offset
                         if recipeData.hasStory {
                             VStack(spacing: 0) {
                                 Spacer()
-                                    .frame(height: UIScreen.main.bounds.height * 0.5 - 49)
+                                    .frame(height: heroImageHeight - 49)
 
                                 RecipeStoryCardSection(
                                     hasStory: recipeData.hasStory,
@@ -238,7 +244,16 @@ struct RecipeDetailView: View {
                 fatPerServing: String(format: "%.1f", recipeData.recipe.fatPerServing),
                 glycemicLoadPerServing: String(format: "%.0f", recipeData.recipe.glycemicLoadPerServing),
                 totalRecipeWeight: String(format: "%.0f", recipeData.recipe.totalRecipeWeight),
-                digestionTiming: digestionTimingInsights
+                digestionTiming: digestionTimingInsights,
+                portionMultiplier: Binding(
+                    get: { recipeData.recipe.portionMultiplier },
+                    set: { newValue in
+                        recipeData.recipe.portionMultiplier = newValue
+                        Task { @MainActor in
+                            savePortionMultiplier()
+                        }
+                    }
+                )
             )
             .presentationDetents([.large])
         }
@@ -442,7 +457,7 @@ struct RecipeDetailView: View {
                     return
                 }
 
-                let updatedSent = try await dataManager.addIngredientsToShoppingList(
+                _ = try await dataManager.addIngredientsToShoppingList(
                     ingredients: ingredients,
                     sentIngredients: [],
                     recipeName: recipeData.recipeName,
@@ -639,6 +654,19 @@ struct RecipeDetailView: View {
             logger.info("✅ [NOTES] User notes saved successfully")
         } catch {
             logger.error("❌ [NOTES] Failed to save notes: \(error.localizedDescription)")
+            ErrorHandler.shared.handle(error)
+        }
+    }
+
+    // MARK: - Save Portion Multiplier
+
+    @MainActor
+    private func savePortionMultiplier() {
+        do {
+            try viewContext.save()
+            logger.info("✅ [NUTRITION] Portion multiplier saved: \(recipeData.recipe.portionMultiplier)")
+        } catch {
+            logger.error("❌ [NUTRITION] Failed to save portion multiplier: \(error.localizedDescription)")
             ErrorHandler.shared.handle(error)
         }
     }

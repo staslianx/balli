@@ -19,7 +19,6 @@ struct AIResultView: View {
     @StateObject private var viewModel: AIResultViewModel
     
     // UI States
-    @State private var showingSaveConfirmation = false
     @State private var showingValidationAlert = false
     @State private var toastMessage: ToastType? = nil
 
@@ -195,13 +194,6 @@ struct AIResultView: View {
                 }
             }
         }
-        .alert("Ardiye'ye Kaydedildi", isPresented: $showingSaveConfirmation) {
-            Button("Tamam") {
-                dismiss()
-            }
-        } message: {
-            Text("\(viewModel.formState.productName.isEmpty ? "Ürün" : viewModel.formState.productName) başarıyla Ardiye'ye kaydedildi.")
-        }
         .onChange(of: viewModel.uiState.validationErrors) { _, newErrors in
             if !newErrors.isEmpty {
                 showingValidationAlert = true
@@ -221,7 +213,6 @@ struct AIResultView: View {
     private func handleSave() {
         viewModel.saveFood(in: viewContext) {
             toastMessage = .success("Kaydedildi")
-            showingSaveConfirmation = true
         }
     }
     

@@ -13,6 +13,7 @@ import os.log
 @MainActor
 class DataHealthMonitor {
     private let logger = os.Logger(subsystem: "com.balli.diabetes", category: "DataHealth")
+    private let checker = DataHealthChecker()
 
     // Health metrics
     private var lastCheckDate: Date?
@@ -24,7 +25,7 @@ class DataHealthMonitor {
 
     // Observer cleanup
     nonisolated(unsafe) private var saveObserver: (any NSObjectProtocol)?
-    
+
     // Thresholds
     private let maxDatabaseSize: Int64 = 100_000_000 // 100 MB
     private let maxOrphanedObjects = 100
@@ -58,7 +59,7 @@ class DataHealthMonitor {
         }
         
         // Check database size
-        let databaseSize = await checkDatabaseSize(at: storeURL)
+        let databaseSize = await checker.checkDatabaseSize(at: storeURL)
         if databaseSize > maxDatabaseSize {
             issues.append(DataHealthIssue(
                 type: .excessiveSize,
@@ -67,9 +68,9 @@ class DataHealthMonitor {
                 affectedCount: 0
             ))
         }
-        
+
         // Check for orphaned objects
-        let orphanedCount = await checkOrphanedObjects(in: container)
+        let orphanedCount = await checker.checkOrphanedObjects(in: container)
         if orphanedCount > maxOrphanedObjects {
             issues.append(DataHealthIssue(
                 type: .orphanedData,
@@ -78,9 +79,9 @@ class DataHealthMonitor {
                 affectedCount: orphanedCount
             ))
         }
-        
+
         // Check relationship consistency
-        let inconsistentCount = await checkRelationshipConsistency(in: container)
+        let inconsistentCount = await checker.checkRelationshipConsistency(in: container)
         if inconsistentCount > 0 {
             issues.append(DataHealthIssue(
                 type: .inconsistentRelationships,
@@ -89,9 +90,9 @@ class DataHealthMonitor {
                 affectedCount: inconsistentCount
             ))
         }
-        
+
         // Calculate fragmentation
-        let fragmentation = await calculateFragmentation(at: storeURL)
+        let fragmentation = await checker.calculateFragmentation(at: storeURL)
         if fragmentation > maxFragmentation {
             issues.append(DataHealthIssue(
                 type: .excessiveSize,
@@ -113,7 +114,7 @@ class DataHealthMonitor {
         }
         
         // Get entity counts
-        let entityCounts = await getEntityCounts(in: container)
+        let entityCounts = await checker.getEntityCounts(in: container)
         
         // Create health metrics
         let metrics = DataHealthMetrics(
@@ -170,69 +171,7 @@ class DataHealthMonitor {
     }
     
     // MARK: - Private Methods
-    
-    private func checkDatabaseSize(at url: URL) async -> Int64 {
-        do {
-            let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
-            let size = attributes[.size] as? Int64 ?? 0
-            
-            // Also check WAL and SHM files
-            let walURL = url.appendingPathExtension("wal")
-            let shmURL = url.appendingPathExtension("shm")
-            
-            let walSize = (try? FileManager.default.attributesOfItem(atPath: walURL.path)[.size] as? Int64) ?? 0
-            let shmSize = (try? FileManager.default.attributesOfItem(atPath: shmURL.path)[.size] as? Int64) ?? 0
-            
-            return size + walSize + shmSize
-        } catch {
-            logger.error("Failed to check database size: \(error)")
-            return 0
-        }
-    }
-    
-    private func checkOrphanedObjects(in container: NSPersistentContainer) async -> Int {
-        // Check for objects without required relationships
-        // This is simplified - real implementation would check specific entities
 
-        let orphanedCount = 0 // Note: Proper orphan detection requires Swift 6 concurrency implementation
-
-        return orphanedCount
-    }
-    
-    private func checkRelationshipConsistency(in container: NSPersistentContainer) async -> Int {
-        // Check for inconsistent relationships
-        let inconsistentCount = 0 // Note: Proper relationship consistency check requires Swift 6 concurrency implementation
-
-        return inconsistentCount
-    }
-    
-    private func calculateFragmentation(at url: URL) async -> Double {
-        // Calculate fragmentation based on file size vs actual data
-        // This is a simplified calculation
-        
-        do {
-            let fileSize = try FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64 ?? 0
-            
-            // Estimate actual data size (this would need actual implementation)
-            // For now, return a mock value
-            let estimatedDataSize = Int64(Double(fileSize) * 0.85)
-            
-            if fileSize > 0 {
-                return 1.0 - (Double(estimatedDataSize) / Double(fileSize))
-            }
-        } catch {
-            logger.error("Failed to calculate fragmentation: \(error)")
-        }
-        
-        return 0.0
-    }
-    
-    private func getEntityCounts(in container: NSPersistentContainer) async -> [String: Int] {
-        let counts: [String: Int] = [:] // Note: Proper entity counting requires Swift 6 concurrency implementation
-
-        return counts
-    }
-    
     private func setupNotificationMonitoring() {
         // Monitor save notifications
         saveObserver = NotificationCenter.default.addObserver(

@@ -37,9 +37,10 @@ struct RecipeShoppingSection: View {
         HStack(spacing: ResponsiveDesign.Spacing.medium) {
             // Checkbox for marking entire recipe as complete
             Button(action: {
-                // Toggle all items in recipe
+                // Toggle all items in recipe to match the target state
+                let targetState = !allItemsCompleted
                 for item in items {
-                    if item.isCompleted != allItemsCompleted {
+                    if item.isCompleted != targetState {
                         onItemToggle(item)
                     }
                 }
@@ -65,7 +66,7 @@ struct RecipeShoppingSection: View {
                 HStack {
                     VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xxSmall) {
                         Text(recipeName)
-                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
                             .fontWeight(.semibold)
                             .foregroundColor(.primary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -73,7 +74,7 @@ struct RecipeShoppingSection: View {
                         // Show ingredient count
                         if uncheckedItems.count > 0 {
                             Text("\(uncheckedItems.count) malzeme")
-                                .font(.system(size: 12, weight: .regular, design: .rounded))
+                                .font(.system(size: 9, weight: .regular, design: .rounded))
                                 .foregroundColor(.secondary)
                         }
                     }
@@ -81,7 +82,7 @@ struct RecipeShoppingSection: View {
                     // Tarif badge button - custom purple fill
                     Button(action: { showIngredientsSheet = true }) {
                         Text("Tarif")
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundColor(.white)
                             .padding(.horizontal, ResponsiveDesign.width(12))
                             .padding(.vertical, ResponsiveDesign.height(6))
@@ -296,7 +297,7 @@ struct RecipeItemRow: View {
                 HStack {
                     VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xxSmall) {
                         Text(item.name)
-                            .font(.system(size: 20, weight: .semibold, design: .rounded))
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
                             .fontWeight(.semibold)
                             .foregroundColor(item.isCompleted ? .secondary : .primary)
                             .strikethrough(item.isCompleted)
@@ -309,7 +310,7 @@ struct RecipeItemRow: View {
                         // Note display
                         if let notes = item.notes, !notes.isEmpty {
                             Text(notes)
-                                .font(.system(size: 12, weight: .regular, design: .rounded))
+                                .font(.system(size: 9, weight: .regular, design: .rounded))
                                 .foregroundColor(.secondary)
                                 .italic()
                         }
@@ -318,7 +319,7 @@ struct RecipeItemRow: View {
                     // Quantity display with bordered prominent style (like a pill)
                     if isEditingQuantity {
                         TextField("x1", text: $editedQuantity)
-                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)
                             .focused($isQuantityFocused)
@@ -341,7 +342,7 @@ struct RecipeItemRow: View {
                     } else if let quantity = item.quantity, !quantity.isEmpty {
                         Button(action: { startEditingQuantity() }) {
                             Text(quantity)
-                                .font(.system(size: 15, weight: .semibold, design: .rounded))
+                                .font(.system(size: 12, weight: .semibold, design: .rounded))
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(AppTheme.primaryPurple)

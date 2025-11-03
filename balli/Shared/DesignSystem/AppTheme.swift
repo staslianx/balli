@@ -75,6 +75,15 @@ struct AppTheme {
         ThemeColors.adaptiveBalliGradient(for: colorScheme)
     }
 
+    // Adaptive foreground/background helpers
+    static func foregroundOnColor(for colorScheme: ColorScheme) -> Color {
+        ThemeColors.foregroundOnColor(for: colorScheme)
+    }
+
+    static func overlayBackground(for colorScheme: ColorScheme) -> Color {
+        ThemeColors.overlayBackground(for: colorScheme)
+    }
+
     // MARK: - Spacing (from ThemeSpacing)
     typealias Spacing = ThemeSpacing
 

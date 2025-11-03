@@ -36,6 +36,7 @@ private struct ColorCircle: View {
     let color: TextHighlight.HighlightColor
     let isSelected: Bool
     let action: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         Button(action: action) {
@@ -57,8 +58,8 @@ private struct ColorCircle: View {
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 20, weight: .bold))
-                        .foregroundStyle(.white)
-                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
+                        .foregroundStyle(AppTheme.foregroundOnColor(for: colorScheme))
+                        .shadow(color: Color.primary.opacity(0.3), radius: 2, x: 0, y: 1)
                 }
             }
         }

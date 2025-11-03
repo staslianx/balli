@@ -15,13 +15,6 @@ extension Persistence {
 /// Refactored persistence controller that coordinates between specialized components
 public final class PersistenceController: @unchecked Sendable {
 
-    // MARK: - Constants
-
-    private enum Constants {
-        static let backgroundOperationTimeoutNanoseconds: UInt64 = 5_000_000_000  // 5 seconds
-        static let backgroundCheckIntervalNanoseconds: UInt64 = 100_000_000       // 0.1 seconds
-    }
-
     // MARK: - Singleton
 
     public static let shared = PersistenceController()
@@ -32,27 +25,28 @@ public final class PersistenceController: @unchecked Sendable {
     private let coreDataStack: CoreDataStack
     private var migrationManager: MigrationManager!
     private var monitor: PersistenceMonitor!
+    private var operations: PersistenceOperations!
+    private var lifecycleManager: PersistenceLifecycleManager!
     private let isReadyStorage = AtomicBool(false)
     private let errorHandler = PersistenceErrorHandler()
-    
+
     public var viewContext: NSManagedObjectContext {
         coreDataStack.viewContext
     }
-    
+
     public var container: NSPersistentContainer {
         coreDataStack.container
     }
-    
+
     /// Indicates if Core Data stores are loaded and ready
     public var isReady: Bool {
         get async {
             return await isReadyStorage.value
         }
     }
-    
+
     // State tracking
     private var saveTask: Task<Void, Never>?
-    private var isPerformingBackgroundWork = false
     
     // MARK: - Initialization
 
@@ -114,6 +108,9 @@ public final class PersistenceController: @unchecked Sendable {
         // Configure contexts after stores are loaded
         self.coreDataStack.configureContexts()
 
+        // Initialize operations first (no dependencies)
+        self.operations = PersistenceOperations(coreDataStack: self.coreDataStack)
+
         // Initialize migration manager and monitor
         let container = self.coreDataStack.container
 
@@ -121,6 +118,13 @@ public final class PersistenceController: @unchecked Sendable {
             self.migrationManager = MigrationManager(container: container)
             self.monitor = PersistenceMonitor(container: container)
         }.value
+
+        // Initialize lifecycle manager (depends on monitor)
+        self.lifecycleManager = PersistenceLifecycleManager(
+            coreDataStack: self.coreDataStack,
+            monitor: self.monitor,
+            errorHandler: self.errorHandler
+        )
 
         // Setup notifications
         await MainActor.run {
@@ -142,27 +146,16 @@ public final class PersistenceController: @unchecked Sendable {
     }
     
     // MARK: - Notification Handling
-    
+
     private func setupNotifications() {
-        coreDataStack.setupNotifications(
-            remoteChangeHandler: { [weak self] notification in
-                Task {
-                    await self?.processRemoteChanges()
-                }
+        lifecycleManager.setupNotifications(
+            onRemoteChange: { [weak self] in
+                await self?.processRemoteChanges()
             },
-            backgroundSaveHandler: { [weak self] notification in
-                guard let self = self else { return }
-                // Merge changes immediately
-                // Note: Notification is not Sendable but safe here because it's used immediately
-                nonisolated(unsafe) let capturedNotification = notification
-                self.viewContext.perform {
-                    // Merge directly from notification within perform block
-                    self.viewContext.mergeChanges(fromContextDidSave: capturedNotification)
-                }
-            }
+            viewContext: viewContext
         )
     }
-    
+
     private func processRemoteChanges() async {
         logger.debug("Processing remote changes")
         await MainActor.run {
@@ -232,105 +225,72 @@ public final class PersistenceController: @unchecked Sendable {
             logger.warning("Background task attempted before Core Data is ready")
             throw CoreDataError.contextUnavailable
         }
-        
-        isPerformingBackgroundWork = true
-        defer { isPerformingBackgroundWork = false }
-        
-        logger.debug("Starting background task")
-        
-        let taskContext = coreDataStack.createBackgroundContext()
-        
-        guard let coordinator = taskContext.persistentStoreCoordinator,
-              !coordinator.persistentStores.isEmpty else {
-            logger.error("Background context not ready")
-            throw CoreDataError.contextUnavailable
-        }
-        
-        // Execute block with proper async handling
-        return try await withCheckedThrowingContinuation { continuation in
-            // Run the async block in a detached task to avoid capturing actor context
-            Task.detached {
-                do {
-                    let result = try await block(taskContext)
-                    continuation.resume(returning: result)
-                } catch {
-                    continuation.resume(throwing: error)
-                }
-            }
-        }
+
+        return try await operations.performBackgroundTask(block)
     }
     
     // MARK: - Batch Operations
-    
+
     public func batchDelete<T: NSManagedObject>(
         _ type: T.Type,
         predicate: NSPredicate? = nil
     ) async throws -> Int {
-        logger.info("Performing batch delete for \(String(describing: type))")
-        
-        // Create a sendable representation of the predicate
-        let predicateFormat = predicate?.predicateFormat
-        return try await performBackgroundTask { context in
-            let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: String(describing: type))
-            if let format = predicateFormat {
-                fetchRequest.predicate = NSPredicate(format: format)
+        return try await operations.batchDelete(
+            type,
+            predicate: predicate,
+            viewContext: viewContext,
+            onLogOperation: { [weak self] operation, success in
+                await self?.logOperation(operation, success: success)
             }
-            
-            let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
-            deleteRequest.resultType = .resultTypeCount
-            
-            let result = try context.execute(deleteRequest) as? NSBatchDeleteResult
-            let count = result?.result as? Int ?? 0
-            
-            // Merge changes
-            let changes: [AnyHashable: Any] = [
-                NSDeletedObjectsKey: [result?.result ?? NSManagedObjectID()]
-            ]
-            NSManagedObjectContext.mergeChanges(
-                fromRemoteContextSave: changes,
-                into: [self.viewContext]
-            )
-            
-            await self.logOperation("Batch delete \(type)", success: true)
-            
-            return count
-        }
+        )
     }
     
     // MARK: - State Management
-    
+
     public func prepareForBackground() async {
-        logger.info("Preparing for background")
-        
-        if viewContext.hasChanges {
-            try? await save()
-        }
-        
-        if isPerformingBackgroundWork {
-            await waitForBackgroundOperations()
-        }
-        
-        viewContext.refreshAllObjects()
+        await lifecycleManager.prepareForBackground(
+            viewContext: viewContext,
+            isBackgroundWorkInProgress: operations.isBackgroundWorkInProgress,
+            onSave: { [weak self] in
+                try await self?.save()
+            },
+            onWaitForBackgroundOperations: { [weak self] in
+                await self?.operations.waitForBackgroundOperations()
+            }
+        )
     }
     
     public func handleMemoryPressure() async {
+        guard await isReady else {
+            logger.warning("handleMemoryPressure called before Core Data ready")
+            return
+        }
+
         await Task { @PersistenceActor in
-            await self.monitor.handleMemoryPressure()
+            await self.lifecycleManager.handleMemoryPressure(viewContext: self.viewContext)
         }.value
-        
-        viewContext.refreshAllObjects()
     }
     
     // MARK: - Health Monitoring
     
     public func checkHealth() async -> DataHealth {
-        await Task { @PersistenceActor in
+        guard await isReady else {
+            logger.warning("checkHealth called before Core Data ready")
+            return DataHealth(isHealthy: false)
+        }
+
+        return await Task { @PersistenceActor in
             await self.monitor.checkHealth()
         }.value
     }
     
     public func getMetrics() async -> HealthMetrics {
-        await Task { @PersistenceActor in
+        guard await isReady else {
+            logger.warning("getMetrics called before Core Data ready")
+            return HealthMetrics()
+        }
+
+        return await Task { @PersistenceActor in
             await self.monitor.getMetrics()
         }.value
     }
@@ -338,12 +298,22 @@ public final class PersistenceController: @unchecked Sendable {
     // MARK: - Migration
     
     public func checkMigrationNeeded() async throws -> Bool {
-        try await Task { @PersistenceActor in
+        guard await isReady else {
+            logger.warning("checkMigrationNeeded called before Core Data ready")
+            throw CoreDataError.contextUnavailable
+        }
+
+        return try await Task { @PersistenceActor in
             try await self.migrationManager.checkMigrationNeeded()
         }.value
     }
     
     public func migrateStoreIfNeeded() async throws {
+        guard await isReady else {
+            logger.warning("migrateStoreIfNeeded called before Core Data ready")
+            throw CoreDataError.contextUnavailable
+        }
+
         try await Task { @PersistenceActor in
             try await self.migrationManager.migrateStoreIfNeeded()
         }.value
@@ -368,36 +338,7 @@ public final class PersistenceController: @unchecked Sendable {
         // Always create a new background context for safety in async operations
         return coreDataStack.createBackgroundContext()
     }
-    
-    private func waitForBackgroundOperations() async {
-        let timeout = Task {
-            try? await Task.sleep(nanoseconds: Constants.backgroundOperationTimeoutNanoseconds)
-            return false
-        }
 
-        let completed = Task {
-            while self.isPerformingBackgroundWork {
-                try? await Task.sleep(nanoseconds: Constants.backgroundCheckIntervalNanoseconds)
-            }
-            return true
-        }
-        
-        let result = await withTaskGroup(of: Bool.self) { group in
-            group.addTask { await timeout.value }
-            group.addTask { await completed.value }
-            
-            if let firstResult = await group.next() {
-                group.cancelAll()
-                return firstResult
-            }
-            return false
-        }
-        
-        if !result {
-            logger.warning("Background operations timed out")
-        }
-    }
-    
     private func logOperation(_ operation: String, success: Bool) async {
         await Task { @PersistenceActor in
             self.monitor.logOperation(operation, success: success)
