@@ -45,8 +45,113 @@ public final class RecipeGenerationCoordinator: ObservableObject {
 
     // MARK: - Recipe Generation
 
-    /// Generate recipe with AI
-    public func generateRecipe(mealType: String, styleType: String) async {
+    /// Smart router: Generate recipe with or without ingredients based on availability
+    /// - Parameters:
+    ///   - mealType: The type of meal (e.g., "Kahvaltı", "Akşam Yemeği")
+    ///   - styleType: The style subcategory for the meal type
+    ///   - ingredients: Optional array of ingredients user has on hand
+    ///   - userContext: Optional user notes/context (e.g., "diabetes-friendly tiramisu")
+    public func generateRecipeSmartRouting(
+        mealType: String,
+        styleType: String,
+        ingredients: [String]?,
+        userContext: String?
+    ) async {
+        // Smart routing based on ingredients availability
+        if let ingredients = ingredients, !ingredients.isEmpty {
+            logger.info("🧭 [ROUTER] Routing to INGREDIENTS-BASED generation with \(ingredients.count) ingredients")
+            await generateRecipeFromIngredients(
+                mealType: mealType,
+                styleType: styleType,
+                ingredients: ingredients,
+                userContext: userContext
+            )
+        } else {
+            logger.info("🧭 [ROUTER] Routing to SPONTANEOUS generation")
+            await generateRecipe(mealType: mealType, styleType: styleType, userContext: userContext)
+        }
+    }
+
+    /// Generate recipe from user-provided ingredients
+    /// - Parameters:
+    ///   - mealType: The type of meal (e.g., "Kahvaltı", "Akşam Yemeği")
+    ///   - styleType: The style subcategory for the meal type
+    ///   - ingredients: Available ingredients to use in the recipe
+    ///   - userContext: Optional user notes/context (e.g., "diabetes-friendly tiramisu")
+    public func generateRecipeFromIngredients(
+        mealType: String,
+        styleType: String,
+        ingredients: [String],
+        userContext: String?
+    ) async {
+        logger.info("📥 [COORDINATOR] generateRecipeFromIngredients called - mealType: \(mealType), styleType: \(styleType), ingredients: \(ingredients.joined(separator: ", "))")
+
+        isGenerating = true
+        animationController.startGenerationAnimation()
+        generationError = nil
+
+        do {
+            // Get user ID for personalization
+            let userId = getUserId()
+
+            logger.info("👤 [COORDINATOR] User ID resolved: \(userId)")
+            logger.info("🥕 [COORDINATOR] Using \(ingredients.count) ingredients: \(ingredients.joined(separator: ", "))")
+            if let context = userContext, !context.isEmpty {
+                logger.info("📝 [COORDINATOR] User context: '\(context)'")
+            }
+
+            let startTime = Date()
+
+            // Call ingredients-based generation service
+            let response = try await Task.detached(priority: .userInitiated) { [generationService] in
+                return try await generationService.generateRecipeFromIngredients(
+                    mealType: mealType,
+                    styleType: styleType,
+                    ingredients: ingredients,
+                    userId: userId,
+                    userContext: userContext
+                )
+            }.value
+
+            let duration = Date().timeIntervalSince(startTime)
+            logger.info("⏱️ [COORDINATOR] Recipe generation completed in \(String(format: "%.2f", duration))s")
+
+            // Back on MainActor for UI updates
+            logger.info("🍳 [COORDINATOR] Recipe generated successfully: \(response.recipeName)")
+
+            // Populate form state
+            formState.loadFromGenerationResponse(response)
+
+            // Record in memory using extracted ingredients from Cloud Functions
+            await recordRecipeInMemory(
+                mealType: mealType,
+                styleType: styleType,
+                extractedIngredients: response.extractedIngredients,
+                recipeName: response.recipeName
+            )
+
+            // Debug: Verify form state was populated
+            logger.info("📊 [DEBUG] Form state after loading:")
+            logger.info("   recipeName: '\(self.formState.recipeName)'")
+            logger.info("   ingredients count: \(self.formState.ingredients.count)")
+            logger.info("   directions count: \(self.formState.directions.count)")
+            logger.info("   hasRecipeData: \(self.formState.hasRecipeData)")
+
+            // Stop logo rotation
+            animationController.stopGenerationAnimation()
+
+            // Show photo button after successful generation
+            showPhotoButton = true
+
+        } catch {
+            await handleGenerationError(error)
+        }
+
+        isGenerating = false
+    }
+
+    /// Generate recipe with AI (spontaneous, no ingredients)
+    public func generateRecipe(mealType: String, styleType: String, userContext: String? = nil) async {
         logger.info("📥 [COORDINATOR] generateRecipe called - mealType: \(mealType), styleType: \(styleType)")
 
         isGenerating = true
@@ -82,6 +187,9 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             let diversityConstraints = await buildDiversityConstraints(mealType: mealType, styleType: styleType)
 
             logger.info("🚀 [COORDINATOR] Starting recipe generation - mealType: \(mealType), styleType: \(styleType), userId: \(userId), recentRecipesCount: \(recentRecipes.count)")
+            if let context = userContext, !context.isEmpty {
+                logger.info("📝 [COORDINATOR] User context: '\(context)'")
+            }
 
             let startTime = Date()
 
@@ -92,7 +200,8 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     styleType: styleType,
                     userId: userId,
                     recentRecipes: recentRecipes,
-                    diversityConstraints: diversityConstraints
+                    diversityConstraints: diversityConstraints,
+                    userContext: userContext
                 )
             }.value
 

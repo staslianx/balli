@@ -38,15 +38,16 @@ struct AIResultUIState: Sendable {
     // MARK: - Initialization
 
     /// Initialize for read-only mode (after analysis)
-    /// Shows label with impact banner, NO slider, only edit button
+    /// Shows label with impact banner WITH slider, only checkmark button
+    /// User lands directly in editable state to adjust portions immediately
     static func readOnly() -> AIResultUIState {
         AIResultUIState(
-            isEditing: false,
-            showEditButton: true,
+            isEditing: true,  // ✅ Start in edit mode so slider is visible
+            showEditButton: false,
             showSaveButtons: false,
             showImpactBanner: true,
             showingValues: true,
-            showSlider: false,  // ❌ No slider in read-only mode
+            showSlider: true,  // ✅ Show slider immediately after analysis
             isSaving: false,
             isSaveInProgress: false,
             validationErrors: [],

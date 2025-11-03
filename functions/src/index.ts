@@ -93,7 +93,8 @@ const generateRecipeFromIngredientsFlow = ai.defineFlow(
       ingredients: z.array(z.string()).describe('List of available ingredients'),
       mealType: z.string().describe('Type of meal (Kahvaltı, Akşam Yemeği, Salatalar, Tatlılar, Atıştırmalıklar)'),
       styleType: z.string().describe('Style subcategory for the meal type'),
-      userId: z.string().optional().describe('User ID for personalization')
+      userId: z.string().optional().describe('User ID for personalization'),
+      userContext: z.string().optional().describe('Optional user context or notes for recipe generation (e.g., "diabetes-friendly tiramisu")')
     }),
     outputSchema: z.object({
       recipeName: z.string(),
@@ -116,7 +117,8 @@ const generateRecipeFromIngredientsFlow = ai.defineFlow(
         mealType: input.mealType,
         styleType: input.styleType,
         ingredients: input.ingredients,
-        spontaneous: false
+        spontaneous: false,
+        userContext: input.userContext
       }, {
         model: getRecipeModel() // Use provider-specific model for caching
       });
@@ -530,7 +532,7 @@ export const generateSpontaneousRecipe = onRequest({
         return;
       }
 
-      const { mealType, memoryEntries, diversityConstraints } = req.body;
+      const { mealType, memoryEntries, diversityConstraints, userContext } = req.body;
       let { styleType, recentRecipes } = req.body;
 
       if (!mealType) {
@@ -591,7 +593,8 @@ export const generateSpontaneousRecipe = onRequest({
           styleType,
           spontaneous: true,
           recentRecipes: recentRecipes || [],
-          diversityConstraints: diversityConstraints || undefined
+          diversityConstraints: diversityConstraints || undefined,
+          userContext: userContext
         }, {
           model: getRecipeModel() // Use provider-specific model for caching
         });

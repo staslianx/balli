@@ -45,76 +45,121 @@ struct NutritionalValuesView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.medium) {
                     // Segmented Picker
                     Picker("Nutrition Mode", selection: $selectedTab) {
                         Text("Porsiyon").tag(0)
                         Text("100g").tag(1)
                     }
                     .pickerStyle(.segmented)
-                    .padding(.bottom, 8)
 
                     // Portion Stepper (only show in Porsiyon tab)
                     if selectedTab == 0 {
                         portionStepperView
-                            .padding(.bottom, 8)
                     }
 
-                    // Info Text
-                    infoText
-                        .font(.system(size: 15, weight: .regular, design: .rounded))
-                        .foregroundColor(.secondary)
-                        .padding(.bottom, 8)
+                    // Main Card Container - matching LoggedMealsView style
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Info Text Header
+                        infoText
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                            .padding(.top, ResponsiveDesign.Spacing.medium)
+                            .padding(.bottom, ResponsiveDesign.Spacing.small)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                    // Nutritional Values Cards
-                    VStack(spacing: 12) {
-                        nutritionRow(
-                            label: "Kalori",
-                            value: displayedCalories,
-                            unit: "kcal"
-                        )
+                        // Divider below header
+                        Rectangle()
+                            .fill(Color.secondary.opacity(0.2))
+                            .frame(height: 0.5)
+                            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
 
-                        nutritionRow(
-                            label: "Karbonhidrat",
-                            value: displayedCarbohydrates,
-                            unit: "g"
-                        )
-
-                        nutritionRow(
-                            label: "Lif",
-                            value: displayedFiber,
-                            unit: "g"
-                        )
-
-                        nutritionRow(
-                            label: "Şeker",
-                            value: displayedSugar,
-                            unit: "g"
-                        )
-
-                        nutritionRow(
-                            label: "Protein",
-                            value: displayedProtein,
-                            unit: "g"
-                        )
-
-                        nutritionRow(
-                            label: "Yağ",
-                            value: displayedFat,
-                            unit: "g"
-                        )
-
-                        // Only show Glycemic Load in Porsiyon tab (it's a per-portion metric)
-                        if selectedTab == 0 {
+                        // Nutritional Values Rows
+                        VStack(spacing: ResponsiveDesign.Spacing.xSmall) {
                             nutritionRow(
-                                label: "Glisemik Yük",
-                                value: displayedGlycemicLoad,
-                                unit: ""
+                                label: "Kalori",
+                                value: displayedCalories,
+                                unit: "kcal"
                             )
+
+                            Rectangle()
+                                .fill(Color.secondary.opacity(0.1))
+                                .frame(height: 0.5)
+                                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+
+                            nutritionRow(
+                                label: "Karbonhidrat",
+                                value: displayedCarbohydrates,
+                                unit: "g"
+                            )
+
+                            Rectangle()
+                                .fill(Color.secondary.opacity(0.1))
+                                .frame(height: 0.5)
+                                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+
+                            nutritionRow(
+                                label: "Lif",
+                                value: displayedFiber,
+                                unit: "g"
+                            )
+
+                            Rectangle()
+                                .fill(Color.secondary.opacity(0.1))
+                                .frame(height: 0.5)
+                                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+
+                            nutritionRow(
+                                label: "Şeker",
+                                value: displayedSugar,
+                                unit: "g"
+                            )
+
+                            Rectangle()
+                                .fill(Color.secondary.opacity(0.1))
+                                .frame(height: 0.5)
+                                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+
+                            nutritionRow(
+                                label: "Protein",
+                                value: displayedProtein,
+                                unit: "g"
+                            )
+
+                            Rectangle()
+                                .fill(Color.secondary.opacity(0.1))
+                                .frame(height: 0.5)
+                                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+
+                            nutritionRow(
+                                label: "Yağ",
+                                value: displayedFat,
+                                unit: "g"
+                            )
+
+                            // Only show Glycemic Load in Porsiyon tab (it's a per-portion metric)
+                            if selectedTab == 0 {
+                                Rectangle()
+                                    .fill(Color.secondary.opacity(0.1))
+                                    .frame(height: 0.5)
+                                    .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+
+                                nutritionRow(
+                                    label: "Glisemik Yük",
+                                    value: displayedGlycemicLoad,
+                                    unit: ""
+                                )
+                            }
                         }
+                        .padding(.vertical, ResponsiveDesign.Spacing.small)
                     }
+                    .background(.clear)
+                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                    .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
                 }
-                .padding(20)
+                .padding(ResponsiveDesign.Spacing.medium)
             }
             .background(Color(.systemBackground))
             .navigationTitle(recipeName)
@@ -215,7 +260,7 @@ struct NutritionalValuesView: View {
     private var portionStepperView: some View {
         HStack {
             Text("Porsiyon Miktarı")
-                .font(.system(size: 17, weight: .medium, design: .rounded))
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
                 .foregroundColor(.primary)
 
             Spacer()
@@ -228,13 +273,14 @@ struct NutritionalValuesView: View {
                 } label: {
                     Image(systemName: "minus.circle.fill")
                         .font(.system(size: 28))
-                        .foregroundStyle(ThemeColors.primaryPurple)
+                        .foregroundStyle(AppTheme.primaryPurple)
                 }
                 .disabled(portionMultiplier <= 0.5)
 
                 Text(String(format: "%.1f", portionMultiplier) + "x")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundColor(AppTheme.primaryPurple)
                     .frame(minWidth: 60)
 
                 Button {
@@ -242,13 +288,15 @@ struct NutritionalValuesView: View {
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 28))
-                        .foregroundStyle(ThemeColors.primaryPurple)
+                        .foregroundStyle(AppTheme.primaryPurple)
                 }
             }
         }
-        .padding(16)
-        .recipeGlass(tint: .warm, cornerRadius: 30)
-        .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+        .padding(ResponsiveDesign.Spacing.medium)
+        .background(.clear)
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
     }
 
     private func nutritionRow(
@@ -256,28 +304,28 @@ struct NutritionalValuesView: View {
         value: String,
         unit: String
     ) -> some View {
-        HStack {
+        HStack(spacing: ResponsiveDesign.Spacing.small) {
             Text(label)
-                .font(.system(size: 17, weight: .medium, design: .rounded))
-                .foregroundColor(.primary)
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .medium, design: .rounded))
+                .foregroundStyle(.primary)
 
             Spacer()
 
             HStack(spacing: 4) {
                 Text(value.isEmpty ? "0" : value)
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(AppTheme.primaryPurple)
 
                 if !unit.isEmpty {
                     Text(unit)
-                        .font(.system(size: 15, weight: .regular, design: .rounded))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(13), weight: .regular, design: .rounded))
+                        .foregroundStyle(.secondary)
                 }
             }
         }
-        .padding(16)
-        .recipeGlass(tint: .warm, cornerRadius: 30)
-        .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+        .padding(.vertical, ResponsiveDesign.Spacing.small)
+        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
     }
 }
 

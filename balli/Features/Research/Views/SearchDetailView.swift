@@ -11,12 +11,14 @@ import SwiftData
 
 struct SearchDetailView: View {
     let answer: SearchAnswer
+    let preloadedHighlights: [TextHighlight]
+
     @Environment(\.colorScheme) private var colorScheme
     @State private var showBadge = false
     @State private var showSourcePill = false
 
     // Highlight management
-    @StateObject private var highlightManager = HighlightManager()
+    @StateObject private var highlightManager: HighlightManager
     @State private var toastMessage: ToastType?
     @State private var showHighlightMenu = false
     @State private var overlappingHighlight: TextHighlight?
@@ -27,6 +29,15 @@ struct SearchDetailView: View {
     // Selection is stored in TextSelectionStorage.shared (not @State) to prevent re-renders
 
     private let researchFontSize: Double = 19.0
+
+    init(answer: SearchAnswer, preloadedHighlights: [TextHighlight] = []) {
+        self.answer = answer
+        self.preloadedHighlights = preloadedHighlights
+
+        // Initialize HighlightManager with pre-loaded highlights for instant display
+        let initialHighlights = [answer.id: preloadedHighlights]
+        _highlightManager = StateObject(wrappedValue: HighlightManager(initialHighlights: initialHighlights))
+    }
 
     var body: some View {
         ScrollView {

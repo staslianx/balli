@@ -212,7 +212,7 @@ struct ArdiyeSearchView: View {
                             selectedFilter = selectedFilter == .recipes ? .products : .recipes
                         }
                     }) {
-                        Image(systemName: selectedFilter == .recipes ? "book.closed.fill" : "laser.burst")
+                        Image(systemName: selectedFilter == .recipes ? "book.closed" : "laser.burst")
                             .font(.system(size: 18, weight: .medium, design: .rounded))
                             .foregroundColor(.primary)
                     }

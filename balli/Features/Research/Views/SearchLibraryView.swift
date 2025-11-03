@@ -16,6 +16,7 @@ struct SearchLibraryView: View {
     @State private var isShowingHighlightsOnly = false
     @State private var allHighlights: [(question: String, answerId: String, highlight: TextHighlight)] = []
     @State private var selectedThread: SearchAnswer?
+    @State private var selectedThreadHighlights: [TextHighlight] = []
     @State private var isShowingDetail = false
 
     private let repository = ResearchHistoryRepository()
@@ -104,7 +105,7 @@ struct SearchLibraryView: View {
             }
             .navigationDestination(isPresented: $isShowingDetail) {
                 if let selectedThread {
-                    SearchDetailView(answer: selectedThread)
+                    SearchDetailView(answer: selectedThread, preloadedHighlights: selectedThreadHighlights)
                 }
             }
         }
@@ -135,8 +136,21 @@ struct SearchLibraryView: View {
                         .equatable()
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            selectedThread = thread
-                            isShowingDetail = true
+                            // Load highlights synchronously before navigation to prevent flicker
+                            Task { @MainActor in
+                                do {
+                                    let highlights = try await repository.loadHighlights(for: thread.id)
+                                    selectedThreadHighlights = highlights
+                                    selectedThread = thread
+                                    isShowingDetail = true
+                                } catch {
+                                    // If loading fails, navigate without highlights
+                                    logger.error("Failed to load highlights for navigation: \(error.localizedDescription)")
+                                    selectedThreadHighlights = []
+                                    selectedThread = thread
+                                    isShowingDetail = true
+                                }
+                            }
                         }
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         .listRowSeparator(.hidden)
@@ -184,8 +198,21 @@ struct SearchLibraryView: View {
                             onTap: {
                                 // Navigate to full answer with this highlight
                                 if let thread = threads.first(where: { $0.id == item.answerId }) {
-                                    selectedThread = thread
-                                    isShowingDetail = true
+                                    // Load highlights synchronously before navigation to prevent flicker
+                                    Task { @MainActor in
+                                        do {
+                                            let highlights = try await repository.loadHighlights(for: thread.id)
+                                            selectedThreadHighlights = highlights
+                                            selectedThread = thread
+                                            isShowingDetail = true
+                                        } catch {
+                                            // If loading fails, navigate without highlights
+                                            logger.error("Failed to load highlights for navigation: \(error.localizedDescription)")
+                                            selectedThreadHighlights = []
+                                            selectedThread = thread
+                                            isShowingDetail = true
+                                        }
+                                    }
                                 }
                             }
                         )

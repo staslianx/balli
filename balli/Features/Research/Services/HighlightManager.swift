@@ -28,8 +28,9 @@ final class HighlightManager: ObservableObject {
     /// Repository for CoreData persistence (for SearchAnswer highlights)
     private let repository = ResearchHistoryRepository()
 
-    init(sessionManager: ResearchSessionManager? = nil) {
+    init(sessionManager: ResearchSessionManager? = nil, initialHighlights: [String: [TextHighlight]] = [:]) {
         self.sessionManager = sessionManager
+        self.highlights = initialHighlights
     }
 
     /// Set the session manager after initialization

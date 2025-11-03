@@ -31,6 +31,10 @@ struct ManualEntryView: View {
     // Portion slider
     @State private var portionGrams: Double = 100.0
 
+    // Impact calculation
+    @State private var currentImpactLevel: ImpactLevel? = nil
+    @State private var currentImpactScore: Double? = nil
+
     @State private var showingSaveConfirmation = false
     @State private var isSaveInProgress = false // Prevent duplicate saves
     @State private var savedProductName = "" // Store name for toast message
@@ -46,7 +50,7 @@ struct ManualEntryView: View {
                     VStack {
                         Spacer(minLength: ResponsiveDesign.height(50))
                         
-                        // Food label container - exact same positioning as camera guide
+                        // Food label container - exact same as AI result view
                         NutritionLabelView(
                             productBrand: $productBrand,
                             productName: $productName,
@@ -59,10 +63,34 @@ struct ManualEntryView: View {
                             fat: $fat,
                             portionGrams: $portionGrams,
                             isEditing: true,  // Always editing in manual entry
-                            showIcon: true,
+                            showIcon: false,  // No icon - using impact banner like AI view
                             iconName: "hand.rays.fill",
-                            iconColor: .primary
+                            iconColor: .primary,
+                            showImpactBanner: true,  // ✅ Show impact banner
+                            impactLevel: currentImpactLevel,
+                            impactScore: currentImpactScore,
+                            showingValues: true,
+                            valuesAnimationProgress: [:],
+                            showSlider: true  // ✅ Always show slider in manual entry
                         )
+                        .onChange(of: portionGrams) { _, _ in
+                            updateImpactCalculation()
+                        }
+                        .onChange(of: carbohydrates) { _, _ in
+                            updateImpactCalculation()
+                        }
+                        .onChange(of: fiber) { _, _ in
+                            updateImpactCalculation()
+                        }
+                        .onChange(of: sugars) { _, _ in
+                            updateImpactCalculation()
+                        }
+                        .onChange(of: protein) { _, _ in
+                            updateImpactCalculation()
+                        }
+                        .onChange(of: fat) { _, _ in
+                            updateImpactCalculation()
+                        }
                         
                         Spacer(minLength: ResponsiveDesign.height(50))
 
@@ -193,6 +221,52 @@ struct ManualEntryView: View {
             isSaveInProgress = false
             ErrorHandler.shared.handle(error)
         }
+    }
+
+    /// Update impact calculation based on current form values and portion
+    /// Matches the calculation logic from NutritionFormState
+    private func updateImpactCalculation() {
+        // Validate we have a valid serving size
+        guard let baseServing = Double(servingSize), baseServing > 0 else {
+            currentImpactScore = nil
+            currentImpactLevel = nil
+            return
+        }
+
+        // Parse values with 0.0 fallback for missing/empty data
+        let baseCarbs = Double(carbohydrates) ?? 0.0
+        let baseFiber = Double(fiber) ?? 0.0
+        let baseSugars = Double(sugars) ?? 0.0
+        let baseProtein = Double(protein) ?? 0.0
+        let baseFat = Double(fat) ?? 0.0
+
+        // Calculate impact score using validated Nestlé formula
+        let result = ImpactScoreCalculator.calculate(
+            totalCarbs: baseCarbs,
+            fiber: baseFiber,
+            sugar: baseSugars,
+            protein: baseProtein,
+            fat: baseFat,
+            servingSize: baseServing,
+            portionGrams: portionGrams
+        )
+
+        // Update score state
+        currentImpactScore = result.score
+
+        // Calculate scaled fat and protein for current portion to determine level
+        let adjustmentRatio = portionGrams / baseServing
+        let scaledFat = baseFat * adjustmentRatio
+        let scaledProtein = baseProtein * adjustmentRatio
+
+        // Determine impact level using three-threshold evaluation
+        currentImpactLevel = ImpactLevel.from(
+            score: result.score,
+            fat: scaledFat,
+            protein: scaledProtein
+        )
+
+        logger.debug("Impact calculation updated - Score: \(result.score), Level: \(currentImpactLevel?.rawValue ?? "nil")")
     }
 }
 

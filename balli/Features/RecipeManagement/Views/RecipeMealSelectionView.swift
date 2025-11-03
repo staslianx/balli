@@ -104,14 +104,14 @@ struct RecipeMealSelectionView: View {
 
     private var categoryListView: some View {
         ScrollView {
-            VStack(spacing: 12) {
+            VStack(spacing: ResponsiveDesign.Spacing.small) {
                 ForEach(RecipeCategory.allCases, id: \.self) { category in
                     categoryCard(category)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 40)
+            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+            .padding(.top, ResponsiveDesign.Spacing.medium)
+            .padding(.bottom, ResponsiveDesign.Spacing.xLarge)
         }
     }
 
@@ -130,37 +130,31 @@ struct RecipeMealSelectionView: View {
                 dismiss()
             }
         }) {
-            HStack(spacing: 16) {
+            HStack(spacing: ResponsiveDesign.Spacing.small) {
                 // Icon
                 Text(category.icon)
-                    .font(.system(size: 32))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(28)))
 
                 // Category name
                 Text(category.displayName)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .foregroundColor(.primary)
-
-                Spacer()
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 // Chevron indicator
                 if category.hasSubcategories {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.secondary)
-                } else {
-                    // Direct generation indicator
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(AppTheme.primaryPurple)
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold))
+                        .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 20)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.clear)
-            )
-            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .padding(.vertical, ResponsiveDesign.Spacing.small)
+            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+            .contentShape(Rectangle())
+            .background(.clear)
+            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+            .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
         }
         .buttonStyle(.plain)
     }
@@ -169,14 +163,14 @@ struct RecipeMealSelectionView: View {
 
     private var subcategoryListView: some View {
         ScrollView {
-            VStack(spacing: 12) {
+            VStack(spacing: ResponsiveDesign.Spacing.small) {
                 ForEach(selectedCategory?.subcategories ?? [], id: \.self) { subcategory in
                     subcategoryCard(subcategory)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 40)
+            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+            .padding(.top, ResponsiveDesign.Spacing.medium)
+            .padding(.bottom, ResponsiveDesign.Spacing.xLarge)
         }
     }
 
@@ -187,27 +181,21 @@ struct RecipeMealSelectionView: View {
             onGenerate()
             dismiss()
         }) {
-            HStack(spacing: 16) {
+            HStack(spacing: ResponsiveDesign.Spacing.small) {
                 // Subcategory name
                 Text(subcategory)
-                    .font(.system(size: 18, weight: .medium, design: .rounded))
-                    .foregroundColor(.primary)
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.leading)
-
-                Spacer()
-
-                // Generate indicator
-                Image(systemName: "sparkles")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(AppTheme.primaryPurple)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 20)
-            .background(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(.clear)
-            )
-            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .padding(.vertical, ResponsiveDesign.Spacing.small)
+            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+            .contentShape(Rectangle())
+            .background(.clear)
+            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+            .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
         }
         .buttonStyle(.plain)
     }

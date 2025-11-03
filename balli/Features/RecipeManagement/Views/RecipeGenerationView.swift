@@ -201,7 +201,46 @@ struct RecipeGenerationView: View {
 
                     // Generate menu button (balli logo)
                     Button {
-                        showingMealSelection = true
+                        // EDGE CASE PROTECTION: If recipe already exists, treat notes as personal notes (not prompts)
+                        // This prevents accidental regeneration when user writes post-generation notes
+                        let hasExistingRecipe = !viewModel.recipeName.isEmpty
+
+                        if hasExistingRecipe {
+                            // Recipe exists → User's notes are personal, not prompts
+                            // Always show menu for explicit "regenerate" intent
+                            logger.info("⚠️ [EDGE-CASE] Recipe exists - treating notes as personal, showing menu for explicit regenerate")
+                            showingMealSelection = true
+                            return
+                        }
+
+                        // Smart behavior based on recipe generation flow logic:
+                        // Flow 1: No ingredients + No notes → Show menu (need user intent)
+                        // Flow 2: Ingredients only + No notes → Show menu (ingredients ambiguous without context)
+                        // Flow 3: No ingredients + Notes → Skip menu (notes contain explicit intent)
+                        // Flow 4: Ingredients + Notes → Skip menu (user being specific)
+
+                        let hasIngredients = !manualIngredients.isEmpty
+                        let hasUserNotes = !userNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+                        if hasUserNotes {
+                            // Flows 3 & 4: Has notes (with or without ingredients) → Skip menu
+                            if hasIngredients {
+                                logger.info("🎯 [FLOW-4] Ingredients + Notes - skipping menu, user is specific")
+                            } else {
+                                logger.info("🎯 [FLOW-3] Notes only - skipping menu, notes contain intent")
+                            }
+                            Task {
+                                await startGenerationWithDefaults()
+                            }
+                        } else {
+                            // Flows 1 & 2: No notes → Show menu
+                            if hasIngredients {
+                                logger.info("🥕 [FLOW-2] Ingredients only - showing menu for context")
+                            } else {
+                                logger.info("📋 [FLOW-1] Empty state - showing menu for intent")
+                            }
+                            showingMealSelection = true
+                        }
                     } label: {
                         Image("balli-logo")
                             .resizable()
@@ -266,13 +305,65 @@ struct RecipeGenerationView: View {
 
     // MARK: - Generation
 
+    /// Generate recipe with user-selected meal type and style (called from meal selection modal)
     private func startGeneration() async {
         isGenerating = true
         isSaved = false
 
-        await viewModel.generationCoordinator.generateRecipeWithStreaming(
+        // Extract ingredients from manual ingredients list
+        let ingredientsList: [String]? = manualIngredients.isEmpty ? nil : manualIngredients.map { $0.text }
+
+        // Extract user context from notes
+        let contextText: String? = userNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : userNotes
+
+        // Log what we're passing
+        if let ingredients = ingredientsList {
+            logger.info("🥕 [VIEW] Starting generation with \(ingredients.count) ingredients: \(ingredients.joined(separator: ", "))")
+        }
+        if let context = contextText {
+            logger.info("📝 [VIEW] User context: '\(context)'")
+        }
+
+        // Smart routing: Use ingredients-based generation if ingredients exist, otherwise spontaneous
+        await viewModel.generationCoordinator.generateRecipeSmartRouting(
             mealType: selectedMealType,
-            styleType: selectedStyleType
+            styleType: selectedStyleType,
+            ingredients: ingredientsList,
+            userContext: contextText
+        )
+        isGenerating = false
+    }
+
+    /// Generate recipe with default meal type when user has provided notes (skips meal selection)
+    /// Uses generic defaults since the user's notes contain all the specificity needed
+    private func startGenerationWithDefaults() async {
+        isGenerating = true
+        isSaved = false
+
+        // Extract ingredients from manual ingredients list
+        let ingredientsList: [String]? = manualIngredients.isEmpty ? nil : manualIngredients.map { $0.text }
+
+        // Extract user context from notes
+        let contextText: String? = userNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : userNotes
+
+        // Use generic defaults - the AI will follow the user's notes instead
+        let defaultMealType = "Akşam Yemeği"  // Generic meal type
+        let defaultStyleType = "Karbonhidrat ve Protein Uyumu"  // Generic style type
+
+        logger.info("🎯 [VIEW] Starting generation with defaults (user notes contain specificity)")
+        if let ingredients = ingredientsList {
+            logger.info("🥕 [VIEW] With \(ingredients.count) ingredients: \(ingredients.joined(separator: ", "))")
+        }
+        if let context = contextText {
+            logger.info("📝 [VIEW] User context: '\(context)'")
+        }
+
+        // Smart routing: Use ingredients-based generation if ingredients exist, otherwise spontaneous
+        await viewModel.generationCoordinator.generateRecipeSmartRouting(
+            mealType: defaultMealType,
+            styleType: defaultStyleType,
+            ingredients: ingredientsList,
+            userContext: contextText
         )
         isGenerating = false
     }

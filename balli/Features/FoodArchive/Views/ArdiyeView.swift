@@ -266,7 +266,7 @@ struct ArdiyeView: View {
                         selectedFilter = selectedFilter == .recipes ? .products : .recipes
                     }
                 }) {
-                    Image(systemName: selectedFilter == .recipes ? "book.closed.fill" : "laser.burst")
+                    Image(systemName: selectedFilter == .recipes ? "book.closed" : "laser.burst")
                         .font(.system(size: 18, weight: .medium, design: .rounded))
                         .foregroundColor(AppTheme.primaryPurple)
                 }
@@ -275,7 +275,7 @@ struct ArdiyeView: View {
         .onAppear {
             // Add demo products on first appearance
             addDemoProductsIfNeeded()
-            // Initial load of cached items - preserve data operations
+            // Initial load of cached items
             updateCachedItems()
         }
         .onChange(of: recipes.count) { _, _ in
@@ -284,52 +284,6 @@ struct ArdiyeView: View {
         .onChange(of: foodItems.count) { _, _ in
             updateCachedItems()
         }
-        .onReceive(
-            NotificationCenter.default.publisher(for: NSNotification.Name.NSManagedObjectContextDidSave),
-            perform: { notification in
-                logger.info("🔔 [ARDIYE] NSManagedObjectContextDidSave notification received")
-
-                // Log what was updated/inserted
-                if let userInfo = notification.userInfo {
-                    if let inserted = userInfo[NSInsertedObjectsKey] as? Set<NSManagedObject> {
-                        logger.info("  - Inserted objects: \(inserted.count)")
-                        for obj in inserted {
-                            if let recipe = obj as? Recipe {
-                                if let imageData = recipe.imageData {
-                                    logger.info("    • Recipe inserted: '\(recipe.name)' - imageData: \(imageData.count) bytes")
-                                } else {
-                                    logger.info("    • Recipe inserted: '\(recipe.name)' - imageData: nil")
-                                }
-                            }
-                        }
-                    }
-
-                    if let updated = userInfo[NSUpdatedObjectsKey] as? Set<NSManagedObject> {
-                        logger.info("  - Updated objects: \(updated.count)")
-                        for obj in updated {
-                            if let recipe = obj as? Recipe {
-                                if let imageData = recipe.imageData {
-                                    logger.info("    • Recipe updated: '\(recipe.name)' - imageData: \(imageData.count) bytes")
-                                } else {
-                                    logger.info("    • Recipe updated: '\(recipe.name)' - imageData: nil")
-                                }
-                            } else if let foodItem = obj as? FoodItem {
-                                logger.info("    • FoodItem: \(foodItem.name) - \(foodItem.servingSize)g")
-                            }
-                        }
-                    }
-                }
-
-                // Refresh all objects in the view context to ensure we have latest data
-                logger.info("🔄 [ARDIYE] Refreshing all Core Data objects")
-                viewContext.refreshAllObjects()
-
-                // Refresh cached items when Core Data is saved (e.g., from detail view)
-                logger.info("🔄 [ARDIYE] Calling updateCachedItems() to refresh display")
-                updateCachedItems()
-                logger.info("✅ [ARDIYE] updateCachedItems() completed")
-            }
-        )
         .sheet(isPresented: $showingShoppingList) {
             ShoppingListViewSimple()
         }
@@ -408,7 +362,7 @@ struct ArdiyeView: View {
                                 brand: foodItem.brand ?? "Marka Yok",
                                 name: foodItem.name,
                                 portion: "\(Int(foodItem.servingSize))\(foodItem.servingUnit)'da",
-                                carbs: "\(Int(foodItem.totalCarbs)) gr Karb.",
+                                carbs: String(format: "%.1f gr Karb.", foodItem.totalCarbs),
                                 width: nil, // Let ProductCardView use default size
                                 isFavorite: foodItem.isFavorite,
                                 impactLevel: foodItem.impactLevelDetailed,
@@ -495,7 +449,7 @@ struct ArdiyeView: View {
                     .foregroundColor(.primary.opacity(0.7))
 
                 // Carb amount
-                Text("\(Int(item.totalCarbs)) gr Karb.")
+                Text(String(format: "%.1f gr Karb.", item.totalCarbs))
                     .font(.system(size: 16, weight: .medium, design: .rounded))
                     .foregroundColor(.primary)
             }
@@ -532,7 +486,6 @@ struct ArdiyeView: View {
     @ViewBuilder
     private func recipePhoto(for recipe: Recipe) -> some View {
         if let imageData = recipe.imageData, let uiImage = UIImage(data: imageData) {
-            let _ = logger.debug("🖼️ [ARDIYE] Displaying photo for recipe '\(recipe.name)' (\(imageData.count) bytes)")
             Image(uiImage: uiImage)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
@@ -541,7 +494,6 @@ struct ArdiyeView: View {
                     RoundedRectangle(cornerRadius: 32, style: .continuous)
                 )
         } else {
-            let _ = logger.debug("📷 [ARDIYE] No photo for recipe '\(recipe.name)' - showing placeholder")
             // Placeholder for recipes without photos
             ZStack {
                 Color.secondary.opacity(0.1)

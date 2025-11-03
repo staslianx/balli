@@ -72,6 +72,7 @@ public struct SpontaneousRecipeRequest: Codable, Sendable {
     public let streamingEnabled: Bool
     public let recentRecipes: [SimpleRecentRecipe]
     public let diversityConstraints: DiversityConstraints?
+    public let userContext: String?
 
     public init(
         mealType: String,
@@ -79,7 +80,8 @@ public struct SpontaneousRecipeRequest: Codable, Sendable {
         userId: String? = nil,
         streamingEnabled: Bool = false,
         recentRecipes: [SimpleRecentRecipe] = [],
-        diversityConstraints: DiversityConstraints? = nil
+        diversityConstraints: DiversityConstraints? = nil,
+        userContext: String? = nil
     ) {
         self.mealType = mealType
         self.styleType = styleType
@@ -87,6 +89,7 @@ public struct SpontaneousRecipeRequest: Codable, Sendable {
         self.streamingEnabled = streamingEnabled
         self.recentRecipes = recentRecipes
         self.diversityConstraints = diversityConstraints
+        self.userContext = userContext
     }
 }
 
@@ -117,6 +120,7 @@ public actor RecipeGenerationService {
     ///   - userId: Optional user ID for personalization
     ///   - recentRecipes: Recent recipes for diversity (empty array = no diversity constraints)
     ///   - diversityConstraints: Constraints for avoiding overused ingredients/proteins
+    ///   - userContext: Optional user context or notes for recipe generation
     /// - Returns: Generated recipe with all fields populated
     /// - Throws: NetworkError if the request fails
     public func generateSpontaneousRecipe(
@@ -124,7 +128,8 @@ public actor RecipeGenerationService {
         styleType: String,
         userId: String? = nil,
         recentRecipes: [SimpleRecentRecipe] = [],
-        diversityConstraints: DiversityConstraints? = nil
+        diversityConstraints: DiversityConstraints? = nil,
+        userContext: String? = nil
     ) async throws -> RecipeGenerationResponse {
 
         let request = SpontaneousRecipeRequest(
@@ -133,7 +138,8 @@ public actor RecipeGenerationService {
             userId: userId,
             streamingEnabled: false, // Non-streaming for complete response
             recentRecipes: recentRecipes,
-            diversityConstraints: diversityConstraints
+            diversityConstraints: diversityConstraints,
+            userContext: userContext
         )
 
         let url = try buildGenerateURL()
@@ -176,13 +182,15 @@ public actor RecipeGenerationService {
     ///   - styleType: The style subcategory for the meal type
     ///   - ingredients: Available ingredients to use in the recipe
     ///   - userId: Optional user ID for personalization
+    ///   - userContext: Optional user context or notes for recipe generation
     /// - Returns: Generated recipe incorporating the provided ingredients
     /// - Throws: NetworkError if the request fails
     public func generateRecipeFromIngredients(
         mealType: String,
         styleType: String,
         ingredients: [String],
-        userId: String? = nil
+        userId: String? = nil,
+        userContext: String? = nil
     ) async throws -> RecipeGenerationResponse {
 
         let request = IngredientsRecipeRequest(
@@ -190,7 +198,8 @@ public actor RecipeGenerationService {
             styleType: styleType,
             ingredients: ingredients,
             userId: userId,
-            streamingEnabled: false
+            streamingEnabled: false,
+            userContext: userContext
         )
 
         let url = try buildIngredientsURL()
@@ -253,6 +262,7 @@ private struct IngredientsRecipeRequest: Codable, Sendable {
     let ingredients: [String]
     let userId: String?
     let streamingEnabled: Bool
+    let userContext: String?
 }
 
 /// Response container matching Firebase Functions response format

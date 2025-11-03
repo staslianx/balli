@@ -66,6 +66,9 @@ input:
       temperature:
         type: number
         description: "Temperature override for generation (0.5-1.2)"
+      userContext:
+        type: string
+        description: "Optional user context or notes for recipe generation (e.g., 'diabetes-friendly tiramisu', 'low-carb', 'gluten-free')"
     required: [mealType, spontaneous]
 output:
   format: json
@@ -282,6 +285,12 @@ Bu malzemelerden {{mealType}} - {{styleType}} için 1 porsiyon tarif yap:
 {{/each}}
 {{else}}
 {{mealType}} - {{styleType}} için 1 porsiyon yaratıcı tarif yap.
+{{/if}}
+
+{{#if userContext}}
+🎯 **Kullanıcı Notları:** {{userContext}}
+
+Bu notları dikkate alarak tarifi oluştur. Kullanıcının özel taleplerini (düşük karbonhidrat, glutensiz, belirli bir tatlı, vb.) mutlaka uygula.
 {{/if}}
 
 {{#ifEquals mealType "Kahvaltı"}}Sabah için doyurucu, kan şekeri dengeli. 1 porsiyon: 250-350g.{{/ifEquals}}

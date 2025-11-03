@@ -37,8 +37,8 @@ struct ShoppingListViewSimple: View {
         items.filter { $0.isCompleted && !$0.isFromRecipe }
     }
 
-    // Group recipe items by recipe
-    private var recipeGroups: [(recipeName: String, recipeId: UUID, items: [ShoppingListItem])] {
+    // Group recipe items by recipe - only unchecked recipes
+    private var recipeGroups: [(recipeName: String, recipeId: UUID, items: [ShoppingListItem], allCompleted: Bool)] {
         let recipeItems = items.filter { $0.isFromRecipe }
 
         // Group by recipe ID (which is unique)
@@ -49,6 +49,36 @@ struct ShoppingListViewSimple: View {
         return grouped.compactMap { recipeId, items in
             guard let firstItem = items.first else { return nil }
             let recipeName = firstItem.recipeName ?? "Tarif"
+            let allCompleted = items.allSatisfy { $0.isCompleted }
+
+            // Only return recipes that are not fully completed
+            if allCompleted {
+                return nil
+            }
+
+            return (recipeName: recipeName, recipeId: recipeId, items: items, allCompleted: allCompleted)
+        }.sorted { $0.items.first?.dateCreated ?? Date() > $1.items.first?.dateCreated ?? Date() }
+    }
+
+    // Group completed recipe items by recipe
+    private var completedRecipeGroups: [(recipeName: String, recipeId: UUID, items: [ShoppingListItem])] {
+        let recipeItems = items.filter { $0.isFromRecipe }
+
+        // Group by recipe ID (which is unique)
+        let grouped = Dictionary(grouping: recipeItems) { item in
+            item.recipeId ?? UUID()
+        }
+
+        return grouped.compactMap { recipeId, items in
+            guard let firstItem = items.first else { return nil }
+            let recipeName = firstItem.recipeName ?? "Tarif"
+            let allCompleted = items.allSatisfy { $0.isCompleted }
+
+            // Only return recipes that are fully completed
+            if !allCompleted {
+                return nil
+            }
+
             return (recipeName: recipeName, recipeId: recipeId, items: items)
         }.sorted { $0.items.first?.dateCreated ?? Date() > $1.items.first?.dateCreated ?? Date() }
     }
@@ -92,7 +122,7 @@ struct ShoppingListViewSimple: View {
                     }
 
                     // Show completed items toggle button with Liquid Glass
-                    if !completedItems.isEmpty {
+                    if !completedItems.isEmpty || !completedRecipeGroups.isEmpty {
                         HStack {
                             Spacer()
                             Button(action: {
@@ -103,7 +133,7 @@ struct ShoppingListViewSimple: View {
                                 HStack(spacing: ResponsiveDesign.Spacing.xSmall) {
                                     Image(systemName: showCompletedItems ? "chevron.down.circle.fill" : "chevron.right.circle.fill")
                                         .font(.system(size: 14, weight: .medium))
-                                    Text("\(completedItems.count) tamamlandı")
+                                    Text("\(completedItems.count + completedRecipeGroups.count) tamamlandı")
                                         .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .medium, design: .rounded))
                                 }
                                 .foregroundColor(AppTheme.primaryPurple)
@@ -120,7 +150,24 @@ struct ShoppingListViewSimple: View {
                     }
 
                     // Show completed items when toggled
-                    if showCompletedItems && !completedItems.isEmpty {
+                    if showCompletedItems {
+                        // Show completed recipe groups
+                        ForEach(completedRecipeGroups, id: \.recipeId) { group in
+                            RecipeShoppingSection(
+                                recipeName: group.recipeName,
+                                recipeId: group.recipeId,
+                                items: group.items,
+                                onItemToggle: { toggleItem($0) },
+                                onItemDelete: { deleteItem($0) },
+                                onItemSave: { item, text, quantity in saveItem(item, newText: text, newQuantity: quantity) },
+                                onNoteUpdate: { item, note in updateItemNote(item, note: note) }
+                            )
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                        }
+
+                        // Show completed standalone items
                         ForEach(completedItems, id: \.id) { item in
                             EditableItemRow(
                                 item: item,
@@ -248,6 +295,17 @@ struct ShoppingListViewSimple: View {
         withAnimation(.spring()) {
             item.isCompleted.toggle()
             item.lastModified = Date()
+
+            // If this item is from a recipe and we just checked it off,
+            // check if all other items in the recipe are also completed
+            if item.isFromRecipe && item.isCompleted, let recipeId = item.recipeId {
+                let recipeItems = items.filter { $0.isFromRecipe && $0.recipeId == recipeId }
+                let allCompleted = recipeItems.allSatisfy { $0.isCompleted }
+
+                // If all items in the recipe are now completed, we're done
+                // The recipe will automatically move to completed section via recipeGroups filtering
+            }
+
             saveContext()
         }
     }
