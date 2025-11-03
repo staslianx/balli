@@ -11,6 +11,7 @@ import UserNotifications
 import OSLog
 import BackgroundTasks
 import FirebaseCore
+import FirebaseCrashlytics
 
 /// Minimal AppDelegate handling only UIKit-specific features that cannot be done in SwiftUI:
 /// - Orientation lock (UIKit-only API)
@@ -34,6 +35,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // CRITICAL: Configure Firebase before any Firebase services are used
         FirebaseApp.configure()
         logger.info("🔥 Firebase configured successfully")
+
+        // Initialize Crashlytics for crash reporting
+        Crashlytics.crashlytics()
+        logger.info("📊 Crashlytics initialized for crash reporting")
 
         // Start network monitoring for offline support
         NetworkMonitor.shared.startMonitoring()

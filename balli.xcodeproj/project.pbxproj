@@ -13,6 +13,7 @@
 		734BD3B52E7E7AFD00F4F22C /* balli.icon in Resources */ = {isa = PBXBuildFile; fileRef = 734BD3B42E7E7AFD00F4F22C /* balli.icon */; };
 		73C5728E2E9E795400999C36 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 73C5728D2E9E795400999C36 /* FirebaseStorage */; };
 		73C572902E9E826000999C36 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 73C5728F2E9E826000999C36 /* GoogleService-Info.plist */; };
+		73F61B202EB87C3D009C07B3 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 73F61B1F2EB87C3D009C07B3 /* FirebaseCrashlytics */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -93,6 +94,7 @@
 			files = (
 				731FA27E2E66CF7000C3BC2E /* HealthKit.framework in Frameworks */,
 				731FA27F2E66CF7000C3BC2E /* HealthKitUI.framework in Frameworks */,
+				73F61B202EB87C3D009C07B3 /* FirebaseCrashlytics in Frameworks */,
 				733ADC8B2EACEDD20040165F /* FirebaseFirestore in Frameworks */,
 				73C5728E2E9E795400999C36 /* FirebaseStorage in Frameworks */,
 			);
@@ -177,6 +179,7 @@
 			packageProductDependencies = (
 				73C5728D2E9E795400999C36 /* FirebaseStorage */,
 				733ADC8A2EACEDD20040165F /* FirebaseFirestore */,
+				73F61B1F2EB87C3D009C07B3 /* FirebaseCrashlytics */,
 			);
 			productName = balli;
 			productReference = 73D31C302E407BF900D2214B /* balli.app */;
@@ -212,6 +215,7 @@
 				73D31C482E407BFA00D2214B /* Sources */,
 				73D31C492E407BFA00D2214B /* Frameworks */,
 				73D31C4A2E407BFA00D2214B /* Resources */,
+				73490B1D2EB87FD60038902D /* Upload dSYMs to Crashlytics */,
 			);
 			buildRules = (
 			);
@@ -301,6 +305,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		73490B1D2EB87FD60038902D /* Upload dSYMs to Crashlytics */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Upload dSYMs to Crashlytics";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		73D31C2C2E407BF900D2214B /* Sources */ = {
@@ -481,15 +506,15 @@
 				INFOPLIST_FILE = balli/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = balli;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				INFOPLIST_KEY_NSCameraUsageDescription = "balli uses the camera to scan nutrition labels and capture food photos for tracking your carbohydrate intake.";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "balli needs access to your glucose data from HealthKit to provide personalized meal recommendations based on your blood sugar patterns.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "balli needs permission to save nutrition information to HealthKit to help you track your dietary intake.";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "balli, yakınınızdaki marketleri göstermek için konumunuza erişmek istiyor.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "balli, yakınınızdaki marketleri göstermek için konumunuza erişmek istiyor.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "balli uses your microphone to record your shopping list items. Your voice is processed securely to add items to your list.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "balli, oluşturulan görüntüleri Fotoğraflar uygulamasına kaydetmek için izin istiyor.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Balli, oluşturulan görüntüleri Fotoğraflar uygulamasına kaydetmek için izin istiyor.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "balli, sesli alışveriş listesi oluşturmak için konuşma tanıma özelliğini kullanmak istiyor. Konuşmalarınız cihazınızda işlenir ve gizliliğiniz korunur.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Paketli gıdaların besin değerlerini incelemem için kamerana erişmem gerekiyor";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Aktivite, adım, kalori gibi metriklerin hakkında bilgi sahibi olmam için sağlık verilerine erişmem gerekiyor.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Yemek bilgilerin ve glikoz paternlerin ile sağlık verilerini güncellemek için verilere erişmem gerekiyor.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Sana o an yakınındaki marketleri gösterebilmek için konumuna erişmem gerekiyor.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Sana o an yakınındaki marketleri gösterebilmek için konumuna erişmem gerekiyor.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sesle yediklerini kaydetmem için bu izne ihtiyacım var.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Senin için yaptığım tarif resimlerini kaydedebilmen için bu izne ihtiyacım var.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Senin bana görüntü gönderebilmen için bu izni almam gerekiyor.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sesli komutlarla tarif adımları arasında geçiş yapmanızı ve yemek girişlerini sesle kaydetmenizi sağlar.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -528,15 +553,15 @@
 				INFOPLIST_FILE = balli/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = balli;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
-				INFOPLIST_KEY_NSCameraUsageDescription = "balli uses the camera to scan nutrition labels and capture food photos for tracking your carbohydrate intake.";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "balli needs access to your glucose data from HealthKit to provide personalized meal recommendations based on your blood sugar patterns.";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "balli needs permission to save nutrition information to HealthKit to help you track your dietary intake.";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "balli, yakınınızdaki marketleri göstermek için konumunuza erişmek istiyor.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "balli, yakınınızdaki marketleri göstermek için konumunuza erişmek istiyor.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "balli uses your microphone to record your shopping list items. Your voice is processed securely to add items to your list.";
-				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "balli, oluşturulan görüntüleri Fotoğraflar uygulamasına kaydetmek için izin istiyor.";
-				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Balli, oluşturulan görüntüleri Fotoğraflar uygulamasına kaydetmek için izin istiyor.";
-				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "balli, sesli alışveriş listesi oluşturmak için konuşma tanıma özelliğini kullanmak istiyor. Konuşmalarınız cihazınızda işlenir ve gizliliğiniz korunur.";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Paketli gıdaların besin değerlerini incelemem için kamerana erişmem gerekiyor";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Aktivite, adım, kalori gibi metriklerin hakkında bilgi sahibi olmam için sağlık verilerine erişmem gerekiyor.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Yemek bilgilerin ve glikoz paternlerin ile sağlık verilerini güncellemek için verilere erişmem gerekiyor.";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "Sana o an yakınındaki marketleri gösterebilmek için konumuna erişmem gerekiyor.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Sana o an yakınındaki marketleri gösterebilmek için konumuna erişmem gerekiyor.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Sesle yediklerini kaydetmem için bu izne ihtiyacım var.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "Senin için yaptığım tarif resimlerini kaydedebilmen için bu izne ihtiyacım var.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Senin bana görüntü gönderebilmen için bu izni almam gerekiyor.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Sesli komutlarla tarif adımları arasında geçiş yapmanızı ve yemek girişlerini sesle kaydetmenizi sağlar.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -711,6 +736,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 73C5728C2E9E795400999C36 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		73F61B1F2EB87C3D009C07B3 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 73C5728C2E9E795400999C36 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
