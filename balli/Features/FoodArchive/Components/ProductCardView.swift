@@ -199,7 +199,7 @@ struct ProductCardView: View {
             Button(role: .destructive, action: {
                 onDelete?()
             }) {
-                Label("Sil", systemImage: "trash")
+                Image(systemName: "trash")
             }
         }
     }

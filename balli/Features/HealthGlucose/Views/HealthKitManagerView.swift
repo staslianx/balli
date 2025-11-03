@@ -80,7 +80,7 @@ struct HealthKitManagerView: View {
                         .font(.title2)
                         .fontWeight(.semibold)
 
-                    Text("balli, Sağlık uygulamasından kan şekeri verilerinizi okuyarak kan şekeri modellerinize göre kişiselleştirilmiş öğün önerileri sunabilir.")
+                    Text("balli, Sağlık uygulamasından kan şekeri verilerini okuyarak kan şekeri modellerine göre kişiselleştirilmiş öğün önerileri sunabilir.")
                         .font(.body)
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
@@ -122,7 +122,7 @@ struct HealthKitManagerView: View {
                     .controlSize(.large)
                     .tint(.red)
 
-                    Text("Sağlık verileriniz güvende kalır ve yalnızca balli içinde kullanılır")
+                    Text("Sağlık verilerin güvende kalır ve yalnızca balli içinde kullanılır")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

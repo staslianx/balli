@@ -157,9 +157,9 @@ struct DexcomShareSettingsView: View {
                         Text("Dexcom SHARE Hesabı")
                     } footer: {
                         if shareService.isConnected {
-                            Text("Kimlik bilgileriniz güvenli bir şekilde saklanıyor.")
+                            Text("Kimlik bilgilerin güvenli bir şekilde saklanıyor.")
                         } else {
-                            Text("Dexcom mobil uygulamanızda kullandığınız kullanıcı adı ve şifre. SHARE takipçi hesabı değil, ana hesap bilgileri.")
+                            Text("Dexcom mobil uygulamanda kullandığın kullanıcı adı ve şifre. SHARE takipçi hesabı değil, ana hesap bilgileri.")
                         }
                     }
                 }

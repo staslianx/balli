@@ -418,7 +418,7 @@ struct EditableItemRow: View {
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive, action: onDelete) {
-                Label("Sil", systemImage: "trash")
+                Image(systemName: "trash")
             }
         }
     }

@@ -402,7 +402,7 @@ struct VoiceInputView: View {
                                 hasInsulin = false
                                 editableInsulinDosage = 0
                             } label: {
-                                Label("Kaldır", systemImage: "trash")
+                                Image(systemName: "trash")
                                     .font(.system(size: 14, weight: .medium))
                                     .foregroundStyle(.red)
                             }

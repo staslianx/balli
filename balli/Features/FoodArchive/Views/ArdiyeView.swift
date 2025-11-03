@@ -40,6 +40,7 @@ enum ArdiyeFilter: String, CaseIterable {
     case products = "ürün"
 }
 
+@MainActor
 struct ArdiyeView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.colorScheme) private var colorScheme
@@ -95,15 +96,19 @@ struct ArdiyeView: View {
 
         // Add recipes
         for recipe in recipes {
+            // Calculate carbs based on portion multiplier
+            let actualPortions = recipe.portionMultiplier > 0 ? recipe.portionMultiplier : 1.0
+            let carbsForPortions = recipe.carbsPerServing * actualPortions
+
             items.append(
                 ArdiyeItem(
                     id: recipe.id,
                     name: recipe.name,
                     displayTitle: recipe.name,
                     subtitle: "",  // No subtitle for recipes - just show recipe name
-                    totalCarbs: recipe.totalCarbs,
-                    servingSize: 100.0,  // Recipe nutrition values are per 100gr
-                    servingUnit: "gr",
+                    totalCarbs: carbsForPortions,
+                    servingSize: actualPortions,
+                    servingUnit: "porsiyon",
                     isFavorite: recipe.isFavorite,
                     isRecipe: true,
                     recipe: recipe,
@@ -218,7 +223,6 @@ struct ArdiyeView: View {
         }
     }
 
-    @MainActor
     var body: some View {
         GlassEffectContainer {
             // Conditionally use different layouts based on filter
@@ -376,7 +380,7 @@ struct ArdiyeView: View {
                             Button(role: .destructive, action: {
                                 deleteItem(item)
                             }) {
-                                Label("Sil", systemImage: "trash")
+                                Image(systemName: "trash")
                             }
                         }
                     }

@@ -215,7 +215,7 @@ struct RecipeDetailView: View {
                         Button(role: .destructive) {
                             deleteRecipe()
                         } label: {
-                            Label("Sil", systemImage: "trash")
+                            Image(systemName: "trash")
                         }
                     } label: {
                         Image(systemName: "ellipsis")

@@ -43,20 +43,20 @@ struct AppSettingsView: View {
             Form {
                 // Account Section
                 Section("Hesap") {
-                    HStack {
+                    HStack(spacing: 16) {
                         Text(userManager.currentUser?.emoji ?? "👤")
-                            .font(.system(size: 32))
-                            .frame(width: 40, height: 40)
+                            .font(.system(size: 48))
+                            .frame(width: 64, height: 64)
                             .background(
                                 Circle()
                                     .fill((userManager.currentUser?.themeColor ?? AppTheme.primaryPurple).opacity(0.1))
                             )
 
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 6) {
                             Text(userManager.currentUserDisplayName)
-                                .font(.system(size: 15, weight: .regular, design: .rounded))
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
                             Text(userManager.currentUserEmail)
-                                .font(.system(size: 12, weight: .regular, design: .rounded))
+                                .font(.system(size: 14, weight: .regular, design: .rounded))
                                 .foregroundColor(.secondary)
                         }
 
@@ -73,44 +73,7 @@ struct AppSettingsView: View {
                                 .cornerRadius(4)
                         }
                     }
-
-                    Button(action: {
-                        // Clear user selection to show user selection modal
-                        userManager.clearUserSelection()
-                        dismiss()
-                    }) {
-                        HStack {
-                            Image(systemName: "person.fill")
-                                .foregroundColor(AppTheme.primaryPurple)
-                                .frame(width: 24)
-
-                            Text("Kullanıcı Değiştir")
-                                .foregroundColor(.primary)
-                        }
-                    }
-
-                    Button(role: .destructive, action: {
-                        Task {
-                            // Reset app configuration
-                            await AppConfigurationManager.shared.resetConfiguration()
-
-                            // Clear user selection
-                            userManager.clearUserSelection()
-
-                            // Notify the app about logout
-                            await MainActor.run {
-                                NotificationCenter.default.post(
-                                    name: Notification.Name("UserDidLogout"),
-                                    object: nil
-                                )
-                            }
-
-                            dismiss()
-                        }
-                    }) {
-                        Label("Çıkış Yap", systemImage: "door.left.hand.open")
-                    }
-                    .foregroundStyle(.red)
+                    .padding(.vertical, 12)
                 }
 
                 // Appearance Section
@@ -187,6 +150,47 @@ struct AppSettingsView: View {
                         Text("1.0.0")
                             .foregroundStyle(.secondary)
                     }
+                }
+
+                // Account Actions Section
+                Section {
+                    Button(action: {
+                        Task { @MainActor in
+                            // Clear user selection to show user selection modal
+                            userManager.clearUserSelection()
+                            dismiss()
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "person.fill")
+                                .foregroundColor(AppTheme.primaryPurple)
+                                .frame(width: 24)
+
+                            Text("Kullanıcı Değiştir")
+                                .foregroundColor(.primary)
+                        }
+                    }
+
+                    Button(role: .destructive, action: {
+                        Task { @MainActor in
+                            // Reset app configuration
+                            await AppConfigurationManager.shared.resetConfiguration()
+
+                            // Clear user selection
+                            userManager.clearUserSelection()
+
+                            // Notify the app about logout
+                            NotificationCenter.default.post(
+                                name: Notification.Name("UserDidLogout"),
+                                object: nil
+                            )
+
+                            dismiss()
+                        }
+                    }) {
+                        Label("Çıkış Yap", systemImage: "door.left.hand.open")
+                    }
+                    .foregroundStyle(.red)
                 }
             }
             .navigationTitle("Ayarlar")
@@ -900,12 +904,12 @@ struct DataPrivacyView: View {
                     .font(.system(size: 28, weight: .semibold, design: .rounded))
                     .foregroundColor(.primary)
                 
-                Text("Balli uygulaması verilerinizi güvenle saklar:")
+                Text("balli uygulaması verilerini güvenle saklar:")
                     .font(.system(size: 17, weight: .regular, design: .rounded))
                     .foregroundColor(.secondary)
-                
+
                 VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.small) {
-                    DataPrivacyRow(icon: "lock.shield", title: "Yerel Depolama", description: "Tüm veriler cihazınızda saklanır")
+                    DataPrivacyRow(icon: "lock.shield", title: "Yerel Depolama", description: "Tüm veriler cihazında saklanır")
                     DataPrivacyRow(icon: "eye.slash", title: "Gizlilik", description: "Kişisel veriler paylaşılmaz")
                     DataPrivacyRow(icon: "key", title: "Şifreleme", description: "Veriler şifrelenerek korunur")
                 }
@@ -955,11 +959,11 @@ struct ExportDataView: View {
                 .font(.system(size: 60))
                 .foregroundColor(AppTheme.primaryPurple.opacity(0.5))
             
-            Text("Verilerinizi Dışa Aktarın")
+            Text("Verilerini Dışa Aktar")
                 .font(.system(size: 28, weight: .semibold, design: .rounded))
                 .multilineTextAlignment(.center)
-            
-            Text("Kan şekeri ölçümlerinizi, öğün kayıtlarınızı ve diğer sağlık verilerinizi CSV formatında dışa aktarabilirsiniz.")
+
+            Text("Kan şekeri ölçümlerini, öğün kayıtlarını ve diğer sağlık verilerini CSV formatında dışa aktarabilirsin.")
                 .font(.system(size: 17, weight: .regular, design: .rounded))
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

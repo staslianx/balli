@@ -99,13 +99,13 @@ struct EmptyStateView: View {
             case .noData:
                 return "Henüz hiç veri eklenmemiş. Yeni veri ekleyerek başlayabilirsiniz."
             case .noResults:
-                return "Arama kriterlerinize uygun sonuç bulunamadı. Farklı bir arama yapmayı deneyin."
+                return "Arama kriterlerine uygun sonuç bulunamadı. Farklı bir arama yapmayı dene."
             case .noFavorites:
-                return "Henüz favori eklenmemiş. Beğendiğiniz öğeleri favorilere ekleyin."
+                return "Henüz favori eklenmemiş. Beğendiğin öğeleri favorilere ekle."
             case .noHistory:
-                return "Geçmiş kayıtlarınız bulunmuyor. Kullandıkça geçmişiniz oluşacak."
+                return "Geçmiş kayıtların bulunmuyor. Kullandıkça geçmişin oluşacak."
             case .noNetwork:
-                return "İnternet bağlantınızı kontrol edin ve tekrar deneyin."
+                return "İnternet bağlantını kontrol et ve tekrar dene."
             case .comingSoon:
                 return "Bu özellik üzerinde çalışıyoruz. Yakında sizlerle!"
             case .custom:

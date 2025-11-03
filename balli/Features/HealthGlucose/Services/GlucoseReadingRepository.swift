@@ -29,8 +29,8 @@ actor GlucoseReadingRepository {
 
     /// Save a single glucose reading to CoreData with deduplication
     /// - Parameter reading: The HealthGlucoseReading to save
-    /// - Returns: The saved CoreData GlucoseReading, or nil if duplicate or invalid
-    func saveReading(from healthReading: HealthGlucoseReading) async throws -> GlucoseReading? {
+    /// - Returns: The object ID of the saved reading, or nil if duplicate or invalid
+    func saveReading(from healthReading: HealthGlucoseReading) async throws -> NSManagedObjectID? {
         logger.info("🔍 FORENSIC [GlucoseReadingRepository]: saveReading called")
         logger.info("🔍 FORENSIC: Value: \(healthReading.value) mg/dL, Timestamp: \(healthReading.timestamp), Source: \(healthReading.source ?? "nil")")
 
@@ -58,8 +58,8 @@ actor GlucoseReadingRepository {
 
         logger.info("✅ FORENSIC: No duplicate found, proceeding to save...")
 
-        // Create in background context
-        let reading = try await persistenceController.performBackgroundTask { context in
+        // Create in background context and return objectID (thread-safe)
+        let objectID = try await persistenceController.performBackgroundTask { context in
             let reading = GlucoseReading(context: context)
             reading.id = healthReading.id
             reading.timestamp = healthReading.timestamp
@@ -69,11 +69,11 @@ actor GlucoseReadingRepository {
             reading.syncStatus = "synced"
 
             try context.save()
-            return reading
+            return reading.objectID
         }
 
-        logger.info("✅ FORENSIC: Successfully saved reading: \(reading.id) with source '\(coreDataSource)'")
-        return reading
+        logger.info("✅ FORENSIC: Successfully saved reading with source '\(coreDataSource)'")
+        return objectID
     }
 
     /// Batch save multiple glucose readings with deduplication

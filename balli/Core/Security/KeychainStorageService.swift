@@ -323,11 +323,11 @@ extension KeychainStorageService {
         let reason: String
         switch biometryType {
         case .faceID:
-            reason = "Güvenli verilerinize erişmek için Face ID kullanın"
+            reason = "Güvenli verilerine erişmek için Face ID kullan"
         case .touchID:
-            reason = "Güvenli verilerinize erişmek için Touch ID kullanın"
+            reason = "Güvenli verilerine erişmek için Touch ID kullan"
         default:
-            reason = "Güvenli verilerinize erişmek için kimlik doğrulama yapın"
+            reason = "Güvenli verilerine erişmek için kimlik doğrulama yap"
         }
         
         context.localizedReason = reason

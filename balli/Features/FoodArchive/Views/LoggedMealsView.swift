@@ -8,6 +8,7 @@
 import SwiftUI
 import os.log
 
+@MainActor
 struct LoggedMealsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -97,38 +98,29 @@ struct LoggedMealsView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            List {
                 if groupedEntries.isEmpty {
-                    VStack(spacing: 16) {
-                        Image(systemName: "calendar.day.timeline.left")
-                            .font(.system(size: 40, weight: .regular))
-                            .foregroundStyle(AppTheme.primaryPurple)
-
-                        Text("Henüz kayıtlı öğün yok")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-
-                        Text("Sesle kaydettiğin öğünler burada görünecek.")
-                            .font(.system(size: 14, weight: .regular, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                    }
+                    ContentUnavailableView(
+                        "Henüz kayıtlı öğün yok",
+                        systemImage: "calendar.day.timeline.left",
+                        description: Text("Sesle kaydettiğin öğünler burada görünecek.")
+                    )
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: ResponsiveDesign.Spacing.medium) {
-                            ForEach(groupedEntries, id: \.date) { dateGroup in
-                                dayCard(for: dateGroup)
-                            }
-                        }
-                        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
-                        .padding(.vertical, ResponsiveDesign.Spacing.small)
+                    ForEach(groupedEntries, id: \.date) { dateGroup in
+                        dayCard(for: dateGroup)
+                            .listRowInsets(EdgeInsets(
+                                top: ResponsiveDesign.Spacing.small,
+                                leading: ResponsiveDesign.Spacing.medium,
+                                bottom: ResponsiveDesign.Spacing.small,
+                                trailing: ResponsiveDesign.Spacing.medium
+                            ))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
                     }
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .background(Color(.systemBackground))
             .navigationTitle("Günlük Kayıtlar")
             .navigationBarTitleDisplayMode(.inline)
@@ -242,7 +234,7 @@ struct LoggedMealsView: View {
                             Button(role: .destructive) {
                                 deleteMealGroup(mealGroup)
                             } label: {
-                                Label("Sil", systemImage: "trash")
+                                Image(systemName: "trash")
                             }
                         }
 

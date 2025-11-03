@@ -113,7 +113,7 @@ struct ShoppingListItemRow: View {
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                 // Delete action
                 Button(role: .destructive, action: onDelete) {
-                    Label("Sil", systemImage: "trash")
+                    Image(systemName: "trash")
                 }
                 
                 // Edit action
