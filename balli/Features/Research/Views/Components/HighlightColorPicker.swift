@@ -43,7 +43,7 @@ private struct ColorCircle: View {
             ZStack {
                 // Background circle
                 Circle()
-                    .fill(Color(uiColor: color.uiColor))
+                    .fill(color.swiftUIColor)
                     .frame(width: 50, height: 50)
                     .overlay {
                         // Selection ring
@@ -109,7 +109,7 @@ private struct ColorCircle: View {
                 Text("Vurgu Rengi Seç")
                     .font(.headline)
 
-                HighlightColorPicker(selectedColor: .constant(.blue))
+                HighlightColorPicker(selectedColor: .constant(.cyan))
 
                 Button("Ekle") {
                     // Action

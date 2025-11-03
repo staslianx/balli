@@ -259,15 +259,16 @@ actor ResearchHistoryRepository {
     }
 
     /// Load all highlights across all research answers
-    /// Returns tuples of (question, answerId, highlight) sorted by newest first
+    /// Returns tuples of (question, answerId, highlight) sorted by highlight creation date (newest first)
     func loadAllHighlights() async throws -> [(question: String, answerId: String, highlight: TextHighlight)] {
         try await persistence.performBackgroundTask { context in
             let request = NSFetchRequest<ResearchAnswer>(entityName: "ResearchAnswer")
-            request.sortDescriptors = [NSSortDescriptor(keyPath: \ResearchAnswer.timestamp, ascending: false)]
+            // No need to sort answers by timestamp - we'll sort by highlight creation date instead
 
             let entities = try context.fetch(request)
             var results: [(String, String, TextHighlight)] = []
 
+            // Collect all highlights from all answers
             for entity in entities {
                 guard let highlightsJSON = entity.highlightsJSON,
                       let highlights: [TextHighlight] = try? self.decodeFromJSON(highlightsJSON),
@@ -276,16 +277,43 @@ actor ResearchHistoryRepository {
                 let question = entity.query ?? ""
                 let answerId = entity.id ?? ""
 
-                // Each highlight gets its own tuple (one card per highlight)
-                // Sort highlights by creation date (newest first)
-                let sortedHighlights = highlights.sorted { $0.createdAt > $1.createdAt }
-                for highlight in sortedHighlights {
+                // Add each highlight to results
+                for highlight in highlights {
                     results.append((question, answerId, highlight))
                 }
             }
 
-            self.logger.info("✅ Loaded \(results.count) total highlights across all answers")
+            // Sort ALL highlights by creation date (newest highlight first, regardless of which research it's from)
+            results.sort { $0.2.createdAt > $1.2.createdAt }
+
+            self.logger.info("✅ Loaded \(results.count) total highlights across all answers, sorted by creation date")
             return results
+        }
+    }
+
+    /// Delete a specific highlight from an answer
+    func deleteHighlight(_ highlightId: UUID, from answerId: String) async throws {
+        try await persistence.performBackgroundTask { context in
+            let request = NSFetchRequest<ResearchAnswer>(entityName: "ResearchAnswer")
+            request.predicate = NSPredicate(format: "id == %@", answerId)
+            request.fetchLimit = 1
+
+            guard let entity = try context.fetch(request).first else {
+                self.logger.error("❌ ResearchAnswer not found for highlight deletion: \(answerId)")
+                throw RepositoryError.answerNotFound
+            }
+
+            // Load current highlights
+            var highlights: [TextHighlight] = try self.decodeFromJSON(entity.highlightsJSON) ?? []
+
+            // Remove the highlight with matching ID
+            highlights.removeAll { $0.id == highlightId }
+
+            // Save updated highlights back
+            entity.highlightsJSON = try self.encodeToJSON(highlights)
+            try context.save()
+
+            self.logger.info("✅ Deleted highlight \(highlightId) from answer: \(answerId). Remaining: \(highlights.count)")
         }
     }
 }

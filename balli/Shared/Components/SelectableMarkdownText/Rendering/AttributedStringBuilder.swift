@@ -72,11 +72,10 @@ enum AttributedStringBuilder {
                 continue
             }
 
-            // Apply background color with transparency
-            let backgroundColor = highlight.color.uiColor.withAlphaComponent(0.3)
+            // Apply background color with transparency (fixed color, no dark mode adaptation)
             attributedString.addAttribute(
                 .backgroundColor,
-                value: backgroundColor,
+                value: highlight.color.highlightColor,
                 range: range
             )
         }

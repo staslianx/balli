@@ -18,6 +18,8 @@ struct SearchDetailView: View {
     // Highlight management
     @StateObject private var highlightManager = HighlightManager()
     @State private var toastMessage: ToastType?
+    @State private var showHighlightMenu = false
+    @State private var overlappingHighlight: TextHighlight?
 
     // Note: Toolbar button is always enabled to avoid SwiftUI re-renders
     // that would dismiss the context menu. Instead, we show a toast
@@ -107,15 +109,28 @@ struct SearchDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
+                    // Color options for adding new highlights
                     ForEach(TextHighlight.HighlightColor.allCases, id: \.self) { color in
                         Button {
                             addHighlight(with: color)
                         } label: {
-                            HStack {
-                                Image(systemName: "circle.fill")
-                                    .foregroundStyle(Color(uiColor: color.uiColor))
+                            Label {
                                 Text(color.displayName)
+                            } icon: {
+                                Circle()
+                                    .fill(color.swiftUIColor)
+                                    .frame(width: 16, height: 16)
                             }
+                        }
+                    }
+
+                    // Show "Remove highlight" option only if selection overlaps with existing highlight
+                    if overlappingHighlight != nil {
+                        Divider()
+                        Button(role: .destructive) {
+                            removeHighlightIfOverlapping()
+                        } label: {
+                            Label("Vurguyu kaldır", systemImage: "trash")
                         }
                     }
                 } label: {
@@ -123,7 +138,12 @@ struct SearchDetailView: View {
                         .foregroundStyle(Color.purple)
                         .font(.system(size: 20))
                 }
-                // Always enabled - show toast if no selection instead
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        // Update overlapping highlight state when menu is tapped
+                        overlappingHighlight = getOverlappingHighlight()
+                    }
+                )
             }
         }
         .task {
@@ -171,6 +191,37 @@ struct SearchDetailView: View {
 
     // MARK: - Highlight Actions
 
+    /// Check if current selection overlaps with any existing highlight
+    private func getOverlappingHighlight() -> TextHighlight? {
+        guard let selection = TextSelectionStorage.shared.getSelection() else {
+            print("⚠️ [SearchDetailView] No selection available")
+            return nil
+        }
+
+        let selectionRange = selection.range
+        let highlights = highlightManager.highlights[answer.id] ?? []
+
+        print("🔍 [SearchDetailView] Checking overlap - Selection: \(selectionRange.location)+\(selectionRange.length)")
+        print("🔍 [SearchDetailView] Available highlights: \(highlights.count)")
+
+        // Find any highlight that overlaps with the selection
+        let overlapping = highlights.first { highlight in
+            let highlightRange = NSRange(location: highlight.startOffset, length: highlight.length)
+            let intersection = NSIntersectionRange(selectionRange, highlightRange)
+            let overlaps = intersection.length > 0
+            print("🔍 [SearchDetailView] Highlight at \(highlightRange.location)+\(highlightRange.length), intersection: \(intersection.length), overlaps: \(overlaps)")
+            return overlaps
+        }
+
+        if let overlapping = overlapping {
+            print("✅ [SearchDetailView] Found overlapping highlight: \(overlapping.id)")
+        } else {
+            print("❌ [SearchDetailView] No overlapping highlight found")
+        }
+
+        return overlapping
+    }
+
     private func addHighlight(with color: TextHighlight.HighlightColor) {
         // Read selection from shared storage (no SwiftUI state)
         guard let selection = TextSelectionStorage.shared.getSelection() else {
@@ -202,6 +253,33 @@ struct SearchDetailView: View {
             } catch {
                 print("❌ [SearchDetailView] Failed to add highlight: \(error)")
                 toastMessage = .error("Vurgu eklenemedi: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private func removeHighlightIfOverlapping() {
+        // Check if there's a selection that overlaps with a highlight
+        guard let overlappingHighlight = getOverlappingHighlight() else {
+            toastMessage = .error("Vurgulu metin seçin")
+            return
+        }
+
+        print("🗑️ [SearchDetailView] Removing highlight: \(overlappingHighlight.id)")
+
+        Task {
+            do {
+                try await highlightManager.deleteHighlight(
+                    overlappingHighlight.id,
+                    from: answer.id
+                )
+                toastMessage = .success("Vurgu kaldırıldı")
+                print("✅ [SearchDetailView] Highlight removed successfully")
+
+                // Clear selection after removing highlight
+                TextSelectionStorage.shared.clearSelection()
+            } catch {
+                print("❌ [SearchDetailView] Failed to remove highlight: \(error)")
+                toastMessage = .error("Vurgu kaldırılamadı: \(error.localizedDescription)")
             }
         }
     }

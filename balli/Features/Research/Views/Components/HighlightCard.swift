@@ -23,57 +23,23 @@ struct HighlightCard: View {
     private let researchFontSize: Double = 19.0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.medium) {
-            // Question header - matching SearchAnswerRow style
-            Text(question)
-                .font(.system(size: 20, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
-                .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            // "Window" showing highlighted text exactly as it appears in research
-            // Same font, same size, same rendering as SearchDetailView
-            Text(highlight.text)
-                .font(.custom("Manrope", size: researchFontSize))
-                .foregroundStyle(.primary)
-                .padding(ResponsiveDesign.Spacing.medium)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    // Exact same highlight appearance as in SelectableMarkdownText
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color(uiColor: highlight.color.uiColor).opacity(0.3))
-                )
-                .overlay(
-                    // Subtle border to enhance "window" effect
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(Color(uiColor: highlight.color.uiColor).opacity(0.2), lineWidth: 1)
-                )
-
-            // Metadata footer - minimal, matching SearchAnswerRow
-            HStack(spacing: ResponsiveDesign.Spacing.small) {
-                // Date only (no color label)
-                Text(highlight.createdAt.formatted(date: .abbreviated, time: .shortened))
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundStyle(.tertiary)
-
-                Spacer()
-
-                // Subtle chevron indicating it's tappable
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.quaternary)
+        // Highlighted text filling entire card (max 8 lines, wrapped, then truncate)
+        Text(highlight.text)
+            .font(.custom("Manrope", size: researchFontSize))
+            .foregroundStyle(.primary)
+            .lineLimit(8)
+            .truncationMode(.tail)
+            .padding(ResponsiveDesign.Spacing.large)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background {
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(highlight.color.swiftUIColor.opacity(0.3))
             }
-        }
-        .padding(ResponsiveDesign.Spacing.large)
-        .background {
-            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(Color(.systemBackground))
-        }
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-        .onTapGesture {
-            onTap()
-        }
+            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .onTapGesture {
+                onTap()
+            }
     }
 }
 
@@ -97,7 +63,7 @@ struct HighlightCard: View {
             HighlightCard(
                 question: "Swift concurrency nedir?",
                 highlight: TextHighlight(
-                    color: .blue,
+                    color: .cyan,
                     startOffset: 0,
                     length: 30,
                     text: "async/await söz dizimi ile yapılandırılmış eşzamanlılık"
@@ -109,7 +75,7 @@ struct HighlightCard: View {
             HighlightCard(
                 question: "İnsülin direnci nasıl gelişir?",
                 highlight: TextHighlight(
-                    color: .orange,
+                    color: .purple,
                     startOffset: 0,
                     length: 80,
                     text: "Hücreler insüline karşı duyarsızlaşır ve pankreas daha fazla insülin üretmek zorunda kalır."

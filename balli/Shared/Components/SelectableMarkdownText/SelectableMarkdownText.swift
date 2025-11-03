@@ -51,7 +51,7 @@ struct SelectableMarkdownText: View {
     var body: some View {
         HighlightableTextView(
             attributedText: attributedString,
-            backgroundColor: UIColor(colorScheme == .dark ? .black : .white)
+            backgroundColor: .systemBackground
         )
         .frame(maxWidth: .infinity, alignment: .leading)
         .task(id: content) {

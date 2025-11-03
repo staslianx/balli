@@ -15,6 +15,8 @@ struct SearchLibraryView: View {
     @State private var searchText = ""
     @State private var isShowingHighlightsOnly = false
     @State private var allHighlights: [(question: String, answerId: String, highlight: TextHighlight)] = []
+    @State private var selectedThread: SearchAnswer?
+    @State private var isShowingDetail = false
 
     private let repository = ResearchHistoryRepository()
     private let logger = Logger(
@@ -87,13 +89,22 @@ struct SearchLibraryView: View {
                 }
             }
             .onAppear {
-                loadThreadsFromPersistence()
+                if isShowingHighlightsOnly {
+                    loadHighlights()
+                } else {
+                    loadThreadsFromPersistence()
+                }
             }
             .refreshable {
                 if isShowingHighlightsOnly {
                     loadHighlights()
                 } else {
                     loadThreadsFromPersistence()
+                }
+            }
+            .navigationDestination(isPresented: $isShowingDetail) {
+                if let selectedThread {
+                    SearchDetailView(answer: selectedThread)
                 }
             }
         }
@@ -119,11 +130,13 @@ struct SearchLibraryView: View {
                     description: Text("'\(searchText)' için eşleşen araştırma bulunamadı")
                 )
             } else {
-                Section("Son Araştırmalar") {
-                    ForEach(filteredThreads) { thread in
-                        NavigationLink(destination: SearchDetailView(answer: thread)) {
-                            SearchAnswerRow(answer: thread)
-                                .equatable()
+                ForEach(filteredThreads) { thread in
+                    SearchAnswerRow(answer: thread)
+                        .equatable()
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedThread = thread
+                            isShowingDetail = true
                         }
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         .listRowSeparator(.hidden)
@@ -132,10 +145,9 @@ struct SearchLibraryView: View {
                             Button(role: .destructive) {
                                 deleteThread(thread)
                             } label: {
-                                Label("Sil", systemImage: "trash")
+                                Image(systemName: "trash")
                             }
                         }
-                    }
                 }
             }
         }
@@ -144,7 +156,7 @@ struct SearchLibraryView: View {
     }
 
     private var highlightsOnlyView: some View {
-        ScrollView {
+        Group {
             if isLoading {
                 ProgressView("Vurgular yükleniyor...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -163,7 +175,7 @@ struct SearchLibraryView: View {
                 )
                 .frame(maxHeight: .infinity)
             } else {
-                LazyVStack(spacing: 16) {
+                List {
                     ForEach(Array(filteredHighlights.enumerated()), id: \.offset) { index, item in
                         HighlightCard(
                             question: item.question,
@@ -171,14 +183,26 @@ struct SearchLibraryView: View {
                             answerId: item.answerId,
                             onTap: {
                                 // Navigate to full answer with this highlight
-                                if threads.contains(where: { $0.id == item.answerId }) {
-                                    // TODO: Navigate to SearchDetailView with thread
+                                if let thread = threads.first(where: { $0.id == item.answerId }) {
+                                    selectedThread = thread
+                                    isShowingDetail = true
                                 }
                             }
                         )
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                deleteHighlight(item.highlight.id, from: item.answerId)
+                            } label: {
+                                Image(systemName: "trash")
+                            }
+                        }
                     }
                 }
-                .padding()
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
     }
@@ -223,6 +247,26 @@ struct SearchLibraryView: View {
         }
     }
 
+    private func deleteHighlight(_ highlightId: UUID, from answerId: String) {
+        Task {
+            do {
+                // Delete highlight from repository
+                try await repository.deleteHighlight(highlightId, from: answerId)
+
+                // Update UI by removing from local state
+                await MainActor.run {
+                    withAnimation {
+                        allHighlights.removeAll { $0.highlight.id == highlightId }
+                    }
+                }
+
+                logger.info("✅ Deleted highlight: \(highlightId) from answer: \(answerId)")
+            } catch {
+                logger.error("Failed to delete highlight: \(error.localizedDescription)")
+            }
+        }
+    }
+
     private func loadHighlights() {
         Task {
             isLoading = true
@@ -256,40 +300,42 @@ struct SearchAnswerRow: View, Equatable {
         VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.small) {
             // Header: Question text with tier badge
             HStack(alignment: .top, spacing: ResponsiveDesign.Spacing.small) {
-                // Question text (card title)
+                // Question text (up to 3 lines, wrapped, truncate only if exceeds)
                 Text(answer.query)
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
-                    .lineLimit(2)
+                    .lineLimit(3)
+                    .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 // Research type badge (compact, top-right)
                 if let tier = answer.tier {
                     HStack(spacing: 4) {
                         Image(systemName: tier.iconName)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(11), weight: .medium))
                             .foregroundStyle(tier.badgeForegroundColor(for: colorScheme))
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, ResponsiveDesign.Spacing.xSmall)
+                    .padding(.vertical, ResponsiveDesign.Spacing.xxSmall)
                     .background {
                         Capsule()
                             .fill(tier.badgeBackgroundColor(for: colorScheme))
                     }
+                    .fixedSize()
                 }
             }
 
-            // Answer preview (3 lines maximum)
+            // Answer preview (up to 3 lines, wrapped, last line truncates)
             Text(answer.content)
-                .font(.system(size: 12, weight: .regular, design: .rounded))
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(13), weight: .regular, design: .rounded))
                 .foregroundColor(.secondary)
                 .lineLimit(3)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.vertical, ResponsiveDesign.Spacing.medium)
-        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
-        .frame(maxWidth: .infinity)
+        .padding(ResponsiveDesign.Spacing.medium)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(.clear)
         .glassEffect(
             .regular.interactive(),

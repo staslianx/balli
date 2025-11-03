@@ -127,10 +127,19 @@ final class HighlightManager: ObservableObject {
         highlights[answerId] = answerHighlights
         logger.info("✅ [HIGHLIGHT] Deleted (remaining: \(answerHighlights.count))")
 
-        // Persist deletion to SwiftData
-        if let sessionManager = sessionManager {
-            try await sessionManager.deleteHighlight(id: highlightId, from: answerId)
-            logger.info("💾 [HIGHLIGHT] Deletion persisted to SwiftData")
+        // Persist deletion to CoreData for SearchAnswer highlights
+        do {
+            try await repository.deleteHighlight(highlightId, from: answerId)
+            logger.info("💾 [HIGHLIGHT] Deletion persisted to CoreData")
+        } catch {
+            // If CoreData delete fails, try SwiftData (for SessionMessage highlights)
+            if let sessionManager = sessionManager {
+                try await sessionManager.deleteHighlight(id: highlightId, from: answerId)
+                logger.info("💾 [HIGHLIGHT] Deletion persisted to SwiftData")
+            } else {
+                logger.error("❌ [HIGHLIGHT] No persistence available for answer: \(answerId)")
+                throw error
+            }
         }
     }
 
@@ -189,11 +198,10 @@ final class HighlightManager: ObservableObject {
                 continue
             }
 
-            // Apply background color with transparency
-            let backgroundColor = highlight.color.uiColor.withAlphaComponent(0.3)
+            // Apply background color with transparency (fixed color, no dark mode adaptation)
             attributedString.addAttribute(
                 .backgroundColor,
-                value: backgroundColor,
+                value: highlight.color.highlightColor,
                 range: range
             )
         }
