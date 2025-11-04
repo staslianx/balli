@@ -15,31 +15,6 @@ import OSLog
 
 
 /// Unified item structure for displaying both recipes and food products
-struct ArdiyeItem: Identifiable, Equatable {
-    let id: UUID
-    let name: String
-    let displayTitle: String
-    let subtitle: String
-    let totalCarbs: Double
-    let servingSize: Double
-    let servingUnit: String
-    let isFavorite: Bool
-    let isRecipe: Bool
-
-    // Optional references to actual entities
-    let recipe: Recipe?
-    let foodItem: FoodItem?
-
-    static func == (lhs: ArdiyeItem, rhs: ArdiyeItem) -> Bool {
-        lhs.id == rhs.id
-    }
-}
-
-enum ArdiyeFilter: String, CaseIterable {
-    case recipes = "tarif"
-    case products = "ürün"
-}
-
 @MainActor
 struct ArdiyeView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -393,119 +368,15 @@ struct ArdiyeView: View {
 
     @ViewBuilder
     private func recipeCard(for item: ArdiyeItem) -> some View {
-        Group {
-            if item.isRecipe, let recipe = item.recipe {
-                // Recipe - Open as full screen modal
-                Button(action: {
-                    selectedRecipe = recipe
-                }) {
-                    recipeCardContent(for: item)
-                }
-                .buttonStyle(CardButtonStyle())
-            } else if let foodItem = item.foodItem {
-                // Scanned packaged food product - Open product detail view
-                Button(action: {
-                    selectedFoodItem = foodItem
-                }) {
-                    recipeCardContent(for: item)
-                }
-                .buttonStyle(CardButtonStyle())
-            } else {
-                // Fallback for items without proper entity reference
-                recipeCardContent(for: item)
+        RecipeCardView(
+            item: item,
+            onRecipeTap: { recipe in
+                selectedRecipe = recipe
+            },
+            onFoodItemTap: { foodItem in
+                selectedFoodItem = foodItem
             }
-        }
-    }
-
-    @ViewBuilder
-    private func recipeCardContent(for item: ArdiyeItem) -> some View {
-        if item.isRecipe, let recipe = item.recipe {
-            // Recipe card layout
-            recipeCardLayout(item: item, recipe: recipe)
-        } else {
-            // Fallback layout
-            recipeCardLayout(item: item, recipe: nil)
-        }
-    }
-
-    // MARK: - Recipe Card Layout
-
-    @ViewBuilder
-    private func recipeCardLayout(item: ArdiyeItem, recipe: Recipe?) -> some View {
-        HStack(spacing: 0) {
-            // Left side - Text content
-            VStack(alignment: .leading, spacing: 8) {
-                // Recipe name
-                Text(item.name)
-                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .foregroundColor(.primary)
-
-                Spacer()
-
-                // Serving size
-                Text("\(Int(item.servingSize)) \(item.servingUnit)")
-                    .font(.system(size: 14, weight: .regular, design: .rounded))
-                    .foregroundColor(.primary.opacity(0.7))
-
-                // Carb amount
-                Text(String(format: "%.1f gr Karb.", item.totalCarbs))
-                    .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundColor(.primary)
-            }
-            .padding(.vertical, 16)
-            .padding(.leading, 16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Right side - Photo (if recipe exists)
-            if let recipe = recipe {
-                ZStack(alignment: .bottomTrailing) {
-                    recipePhoto(for: recipe)
-
-                    // Yellow star on bottom right if favorited
-                    if recipe.isFavorite {
-                        Image(systemName: "star.fill")
-                            .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .semibold))
-                            .foregroundColor(Color(red: 1, green: 0.85, blue: 0, opacity: 1))
-                            .padding(.bottom, 16)
-                            .padding(.trailing, 16)
-                    }
-                }
-            }
-        }
-        .frame(height: 140)
-        .background(.clear)
-        .glassEffect(
-            .regular.interactive(),
-            in: RoundedRectangle(cornerRadius: 32, style: .continuous)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
-        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
-        .contentShape(Rectangle())
-    }
-    @ViewBuilder
-    private func recipePhoto(for recipe: Recipe) -> some View {
-        if let imageData = recipe.imageData, let uiImage = UIImage(data: imageData) {
-            Image(uiImage: uiImage)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 140, height: 140)
-                .clipShape(
-                    RoundedRectangle(cornerRadius: 32, style: .continuous)
-                )
-        } else {
-            // Placeholder for recipes without photos
-            ZStack {
-                Color.secondary.opacity(0.1)
-                Image(systemName: "photo")
-                    .font(.system(size: 32))
-                    .foregroundStyle(.secondary.opacity(0.3))
-            }
-            .frame(width: 140, height: 140)
-            .clipShape(
-                RoundedRectangle(cornerRadius: 32, style: .continuous)
-            )
-        }
     }
 
     // MARK: - Helper Functions
@@ -574,88 +445,7 @@ struct ArdiyeView: View {
     }
 
     private func addDemoProducts() {
-        let demoProducts = [
-            (
-                name: "Whole Wheat Bread",
-                brand: "Deli's Best",
-                carbs: 42.0,
-                protein: 4.0,
-                totalFat: 2.0,
-                fiber: 3.0,
-                sugars: 3.0,
-                servingSize: 50.0,
-                servingUnit: "gr",
-                calories: 200.0
-            ),
-            (
-                name: "Greek Yogurt",
-                brand: "Fage",
-                carbs: 6.5,
-                protein: 10.0,
-                totalFat: 3.0,
-                fiber: 0.0,
-                sugars: 4.0,
-                servingSize: 150.0,
-                servingUnit: "gr",
-                calories: 100.0
-            ),
-            (
-                name: "Granola Cereal",
-                brand: "Nature Valley",
-                carbs: 35.0,
-                protein: 6.0,
-                totalFat: 8.0,
-                fiber: 2.0,
-                sugars: 12.0,
-                servingSize: 40.0,
-                servingUnit: "gr",
-                calories: 180.0
-            ),
-            (
-                name: "Almond Butter",
-                brand: "Justin's",
-                carbs: 4.0,
-                protein: 7.0,
-                totalFat: 9.0,
-                fiber: 2.5,
-                sugars: 1.0,
-                servingSize: 32.0,
-                servingUnit: "gr",
-                calories: 190.0
-            )
-        ]
-
-        for product in demoProducts {
-            let foodItem = FoodItem(context: viewContext)
-            foodItem.id = UUID()
-            foodItem.name = product.name
-            foodItem.brand = product.brand
-            foodItem.totalCarbs = product.carbs
-            foodItem.protein = product.protein
-            foodItem.totalFat = product.totalFat
-            foodItem.fiber = product.fiber
-            foodItem.sugars = product.sugars
-            // Calculate calories from macros to ensure validation passes
-            let carbCals = product.carbs * 4
-            let proteinCals = product.protein * 4
-            let fatCals = product.totalFat * 9
-            let calculatedCalories = carbCals + proteinCals + fatCals
-            foodItem.calories = calculatedCalories
-            foodItem.servingSize = product.servingSize
-            foodItem.servingUnit = product.servingUnit
-            foodItem.source = "ai_scanned"
-            foodItem.dateAdded = Date()
-            foodItem.lastModified = Date()
-            foodItem.lastUsed = Date()
-            foodItem.isFavorite = false
-            foodItem.overallConfidence = 85.0
-            foodItem.carbsConfidence = 90.0
-            foodItem.ocrConfidence = 80.0
-            foodItem.isVerified = true
-            foodItem.gramWeight = product.servingSize
-        }
-
-        saveContext()
+        DemoDataService.addDemoProducts(to: viewContext)
         updateCachedItems()
     }
 }
@@ -687,95 +477,7 @@ struct ArdiyeView_Previews: PreviewProvider {
     }
 
     static func addDemoProducts(to context: NSManagedObjectContext) {
-        // Check if demo products already exist
-        let fetchRequest = FoodItem.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "source == %@", "ai_scanned")
-
-        guard (try? context.fetch(fetchRequest))?.isEmpty ?? true else {
-            return // Products already exist
-        }
-
-        let demoProducts = [
-            (
-                name: "Whole Wheat Bread",
-                brand: "Deli's Best",
-                carbs: 42.0,
-                protein: 4.0,
-                totalFat: 2.0,
-                fiber: 3.0,
-                sugars: 3.0,
-                servingSize: 50.0,
-                servingUnit: "gr",
-                calories: 200.0
-            ),
-            (
-                name: "Greek Yogurt",
-                brand: "Fage",
-                carbs: 6.5,
-                protein: 10.0,
-                totalFat: 3.0,
-                fiber: 0.0,
-                sugars: 4.0,
-                servingSize: 150.0,
-                servingUnit: "gr",
-                calories: 100.0
-            ),
-            (
-                name: "Granola Cereal",
-                brand: "Nature Valley",
-                carbs: 35.0,
-                protein: 6.0,
-                totalFat: 8.0,
-                fiber: 2.0,
-                sugars: 12.0,
-                servingSize: 40.0,
-                servingUnit: "gr",
-                calories: 180.0
-            ),
-            (
-                name: "Almond Butter",
-                brand: "Justin's",
-                carbs: 4.0,
-                protein: 7.0,
-                totalFat: 9.0,
-                fiber: 2.5,
-                sugars: 1.0,
-                servingSize: 32.0,
-                servingUnit: "gr",
-                calories: 190.0
-            )
-        ]
-
-        for product in demoProducts {
-            let foodItem = FoodItem(context: context)
-            foodItem.id = UUID()
-            foodItem.name = product.name
-            foodItem.brand = product.brand
-            foodItem.totalCarbs = product.carbs
-            foodItem.protein = product.protein
-            foodItem.totalFat = product.totalFat
-            foodItem.fiber = product.fiber
-            foodItem.sugars = product.sugars
-            foodItem.calories = product.calories
-            foodItem.servingSize = product.servingSize
-            foodItem.servingUnit = product.servingUnit
-            foodItem.source = "ai_scanned"
-            foodItem.dateAdded = Date()
-            foodItem.lastModified = Date()
-            foodItem.lastUsed = Date()
-            foodItem.isFavorite = false
-            foodItem.overallConfidence = 85.0
-            foodItem.carbsConfidence = 90.0
-            foodItem.ocrConfidence = 80.0
-            foodItem.isVerified = true
-            foodItem.gramWeight = product.servingSize
-        }
-
-        do {
-            try context.save()
-        } catch {
-            print("Preview: Failed to save demo products: \(error.localizedDescription)")
-        }
+        DemoDataService.addDemoProducts(to: context)
     }
 }
 
