@@ -20,6 +20,23 @@ struct ProductCardView: View {
     let onDelete: (() -> Void)?
     @Environment(\.colorScheme) private var colorScheme
 
+    // Dark mode dissolved purple gradient
+    private var dissolvedPurpleDark: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: AppTheme.primaryPurple.opacity(0.12), location: 0.0),
+                .init(color: AppTheme.primaryPurple.opacity(0.08), location: 0.15),
+                .init(color: AppTheme.primaryPurple.opacity(0.05), location: 0.25),
+                .init(color: AppTheme.primaryPurple.opacity(0.03), location: 0.5),
+                .init(color: AppTheme.primaryPurple.opacity(0.05), location: 0.75),
+                .init(color: AppTheme.primaryPurple.opacity(0.08), location: 0.85),
+                .init(color: AppTheme.primaryPurple.opacity(0.12), location: 1.0)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
     init(
         brand: String,
         name: String,
@@ -177,10 +194,16 @@ struct ProductCardView: View {
         .frame(width: width ?? ResponsiveDesign.Components.productCardSize,
                height: height ?? width ?? ResponsiveDesign.Components.productCardSize,
                alignment: .leading)
-        .background(.clear)
         .contentShape(Rectangle())
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous)
+                .fill(colorScheme == .light ? AppTheme.adaptiveBalliGradient(for: colorScheme) : dissolvedPurpleDark)
+        )
         .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .glassEffect(
+            colorScheme == .dark ? .regular.interactive() : .regular,
+            in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous)
+        )
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
         .contextMenu {
             // Favorite toggle button
