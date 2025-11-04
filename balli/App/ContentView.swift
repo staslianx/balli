@@ -95,7 +95,7 @@ struct ContentView: View {
             // Main balli Tab
             Tab("Bugün", systemImage: calendarIcon, value: 1) {
                 NavigationStack {
-                    TodayView(viewContext: viewContext)
+                    UnifiedDashboardView(variant: .today, viewContext: viewContext)
                         .environment(\.selectedTab, $selectedTab)
                 }
             }

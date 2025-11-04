@@ -194,6 +194,7 @@ struct NutritionLabelView: View {
             caloriesSection
             dividerLine
             nutritionSection
+                .id(portionGrams) // Force recomputation when portionGrams changes
 
             // Conditionally show slider based on state
             if showSlider {
@@ -306,24 +307,12 @@ struct NutritionLabelView: View {
     private var caloriesSection: some View {
         HStack(alignment: .lastTextBaseline, spacing: ResponsiveDesign.Spacing.medium) {
             HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
-                if isEditing {
-                    // Show editable TextField for calories when in editing mode
-                    TextField("0", text: $calories)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .semibold, design: .rounded))
-                        .frame(width: ResponsiveDesign.width(45), height: ResponsiveDesign.height(28), alignment: .trailing)
-                        .foregroundColor(.primary)
-                        .textFieldStyle(.plain)
-                        .opacity(shouldShowValue("calories") ? 1.0 : 0.0)
-                } else {
-                    // Show adjusted value with animation in read-only mode
-                    Text(adjustedCalories.isEmpty ? "0" : adjustedCalories)
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
-                        .frame(width: ResponsiveDesign.width(45), height: ResponsiveDesign.height(28), alignment: .trailing)
-                        .opacity(shouldShowValue("calories") ? 1.0 : 0.0)
-                }
+                // ALWAYS show adjusted calories based on slider position
+                Text(adjustedCalories.isEmpty ? "0" : adjustedCalories)
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .semibold, design: .rounded))
+                    .foregroundColor(.primary)
+                    .frame(width: ResponsiveDesign.width(45), height: ResponsiveDesign.height(28), alignment: .trailing)
+                    .opacity(shouldShowValue("calories") ? 1.0 : 0.0)
 
                 Text("kcal")
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .regular, design: .rounded))
@@ -335,22 +324,12 @@ struct NutritionLabelView: View {
             Spacer()
 
             HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
-                if isEditing {
-                    // Show editable serving size when in editing mode
-                    TextField("100", text: $servingSize)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
-                        .frame(width: ResponsiveDesign.width(45), height: ResponsiveDesign.height(28), alignment: .trailing)
-                        .foregroundColor(.primary)
-                        .textFieldStyle(.plain)
-                } else {
-                    // Show current portion size in read-only mode
-                    Text(String(format: "%.0f", portionGrams))
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
-                        .foregroundColor(.primary)
-                        .frame(width: ResponsiveDesign.width(45), height: ResponsiveDesign.height(28), alignment: .trailing)
-                }
+                // ALWAYS show current portion size (controlled by slider)
+                // NOT the base serving size from the label
+                Text(String(format: "%.0f", portionGrams))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
+                    .foregroundColor(.primary)
+                    .frame(width: ResponsiveDesign.width(45), height: ResponsiveDesign.height(28), alignment: .trailing)
 
                 Text("g'da")
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .regular, design: .rounded))
@@ -423,13 +402,11 @@ struct NutritionLabelView: View {
     
     private var sliderSection: some View {
         // Logarithmic slider (keep original purple color - don't change)
-        Slider(value: sliderPosition, in: 0...1, step: 0.01) { _ in
-            // Update portionGrams based on logarithmic position
-            portionGrams = gramsFromSliderPosition(sliderPosition.wrappedValue)
-        }
-        .accentColor(AppTheme.primaryPurple)
-        .padding(.horizontal, ResponsiveDesign.Spacing.large)
-        .padding(.top, ResponsiveDesign.Spacing.large)
+        Slider(value: sliderPosition, in: 0...1, step: 0.01)
+            .accentColor(AppTheme.primaryPurple)
+            .padding(.horizontal, ResponsiveDesign.Spacing.large)
+            .padding(.top, ResponsiveDesign.Spacing.large)
+            .animation(.easeInOut(duration: 0.15), value: portionGrams)
     }
 
     // MARK: - Logarithmic Slider Helpers
@@ -438,14 +415,12 @@ struct NutritionLabelView: View {
     private var sliderPosition: Binding<Double> {
         Binding<Double>(
             get: {
-                MainActor.assumeIsolated {
-                    self.sliderPositionFromGrams(self.portionGrams)
-                }
+                self.sliderPositionFromGrams(self.portionGrams)
             },
             set: { newPosition in
-                MainActor.assumeIsolated {
-                    self.portionGrams = self.gramsFromSliderPosition(newPosition)
-                }
+                // Update the binding value directly
+                // This should trigger SwiftUI to re-render the view
+                self.portionGrams = self.gramsFromSliderPosition(newPosition)
             }
         )
     }
@@ -457,14 +432,14 @@ struct NutritionLabelView: View {
     }
 
     /// Convert grams to slider position using a tunable logarithmic curve
-    nonisolated private func sliderPositionFromGrams(_ grams: Double) -> Double {
+    private func sliderPositionFromGrams(_ grams: Double) -> Double {
         let clamped = max(SliderConfig.minGrams, min(SliderConfig.maxGrams, grams))
         let normalized = (clamped - SliderConfig.minGrams) / (SliderConfig.maxGrams - SliderConfig.minGrams)
         return pow(normalized, SliderConfig.logGamma)
     }
 
     /// Convert slider position back to grams using the inverse curve
-    nonisolated private func gramsFromSliderPosition(_ position: Double) -> Double {
+    private func gramsFromSliderPosition(_ position: Double) -> Double {
         let clamped = max(0, min(1, position))
         let normalized = pow(clamped, 1 / SliderConfig.logGamma)
         let grams = SliderConfig.minGrams + normalized * (SliderConfig.maxGrams - SliderConfig.minGrams)
@@ -569,24 +544,13 @@ struct NutritionLabelRowProportional: View {
             Spacer()
 
             HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
-                if isEditing {
-                    // Show editable TextField when in editing mode
-                    TextField("0", text: $baseValue)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
-                        .frame(width: ResponsiveDesign.width(55), height: ResponsiveDesign.height(28), alignment: .trailing)
-                        .foregroundColor(.primary)
-                        .textFieldStyle(.plain)
-                        .opacity(shouldShow ? 1.0 : 0.0)
-                } else {
-                    // Show adjusted values with animation in read-only mode
-                    Text(adjustedValue.isEmpty ? "0" : adjustedValue)
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
-                        .foregroundColor(.primary)
-                        .frame(width: ResponsiveDesign.width(55), height: ResponsiveDesign.height(28), alignment: .trailing)
-                        .opacity(shouldShow ? 1.0 : 0.0)
-                }
+                // ALWAYS show adjusted values based on slider position
+                // The slider controls the portion, values update in real-time
+                Text(adjustedValue.isEmpty ? "0" : adjustedValue)
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
+                    .foregroundColor(.primary)
+                    .frame(width: ResponsiveDesign.width(55), height: ResponsiveDesign.height(28), alignment: .trailing)
+                    .opacity(shouldShow ? 1.0 : 0.0)
 
                 Text(unit)
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .regular, design: .rounded))

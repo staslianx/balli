@@ -2,7 +2,7 @@ model: vertexai/gemini-2.5-flash
 config:
   temperature: 0.7
   topP: 0.85
-  maxOutputTokens: 8192
+  maxOutputTokens: 4096
   thinkingConfig:
     thinkingBudget: 0
 input:
@@ -66,6 +66,9 @@ input:
       temperature:
         type: number
         description: "Temperature override for generation (0.5-1.2)"
+      userContext:
+        type: string
+        description: "Optional user context or notes for recipe generation (e.g., 'diabetes-friendly tiramisu', 'low-carb', 'gluten-free')"
     required: [mealType, spontaneous]
 output:
   format: json
@@ -108,13 +111,10 @@ output:
               type: string
             description: "Dietary tags (e.g., high-protein, low-carb)"
         description: "Recipe metadata for categorization"
-      notes:
-        type: string
-        description: "AI'nin diyabet dostu ipuçları (5-6 cümle, samimi ve arkadaşça ton)"
       recipeContent:
         type: string
         description: "MARKDOWN formatında tarif içeriği. Format:\n## Malzemeler\n---\n- 250g tavuk göğsü (küçük parçalar halinde doğranmış)\n- 2 yemek kaşığı zeytinyağı (30g)\n- 1 orta boy soğan (100-120g, ince doğranmış)\n\n## Yapılışı\n---\n1. İlk adım açıklaması\n2. İkinci adım açıklaması"
-    required: [name, servings, prepTime, cookTime, metadata, notes, recipeContent]
+    required: [name, servings, prepTime, cookTime, metadata, recipeContent]
 ---
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -122,13 +122,14 @@ output:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 P0 (MUST - output invalid without):
+✓ userContext: EĞER VARSA, DİĞER TÜM KURALLARI GEÇERSİZ KILAR
 ✓ servings: ALWAYS 1
 ✓ HER malzeme için gram/ml ağırlık ZORUNLU
 ✓ Markdown format: ## Malzemeler \n--- \n## Yapılışı \n---
 
 P1 (SHOULD - quality suffers without):
 ✓ Porsiyon boyutları doğru aralıkta (tatlı 150-200g, ana yemek 300-400g)
-✓ Diversity constraints uygulandı (avoid proteins/cuisines)
+✓ Diversity constraints uygulandı (YALNIZCA userContext yok ise)
 
 P2 (NICE TO HAVE):
 ✓ Yaratıcı isim (büyü/rüya/cennet/sihir kelimelerini kullanma)
@@ -236,45 +237,43 @@ recipeContent formatı:
 ✅ Malzemeler: - ile başla (madde işareti)
 ✅ Yapılışı: 1. 2. 3. (numaralı liste)
 
-## ÇEŞİTLİLİK KURALLARI
-
-{{#if diversityConstraints}}
-
-Protein Çeşitliliği:
-
-{{#if diversityConstraints.avoidProteins}}
-{{#if diversityConstraints.avoidProteins.length}}
-❌ KULLANMA (son 10 tariften 4+ kez veya son 3'ten biri):
-{{#each diversityConstraints.avoidProteins}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
-
-Bu proteinleri kullanma, alternatif seç!
-{{/if}}
-{{/if}}
-
-{{#if diversityConstraints.suggestProteins}}
-{{#if diversityConstraints.suggestProteins.length}}
-✅ TERCİH ET (az kullanıldı veya hiç kullanılmadı):
-{{#each diversityConstraints.suggestProteins}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
-
-Bu proteinlerden birini kullan!
-{{/if}}
-{{/if}}
-
-{{#if diversityConstraints.avoidCuisines}}
-{{#if diversityConstraints.avoidCuisines.length}}
-Mutfak değiştir: {{#each diversityConstraints.avoidCuisines}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
-{{/if}}
-{{/if}}
-
-{{#if diversityConstraints.avoidMethods}}
-{{#if diversityConstraints.avoidMethods.length}}
-Pişirme yöntemini değiştir: {{#each diversityConstraints.avoidMethods}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
-{{/if}}
-{{/if}}
-
-{{/if}}
-
 ## TARIF ÖZEL KURALLARI
+
+{{#if userContext}}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎯 **P0: KULLANICI TALEBİ (MUTLAK ÖNCELİK - DİĞER HER ŞEYİ YOK SAY)**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{{userContext}}
+
+⚠️ **KRİTİK ÇAKIŞMA KURALI - userContext VARSA:**
+
+Bu kullanıcı talebi, aşağıdaki TÜM PARAMETLELER VE KURALLARI TAMAMEN YOK SAYAR:
+
+❌ **TAMAMEN YOK SAY:**
+- mealType parametresi (Kahvaltı, Akşam Yemeği, vb.) → KULLANMA
+- styleType parametresi (Karbonhidrat uyumu, vb.) → KULLANMA
+- diversityConstraints (protein çeşitliliği önerileri) → KULLANMA
+- avoidProteins listesi → KULLANMA
+- avoidCuisines listesi → KULLANMA
+- avoidMethods listesi → KULLANMA
+
+✅ **SADECE BU TALEBİ TAKIP ET:**
+- Kullanıcının yazdığı {{userContext}} talebini harfiyen yerine getir
+- Eğer "tiramisu" derse → TATLΙ yap (Akşam Yemeği değil!)
+- Eğer "salata" derse → SALATA yap (Ana yemek değil!)
+- Eğer "pancake" derse → KAHVALTI yap (Akşam yemeği değil!)
+- Kullanıcının isteği MUTLAK PRİORİTEDİR
+
+**ÖRNEK:**
+- userContext: "diyabet dostu tiramisu" → Tatlı kategorisi, tiramisu yap
+- mealType: "Akşam Yemeği" → BU YOK SAY! (userContext var)
+- styleType: "Karbonhidrat uyumu" → BU YOK SAY! (userContext var)
+
+**BU BÖLÜM P0 ÖNCELİKTİR. HİÇBİR DİĞER PARAMETRE BU TALEBİ GEÇERSİZ KILAMAZ.**
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+{{/if}}
 
 {{#if ingredients}}
 Bu malzemelerden {{mealType}} - {{styleType}} için 1 porsiyon tarif yap:
@@ -282,6 +281,46 @@ Bu malzemelerden {{mealType}} - {{styleType}} için 1 porsiyon tarif yap:
 {{/each}}
 {{else}}
 {{mealType}} - {{styleType}} için 1 porsiyon yaratıcı tarif yap.
+{{/if}}
+
+## ÇEŞİTLİLİK ÖNERİLERİ (userContext yoksa uygula)
+
+{{#if diversityConstraints}}
+
+⚠️ **NOT:** Kullanıcı özel bir talep yaptıysa (userContext varsa), bu öneriler GEÇERSİZDİR.
+
+Protein Çeşitliliği:
+
+{{#if diversityConstraints.avoidProteins}}
+{{#if diversityConstraints.avoidProteins.length}}
+⚠️ Öneri - Az kullanılan proteinler tercih et (son 10 tariften 4+ kez veya son 3'ten biri):
+{{#each diversityConstraints.avoidProteins}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+
+Mümkünse bu proteinlerden kaçın, alternatif seçin (kullanıcı özel talep yapmadıysa).
+{{/if}}
+{{/if}}
+
+{{#if diversityConstraints.suggestProteins}}
+{{#if diversityConstraints.suggestProteins.length}}
+✅ Öneri - Bu proteinler az kullanıldı:
+{{#each diversityConstraints.suggestProteins}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+
+Bu proteinlerden birini kullanabilirsiniz (kullanıcı özel talep yapmadıysa).
+{{/if}}
+{{/if}}
+
+{{#if diversityConstraints.avoidCuisines}}
+{{#if diversityConstraints.avoidCuisines.length}}
+Mutfak çeşitliliği için öneri: {{#each diversityConstraints.avoidCuisines}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} dışında bir mutfak deneyin.
+{{/if}}
+{{/if}}
+
+{{#if diversityConstraints.avoidMethods}}
+{{#if diversityConstraints.avoidMethods.length}}
+Pişirme yöntemi için öneri: {{#each diversityConstraints.avoidMethods}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} dışında bir yöntem deneyin.
+{{/if}}
+{{/if}}
+
 {{/if}}
 
 {{#ifEquals mealType "Kahvaltı"}}Sabah için doyurucu, kan şekeri dengeli. 1 porsiyon: 250-350g.{{/ifEquals}}
@@ -317,7 +356,6 @@ Bu malzemelerden {{mealType}} - {{styleType}} için 1 porsiyon tarif yap:
 ✅ Sadece JSON çıktı ver
 ✅ Tüm metin TÜRKÇE (İngilizce çeviri ekleme)
 ✅ servings: ALWAYS 1
-✅ notes: 5-6 cümle, samimi ton
 ✅ recipeContent: Tamamen Türkçe markdown
 ✅ Her malzemede gram/ml ağırlık zorunlu
 

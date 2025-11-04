@@ -149,7 +149,37 @@
             <fetchIndexElement property="source" type="Binary" order="ascending"/>
         </fetchIndex>
     </entity>
-    
+
+    <!-- DailyActivity Entity -->
+    <entity name="DailyActivity" representedClassName="DailyActivity" syncable="YES">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="date" attributeType="Date" usesScalarValueType="NO"/>
+
+        <!-- Activity Metrics -->
+        <attribute name="steps" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="activeCalories" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="totalCalories" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="distance" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="exerciseMinutes" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+
+        <!-- Metadata -->
+        <attribute name="source" attributeType="String" defaultValueString="apple_health"/>
+        <attribute name="lastSynced" attributeType="Date" usesScalarValueType="NO"/>
+
+        <!-- Indexes for efficient querying -->
+        <fetchIndex name="byDateIndex">
+            <fetchIndexElement property="date" type="Binary" order="descending"/>
+        </fetchIndex>
+
+        <!-- Unique constraint: one record per date -->
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="date"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
+
     <!-- ScanImage Entity -->
     <entity name="ScanImage" representedClassName="ScanImage" syncable="YES">
         <!-- Identifiers -->
@@ -369,7 +399,11 @@
         <attribute name="glycemicLoadPerServing" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="totalRecipeWeight" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="portionMultiplier" attributeType="Double" defaultValueString="1.0" usesScalarValueType="YES"/>
-        
+
+        <!-- Portion Definition System (for diabetes management) -->
+        <attribute name="portionSize" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="recipeType" attributeType="String" defaultValueString="aiGenerated"/>
+
         <!-- Recipe Metadata -->
         <attribute name="source" attributeType="String" defaultValueString="manual"/>
         <attribute name="mealType" optional="YES" attributeType="String"/>
@@ -695,5 +729,6 @@
         <element name="UserPreferences" positionX="900" positionY="90" width="128" height="404"/>
         <element name="HealthNotificationSettings" positionX="900" positionY="530" width="128" height="284"/>
         <element name="ResearchAnswer" positionX="1100" positionY="90" width="128" height="284"/>
+        <element name="DailyActivity" positionX="700" positionY="700" width="128" height="284"/>
     </elements>
 </model>

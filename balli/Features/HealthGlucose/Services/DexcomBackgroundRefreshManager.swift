@@ -33,7 +33,7 @@ final class DexcomBackgroundRefreshManager {
 
     private init() {
         // Use shared instances or create new ones
-        self.officialService = DexcomService()
+        self.officialService = DexcomService.shared
         self.shareService = DexcomShareService.shared
     }
 

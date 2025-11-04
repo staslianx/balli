@@ -17,6 +17,7 @@ class RecipeGenerationActionsHandler: ObservableObject {
     @Published var showingNotesModal = false
 
     var onShowToast: ((ToastType) -> Void)?
+    var onShoppingListUpdated: (() async -> Void)?
 
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.balli",
@@ -49,6 +50,9 @@ class RecipeGenerationActionsHandler: ObservableObject {
             await MainActor.run {
                 onShowToast?(.success("Alışveriş listesine eklendi!"))
             }
+
+            // Refresh shopping list status in the view
+            await onShoppingListUpdated?()
         }
     }
 

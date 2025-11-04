@@ -63,19 +63,6 @@ class MedicalResearchViewModel: ObservableObject {
     /// Prevents handleFirstTokenArrival from being called multiple times per answer
     private var firstTokenProcessed: Set<String> = []
 
-    // MARK: - Token Batching (Performance Critical)
-
-    /// Accumulator for tokens before publishing to @Published answers array
-    /// Key: answerId, Value: accumulated content since last flush
-    private var tokenAccumulator: [String: String] = [:]
-
-    /// Batching task per answer - cancels previous when new tokens arrive
-    private var batchingTasks: [String: Task<Void, Never>] = [:]
-
-    /// Batching interval - flush every 8ms to achieve smooth 120fps streaming
-    /// (Very low delay for instant visual updates while preventing excessive SwiftUI updates)
-    private let tokenBatchInterval: Duration = .milliseconds(8)
-
     // MARK: - Convenience Properties
 
     /// Check if search is in progress
@@ -128,68 +115,41 @@ class MedicalResearchViewModel: ObservableObject {
     // MARK: - Initialization
 
     init() {
-        // Initialize session manager with ModelContainer, userId, and metadata generator
-        let container: ModelContainer
-        do {
-            container = try ResearchSessionModelContainer.shared.makeContext().container
-        } catch {
-            // Fallback to in-memory container if storage fails
-            let schema = Schema([ResearchSession.self, SessionMessage.self])
-            let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-            container = try! ModelContainer(for: schema, configurations: [config])
-        }
-        let metadataGenerator = SessionMetadataGenerator()
-        self.sessionManager = ResearchSessionManager(
-            modelContainer: container,
-            userId: currentUserId,
-            metadataGenerator: metadataGenerator
-        )
-
-        // Initialize extracted components
-        self.eventHandler = ResearchEventHandler(
+        // Step 1: Initialize core components without observers
+        let initializer = ResearchViewModelInitializer(
             tokenBuffer: tokenBuffer,
             streamProcessor: streamProcessor,
             stageCoordinator: stageCoordinator,
             searchCoordinator: searchCoordinator,
             persistenceManager: persistenceManager,
-            sessionManager: sessionManager
+            currentUserId: currentUserId
         )
 
-        self.sessionCoordinator = ResearchSessionCoordinator(
-            persistenceManager: persistenceManager,
-            sessionManager: sessionManager
-        )
+        let coreComponents = initializer.initializeCoreComponents()
 
-        // Setup notification observers
-        let observer1 = NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("SaveActiveResearchSession"),
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
+        // Assign core components before setting up observers (observers need sessionCoordinator)
+        self.sessionManager = coreComponents.sessionManager
+        self.eventHandler = coreComponents.eventHandler
+        self.sessionCoordinator = coreComponents.sessionCoordinator
+
+        // Step 2: Setup observers now that self is fully initialized
+        self.observers = initializer.setupNotificationObservers(
+            saveCurrentSession: { [weak self] in
                 await self?.saveCurrentSession()
-            }
-        }
-        observers.append(observer1)
-
-        let observer2 = NotificationCenter.default.addObserver(
-            forName: UIApplication.didEnterBackgroundNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor in
+            },
+            syncAnswersToPersistence: { [weak self] in
                 await self?.syncAnswersToPersistence()
             }
-        }
-        observers.append(observer2)
+        )
 
-        // Observe stage coordinator's currentStages and republish to trigger SwiftUI updates
-        stageCoordinator.$currentStages
-            .receive(on: RunLoop.main)
-            .sink { [weak self] stages in
+        // Step 3: Setup Combine observers
+        let stageCancellable = initializer.setupStageCoordinatorObserver(
+            stageCoordinator: stageCoordinator,
+            updateCurrentStages: { [weak self] stages in
                 self?.currentStages = stages
             }
-            .store(in: &cancellables)
+        )
+        cancellables.insert(stageCancellable)
 
         Task {
             await loadSessionHistory()
@@ -420,97 +380,36 @@ class MedicalResearchViewModel: ObservableObject {
         answerId: String,
         conversationHistory: [[String: String]]?
     ) async {
+        // Build callbacks using dedicated builder service
+        let callbacksBuilder = ResearchStreamCallbacksBuilder(viewModel: self)
+        let callbacks = callbacksBuilder.buildCallbacks(query: query, answerId: answerId)
+
         await searchService.searchStreaming(
             query: query,
             userId: currentUserId,
             conversationHistory: conversationHistory,
-            onToken: { @Sendable [weak self] token in
-                guard let self = self else { return }
-                Task {
-                    await self.handleToken(token, answerId: answerId)
-                }
-            },
-            onTierSelected: { @Sendable [weak self] tier in
-                Task { @MainActor in
-                    await self?.handleTierSelected(String(tier), answerId: answerId)
-                }
-            },
-            onSearchComplete: { @Sendable [weak self] count, source in
-                Task { @MainActor in
-                    await self?.handleSearchComplete(count: count, source: source, answerId: answerId)
-                }
-            },
-            onSourcesReady: { @Sendable [weak self] sources in
-                Task { @MainActor in
-                    await self?.handleSourcesReady(sources, answerId: answerId)
-                }
-            },
-            onComplete: { @Sendable [weak self] response in
-                Task { @MainActor in
-                    await self?.handleComplete(response, query: query, answerId: answerId)
-                }
-            },
-            onError: { @Sendable [weak self] error in
-                Task { @MainActor in
-                    await self?.handleError(error, query: query, answerId: answerId)
-                }
-            },
-            onPlanningStarted: { @Sendable [weak self] message, sequence in
-                Task { @MainActor in
-                    await self?.handlePlanningStarted(message: message, sequence: sequence, answerId: answerId)
-                }
-            },
-            onPlanningComplete: { @Sendable [weak self] plan, sequence in
-                Task { @MainActor in
-                    await self?.handlePlanningComplete(plan: plan, answerId: answerId)
-                }
-            },
-            onRoundStarted: { @Sendable [weak self] round, query, estimatedSources, sequence in
-                Task { @MainActor in
-                    await self?.handleRoundStarted(round: round, query: query, estimatedSources: estimatedSources, sequence: sequence, answerId: answerId)
-                }
-            },
-            onRoundComplete: { @Sendable [weak self] round, sources, status, sequence in
-                Task { @MainActor in
-                    await self?.handleRoundComplete(round: round, sources: sources, status: status, sequence: sequence, answerId: answerId)
-                }
-            },
-            onApiStarted: { @Sendable [weak self] api, count, message in
-                Task { @MainActor in
-                    await self?.handleApiStarted(api: api.rawValue, message: message, answerId: answerId)
-                }
-            },
-            onReflectionStarted: { @Sendable [weak self] round, sequence in
-                Task { @MainActor in
-                    await self?.handleReflectionStarted(round: round, sequence: sequence, answerId: answerId)
-                }
-            },
-            onReflectionComplete: { @Sendable [weak self] round, reflection, sequence in
-                Task { @MainActor in
-                    await self?.handleReflectionComplete(round: round, reflection: reflection, sequence: sequence, answerId: answerId)
-                }
-            },
-            onSourceSelectionStarted: { @Sendable [weak self] message, sequence in
-                Task { @MainActor in
-                    await self?.handleSourceSelectionStarted(message: message, sequence: sequence, answerId: answerId)
-                }
-            },
-            onSynthesisPreparation: { @Sendable [weak self] message, sequence in
-                Task { @MainActor in
-                    await self?.handleSynthesisPreparation(message: message, sequence: sequence, answerId: answerId)
-                }
-            },
-            onSynthesisStarted: { @Sendable [weak self] totalRounds, totalSources, sequence in
-                Task { @MainActor in
-                    await self?.handleSynthesisStarted(totalRounds: totalRounds, totalSources: totalSources, sequence: sequence, answerId: answerId)
-                }
-            }
+            onToken: callbacks.onToken,
+            onTierSelected: callbacks.onTierSelected,
+            onSearchComplete: callbacks.onSearchComplete,
+            onSourcesReady: callbacks.onSourcesReady,
+            onComplete: callbacks.onComplete,
+            onError: callbacks.onError,
+            onPlanningStarted: callbacks.onPlanningStarted,
+            onPlanningComplete: callbacks.onPlanningComplete,
+            onRoundStarted: callbacks.onRoundStarted,
+            onRoundComplete: callbacks.onRoundComplete,
+            onApiStarted: callbacks.onApiStarted,
+            onReflectionStarted: callbacks.onReflectionStarted,
+            onReflectionComplete: callbacks.onReflectionComplete,
+            onSourceSelectionStarted: callbacks.onSourceSelectionStarted,
+            onSynthesisPreparation: callbacks.onSynthesisPreparation,
+            onSynthesisStarted: callbacks.onSynthesisStarted
         )
     }
 
-    // MARK: - Event Handlers
+    // MARK: - Event Handlers (Internal for ResearchStreamCallbacksBuilder)
 
-    private func handleToken(_ token: String, answerId: String) async {
+    func handleToken(_ token: String, answerId: String) async {
         // STREAMING FIX: Update UI immediately with each token - no batching
         // The irregular chunking pattern was caused by race conditions between batching layers
         logger.debug("🔍 [TOKEN] Parsed token: length=\(token.count), last='\(token.last ?? Character(" "))', content='\(token)'")
@@ -531,34 +430,7 @@ class MedicalResearchViewModel: ObservableObject {
         )
     }
 
-    /// Flush accumulated tokens for an answer to the @Published answers array
-    private func flushContentBuffer(for answerId: String) async {
-        guard let bufferedContent = tokenAccumulator[answerId], !bufferedContent.isEmpty else {
-            return
-        }
-
-        // Clear buffer
-        tokenAccumulator[answerId] = nil
-
-        // Update answer with accumulated content
-        await eventHandler.handleToken(
-            bufferedContent,
-            answerId: answerId,
-            getAnswers: { @MainActor [weak self] in self?.answers ?? [] },
-            getAnswerIndex: { @MainActor [weak self] id in self?.answerIndexLookup[id] },
-            getFirstTokenProcessed: { @MainActor [weak self] in self?.firstTokenProcessed ?? [] },
-            updateAnswer: { @MainActor [weak self] index, answer, shouldAnimate in
-                guard let self = self else { return }
-                // STREAMING FIX: Remove animation during token streaming
-                // Animation overlaps caused choppy rendering (400ms animation × 20 updates/sec = disaster)
-                // SwiftUI handles smooth incremental text updates natively without explicit animation
-                self.answers[index] = answer
-            },
-            markFirstTokenProcessed: { @MainActor [weak self] id in self?.firstTokenProcessed.insert(id) }
-        )
-    }
-
-    private func handleTierSelected(_ tier: String, answerId: String) async {
+    func handleTierSelected(_ tier: String, answerId: String) async {
         await eventHandler.handleTierSelected(
             tier,
             answerId: answerId,
@@ -572,7 +444,7 @@ class MedicalResearchViewModel: ObservableObject {
         )
     }
 
-    private func handleSearchComplete(count: Int, source: String, answerId: String) async {
+    func handleSearchComplete(count: Int, source: String, answerId: String) async {
         await eventHandler.handleSearchComplete(
             count: count,
             source: source,
@@ -583,7 +455,7 @@ class MedicalResearchViewModel: ObservableObject {
         )
     }
 
-    private func handleSourcesReady(_ sources: [SourceResponse], answerId: String) async {
+    func handleSourcesReady(_ sources: [SourceResponse], answerId: String) async {
         await eventHandler.handleSourcesReady(
             sources,
             answerId: answerId,
@@ -597,15 +469,7 @@ class MedicalResearchViewModel: ObservableObject {
         )
     }
 
-    private func handleComplete(_ response: ResearchSearchResponse, query: String, answerId: String) async {
-        // PERFORMANCE FIX: Flush any remaining tokens before marking complete
-        await flushContentBuffer(for: answerId)
-
-        // Cancel any pending batching task
-        batchingTasks[answerId]?.cancel()
-        batchingTasks.removeValue(forKey: answerId)
-        tokenAccumulator.removeValue(forKey: answerId)
-
+    func handleComplete(_ response: ResearchSearchResponse, query: String, answerId: String) async {
         await eventHandler.handleComplete(
             response,
             query: query,
@@ -623,15 +487,7 @@ class MedicalResearchViewModel: ObservableObject {
         )
     }
 
-    private func handleError(_ error: Error, query: String, answerId: String) async {
-        // PERFORMANCE FIX: Flush any remaining tokens before error handling
-        await flushContentBuffer(for: answerId)
-
-        // Cancel any pending batching task
-        batchingTasks[answerId]?.cancel()
-        batchingTasks.removeValue(forKey: answerId)
-        tokenAccumulator.removeValue(forKey: answerId)
-
+    func handleError(_ error: Error, query: String, answerId: String) async {
         await eventHandler.handleError(
             error,
             query: query,
@@ -649,21 +505,21 @@ class MedicalResearchViewModel: ObservableObject {
         )
     }
 
-    // MARK: - Multi-Round Event Handlers
+    // MARK: - Multi-Round Event Handlers (Internal for ResearchStreamCallbacksBuilder)
 
-    private func handlePlanningStarted(message: String, sequence: Int, answerId: String) async {
+    func handlePlanningStarted(message: String, sequence: Int, answerId: String) async {
         await eventHandler.handlePlanningStarted(message: message, sequence: sequence, answerId: answerId)
     }
 
-    private func handlePlanningComplete(plan: ResearchPlan, answerId: String) async {
+    func handlePlanningComplete(plan: ResearchPlan, answerId: String) async {
         await eventHandler.handlePlanningComplete(plan: plan, answerId: answerId)
     }
 
-    private func handleRoundStarted(round: Int, query: String, estimatedSources: Int, sequence: Int, answerId: String) async {
+    func handleRoundStarted(round: Int, query: String, estimatedSources: Int, sequence: Int, answerId: String) async {
         await eventHandler.handleRoundStarted(round: round, query: query, estimatedSources: estimatedSources, sequence: sequence, answerId: answerId)
     }
 
-    private func handleRoundComplete(round: Int, sources: [SourceResponse], status: RoundStatus, sequence: Int, answerId: String) async {
+    func handleRoundComplete(round: Int, sources: [SourceResponse], status: RoundStatus, sequence: Int, answerId: String) async {
         await eventHandler.handleRoundComplete(
             round: round,
             sources: sources,
@@ -685,27 +541,27 @@ class MedicalResearchViewModel: ObservableObject {
         )
     }
 
-    private func handleApiStarted(api: String, message: String, answerId: String) async {
+    func handleApiStarted(api: String, message: String, answerId: String) async {
         await eventHandler.handleApiStarted(api: api, message: message, answerId: answerId)
     }
 
-    private func handleReflectionStarted(round: Int, sequence: Int, answerId: String) async {
+    func handleReflectionStarted(round: Int, sequence: Int, answerId: String) async {
         await eventHandler.handleReflectionStarted(round: round, sequence: sequence, answerId: answerId)
     }
 
-    private func handleReflectionComplete(round: Int, reflection: ResearchReflection, sequence: Int, answerId: String) async {
+    func handleReflectionComplete(round: Int, reflection: ResearchReflection, sequence: Int, answerId: String) async {
         await eventHandler.handleReflectionComplete(round: round, reflection: reflection, sequence: sequence, answerId: answerId)
     }
 
-    private func handleSourceSelectionStarted(message: String, sequence: Int, answerId: String) async {
+    func handleSourceSelectionStarted(message: String, sequence: Int, answerId: String) async {
         await eventHandler.handleSourceSelectionStarted(message: message, sequence: sequence, answerId: answerId)
     }
 
-    private func handleSynthesisPreparation(message: String, sequence: Int, answerId: String) async {
+    func handleSynthesisPreparation(message: String, sequence: Int, answerId: String) async {
         await eventHandler.handleSynthesisPreparation(message: message, sequence: sequence, answerId: answerId)
     }
 
-    private func handleSynthesisStarted(totalRounds: Int, totalSources: Int, sequence: Int, answerId: String) async {
+    func handleSynthesisStarted(totalRounds: Int, totalSources: Int, sequence: Int, answerId: String) async {
         await eventHandler.handleSynthesisStarted(totalRounds: totalRounds, totalSources: totalSources, sequence: sequence, answerId: answerId)
     }
 }

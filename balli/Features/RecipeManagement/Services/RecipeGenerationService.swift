@@ -16,7 +16,7 @@ public struct RecipeGenerationResponse: Codable, Sendable {
     public let cookTime: String
     public let ingredients: [String]  // Legacy: kept for backward compatibility
     public let directions: [String]  // Legacy: kept for backward compatibility
-    public let notes: String
+    public let notes: String?  // DEPRECATED: AI notes no longer generated, field kept for backward compatibility
     public let recipeContent: String?  // NEW: Markdown content (ingredients + directions)
     public let calories: String
     public let carbohydrates: String
@@ -95,7 +95,7 @@ public struct SpontaneousRecipeRequest: Codable, Sendable {
 
 /// Recipe generation service actor for thread-safe API operations
 @globalActor
-public actor RecipeGenerationService {
+public actor RecipeGenerationService: RecipeGenerationServiceProtocol {
     public static let shared = RecipeGenerationService()
 
     private let session: URLSession
@@ -132,6 +132,12 @@ public actor RecipeGenerationService {
         userContext: String? = nil
     ) async throws -> RecipeGenerationResponse {
 
+        print("🌐 [SERVICE] ========== GENERATE SPONTANEOUS RECIPE ==========")
+        print("🌐 [SERVICE] MealType: \(mealType), StyleType: \(styleType)")
+        print("🌐 [SERVICE] UserId: \(userId ?? "nil")")
+        print("🌐 [SERVICE] RecentRecipes count: \(recentRecipes.count)")
+        print("🌐 [SERVICE] UserContext: \(userContext ?? "nil")")
+
         let request = SpontaneousRecipeRequest(
             mealType: mealType,
             styleType: styleType,
@@ -143,6 +149,8 @@ public actor RecipeGenerationService {
         )
 
         let url = try buildGenerateURL()
+        print("🌐 [SERVICE] URL: \(url.absoluteString)")
+
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -151,16 +159,29 @@ public actor RecipeGenerationService {
         // Encode request body
         let requestData = try JSONEncoder().encode(request)
         urlRequest.httpBody = requestData
+        print("🌐 [SERVICE] Request body size: \(requestData.count) bytes")
+
+        print("🌐 [SERVICE] Sending request...")
 
         // Execute request
         let (data, response) = try await session.data(for: urlRequest)
 
+        print("🌐 [SERVICE] Response received - data size: \(data.count) bytes")
+
         // Validate response
         guard let httpResponse = response as? HTTPURLResponse else {
+            print("❌ [SERVICE] Invalid HTTP response")
             throw NetworkError.invalidResponseData
         }
 
+        print("🌐 [SERVICE] HTTP Status: \(httpResponse.statusCode)")
+
         guard httpResponse.statusCode == 200 else {
+            // Try to extract error message from response body
+            if let errorString = String(data: data, encoding: .utf8) {
+                print("❌ [SERVICE] Server error response: \(errorString)")
+            }
+            print("❌ [SERVICE] Recipe generation failed with status \(httpResponse.statusCode)")
             throw NetworkError.serverError(
                 statusCode: httpResponse.statusCode,
                 message: "Recipe generation failed with status \(httpResponse.statusCode)"
@@ -169,9 +190,19 @@ public actor RecipeGenerationService {
 
         // Parse response
         do {
+            // Log raw response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("🌐 [SERVICE] Raw response: \(responseString.prefix(200))...")
+            }
+
             let responseContainer = try JSONDecoder().decode(ResponseContainer.self, from: data)
+            print("✅ [SERVICE] Successfully decoded response - recipe: \(responseContainer.data.recipeName)")
             return responseContainer.data
         } catch {
+            print("❌ [SERVICE] Decoding error: \(error.localizedDescription)")
+            if let decodingError = error as? DecodingError {
+                print("❌ [SERVICE] Decoding error details: \(decodingError)")
+            }
             throw NetworkError.decodingError(underlying: error)
         }
     }

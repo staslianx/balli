@@ -140,6 +140,21 @@ final class AppLoggers {
         static let location = Logger(subsystem: subsystem, category: "shopping.location")
     }
 
+    /// Data export and analysis logging
+    struct Export {
+        /// Export operations, format generation, file creation
+        static let main = Logger(subsystem: subsystem, category: "export")
+
+        /// Data extraction from Core Data, repository operations
+        static let repository = Logger(subsystem: subsystem, category: "export.repository")
+
+        /// Meal event building with glucose response and activity context
+        static let builder = Logger(subsystem: subsystem, category: "export.builder")
+
+        /// CSV and JSON generation, formatting operations
+        static let generation = Logger(subsystem: subsystem, category: "export.generation")
+    }
+
     /// UI and presentation logging
     struct UI {
         /// Navigation events, deep links, screen transitions

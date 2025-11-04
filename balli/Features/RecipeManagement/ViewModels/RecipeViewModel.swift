@@ -436,8 +436,8 @@ public class RecipeViewModel: ObservableObject {
 
     // MARK: - Nutrition Calculation
 
-    public func calculateNutrition() {
-        nutritionHandler.calculateNutrition()
+    public func calculateNutrition(isManualRecipe: Bool = false) {
+        nutritionHandler.calculateNutrition(isManualRecipe: isManualRecipe)
     }
 
     // MARK: - Save Recipe

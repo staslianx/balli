@@ -3,7 +3,7 @@
 //  balli
 //
 //  Reusable edge glow effect modifier
-//  Extracted from HosgeldinView.swift for use across the app (voice control, chat assistant, etc.)
+//  Edge glow effect for use across the app (voice control, chat assistant, dashboard, etc.)
 //
 
 import SwiftUI

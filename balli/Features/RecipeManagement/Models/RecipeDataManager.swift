@@ -179,12 +179,10 @@ public class RecipeDataManager {
         // Update time fields
         recipe.prepTime = Int16(data.prepTime) ?? recipe.prepTime
         recipe.cookTime = Int16(data.cookTime) ?? recipe.cookTime
-        
-        // Update notes
-        if !data.notes.isEmpty {
-            recipe.notes = data.notes
-        }
-        
+
+        // AI notes deprecated - notes field reserved for user's personal notes only
+        // Do not overwrite existing user notes with empty AI notes
+
         recipe.ingredients = data.ingredients.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } as NSObject
         recipe.instructions = data.directions.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } as NSObject
 
@@ -210,8 +208,8 @@ public class RecipeDataManager {
         recipe.name = data.recipeName
         recipe.dateCreated = Date()
         recipe.lastModified = Date()
-        // Determine source: if recipe has content, it's AI-generated; otherwise it's manual
-        recipe.source = data.recipeContent.map { !$0.isEmpty } == true ? RecipeConstants.Source.ai : RecipeConstants.Source.manual
+        // Use explicit isManualRecipe flag instead of guessing from content
+        recipe.source = data.isManualRecipe ? RecipeConstants.Source.manual : RecipeConstants.Source.ai
         recipe.mealType = RecipeConstants.DefaultTypes.customMeal
         recipe.styleType = RecipeConstants.DefaultTypes.customStyle
         
@@ -242,9 +240,10 @@ public class RecipeDataManager {
         // Save time fields
         recipe.prepTime = Int16(data.prepTime) ?? 0
         recipe.cookTime = Int16(data.cookTime) ?? 0
-        
-        // Save notes
-        recipe.notes = data.notes.isEmpty ? nil : data.notes
+
+        // AI notes deprecated - notes field reserved for user's personal notes only
+        // Leave notes nil for new recipes (user can add their own later)
+        recipe.notes = nil
 
         // Save markdown recipe content
         if let recipeContent = data.recipeContent, !recipeContent.isEmpty {
@@ -300,6 +299,7 @@ public struct RecipeSaveData {
     let directions: [String]
     let notes: String
     let recipeContent: String?  // NEW: Markdown recipe content from streaming
+    let isManualRecipe: Bool  // NEW: Track if recipe was manually created vs AI-generated
     // Per-100g nutrition values
     let calories: String
     let carbohydrates: String

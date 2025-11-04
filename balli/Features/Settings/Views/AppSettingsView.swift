@@ -49,7 +49,7 @@ struct AppSettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                // Account Section
+                // MARK: - Hesap (Account)
                 Section("Hesap") {
                     AccountProfileSection(
                         userManager: userManager,
@@ -57,9 +57,14 @@ struct AppSettingsView: View {
                     )
                 }
 
-                // Appearance Section
-                Section("Görünüm") {
-                    Picker("Tema", selection: $selectedTheme) {
+                // MARK: - Genel (General)
+                Section("Genel") {
+                    Toggle(isOn: $notificationsEnabled) {
+                        Label("Bildirimler", systemImage: "bell")
+                    }
+                    .tint(AppTheme.primaryPurple)
+
+                    Picker("Görünüş", selection: $selectedTheme) {
                         ForEach(themes, id: \.self) { theme in
                             Text(theme).tag(theme)
                         }
@@ -70,82 +75,86 @@ struct AppSettingsView: View {
                     }
                 }
 
-                // Health & Data Section
-                Section("Sağlık & Veri") {
+                // MARK: - Veri (Data)
+                Section("Veri") {
+                    NavigationLink(destination: DexcomConnectionView()) {
+                        Label("Dexcom", systemImage: "sensor.tag.radiowaves.forward")
+                            .imageScale(.medium)
+                    }
+                    .tint(AppTheme.primaryPurple)
+
                     NavigationLink(destination: HealthKitManagerView()) {
                         Label("Apple Sağlık", systemImage: "heart.text.square")
                     }
                     .tint(AppTheme.primaryPurple)
 
-                    NavigationLink(destination: DexcomConnectionView()) {
-                        Label {
-                            Text("Dexcom CGM")
-                        } icon: {
-                            Image(systemName: "sensor.tag.radiowaves.forward")
-                                .rotationEffect(.degrees(-90))
+                    NavigationLink(destination: ActivityDetailView(
+                        isBackfilling: $isBackfilling,
+                        backfillProgress: activityService.backfillProgress,
+                        backfillStatus: activityService.backfillStatus,
+                        onRefresh: refreshActivityHistory
+                    )) {
+                        HStack {
+                            Label("Aktivite", systemImage: "figure.walk")
+                            if isBackfilling {
+                                Spacer()
+                                ProgressView()
+                                    .scaleEffect(0.8, anchor: .center)
+                            }
                         }
-                    }
-                    .tint(AppTheme.primaryPurple)
-
-                    Toggle(isOn: $notificationsEnabled) {
-                        Label("Bildirimler", systemImage: "bell")
                     }
                     .tint(AppTheme.primaryPurple)
 
                     NavigationLink(destination: DataExportView()) {
-                        Label("Verileri Dışarı Aktar", systemImage: "square.and.arrow.up")
+                        Label("Verileri Dışa Aktar", systemImage: "square.and.arrow.up")
                     }
                     .tint(AppTheme.primaryPurple)
                 }
 
-                // Activity Data Sync Section
-                Section {
-                    ActivitySyncSection(
-                        isBackfilling: isBackfilling,
-                        backfillProgress: activityService.backfillProgress,
-                        backfillStatus: activityService.backfillStatus,
-                        onRefresh: refreshActivityHistory
-                    )
-                } header: {
-                    Text("Activity Data Sync")
-                }
-
-                // Diagnostics Section
-                Section("Tanı") {
-                    NavigationLink(destination: DexcomDiagnosticsView()) {
-                        Label("Dexcom Tanılama", systemImage: "stethoscope")
-                    }
-                    .tint(AppTheme.primaryPurple)
-
-                    NavigationLink(destination: AIDiagnosticsView()) {
-                        Label("AI İşlemleri Tanılama", systemImage: "brain")
-                    }
-                    .tint(AppTheme.primaryPurple)
-                }
-
-                // Support & Info Section
-                Section {
-                    if let emailURL = URL(string: "mailto:destek@balli.app") {
-                        Link(destination: emailURL) {
-                            Label("İletişim", systemImage: "envelope")
-                        }
-                        .tint(AppTheme.primaryPurple)
-                    }
-
-                    NavigationLink(destination: AboutView()) {
-                        Label("Hakkında", systemImage: "info.circle")
-                    }
-                    .tint(AppTheme.primaryPurple)
-
+                // MARK: - Uygulama Bilgisi (App Info)
+                Section("Uygulama Bilgisi") {
                     HStack {
                         Label("Sürüm", systemImage: "app.badge")
                         Spacer()
                         Text("1.0.0")
                             .foregroundStyle(.secondary)
                     }
+
+                    Button(action: {
+                        openMessagesApp(email: "stasli.anx@icloud.com")
+                    }) {
+                        Label("İletişim", systemImage: "envelope")
+                            .foregroundStyle(.primary)
+                    }
+
+                    NavigationLink(destination: AboutView()) {
+                        Label("Hakkında", systemImage: "info.circle")
+                    }
+                    .tint(AppTheme.primaryPurple)
                 }
 
-                // Developer Settings Section
+                // MARK: - User Actions
+                Section {
+                    AccountActionsSection(
+                        userManager: userManager,
+                        onDismiss: { dismiss() }
+                    )
+                }
+
+                // MARK: - Tanı (Diagnostics)
+                Section("Tanı") {
+                    NavigationLink(destination: DexcomDiagnosticsView()) {
+                        Label("Dexcom Log", systemImage: "stethoscope")
+                    }
+                    .tint(AppTheme.primaryPurple)
+
+                    NavigationLink(destination: AIDiagnosticsView()) {
+                        Label("AI Log", systemImage: "brain")
+                    }
+                    .tint(AppTheme.primaryPurple)
+                }
+
+                // MARK: - Developer Settings (if enabled)
                 if showDeveloperSettings {
                     DeveloperModeSection(
                         appSettings: $appSettings,
@@ -158,12 +167,6 @@ struct AppSettingsView: View {
                         logger: logger
                     )
                 }
-
-                // Account Actions Section
-                AccountActionsSection(
-                    userManager: userManager,
-                    onDismiss: { dismiss() }
-                )
             }
             .navigationTitle("Ayarlar")
             .navigationBarTitleDisplayMode(.inline)
@@ -180,6 +183,15 @@ struct AppSettingsView: View {
             }
         }
         .captureWindow() // Capture window for child views (DexcomConnectionView OAuth)
+    }
+
+    // MARK: - Messages Helper
+
+    private func openMessagesApp(email: String) {
+        let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        if let messagesURL = URL(string: "imessage:\(encodedEmail)") {
+            UIApplication.shared.open(messagesURL)
+        }
     }
 
     // MARK: - Theme Management
@@ -223,6 +235,80 @@ struct AppSettingsView: View {
         }
 
         isBackfilling = false
+    }
+}
+
+// MARK: - Activity Detail View
+
+struct ActivityDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var isBackfilling: Bool
+    let backfillProgress: Double
+    let backfillStatus: String
+    let onRefresh: () async -> Void
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Aktivite Geçmişi") {
+                    if let backfillDate = UserDefaults.standard.object(forKey: "ActivityBackfillDate") as? Date,
+                       let backfillDays = UserDefaults.standard.object(forKey: "ActivityBackfillDays") as? Int {
+
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("\(backfillDays) günlük verisi")
+                                    .font(.subheadline)
+                                Text("Son senkronizasyon: \(backfillDate.formatted(date: .abbreviated, time: .shortened))")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                        }
+                    } else {
+                        Text("Henüz hiçbir verisi senkronize edilmedi")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Button(action: {
+                        Task {
+                            await onRefresh()
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                            Text("Son 90 Günü Senkronize Et")
+                            if isBackfilling {
+                                Spacer()
+                                ProgressView()
+                                    .scaleEffect(0.8, anchor: .center)
+                            }
+                        }
+                    }
+                    .disabled(isBackfilling)
+
+                    if isBackfilling {
+                        VStack(alignment: .leading, spacing: 4) {
+                            ProgressView(value: backfillProgress)
+                            Text(backfillStatus)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+            }
+            .navigationTitle("Aktivite")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Kapat") {
+                        dismiss()
+                    }
+                    .foregroundColor(AppTheme.primaryPurple)
+                }
+            }
+        }
     }
 }
 

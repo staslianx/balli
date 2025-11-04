@@ -29,6 +29,7 @@ public final class RecipeFormState: ObservableObject {
     @Published public var notes = ""
     @Published public var recipeContent = ""  // Markdown content for streaming (ingredients + directions)
     @Published public var isFavorite = false  // Recipe favorite status
+    @Published public var isManualRecipe = false  // True if recipe was manually created by user, false if AI-generated
 
     // MARK: - Nutrition Information (per 100g)
     @Published public var calories = ""
@@ -214,7 +215,7 @@ public final class RecipeFormState: ObservableObject {
                 recipeContent = ""
             }
 
-            notes = response.notes
+            notes = response.notes ?? ""  // AI notes deprecated, default to empty
             calories = response.calories
             carbohydrates = response.carbohydrates
             fiber = response.fiber
@@ -223,6 +224,9 @@ public final class RecipeFormState: ObservableObject {
             sugar = response.sugar
             glycemicLoad = response.glycemicLoad
             portionGrams = 100.0  // Nutrition values from AI are per 100g (standard)
+
+            // Mark as AI-generated recipe
+            isManualRecipe = false
         }
     }
 

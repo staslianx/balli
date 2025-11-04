@@ -37,7 +37,7 @@ enum AnalyticsEvent: String, Sendable {
 }
 
 /// Analytics service for tracking events and metrics
-actor AnalyticsService {
+actor AnalyticsService: AnalyticsServiceProtocol {
 
     // MARK: - Properties
 

@@ -209,6 +209,7 @@ struct ArdiyeView: View {
                 productGridLayout
             }
         }
+        .background(Color(.systemBackground))
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.automatic, for: .navigationBar)
         .toolbar {
@@ -257,6 +258,9 @@ struct ArdiyeView: View {
             updateCachedItems()
         }
         .onChange(of: foodItems.count) { _, _ in
+            updateCachedItems()
+        }
+        .onChange(of: recipes.map { $0.lastModified }) { _, _ in
             updateCachedItems()
         }
         .sheet(isPresented: $showingShoppingList) {

@@ -33,14 +33,34 @@ import CoreData
 // MARK: - Dependency Container Protocol
 @MainActor
 protocol DependencyContainerProtocol {
+    // Core Services
     var persistenceController: PersistenceController { get }
     var appConfigurationManager: AppConfigurationManager { get }
     var appStateManager: AppLifecycleCoordinator { get }
+
+    // Permission Managers
     var cameraPermissionManager: CameraPermissionHandler { get }
+
+    // Camera Services
     var captureFlowManager: CaptureFlowManager { get }
+
+    // Health Services
     var healthKitService: HealthKitServiceProtocol { get }
     var dexcomService: DexcomService { get }
+
+    // Memory Services
     var memoryService: MemoryService { get }
+
+    // PHASE 0 - New Protocol-Based Services
+    var mealReminderManager: MealReminderManagerProtocol { get }
+    var localAuthenticationManager: LocalAuthenticationManagerProtocol { get }
+    var analyticsService: AnalyticsServiceProtocol { get }
+    var keychainStorageService: KeychainStorageServiceProtocol { get }
+
+    // PHASE 1 - Recipe Services
+    var recipeGenerationService: RecipeGenerationServiceProtocol { get }
+    var recipeSyncCoordinator: RecipeSyncCoordinatorProtocol { get }
+    var mealSyncCoordinator: MealSyncCoordinatorProtocol { get }
 }
 
 // MARK: - Main Dependency Container
@@ -73,7 +93,7 @@ final class DependencyContainer: ObservableObject, DependencyContainerProtocol {
     }()
 
     lazy var dexcomService: DexcomService = {
-        DexcomService()
+        DexcomService.shared
     }()
 
     // Memory Services
@@ -86,7 +106,67 @@ final class DependencyContainer: ObservableObject, DependencyContainerProtocol {
         let cameraManager = CameraManager()
         return CaptureFlowManager(cameraManager: cameraManager)
     }()
-    
+
+    // MARK: - PHASE 0: Protocol-Based Services
+
+    /// Meal reminder notification manager
+    /// - Note: Returns protocol type to enable dependency injection and testing
+    lazy var mealReminderManager: MealReminderManagerProtocol = {
+        // TEMPORARY: Still uses singleton for backward compatibility
+        // Phase 1 will convert this to: MealReminderManager()
+        MealReminderManager.shared
+    }()
+
+    /// Local authentication manager for user sign-in
+    /// - Note: Returns protocol type to enable dependency injection and testing
+    lazy var localAuthenticationManager: LocalAuthenticationManagerProtocol = {
+        // TEMPORARY: Still uses singleton for backward compatibility
+        // Phase 1 will convert this to: LocalAuthenticationManager()
+        LocalAuthenticationManager.shared
+    }()
+
+    /// Analytics service for tracking events and metrics
+    /// - Note: Returns protocol type to enable dependency injection and testing
+    lazy var analyticsService: AnalyticsServiceProtocol = {
+        // TEMPORARY: Still uses singleton for backward compatibility
+        // Phase 1 will convert this to creating new instance with dependencies
+        AnalyticsService.shared
+    }()
+
+    /// Keychain storage service for secure data persistence
+    /// - Note: Returns protocol type to enable dependency injection and testing
+    lazy var keychainStorageService: KeychainStorageServiceProtocol = {
+        // TEMPORARY: Still uses singleton for backward compatibility
+        // Phase 1 will convert this to: KeychainStorageService()
+        KeychainStorageService.shared
+    }()
+
+    // MARK: - PHASE 1: Recipe Services
+
+    /// Recipe generation service for AI-powered recipe creation
+    /// - Note: Returns protocol type to enable dependency injection and testing
+    lazy var recipeGenerationService: RecipeGenerationServiceProtocol = {
+        // TEMPORARY: Still uses singleton for backward compatibility
+        // Phase 1 will convert this to creating new instance when all usages are updated
+        RecipeGenerationService.shared
+    }()
+
+    /// Recipe synchronization coordinator for CoreData ↔ Firestore sync
+    /// - Note: Returns protocol type to enable dependency injection and testing
+    lazy var recipeSyncCoordinator: RecipeSyncCoordinatorProtocol = {
+        // TEMPORARY: Still uses singleton for backward compatibility
+        // Phase 1 will convert this to creating new instance when all usages are updated
+        RecipeSyncCoordinator.shared
+    }()
+
+    /// Meal synchronization coordinator for CoreData ↔ Firestore sync
+    /// - Note: Returns protocol type to enable dependency injection and testing
+    lazy var mealSyncCoordinator: MealSyncCoordinatorProtocol = {
+        // TEMPORARY: Still uses singleton for backward compatibility
+        // Phase 1 will convert this to creating new instance when all usages are updated
+        MealSyncCoordinator.shared
+    }()
+
     // ARCHITECTURAL NOTE: Navigation state should ideally be in AppLifecycleCoordinator or a dedicated NavigationCoordinator
     // Kept here for backward compatibility with existing views
     // Future consideration: Move to NavigationCoordinator when refactoring navigation architecture
@@ -225,6 +305,28 @@ struct InjectDependencies: ViewModifier {
 extension View {
     func injectDependencies() -> some View {
         modifier(InjectDependencies())
+    }
+}
+
+// MARK: - Testing and Preview Support
+@MainActor
+extension DependencyContainer {
+    /// Create a preview container with mock services for SwiftUI previews
+    /// - Returns: DependencyContainer configured for preview/testing
+    static func preview() -> DependencyContainer {
+        let container = DependencyContainer()
+        // Services are lazily initialized with real implementations by default
+        // Tests can override by creating a new container and replacing properties
+        return container
+    }
+
+    /// Create a test container with all mock services
+    /// - Returns: DependencyContainer configured with mocks for testing
+    static func test() -> DependencyContainer {
+        let container = DependencyContainer()
+        // Note: Individual test files should create their own mocks
+        // This is just a convenience for getting a fresh container
+        return container
     }
 }
 

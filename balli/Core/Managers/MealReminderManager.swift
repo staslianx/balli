@@ -11,7 +11,7 @@ import UserNotifications
 import OSLog
 
 @MainActor
-final class MealReminderManager {
+final class MealReminderManager: MealReminderManagerProtocol {
 
     static let shared = MealReminderManager()
 
@@ -21,6 +21,29 @@ final class MealReminderManager {
     )
 
     private let notificationCenter = UNUserNotificationCenter.current()
+
+    // MARK: - Notification Messages
+
+    /// Morning notification variations (rotates daily for variety)
+    private let morningMessages: [(title: String, body: String)] = [
+        ("☀️ Günaydın Dilara!", "Kahvaltıda yediklerini kaydetmeyi unutma canım, afiyet olsun!"),
+        ("🌈 Günaydın canım!", "Yine kendine nasıl lezzetli menüler hazırladın bakalım?"),
+        ("☀️ Günaydın!", "Yediklerini kaydetmeyi unutma canım!📝")
+    ]
+
+    /// Afternoon check-in variations (rotates daily for variety)
+    private let afternoonMessages: [(title: String, body: String)] = [
+        ("İyi günler canım", "Herşey yolundadır umarım, bir sorun olursa her zaman bana yazabilirsin!"),
+        ("Naber canım?", "Günün nasıl geçiyor? Bana ihtiyacın olursa buradayım!"),
+        ("İyi günler Dilara'cım!", "Umarım harika bir gün geçiriyorsundur!")
+    ]
+
+    /// Evening notification variations (rotates daily for variety)
+    private let eveningMessages: [(title: String, body: String)] = [
+        ("🌙 İyi akşamlar Dilara", "Akşam yemeğinde yediklerini kaydetmeyi unutma canım, afiyet olsun!"),
+        ("🌆 İşte günün en keyifli zamanlarından biri", "Yine harika bir menü hazırladın dimi? Ama kaydetmeyi de unutma!"),
+        ("✨ İyi akşamlar canım!", "Akşam yemeğini kaydettin mi? Etmediysen söyle not alayım 🎤")
+    ]
 
     // MARK: - Initialization
 
@@ -57,35 +80,54 @@ final class MealReminderManager {
 
     // MARK: - Schedule Reminders
 
-    /// Schedule daily meal reminders at 09:00 and 18:00
+    /// Schedule daily reminders: 09:00 (morning), 15:00 (check-in), 18:00 (evening) with rotating messages
     func scheduleDailyReminders() async {
-        // Remove any existing reminders first
-        notificationCenter.removePendingNotificationRequests(withIdentifiers: [
-            "meal-reminder-morning",
-            "meal-reminder-evening"
-        ])
+        // Remove any existing reminders first (all variations)
+        let morningIds = (0..<morningMessages.count).map { "meal-reminder-morning-\($0)" }
+        let afternoonIds = (0..<afternoonMessages.count).map { "daily-checkin-afternoon-\($0)" }
+        let eveningIds = (0..<eveningMessages.count).map { "meal-reminder-evening-\($0)" }
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: morningIds + afternoonIds + eveningIds)
 
-        logger.info("📅 Scheduling daily meal reminders...")
+        logger.info("📅 Scheduling daily reminders with \(self.morningMessages.count) variations...")
 
-        // Morning reminder at 09:00
+        // Pick a random starting message based on current day
+        let calendar = Calendar.current
+        let dayOfYear = calendar.ordinality(of: .day, in: .year, for: Date()) ?? 0
+
+        // Schedule morning reminder (09:00) with today's variation
+        let morningIndex = dayOfYear % morningMessages.count
+        let morningMessage = morningMessages[morningIndex]
         await scheduleReminder(
-            identifier: "meal-reminder-morning",
-            title: "Günaydın! ☀️",
-            body: "Yediklerini girmeyi unutma canım, afiyet olsun!",
+            identifier: "meal-reminder-morning-\(morningIndex)",
+            title: morningMessage.title,
+            body: morningMessage.body,
             hour: 9,
             minute: 0
         )
 
-        // Evening reminder at 18:00
+        // Schedule afternoon check-in (15:00) with today's variation
+        let afternoonIndex = dayOfYear % afternoonMessages.count
+        let afternoonMessage = afternoonMessages[afternoonIndex]
         await scheduleReminder(
-            identifier: "meal-reminder-evening",
-            title: "İyi akşamlar! 🌙",
-            body: "Yediklerini girmeyi unutma canım, afiyet olsun!",
+            identifier: "daily-checkin-afternoon-\(afternoonIndex)",
+            title: afternoonMessage.title,
+            body: afternoonMessage.body,
+            hour: 15,
+            minute: 0
+        )
+
+        // Schedule evening reminder (18:00) with today's variation
+        let eveningIndex = dayOfYear % eveningMessages.count
+        let eveningMessage = eveningMessages[eveningIndex]
+        await scheduleReminder(
+            identifier: "meal-reminder-evening-\(eveningIndex)",
+            title: eveningMessage.title,
+            body: eveningMessage.body,
             hour: 18,
             minute: 0
         )
 
-        logger.info("✅ Daily reminders scheduled successfully")
+        logger.info("✅ Daily reminders scheduled: morning (\(morningIndex + 1)/\(self.morningMessages.count)), afternoon (\(afternoonIndex + 1)/\(self.afternoonMessages.count)), evening (\(eveningIndex + 1)/\(self.eveningMessages.count))")
     }
 
     /// Schedule a single reminder
@@ -131,13 +173,13 @@ final class MealReminderManager {
 
     // MARK: - Cancel Reminders
 
-    /// Cancel all meal reminders
+    /// Cancel all meal reminders and check-ins
     func cancelAllReminders() {
-        notificationCenter.removePendingNotificationRequests(withIdentifiers: [
-            "meal-reminder-morning",
-            "meal-reminder-evening"
-        ])
-        logger.info("🛑 All meal reminders cancelled")
+        let morningIds = (0..<morningMessages.count).map { "meal-reminder-morning-\($0)" }
+        let afternoonIds = (0..<afternoonMessages.count).map { "daily-checkin-afternoon-\($0)" }
+        let eveningIds = (0..<eveningMessages.count).map { "meal-reminder-evening-\($0)" }
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: morningIds + afternoonIds + eveningIds)
+        logger.info("🛑 All reminders and check-ins cancelled")
     }
 
     // MARK: - Debug Helpers

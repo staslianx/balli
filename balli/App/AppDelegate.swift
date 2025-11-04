@@ -33,12 +33,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         logger.info("🚀 AppDelegate initialized - UIKit features configured")
 
         // CRITICAL: Configure Firebase before any Firebase services are used
-        FirebaseApp.configure()
-        logger.info("🔥 Firebase configured successfully")
-
-        // Initialize Crashlytics for crash reporting
-        Crashlytics.crashlytics()
-        logger.info("📊 Crashlytics initialized for crash reporting")
+        // Only configure if GoogleService-Info.plist exists
+        if let filePath = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+           FileManager.default.fileExists(atPath: filePath) {
+            FirebaseApp.configure()
+            logger.info("🔥 Firebase configured successfully")
+            
+            // Initialize Crashlytics for crash reporting
+            Crashlytics.crashlytics()
+            logger.info("📊 Crashlytics initialized for crash reporting")
+        } else {
+            logger.warning("⚠️ GoogleService-Info.plist not found - Firebase features disabled")
+        }
 
         // Start network monitoring for offline support
         NetworkMonitor.shared.startMonitoring()

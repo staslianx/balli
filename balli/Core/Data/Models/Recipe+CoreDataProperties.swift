@@ -47,6 +47,10 @@ extension Recipe: Identifiable {
     @NSManaged public var totalRecipeWeight: Double
     @NSManaged public var portionMultiplier: Double
 
+    // MARK: - Portion Definition System (for diabetes management)
+    @NSManaged public var portionSize: Double  // User-defined portion in grams (0 = not defined)
+    @NSManaged public var recipeType: String   // "aiGenerated" or "manual"
+
     // MARK: - Recipe Metadata
     @NSManaged public var source: String
     @NSManaged public var mealType: String?

@@ -31,8 +31,8 @@ enum AppUser: String, CaseIterable, Codable, Sendable {
 
     var subtitle: String {
         switch self {
-        case .dilara: return "Asıl Kullanıcı"
-        case .serhat: return "Geliştirici"
+        case .dilara: return "Özel bir kullanıcı"
+        case .serhat: return "Test"
         }
     }
 

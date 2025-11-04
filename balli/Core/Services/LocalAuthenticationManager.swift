@@ -25,7 +25,7 @@ public struct LocalUser: Codable {
 /// Manages Local Authentication for Balli
 /// Simple setup for personal use - Dilara as main user, Serhat for testing
 @MainActor
-public class LocalAuthenticationManager: ObservableObject {
+public class LocalAuthenticationManager: ObservableObject, LocalAuthenticationManagerProtocol {
     public static let shared = LocalAuthenticationManager()
 
     private enum Constants {

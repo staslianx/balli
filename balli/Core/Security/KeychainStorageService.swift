@@ -84,7 +84,7 @@ public enum KeychainError: LocalizedError, Sendable {
 }
 
 // MARK: - Keychain Storage Service
-public final class KeychainStorageService: Sendable {
+public final class KeychainStorageService: KeychainStorageServiceProtocol {
     public static let shared = KeychainStorageService()
     
     private let serviceIdentifier = "com.balli.diabetes.keychain"

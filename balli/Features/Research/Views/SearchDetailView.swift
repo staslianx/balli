@@ -8,6 +8,7 @@
 
 import SwiftUI
 import SwiftData
+import OSLog
 
 struct SearchDetailView: View {
     let answer: SearchAnswer
@@ -29,6 +30,7 @@ struct SearchDetailView: View {
     // Selection is stored in TextSelectionStorage.shared (not @State) to prevent re-renders
 
     private let researchFontSize: Double = 19.0
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "SearchDetailView")
 
     init(answer: SearchAnswer, preloadedHighlights: [TextHighlight] = []) {
         self.answer = answer
@@ -165,10 +167,20 @@ struct SearchDetailView: View {
             do {
                 container = try ResearchSessionModelContainer.shared.makeContext().container
             } catch {
-                // Fallback to in-memory container if storage fails
+                logger.error("Failed to create persistent session container: \(error.localizedDescription)")
+
+                // Fallback to in-memory container
                 let schema = Schema([ResearchSession.self, SessionMessage.self])
                 let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-                container = try! ModelContainer(for: schema, configurations: [config])
+
+                do {
+                    container = try ModelContainer(for: schema, configurations: [config])
+                    logger.info("Successfully created in-memory fallback container")
+                } catch {
+                    logger.critical("CRITICAL: Failed to create in-memory fallback container: \(error.localizedDescription)")
+                    // This should never happen, but if it does, fail gracefully
+                    fatalError("Unable to initialize session storage. Please restart the app. Error: \(error)")
+                }
             }
             let metadataGenerator = SessionMetadataGenerator()
             let sessionManager = ResearchSessionManager(

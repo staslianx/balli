@@ -43,7 +43,8 @@ final class MemoryPersistenceService {
             logger.info("MemoryPersistenceService initialized")
         } catch {
             // If memory storage fails, create in-memory fallback
-            logger.error("Failed to initialize memory storage, using in-memory fallback: \(error)")
+            logger.error("Failed to initialize memory storage, using in-memory fallback: \(error.localizedDescription)")
+
             let schema = Schema([
                 PersistentUserFact.self,
                 PersistentConversationSummary.self,
@@ -52,10 +53,18 @@ final class MemoryPersistenceService {
                 PersistentUserPreference.self
             ])
             let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-            let fallbackContainer = try! ModelContainer(for: schema, configurations: [config])
-            self.modelContext = ModelContext(fallbackContainer)
-            self.writer = MemoryPersistenceWriter(modelContext: modelContext)
-            self.reader = MemoryPersistenceReader(modelContext: modelContext)
+
+            do {
+                let fallbackContainer = try ModelContainer(for: schema, configurations: [config])
+                self.modelContext = ModelContext(fallbackContainer)
+                self.writer = MemoryPersistenceWriter(modelContext: modelContext)
+                self.reader = MemoryPersistenceReader(modelContext: modelContext)
+                logger.info("Successfully created in-memory fallback container")
+            } catch {
+                logger.critical("CRITICAL: Failed to create in-memory fallback container: \(error.localizedDescription)")
+                // This should never happen, but if it does, fail gracefully
+                fatalError("Unable to initialize memory storage. Please restart the app. Error: \(error)")
+            }
         }
     }
 

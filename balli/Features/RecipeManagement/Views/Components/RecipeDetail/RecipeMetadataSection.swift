@@ -19,19 +19,20 @@ struct RecipeMetadataSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            // Balli logo for AI-generated recipes
+            // AI-generated: Show balli logo
+            // Manual: Show user name in Galano Alt Semibold white
             if recipeSource == RecipeConstants.Source.ai {
+                // AI-generated recipe - show balli logo
                 Image("balli-text-logo-dark")
                     .resizable()
                     .scaledToFit()
                     .frame(height: 40)
-            }
-
-            // Author
-            if let author = author {
+                    .offset(x:-4, y:4)
+            } else if let author = author {
+                // Manual recipe - show user name in Galano Alt Semibold white
                 Text(author)
-                    .font(.sfRounded(17, weight: .regular))
-                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.95))
+                    .font(.custom("GalanoGrotesqueAlt-SemiBold", size: 17))
+                    .foregroundColor(.white)
             }
 
             // Recipe title - conditionally editable

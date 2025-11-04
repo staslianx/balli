@@ -14,7 +14,7 @@ import OSLog
 
 /// Coordinates automatic synchronization of recipe entries
 @MainActor
-final class RecipeSyncCoordinator: ObservableObject {
+final class RecipeSyncCoordinator: RecipeSyncCoordinatorProtocol {
 
     // MARK: - Singleton
 
@@ -33,8 +33,8 @@ final class RecipeSyncCoordinator: ObservableObject {
     private let persistenceController: Persistence.PersistenceController
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeSyncCoordinator")
 
-    // Observers
-    nonisolated(unsafe) private var coreDataObserver: NSObjectProtocol?
+    // Observers - stored on MainActor for proper isolation
+    private var coreDataObserver: NSObjectProtocol?
 
     // Sync control
     private var syncTask: Task<Void, Never>?
@@ -53,8 +53,13 @@ final class RecipeSyncCoordinator: ObservableObject {
 
     deinit {
         syncTask?.cancel()
-        if let observer = coreDataObserver {
-            NotificationCenter.default.removeObserver(observer)
+        // Cleanup observer - safe because we're accessing from MainActor-isolated context
+        // The observer is stored as NSObjectProtocol which doesn't require Sendable
+        // We use assumeIsolated to explicitly verify we're on MainActor during deinit
+        MainActor.assumeIsolated {
+            if let observer = coreDataObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
         }
     }
 
@@ -84,10 +89,18 @@ final class RecipeSyncCoordinator: ObservableObject {
         guard autoSyncEnabled else { return }
         guard !recipeChanges.isEmpty else { return }
 
-        logger.info("Detected \(recipeChanges.count) recipe changes")
+        // PERFORMANCE FIX: Filter out recipes that are ALREADY pending sync
+        // This prevents infinite loop where marking as pending → save → notification → mark again
+        let recipesNeedingSync = recipeChanges.filter { !$0.needsSync }
+        guard !recipesNeedingSync.isEmpty else {
+            logger.debug("All \(recipeChanges.count) recipes already marked for sync - skipping")
+            return
+        }
+
+        logger.info("Detected \(recipesNeedingSync.count) new recipe changes (filtered \(recipeChanges.count - recipesNeedingSync.count) already pending)")
 
         // Mark recipes as pending sync
-        for recipe in recipeChanges {
+        for recipe in recipesNeedingSync {
             recipe.markAsPendingSync()
         }
 

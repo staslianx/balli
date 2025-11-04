@@ -28,16 +28,19 @@ actor RecipeNutritionRepository {
     /// - Parameters:
     ///   - recipeName: Name of the recipe
     ///   - recipeContent: Full markdown content (ingredients + directions)
-    ///   - servings: Number of servings the recipe makes
+    ///   - servings: Number of servings (nil for manual recipes where servings are unknown)
+    ///   - recipeType: Recipe type ("aiGenerated" or "manual")
     /// - Returns: Nutrition data including calories, macros, and glycemic load
     /// - Throws: RecipeNutritionError if calculation fails
     func calculateNutrition(
         recipeName: String,
         recipeContent: String,
-        servings: Int
+        servings: Int?,
+        recipeType: String = "aiGenerated"
     ) async throws -> RecipeNutritionData {
         logger.info("🍽️ [NUTRITION-CALC] Requesting calculation for: \(recipeName, privacy: .public)")
-        logger.info("🍽️ [NUTRITION-CALC] Servings: \(servings)")
+        logger.info("🍽️ [NUTRITION-CALC] Servings: \(servings?.description ?? "nil")")
+        logger.info("🍽️ [NUTRITION-CALC] Recipe Type: \(recipeType)")
 
         guard let url = URL(string: nutritionCalculatorURL) else {
             logger.error("❌ [NUTRITION-CALC] Invalid URL: \(self.nutritionCalculatorURL)")
@@ -45,11 +48,16 @@ actor RecipeNutritionRepository {
         }
 
         // Prepare request body
-        let requestBody: [String: Any] = [
+        var requestBody: [String: Any] = [
             "recipeName": recipeName,
             "recipeContent": recipeContent,
-            "servings": servings
+            "recipeType": recipeType
         ]
+
+        // Add servings only if provided (nil for manual recipes)
+        if let servings = servings {
+            requestBody["servings"] = servings
+        }
 
         guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else {
             logger.error("❌ [NUTRITION-CALC] Failed to serialize request body")
@@ -113,8 +121,20 @@ actor RecipeNutritionRepository {
 
 // MARK: - Data Models
 
-/// Per-portion nutrition values from API
+/// Per-portion nutrition values from API (for AI-generated recipes)
 struct PerPortionNutrition: Codable, Sendable {
+    let weight: Double
+    let calories: Double
+    let carbohydrates: Double
+    let fiber: Double
+    let sugar: Double
+    let protein: Double
+    let fat: Double
+    let glycemicLoad: Double
+}
+
+/// Total recipe nutrition values from API (for manual recipes)
+struct TotalRecipeNutrition: Codable, Sendable {
     let weight: Double
     let calories: Double
     let carbohydrates: Double
@@ -136,17 +156,21 @@ public struct DigestionTiming: Codable, Sendable {
 
 /// Nutrition data returned from the Cloud Function
 struct RecipeNutritionData: Codable, Sendable {
-    // Per-100g values
+    // Per-100g values (always present for AI-generated recipes)
     let calories: Double
     let carbohydrates: Double
     let fiber: Double
     let sugar: Double
     let protein: Double
     let fat: Double
-    let glycemicLoad: Double  // This is per-portion GL
+    let glycemicLoad: Double  // This is per-portion GL for AI recipes
 
-    // Per-portion values (direct from API)
+    // Per-portion values (for AI-generated recipes)
     let perPortion: PerPortionNutrition?
+
+    // Total recipe values (for manual recipes)
+    let totalRecipe: TotalRecipeNutrition?
+
     let nutritionCalculation: NutritionCalculationDetails?
 
     // Digestion timing insights (insulin-glucose curve analysis)
@@ -183,11 +207,24 @@ struct RecipeNutritionData: Codable, Sendable {
     }
 
     var totalRecipeWeight: Double {
-        perPortion?.weight ?? nutritionCalculation?.totalRecipeWeight ?? 0
+        // Priority: totalRecipe (manual) > perPortion (AI) > nutritionCalculation (fallback)
+        if let totalRecipe = totalRecipe {
+            return totalRecipe.weight
+        } else if let perPortion = perPortion {
+            return perPortion.weight
+        } else {
+            return nutritionCalculation?.totalRecipeWeight ?? 0
+        }
+    }
+
+    /// Is this a manual recipe?
+    var isManualRecipe: Bool {
+        totalRecipe != nil
     }
 
     /// Calculate per-serving values (fallback when perPortion is not available)
-    /// Multiplier = (totalRecipeWeight / 100) to convert from per-100g to per-serving
+    /// For AI recipes: Multiplier = (totalRecipeWeight / 100) to convert from per-100g to per-serving
+    /// For manual recipes: Return total values directly (no multiplier needed)
     private var multiplier: Double {
         guard let weight = nutritionCalculation?.totalRecipeWeight, weight > 0 else {
             return 1.0
@@ -196,6 +233,8 @@ struct RecipeNutritionData: Codable, Sendable {
     }
 
     /// Convert to string values for RecipeFormState compatibility (per-100g values)
+    /// For manual recipes: Calculate per-100g from total values
+    /// For AI recipes: Use provided per-100g values
     func toFormState() -> (
         calories: String,
         carbohydrates: String,
@@ -205,6 +244,21 @@ struct RecipeNutritionData: Codable, Sendable {
         fat: String,
         glycemicLoad: String
     ) {
+        // If manual recipe, calculate per-100g from total values
+        if let totalRecipe = totalRecipe, totalRecipe.weight > 0 {
+            let ratio = 100.0 / totalRecipe.weight
+            return (
+                calories: String(format: "%.0f", totalRecipe.calories * ratio),
+                carbohydrates: String(format: "%.1f", totalRecipe.carbohydrates * ratio),
+                fiber: String(format: "%.1f", totalRecipe.fiber * ratio),
+                sugar: String(format: "%.1f", totalRecipe.sugar * ratio),
+                protein: String(format: "%.1f", totalRecipe.protein * ratio),
+                fat: String(format: "%.1f", totalRecipe.fat * ratio),
+                glycemicLoad: String(format: "%.0f", totalRecipe.glycemicLoad * ratio)
+            )
+        }
+
+        // For AI recipes, use provided per-100g values
         return (
             calories: String(format: "%.0f", calories),
             carbohydrates: String(format: "%.1f", carbohydrates),
@@ -217,6 +271,8 @@ struct RecipeNutritionData: Codable, Sendable {
     }
 
     /// Convert per-serving values to strings for display
+    /// For manual recipes: Return total recipe values (since servings are unknown)
+    /// For AI recipes: Return per-serving values
     func toFormStatePerServing() -> (
         calories: String,
         carbohydrates: String,
@@ -227,6 +283,21 @@ struct RecipeNutritionData: Codable, Sendable {
         glycemicLoad: String,
         totalRecipeWeight: String
     ) {
+        // If manual recipe, return total values directly
+        if let totalRecipe = totalRecipe {
+            return (
+                calories: String(format: "%.0f", totalRecipe.calories),
+                carbohydrates: String(format: "%.1f", totalRecipe.carbohydrates),
+                fiber: String(format: "%.1f", totalRecipe.fiber),
+                sugar: String(format: "%.1f", totalRecipe.sugar),
+                protein: String(format: "%.1f", totalRecipe.protein),
+                fat: String(format: "%.1f", totalRecipe.fat),
+                glycemicLoad: String(format: "%.0f", totalRecipe.glycemicLoad),
+                totalRecipeWeight: String(format: "%.0f", totalRecipe.weight)
+            )
+        }
+
+        // For AI recipes, return per-serving values
         return (
             calories: String(format: "%.0f", caloriesPerServing),
             carbohydrates: String(format: "%.1f", carbohydratesPerServing),

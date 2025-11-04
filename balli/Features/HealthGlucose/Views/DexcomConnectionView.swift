@@ -29,7 +29,7 @@ struct DexcomConnectionView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.window) private var window // Captured by .captureWindow() modifier
-    @StateObject private var dexcomService: DexcomService
+    @ObservedObject private var dexcomService = DexcomService.shared
 
     // MARK: - State
 
@@ -37,12 +37,6 @@ struct DexcomConnectionView: View {
     @State private var errorMessage = ""
     @State private var isConnecting = false
     @State private var showingShareSettings = false
-
-    // MARK: - Initialization
-
-    init(dexcomService: DexcomService = DexcomService()) {
-        _dexcomService = StateObject(wrappedValue: dexcomService)
-    }
 
     // MARK: - Body
 
@@ -528,6 +522,6 @@ struct DexcomConnectionView: View {
 // MARK: - Preview
 
 #Preview {
-    DexcomConnectionView(dexcomService: .mock)
+    DexcomConnectionView()
         .injectDependencies()
 }

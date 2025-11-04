@@ -95,34 +95,32 @@ struct ToastModifier: ViewModifier {
     @State private var isShowing = false
 
     func body(content: Content) -> some View {
-        ZStack(alignment: .top) {
-            content
-
-            if let toast = toast, isShowing {
-                VStack(spacing: 0) {
+        content
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if let toast = toast, isShowing {
                     ToastNotification(type: toast, isShowing: $isShowing)
-                        .padding(.top, 8)
-                    Spacer()
-                }
-                .zIndex(1000)
-                .onChange(of: isShowing) { oldValue, newValue in
-                    if !newValue {
-                        // Clear toast when dismissed
-                        Task { @MainActor in
-                            try? await Task.sleep(nanoseconds: 350_000_000) // Wait for animation
-                            self.toast = nil
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44) // Match toolbar button height for alignment
+                        .onChange(of: isShowing) { oldValue, newValue in
+                            if !newValue {
+                                // Clear toast when dismissed
+                                Task { @MainActor in
+                                    try? await Task.sleep(nanoseconds: 350_000_000) // Wait for animation
+                                    self.toast = nil
+                                }
+                            }
                         }
+                } else {
+                    Color.clear.frame(height: 0)
+                }
+            }
+            .onChange(of: toast) { oldValue, newValue in
+                if newValue != nil {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75, blendDuration: 0)) {
+                        isShowing = true
                     }
                 }
             }
-        }
-        .onChange(of: toast) { oldValue, newValue in
-            if newValue != nil {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.75, blendDuration: 0)) {
-                    isShowing = true
-                }
-            }
-        }
     }
 }
 

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import CoreData
 import os.log
 
 @MainActor
@@ -14,16 +15,16 @@ struct LoggedMealsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.scenePhase) private var scenePhase
-
-    @StateObject private var syncCoordinator: MealSyncCoordinator
+    @Environment(\.dependencies) private var dependencies
 
     @State private var selectedMealGroup: MealGroup?
     @State private var showMealDetail = false
     @State private var errorMessage: String?
     @State private var showErrorAlert = false
 
-    init() {
-        _syncCoordinator = StateObject(wrappedValue: MealSyncCoordinator.shared)
+    // Access sync coordinator via dependency injection
+    private var syncCoordinator: any MealSyncCoordinatorProtocol {
+        dependencies.mealSyncCoordinator
     }
 
     // Fetch all meal entries sorted by timestamp (newest first)
@@ -258,7 +259,10 @@ struct LoggedMealsView: View {
     // MARK: - Meal Group Row
 
     private func mealGroupRow(_ mealGroup: MealGroup) -> some View {
-        HStack(spacing: ResponsiveDesign.Spacing.small) {
+        let medications = mealGroup.fetchAssociatedMedications(from: viewContext)
+        let hasInsulin = !medications.isEmpty
+
+        return HStack(spacing: ResponsiveDesign.Spacing.small) {
             // Meal type icon
             Image(systemName: symbolForMealType(mealGroup.mealType))
                 .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .semibold))
@@ -276,6 +280,33 @@ struct LoggedMealsView: View {
                     Text("\(mealGroup.meals.count) malzeme")
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(12), weight: .regular, design: .rounded))
                         .foregroundStyle(.secondary)
+                }
+
+                // Insulin badge if present
+                if hasInsulin {
+                    HStack(spacing: 4) {
+                        Image(systemName: "syringe.fill")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(10), weight: .medium))
+                            .foregroundStyle(.white)
+
+                        if let firstMedication = medications.first {
+                            Text("\(firstMedication.dosage, specifier: "%.1f") ü")
+                                .font(.system(size: ResponsiveDesign.Font.scaledSize(11), weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white)
+
+                            // Show medication name if available
+                            if !firstMedication.medicationName.isEmpty,
+                               !firstMedication.medicationName.contains("İnsülin") {
+                                Text(firstMedication.medicationName)
+                                    .font(.system(size: ResponsiveDesign.Font.scaledSize(10), weight: .medium, design: .rounded))
+                                    .foregroundStyle(.white.opacity(0.9))
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(AppTheme.primaryPurple)
+                    .cornerRadius(6)
                 }
 
                 // Time only (date is shown in card header)
@@ -332,6 +363,31 @@ struct MealGroup: Identifiable {
 
     var totalFiber: Double {
         meals.reduce(0) { $0 + $1.consumedFiber }
+    }
+
+    /// Fetches associated medication entries for this meal group
+    /// Returns medications logged within 5 seconds of the meal timestamp
+    func fetchAssociatedMedications(from context: NSManagedObjectContext) -> [MedicationEntry] {
+        let fetchRequest = MedicationEntry.fetchRequest()
+
+        // Find medications within 5 seconds of the meal timestamp
+        let startDate = timestamp.addingTimeInterval(-5)
+        let endDate = timestamp.addingTimeInterval(5)
+
+        fetchRequest.predicate = NSPredicate(
+            format: "timestamp >= %@ AND timestamp <= %@ AND (medicationType == %@ OR medicationType == %@)",
+            startDate as NSDate,
+            endDate as NSDate,
+            "bolus_insulin",
+            "basal_insulin"
+        )
+        fetchRequest.sortDescriptors = [NSSortDescriptor(keyPath: \MedicationEntry.timestamp, ascending: false)]
+
+        do {
+            return try context.fetch(fetchRequest)
+        } catch {
+            return []
+        }
     }
 }
 

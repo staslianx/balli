@@ -17,6 +17,9 @@ export interface TranscribeMealOutput {
         totalCarbs: number;
         mealType: string;
         mealTime: string | null;
+        insulinDosage: number | null;
+        insulinType: string | null;
+        insulinName: string | null;
         confidence: string;
     };
     error?: string;

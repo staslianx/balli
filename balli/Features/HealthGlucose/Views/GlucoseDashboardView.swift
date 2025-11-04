@@ -14,16 +14,9 @@ struct GlucoseDashboardView: View {
 
     // MARK: - Environment
 
-    @StateObject private var dexcomService: DexcomService
-    @StateObject private var viewModel: GlucoseDashboardViewModel
-
-    // MARK: - Initialization
-
-    init(dexcomService: DexcomService = DexcomService()) {
-        let service = dexcomService
-        _dexcomService = StateObject(wrappedValue: service)
-        _viewModel = StateObject(wrappedValue: GlucoseDashboardViewModel(dexcomService: service))
-    }
+    @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var dexcomService = DexcomService.shared
+    @StateObject private var viewModel = GlucoseDashboardViewModel(dexcomService: DexcomService.shared)
 
     // MARK: - Body
 
@@ -62,6 +55,7 @@ struct GlucoseDashboardView: View {
             }
             .padding()
         }
+        .background(Color(.systemBackground))
         .navigationTitle("Glucose")
         .navigationBarTitleDisplayMode(.large)
         .task {
@@ -406,7 +400,7 @@ struct GlucoseDashboardView: View {
 
 #Preview {
     NavigationStack {
-        GlucoseDashboardView(dexcomService: .mock)
+        GlucoseDashboardView()
     }
     .injectDependencies()
 }

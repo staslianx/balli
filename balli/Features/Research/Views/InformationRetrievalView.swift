@@ -68,7 +68,7 @@ struct InformationRetrievalView: View {
                                 }
                             }
                             .padding(.horizontal, 0)
-                            .padding(.top, 16)
+                            .padding(.top, 4)
                             // ✅ SMART PADDING: Large padding when showing new question, small when scrolling
                             .padding(.bottom, showScrollPadding ? geometry.size.height - 100 : 32)
                         }

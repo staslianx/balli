@@ -37,7 +37,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.calculateRecipeNutrition = exports.testEdamamNutrition = exports.syncUserPreferences = exports.syncGlucosePatterns = exports.syncRecipePreferences = exports.syncConversationSummaries = exports.syncUserFacts = exports.generateSessionMetadata = exports.diabetesAssistantStream = exports.getFeatureCosts = exports.getMonthlyCosts = exports.getWeeklyCosts = exports.getTodayCosts = exports.transcribeMeal = exports.extractNutritionFromImage = exports.generateRecipePhoto = exports.generateSpontaneousRecipe = exports.generateRecipeFromIngredients = void 0;
+exports.calculateRecipeNutrition = exports.generateSessionMetadata = exports.diabetesAssistantStream = exports.transcribeMeal = exports.extractNutritionFromImage = exports.generateRecipePhoto = exports.generateSpontaneousRecipe = exports.generateRecipeFromIngredients = void 0;
 // Load environment variables first (required for development)
 require("dotenv/config");
 const admin = __importStar(require("firebase-admin"));
@@ -89,7 +89,8 @@ const generateRecipeFromIngredientsFlow = genkit_instance_1.ai.defineFlow({
         ingredients: genkit_1.z.array(genkit_1.z.string()).describe('List of available ingredients'),
         mealType: genkit_1.z.string().describe('Type of meal (Kahvaltı, Akşam Yemeği, Salatalar, Tatlılar, Atıştırmalıklar)'),
         styleType: genkit_1.z.string().describe('Style subcategory for the meal type'),
-        userId: genkit_1.z.string().optional().describe('User ID for personalization')
+        userId: genkit_1.z.string().optional().describe('User ID for personalization'),
+        userContext: genkit_1.z.string().optional().describe('Optional user context or notes for recipe generation (e.g., "diabetes-friendly tiramisu")')
     }),
     outputSchema: genkit_1.z.object({
         recipeName: genkit_1.z.string(),
@@ -109,7 +110,8 @@ const generateRecipeFromIngredientsFlow = genkit_instance_1.ai.defineFlow({
             mealType: input.mealType,
             styleType: input.styleType,
             ingredients: input.ingredients,
-            spontaneous: false
+            spontaneous: false,
+            userContext: input.userContext
         }, {
             model: (0, providers_1.getRecipeModel)() // Use provider-specific model for caching
         });
@@ -481,7 +483,7 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                 res.status(405).json({ error: 'Method not allowed' });
                 return;
             }
-            const { mealType, memoryEntries, diversityConstraints } = req.body;
+            const { mealType, memoryEntries, diversityConstraints, userContext } = req.body;
             let { styleType, recentRecipes } = req.body;
             if (!mealType) {
                 res.status(400).json({ error: 'mealType is required' });
@@ -533,7 +535,8 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                     styleType,
                     spontaneous: true,
                     recentRecipes: recentRecipes || [],
-                    diversityConstraints: diversityConstraints || undefined
+                    diversityConstraints: diversityConstraints || undefined,
+                    userContext: userContext
                 }, {
                     model: (0, providers_1.getRecipeModel)() // Use provider-specific model for caching
                 });
@@ -963,87 +966,7 @@ exports.transcribeMeal = (0, https_1.onRequest)({
 // ============================================
 // COST TRACKING & REPORTING ENDPOINTS
 // ============================================
-const cost_reporter_1 = require("./cost-tracking/cost-reporter");
-// Get today's cost summary
-exports.getTodayCosts = (0, https_1.onRequest)({
-    timeoutSeconds: 30,
-    memory: '256MiB'
-}, async (req, res) => {
-    corsHandler(req, res, async () => {
-        try {
-            const report = await (0, cost_reporter_1.getTodayCostReport)();
-            res.json({
-                success: true,
-                data: report,
-                formatted: (0, cost_reporter_1.formatCostReport)(report)
-            });
-        }
-        catch (error) {
-            console.error('Failed to get today costs:', error);
-            res.status(500).json({ error: 'Failed to retrieve cost data' });
-        }
-    });
-});
-// Get this week's cost summary
-exports.getWeeklyCosts = (0, https_1.onRequest)({
-    timeoutSeconds: 30,
-    memory: '256MiB'
-}, async (req, res) => {
-    corsHandler(req, res, async () => {
-        try {
-            const report = await (0, cost_reporter_1.getWeeklyCostReport)();
-            res.json({
-                success: true,
-                data: report,
-                formatted: (0, cost_reporter_1.formatCostReport)(report)
-            });
-        }
-        catch (error) {
-            console.error('Failed to get weekly costs:', error);
-            res.status(500).json({ error: 'Failed to retrieve cost data' });
-        }
-    });
-});
-// Get this month's cost summary
-exports.getMonthlyCosts = (0, https_1.onRequest)({
-    timeoutSeconds: 30,
-    memory: '256MiB'
-}, async (req, res) => {
-    corsHandler(req, res, async () => {
-        try {
-            const report = await (0, cost_reporter_1.getMonthlyCostReport)();
-            res.json({
-                success: true,
-                data: report,
-                formatted: (0, cost_reporter_1.formatCostReport)(report)
-            });
-        }
-        catch (error) {
-            console.error('Failed to get monthly costs:', error);
-            res.status(500).json({ error: 'Failed to retrieve cost data' });
-        }
-    });
-});
-// Get feature comparison report
-exports.getFeatureCosts = (0, https_1.onRequest)({
-    timeoutSeconds: 30,
-    memory: '256MiB'
-}, async (req, res) => {
-    corsHandler(req, res, async () => {
-        try {
-            const days = parseInt(req.query.days) || 7;
-            const report = await (0, cost_reporter_1.getFeatureComparisonReport)(days);
-            res.json({
-                success: true,
-                data: report
-            });
-        }
-        catch (error) {
-            console.error('Failed to get feature costs:', error);
-            res.status(500).json({ error: 'Failed to retrieve cost data' });
-        }
-    });
-});
+// REMOVED: Cost tracking endpoints - not needed
 // ============================================
 // ACTIVE EXPORTS - ONLY ESSENTIAL FUNCTIONS
 // ============================================
@@ -1053,16 +976,6 @@ Object.defineProperty(exports, "diabetesAssistantStream", { enumerable: true, ge
 // Export session metadata generation endpoint
 var generate_session_metadata_1 = require("./generate-session-metadata");
 Object.defineProperty(exports, "generateSessionMetadata", { enumerable: true, get: function () { return generate_session_metadata_1.generateSessionMetadata; } });
-// Export memory sync endpoints (cross-conversation memory)
-var memory_sync_1 = require("./memory-sync");
-Object.defineProperty(exports, "syncUserFacts", { enumerable: true, get: function () { return memory_sync_1.syncUserFacts; } });
-Object.defineProperty(exports, "syncConversationSummaries", { enumerable: true, get: function () { return memory_sync_1.syncConversationSummaries; } });
-Object.defineProperty(exports, "syncRecipePreferences", { enumerable: true, get: function () { return memory_sync_1.syncRecipePreferences; } });
-Object.defineProperty(exports, "syncGlucosePatterns", { enumerable: true, get: function () { return memory_sync_1.syncGlucosePatterns; } });
-Object.defineProperty(exports, "syncUserPreferences", { enumerable: true, get: function () { return memory_sync_1.syncUserPreferences; } });
-// Export EDAMAM test endpoint (developer testing only)
-var test_edamam_nutrition_1 = require("./test-edamam-nutrition");
-Object.defineProperty(exports, "testEdamamNutrition", { enumerable: true, get: function () { return test_edamam_nutrition_1.testEdamamNutrition; } });
 exports.calculateRecipeNutrition = (0, https_1.onRequest)({
     cors: true,
     maxInstances: 10,
@@ -1077,34 +990,78 @@ exports.calculateRecipeNutrition = (0, https_1.onRequest)({
     try {
         const input = req.body;
         // Validate input
-        if (!input.recipeName || !input.recipeContent || !input.servings) {
+        if (!input.recipeName || !input.recipeContent) {
             res.status(400).json({
                 success: false,
-                error: 'Missing required fields: recipeName, recipeContent, servings'
+                error: 'Missing required fields: recipeName, recipeContent'
             });
             return;
         }
+        // Determine recipe type
+        const isManualRecipe = input.recipeType === "manual" || input.servings === null;
         console.log(`🍽️ [NUTRITION-CALC] Analyzing nutrition for: ${input.recipeName}`);
-        console.log(`🍽️ [NUTRITION-CALC] Servings: ${input.servings}`);
+        console.log(`🍽️ [NUTRITION-CALC] Recipe Type: ${isManualRecipe ? 'MANUAL' : 'AI-GENERATED'}`);
+        console.log(`🍽️ [NUTRITION-CALC] Servings: ${input.servings ?? 'null (manual recipe)'}`);
         // Load nutrition calculator prompt
         const nutritionPrompt = genkit_instance_1.ai.prompt('recipe_nutrition_calculator');
         // Call Gemini 2.5 Pro for nutrition analysis
         const result = await nutritionPrompt({
             recipeName: input.recipeName,
             recipeContent: input.recipeContent,
-            servings: input.servings
+            servings: input.servings ?? 1, // Default to 1 if null (manual recipes)
+            recipeType: isManualRecipe ? "manual" : "aiGenerated"
         }, {
             model: (0, providers_1.getTier3Model)() // Explicitly use Gemini 2.5 Pro
         });
-        const nutrition = result.output;
-        console.log(`✅ [NUTRITION-CALC] Calculation complete:`);
-        console.log(`   Calories: ${nutrition.calories} kcal/100g`);
-        console.log(`   Carbs: ${nutrition.carbohydrates}g, Protein: ${nutrition.protein}g, Fat: ${nutrition.fat}g`);
-        console.log(`   Glycemic Load: ${nutrition.glycemicLoad}`);
-        res.status(200).json({
-            success: true,
-            data: nutrition
-        });
+        // Log the complete AI response with all reasoning
+        console.log(`\n${'='.repeat(80)}`);
+        console.log(`🤖 [NUTRITION-CALC] COMPLETE AI OUTPUT`);
+        console.log(`${'='.repeat(80)}`);
+        console.log(JSON.stringify(result.output, null, 2));
+        console.log(`${'='.repeat(80)}\n`);
+        if (isManualRecipe) {
+            // Manual recipe: return totalRecipe format
+            const manualResult = result.output;
+            console.log(`✅ [NUTRITION-CALC] Manual Recipe Calculation complete:`);
+            console.log(`   Total Weight: ${manualResult.totalRecipe.weight}g`);
+            console.log(`   Total Calories: ${manualResult.totalRecipe.calories} kcal`);
+            console.log(`   Total Carbs: ${manualResult.totalRecipe.carbohydrates}g, Protein: ${manualResult.totalRecipe.protein}g, Fat: ${manualResult.totalRecipe.fat}g`);
+            console.log(`   Total Glycemic Load: ${manualResult.totalRecipe.glycemicLoad}`);
+            // Log reasoning if available
+            if (manualResult.nutritionCalculation?.calculationNotes) {
+                console.log(`\n📋 [NUTRITION-CALC] CALCULATION NOTES:`);
+                console.log(manualResult.nutritionCalculation.calculationNotes);
+            }
+            res.status(200).json({
+                success: true,
+                data: manualResult
+            });
+        }
+        else {
+            // AI-generated recipe: return existing format
+            const nutrition = result.output;
+            console.log(`✅ [NUTRITION-CALC] AI Recipe Calculation complete:`);
+            console.log(`   Calories: ${nutrition.calories} kcal/100g`);
+            console.log(`   Carbs: ${nutrition.carbohydrates}g, Protein: ${nutrition.protein}g, Fat: ${nutrition.fat}g`);
+            console.log(`   Glycemic Load: ${nutrition.glycemicLoad}`);
+            // Log per-portion values
+            if (nutrition.perPortion) {
+                console.log(`\n   Per-Portion Values:`);
+                console.log(`   Weight: ${nutrition.perPortion.weight}g`);
+                console.log(`   Calories: ${nutrition.perPortion.calories} kcal`);
+                console.log(`   Carbs: ${nutrition.perPortion.carbohydrates}g, Protein: ${nutrition.perPortion.protein}g, Fat: ${nutrition.perPortion.fat}g`);
+                console.log(`   Glycemic Load: ${nutrition.perPortion.glycemicLoad}`);
+            }
+            // Log reasoning if available
+            if (nutrition.nutritionCalculation?.calculationNotes) {
+                console.log(`\n📋 [NUTRITION-CALC] CALCULATION NOTES:`);
+                console.log(nutrition.nutritionCalculation.calculationNotes);
+            }
+            res.status(200).json({
+                success: true,
+                data: nutrition
+            });
+        }
     }
     catch (error) {
         console.error('❌ [NUTRITION-CALC] Error:', error);

@@ -2,17 +2,21 @@
 //  NutritionalValuesView.swift
 //  balli
 //
-//  Modal view displaying nutritional values with segmented picker
-//  Supports both per-100g and per-serving views
+//  Modal view displaying nutritional values with segmented picker and portion adjustment
+//  Supports both per-100g and per-serving views with inline portion definition
 //
 
 import SwiftUI
+import CoreData
+import OSLog
 
-/// Modal sheet displaying nutritional values with tab switching
+/// Modal sheet displaying nutritional values with integrated portion adjustment
 struct NutritionalValuesView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.managedObjectContext) private var viewContext
 
+    let recipe: Recipe?  // Optional - only available for saved recipes
     let recipeName: String
 
     // Per-100g values
@@ -41,6 +45,17 @@ struct NutritionalValuesView: View {
     @Binding var portionMultiplier: Double
 
     @State private var selectedTab = 0  // 0 = Porsiyon, 1 = 100g
+    @State private var isChartExpanded = false  // For collapsible chart section
+    @State private var isPortionAdjustmentExpanded = false  // For portion adjustment section
+    @State private var adjustingPortionWeight: Double = 0
+    @State private var showSuccessBanner = false
+
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "NutritionalValuesView")
+
+    // Minimum portion size (50g)
+    private let minPortionSize: Double = 50
+    // Slider step size (5g)
+    private let sliderStep: Double = 5
 
     var body: some View {
         NavigationStack {
@@ -53,9 +68,9 @@ struct NutritionalValuesView: View {
                     }
                     .pickerStyle(.segmented)
 
-                    // Portion Stepper (only show in Porsiyon tab)
-                    if selectedTab == 0 {
-                        portionStepperView
+                    // Unified Portion Card (only in Porsiyon tab and when recipe is saved)
+                    if selectedTab == 0 && canAdjustPortion {
+                        unifiedPortionCard
                     }
 
                     // Main Card Container - matching LoggedMealsView style
@@ -64,19 +79,19 @@ struct NutritionalValuesView: View {
                         infoText
                             .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold, design: .rounded))
                             .foregroundStyle(.primary)
-                            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
-                            .padding(.top, ResponsiveDesign.Spacing.medium)
-                            .padding(.bottom, ResponsiveDesign.Spacing.small)
+                            .padding(.horizontal, ResponsiveDesign.Spacing.large)
+                            .padding(.top, ResponsiveDesign.Spacing.large)
+                            .padding(.bottom, ResponsiveDesign.Spacing.medium)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         // Divider below header
                         Rectangle()
                             .fill(Color.secondary.opacity(0.2))
                             .frame(height: 0.5)
-                            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                            .padding(.horizontal, ResponsiveDesign.Spacing.large)
 
                         // Nutritional Values Rows
-                        VStack(spacing: ResponsiveDesign.Spacing.xSmall) {
+                        VStack(spacing: ResponsiveDesign.Spacing.small) {
                             nutritionRow(
                                 label: "Kalori",
                                 value: displayedCalories,
@@ -86,7 +101,7 @@ struct NutritionalValuesView: View {
                             Rectangle()
                                 .fill(Color.secondary.opacity(0.1))
                                 .frame(height: 0.5)
-                                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                                .padding(.horizontal, ResponsiveDesign.Spacing.large)
 
                             nutritionRow(
                                 label: "Karbonhidrat",
@@ -97,7 +112,7 @@ struct NutritionalValuesView: View {
                             Rectangle()
                                 .fill(Color.secondary.opacity(0.1))
                                 .frame(height: 0.5)
-                                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                                .padding(.horizontal, ResponsiveDesign.Spacing.large)
 
                             nutritionRow(
                                 label: "Lif",
@@ -108,7 +123,7 @@ struct NutritionalValuesView: View {
                             Rectangle()
                                 .fill(Color.secondary.opacity(0.1))
                                 .frame(height: 0.5)
-                                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                                .padding(.horizontal, ResponsiveDesign.Spacing.large)
 
                             nutritionRow(
                                 label: "Şeker",
@@ -119,7 +134,7 @@ struct NutritionalValuesView: View {
                             Rectangle()
                                 .fill(Color.secondary.opacity(0.1))
                                 .frame(height: 0.5)
-                                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                                .padding(.horizontal, ResponsiveDesign.Spacing.large)
 
                             nutritionRow(
                                 label: "Protein",
@@ -130,7 +145,7 @@ struct NutritionalValuesView: View {
                             Rectangle()
                                 .fill(Color.secondary.opacity(0.1))
                                 .frame(height: 0.5)
-                                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                                .padding(.horizontal, ResponsiveDesign.Spacing.large)
 
                             nutritionRow(
                                 label: "Yağ",
@@ -143,7 +158,7 @@ struct NutritionalValuesView: View {
                                 Rectangle()
                                     .fill(Color.secondary.opacity(0.1))
                                     .frame(height: 0.5)
-                                    .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                                    .padding(.horizontal, ResponsiveDesign.Spacing.large)
 
                                 nutritionRow(
                                     label: "Glisemik Yük",
@@ -152,12 +167,17 @@ struct NutritionalValuesView: View {
                                 )
                             }
                         }
-                        .padding(.vertical, ResponsiveDesign.Spacing.small)
+                        .padding(.vertical, ResponsiveDesign.Spacing.medium)
                     }
                     .background(.clear)
                     .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
                     .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
                     .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
+
+                    // Absorption Timing Chart (Porsiyon tab only)
+                    if selectedTab == 0 && shouldShowChart {
+                        absorptionTimingSection
+                    }
                 }
                 .padding(ResponsiveDesign.Spacing.medium)
             }
@@ -172,10 +192,144 @@ struct NutritionalValuesView: View {
                     .font(.system(size: 17, weight: .medium, design: .rounded))
                 }
             }
+            .overlay(alignment: .top) {
+                if showSuccessBanner {
+                    successBanner
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
         }
     }
 
+    // MARK: - Actions
+
+    /// Saves the adjusted portion size to the recipe
+    private func savePortionSize() {
+        // Ensure recipe exists
+        guard let recipe = recipe else {
+            logger.warning("⚠️ Cannot save portion - recipe not available")
+            return
+        }
+
+        // Validate portion size
+        guard adjustingPortionWeight >= minPortionSize else {
+            logger.warning("Attempted to save portion below minimum: \(self.adjustingPortionWeight)g")
+            return
+        }
+
+        guard adjustingPortionWeight <= recipe.totalRecipeWeight else {
+            logger.warning("Attempted to save portion above maximum: \(self.adjustingPortionWeight)g")
+            return
+        }
+
+        // Update recipe
+        recipe.updatePortionSize(adjustingPortionWeight)
+
+        // Save to Core Data
+        do {
+            try viewContext.save()
+            logger.info("✅ Saved portion size: \(self.adjustingPortionWeight)g")
+
+            // Show success feedback
+            withAnimation(.spring()) {
+                showSuccessBanner = true
+            }
+
+            // Collapse section after brief delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                withAnimation {
+                    showSuccessBanner = false
+                }
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isPortionAdjustmentExpanded = false
+                    }
+                }
+            }
+
+        } catch {
+            logger.error("❌ Failed to save portion size: \(error.localizedDescription)")
+        }
+    }
+
+    /// Success banner shown after saving
+    private var successBanner: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.title2)
+                .foregroundColor(.white)
+
+            Text("Porsiyon kaydedildi!")
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+
+            Spacer()
+        }
+        .padding()
+        .background(Color.green)
+        .cornerRadius(12)
+        .shadow(radius: 8)
+        .padding()
+    }
+
     // MARK: - Computed Properties
+
+    /// Whether portion adjustment is available (recipe must be saved)
+    private var canAdjustPortion: Bool {
+        recipe != nil
+    }
+
+    /// Current portion size from recipe
+    private var currentPortionSize: Double {
+        guard let recipe = recipe else { return 0 }
+        return recipe.portionSize > 0 ? recipe.portionSize : recipe.totalRecipeWeight
+    }
+
+    /// Number of portions the recipe makes based on current adjustment
+    private var adjustedPortionCount: Double {
+        guard let recipe = recipe, adjustingPortionWeight > 0 else { return 1.0 }
+        return recipe.totalRecipeWeight / adjustingPortionWeight
+    }
+
+    /// Nutrition for the adjusted portion size
+    private var adjustedPortionNutrition: NutritionValues {
+        guard let recipe = recipe else {
+            return NutritionValues(
+                calories: 0, carbohydrates: 0, fiber: 0,
+                sugar: 0, protein: 0, fat: 0, glycemicLoad: 0
+            )
+        }
+        return recipe.calculatePortionNutrition(for: adjustingPortionWeight)
+    }
+
+    /// Whether portion is defined in recipe
+    private var isPortionDefined: Bool {
+        recipe?.isPortionDefined ?? false
+    }
+
+    /// Determines whether the absorption timing chart should be displayed
+    /// Chart is hidden if any macronutrient value is zero, negative, or invalid
+    private var shouldShowChart: Bool {
+        guard let fat = Double(fatPerServing),
+              let protein = Double(proteinPerServing),
+              let carbs = Double(carbohydratesPerServing) else {
+            return false
+        }
+
+        // Hide if any value is zero or negative
+        return fat > 0 && protein > 0 && carbs > 0
+    }
+
+    /// Calculates portion-adjusted macronutrient values for the chart
+    private var chartMacros: (fat: Double, protein: Double, carbs: Double) {
+        let fat = (Double(fatPerServing) ?? 0) * portionMultiplier
+        let protein = (Double(proteinPerServing) ?? 0) * portionMultiplier
+        let carbs = (Double(carbohydratesPerServing) ?? 0) * portionMultiplier
+
+        return (fat: fat, protein: protein, carbs: carbs)
+    }
 
     private var infoText: Text {
         if selectedTab == 0 {
@@ -188,7 +342,7 @@ struct NutritionalValuesView: View {
             }
         } else {
             // 100g tab
-            return Text("Per 100g")
+            return Text("100g için")
         }
     }
 
@@ -257,47 +411,196 @@ struct NutritionalValuesView: View {
 
     // MARK: - Components
 
-    private var portionStepperView: some View {
-        HStack {
-            Text("Porsiyon Miktarı")
-                .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
-                .foregroundColor(.primary)
-
-            Spacer()
-
-            HStack(spacing: 12) {
-                Button {
-                    if portionMultiplier > 0.5 {
-                        portionMultiplier -= 0.5
+    /// Unified portion card - clean single card design
+    private var unifiedPortionCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header row
+            Button {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isPortionAdjustmentExpanded.toggle()
+                    if isPortionAdjustmentExpanded {
+                        // Initialize adjustment weight with current EFFECTIVE portion size
+                        // This accounts for both the base portion and any multiplier adjustments
+                        adjustingPortionWeight = currentPortionSize * portionMultiplier
                     }
-                } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.system(size: 28))
+                }
+            } label: {
+                HStack(spacing: ResponsiveDesign.Spacing.medium) {
+                    // Left: "Porsiyon" label
+                    Text("Porsiyon")
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
+                        .foregroundColor(.primary)
+
+                    Spacer()
+
+                    // Center-Right: Current portion or stepper
+                    if !isPortionAdjustmentExpanded {
+                        // Show current portion value
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text("\(Int(currentPortionSize))")
+                                .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .bold, design: .rounded))
+                                .foregroundStyle(AppTheme.primaryPurple)
+
+                            Text("g")
+                                .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .medium, design: .rounded))
+                                .foregroundStyle(.secondary)
+                        }
+
+                        // Portion multiplier stepper
+                        HStack(spacing: 8) {
+                            Button {
+                                if portionMultiplier > 0.5 {
+                                    portionMultiplier -= 0.5
+                                }
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(AppTheme.primaryPurple)
+                            }
+                            .disabled(portionMultiplier <= 0.5)
+
+                            Text(String(format: "%.1f", portionMultiplier) + "x")
+                                .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundColor(AppTheme.primaryPurple)
+                                .frame(minWidth: 50)
+
+                            Button {
+                                portionMultiplier += 0.5
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(AppTheme.primaryPurple)
+                            }
+                        }
+                    }
+
+                    // Right: Chevron
+                    Image(systemName: isPortionAdjustmentExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(AppTheme.primaryPurple)
                 }
-                .disabled(portionMultiplier <= 0.5)
+                .padding(ResponsiveDesign.Spacing.medium)
+            }
+            .buttonStyle(.plain)
 
-                Text(String(format: "%.1f", portionMultiplier) + "x")
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundColor(AppTheme.primaryPurple)
-                    .frame(minWidth: 60)
+            // Expanded slider content
+            if isPortionAdjustmentExpanded {
+                VStack(spacing: ResponsiveDesign.Spacing.medium) {
+                    Divider()
+                        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
 
-                Button {
-                    portionMultiplier += 0.5
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(AppTheme.primaryPurple)
+                    // Gram display
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(Int(adjustingPortionWeight))")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(48), weight: .bold, design: .rounded))
+                            .foregroundStyle(AppTheme.primaryPurple)
+
+                        Text("g")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Slider
+                    if let recipe = recipe {
+                        VStack(spacing: 8) {
+                            Slider(
+                                value: $adjustingPortionWeight,
+                                in: minPortionSize...recipe.totalRecipeWeight,
+                                step: sliderStep
+                            )
+                            .tint(AppTheme.primaryPurple)
+                            .onChange(of: adjustingPortionWeight) { _, newValue in
+                                // Update portion multiplier to reflect slider changes in main nutrition card
+                                // The ratio is: new slider value / recipe's defined portion size
+                                guard recipe.portionSize > 0 else { return }
+                                let ratio = newValue / recipe.portionSize
+                                portionMultiplier = ratio
+                            }
+
+                            // Min/Max labels
+                            HStack {
+                                Text("\(Int(minPortionSize))g")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+
+                                Spacer()
+
+                                Text("\(Int(recipe.totalRecipeWeight))g")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                    }
+
+                    // Save button
+                    Button(action: savePortionSize) {
+                        Text("Porsiyonu Kaydet")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(AppTheme.primaryPurple)
+                            .cornerRadius(24)
+                    }
+                    .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                    .padding(.bottom, ResponsiveDesign.Spacing.medium)
+                    .shadow(color: AppTheme.primaryPurple.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }
-        .padding(ResponsiveDesign.Spacing.medium)
         .background(.clear)
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
     }
+
+
+    /// Collapsible section containing the absorption timing chart
+    private var absorptionTimingSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header (tap to expand/collapse)
+            Button {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isChartExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Text("Emilim Zamanlaması")
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
+                        .foregroundColor(.primary)
+
+                    Spacer()
+
+                    Image(systemName: isChartExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(AppTheme.primaryPurple)
+                }
+                .padding(ResponsiveDesign.Spacing.medium)
+                .background(.clear)
+                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
+            }
+
+            // Chart content (only when expanded)
+            if isChartExpanded {
+                let macros = chartMacros
+
+                AbsorptionTimingChart(
+                    fat: macros.fat,
+                    protein: macros.protein,
+                    carbs: macros.carbs
+                )
+                .padding(.top, ResponsiveDesign.Spacing.small)
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
+    }
+
 
     private func nutritionRow(
         label: String,
@@ -324,8 +627,8 @@ struct NutritionalValuesView: View {
                 }
             }
         }
-        .padding(.vertical, ResponsiveDesign.Spacing.small)
-        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+        .padding(.vertical, ResponsiveDesign.Spacing.medium)
+        .padding(.horizontal, ResponsiveDesign.Spacing.large)
     }
 }
 
@@ -334,7 +637,22 @@ struct NutritionalValuesView: View {
 #Preview("With Both Values - Low Warning") {
     @Previewable @State var multiplier = 1.0
 
+    let context = PersistenceController.preview.container.viewContext
+    let recipe = Recipe(context: context)
+    recipe.id = UUID()
+    recipe.name = "Izgara Tavuk Salatası"
+    recipe.totalRecipeWeight = 350
+    recipe.caloriesPerServing = 578
+    recipe.carbsPerServing = 28
+    recipe.fiberPerServing = 10.5
+    recipe.sugarsPerServing = 7
+    recipe.proteinPerServing = 108.5
+    recipe.fatPerServing = 12.6
+    recipe.glycemicLoadPerServing = 14
+    recipe.portionSize = 350
+
     return NutritionalValuesView(
+        recipe: recipe,
         recipeName: "Izgara Tavuk Salatası",
         // Per-100g
         calories: "165",
@@ -356,12 +674,28 @@ struct NutritionalValuesView: View {
         digestionTiming: nil,
         portionMultiplier: $multiplier
     )
+    .environment(\.managedObjectContext, context)
 }
 
 #Preview("High Fat Recipe - Danger Warning") {
     @Previewable @State var multiplier = 1.0
 
+    let context = PersistenceController.preview.container.viewContext
+    let recipe = Recipe(context: context)
+    recipe.id = UUID()
+    recipe.name = "Carbonara Makarna"
+    recipe.totalRecipeWeight = 400
+    recipe.caloriesPerServing = 720
+    recipe.carbsPerServing = 48
+    recipe.fiberPerServing = 8
+    recipe.sugarsPerServing = 4
+    recipe.proteinPerServing = 32
+    recipe.fatPerServing = 35
+    recipe.glycemicLoadPerServing = 20
+    recipe.portionSize = 400
+
     return NutritionalValuesView(
+        recipe: recipe,
         recipeName: "Carbonara Makarna",
         // Per-100g
         calories: "180",
@@ -383,12 +717,21 @@ struct NutritionalValuesView: View {
         digestionTiming: nil,
         portionMultiplier: $multiplier
     )
+    .environment(\.managedObjectContext, context)
 }
 
 #Preview("Empty Values") {
     @Previewable @State var multiplier = 1.0
 
+    let context = PersistenceController.preview.container.viewContext
+    let recipe = Recipe(context: context)
+    recipe.id = UUID()
+    recipe.name = "Test Tarifi"
+    recipe.totalRecipeWeight = 500
+    recipe.portionSize = 0
+
     return NutritionalValuesView(
+        recipe: recipe,
         recipeName: "Test Tarifi",
         calories: "",
         carbohydrates: "",
@@ -408,4 +751,5 @@ struct NutritionalValuesView: View {
         digestionTiming: nil,
         portionMultiplier: $multiplier
     )
+    .environment(\.managedObjectContext, context)
 }

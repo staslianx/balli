@@ -3,191 +3,148 @@
 //  balli
 //
 //  User selection modal for diabetes assistant
-//  Allows selection between Dilara and Serhat (test user)
+//  Allows selection between Dilara (default) and Serhat (test user via developer menu)
 //
 
 import SwiftUI
 
 struct UserSelectionView: View {
     @Environment(\.userManager) private var userManager
-    @State private var selectedUser: AppUser?
-    @State private var showingSelection = false
+    @AppStorage("isSerhatModeEnabled") private var isSerhatModeEnabled: Bool = false
+    @State private var showDeveloperMenu: Bool = false
 
     var body: some View {
-        NavigationView {
+        ZStack {
+            // Background
+            Color(.systemBackground)
+                .ignoresSafeArea()
+
             VStack(spacing: 0) {
-                // Header
-                VStack(spacing: 16) {
+                Spacer()
+
+                // Centered Content
+                VStack(spacing: 32) {
                     // Logo
-                    Image("BalliLogo")
+                    Image("balli-text-logo")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 80, height: 80)
-                        .foregroundColor(AppTheme.primaryPurple)
+                        .frame(height: 44)
 
-                    // Welcome text
-                    VStack(spacing: 8) {
-                        Text("balli'ye Hoşgeldin! 👋")
-                            .font(.title)
-                            .fontWeight(.bold)
-                            .foregroundColor(AppTheme.primaryPurple)
-
-                        Text("Kim kullanacak?")
-                            .font(.title2)
-                            .foregroundColor(.secondary)
-                    }
+                    // Welcome Text
+                    Text("Sonunda tanışabildik")
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .foregroundColor(.primary)
                 }
-                .padding(.top, 60)
-                .padding(.horizontal, 32)
+                .padding(.horizontal, 20)
 
                 Spacer()
 
-                // User selection cards
-                VStack(spacing: 20) {
-                    ForEach(AppUser.allCases, id: \.self) { user in
-                        UserCard(
-                            user: user,
-                            isSelected: selectedUser == user
-                        ) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                                selectedUser = user
-                                showingSelection = true
-                            }
-                        }
-                    }
+                // Continue Button
+                Button(action: continueAction) {
+                    Text("Devam")
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(
+                            AppTheme.primaryPurple
+                                .cornerRadius(20)
+                        )
                 }
-                .padding(.horizontal, 32)
-
-                Spacer()
-
-                // Continue button
-                Button(action: {
-                    if let user = selectedUser {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            userManager.selectUser(user)
-                        }
-                    }
-                }) {
-                    HStack {
-                        Text("Devam Et")
-                            .font(.headline)
-                            .fontWeight(.semibold)
-
-                        Image(systemName: "arrow.right")
-                            .font(.headline)
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 56)
-                    .background(
-                        (selectedUser != nil ? AppTheme.primaryPurple : Color.gray)
-                            .cornerRadius(16)
-                    )
-                    .scaleEffect(showingSelection ? 1.02 : 1.0)
-                    .animation(.easeInOut(duration: 0.15), value: showingSelection)
-                }
-                .disabled(selectedUser == nil)
-                .padding(.horizontal, 32)
-                .padding(.bottom, 50)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 40)
             }
-            .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color(.systemBackground),
-                        Color(.systemBackground).opacity(0.95)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .ignoresSafeArea()
-            )
+
+            // Developer Wrench Button (Bottom-Left)
+            VStack {
+                Spacer()
+                HStack {
+                    Button(action: { showDeveloperMenu = true }) {
+                        Image(systemName: "wrench.adjustable")
+                            .font(.system(size: 20, weight: .regular))
+                            .foregroundColor(.secondary)
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(Color(.systemBackground))
+                                    .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
+                            )
+                    }
+                    .popover(isPresented: $showDeveloperMenu) {
+                        DeveloperMenuView(isSerhatModeEnabled: $isSerhatModeEnabled)
+                    }
+                    .padding(.leading, 16)
+                    .padding(.bottom, 16)
+
+                    Spacer()
+                }
+            }
         }
-        .navigationBarHidden(true)
         .interactiveDismissDisabled()
+    }
+
+    private func continueAction() {
+        let selectedUser: AppUser = isSerhatModeEnabled ? .serhat : .dilara
+        withAnimation(.easeInOut(duration: 0.3)) {
+            userManager.selectUser(selectedUser)
+        }
     }
 }
 
-// MARK: - User Card Component
-struct UserCard: View {
-    let user: AppUser
-    let isSelected: Bool
-    let onTap: () -> Void
+// MARK: - Developer Menu Component
+
+struct DeveloperMenuView: View {
+    @Binding var isSerhatModeEnabled: Bool
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 16) {
-                // User emoji/avatar
-                Text(user.emoji)
-                    .font(.system(size: 40))
-                    .frame(width: 60, height: 60)
-                    .background(
-                        Circle()
-                            .fill(user.themeColor.opacity(0.1))
-                    )
+        VStack(spacing: 20) {
+            // Header
+            Text("Geliştirici Seçenekleri")
+                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                .foregroundColor(.primary)
+                .padding(.top, 16)
 
-                // User info
+            Divider()
+
+            // Serhat Mode Toggle
+            Toggle(isOn: $isSerhatModeEnabled) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(user.displayName)
-                        .font(.title2)
-                        .fontWeight(.semibold)
+                    Text("Serhat Mode")
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
                         .foregroundColor(.primary)
 
-                    Text(user.subtitle)
-                        .font(.callout)
+                    Text("Test kullanıcısı olarak giriş yap")
+                        .font(.system(size: 13, weight: .regular, design: .rounded))
                         .foregroundColor(.secondary)
                 }
-
-                Spacer()
-
-                // Selection indicator
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(user.themeColor)
-                        .transition(.scale.combined(with: .opacity))
-                } else {
-                    Circle()
-                        .stroke(Color.gray.opacity(0.3), lineWidth: 2)
-                        .frame(width: 24, height: 24)
-                }
             }
-            .padding(20)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(Color(.systemBackground))
-                    .shadow(
-                        color: isSelected ? user.themeColor.opacity(0.3) : Color.black.opacity(0.05),
-                        radius: isSelected ? 8 : 4,
-                        x: 0,
-                        y: isSelected ? 4 : 2
-                    )
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(
-                        isSelected ? user.themeColor : Color.clear,
-                        lineWidth: 2
-                    )
-            )
-            .scaleEffect(isSelected ? 1.02 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSelected)
+            .toggleStyle(SwitchToggleStyle(tint: AppTheme.primaryPurple))
+            .padding(.horizontal, 16)
+
+            Spacer()
         }
-        .buttonStyle(PlainButtonStyle())
+        .frame(width: 280, height: 160)
+        .background(Color(.systemBackground))
     }
 }
 
 // MARK: - Previews
-#Preview("User Selection") {
+
+#Preview("User Selection - Default (Dilara)") {
     UserSelectionView()
         .userManager(UserProfileSelector.shared)
 }
 
-#Preview("User Card - Dilara") {
-    UserCard(user: .dilara, isSelected: false) { }
-    .padding()
+#Preview("User Selection - Serhat Mode Enabled") {
+    let view = UserSelectionView()
+    return view
+        .userManager(UserProfileSelector.shared)
+        .onAppear {
+            UserDefaults.standard.set(true, forKey: "isSerhatModeEnabled")
+        }
 }
 
-#Preview("User Card - Serhat Selected") {
-    UserCard(user: .serhat, isSelected: true) { }
-    .padding()
+#Preview("Developer Menu") {
+    DeveloperMenuView(isSerhatModeEnabled: .constant(false))
+        .padding()
 }

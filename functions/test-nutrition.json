@@ -1,0 +1,6 @@
+{
+  "recipeName": "Test Recipe",
+  "recipeContent": "# Ingredients\n- 200g chicken breast\n- 100g rice\n\n# Directions\n1. Grill chicken\n2. Cook rice",
+  "servings": 1,
+  "recipeType": "aiGenerated"
+}

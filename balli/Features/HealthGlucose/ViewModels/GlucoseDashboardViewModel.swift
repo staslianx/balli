@@ -33,7 +33,7 @@ final class GlucoseDashboardViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init(dexcomService: DexcomService = DexcomService()) {
+    init(dexcomService: DexcomService = DexcomService.shared) {
         self.dexcomService = dexcomService
     }
 

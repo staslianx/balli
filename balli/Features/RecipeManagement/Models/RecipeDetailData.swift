@@ -37,12 +37,11 @@ struct RecipeDetailData {
         self.recipeSource = recipeSource ?? recipe.sourceDisplayName
         self.author = author
         self.yieldText = yieldText ?? "\(recipe.servings) servings"
-        // Use first instruction as description (NOT AI notes - those go in story card)
+        // Use first instruction as description
         self.recipeDescription = recipeDescription ?? recipe.instructionsArray.first
-        // Show AI notes in story card if available
-        let hasNotes = recipe.notes.map { !$0.isEmpty } ?? false
-        self.storyTitle = storyTitle ?? (hasNotes ? "balli'nin notu" : nil)
-        self.storyDescription = storyDescription ?? recipe.notes
+        // Story card is always shown for nutrition analysis (not for AI notes anymore)
+        self.storyTitle = storyTitle ?? "balli'nin tarif analizi"
+        self.storyDescription = storyDescription
         self.storyThumbnailURL = storyThumbnailURL
     }
 

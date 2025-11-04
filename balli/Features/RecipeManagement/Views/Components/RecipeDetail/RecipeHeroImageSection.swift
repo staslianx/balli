@@ -19,6 +19,8 @@ struct RecipeHeroImageSection: View {
     let onGeneratePhoto: () async -> Void
     @Environment(\.colorScheme) private var colorScheme
 
+    @State private var showingImagePreview = false
+
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeHeroImageSection")
 
     var body: some View {
@@ -36,6 +38,10 @@ struct RecipeHeroImageSection: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(width: geometry.size.width, height: imageHeight)
                     .clipped()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        showingImagePreview = true
+                    }
             } else if let imageData = imageData,
                let uiImage = UIImage(data: imageData) {
                 Image(uiImage: uiImage)
@@ -43,6 +49,10 @@ struct RecipeHeroImageSection: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(width: geometry.size.width, height: imageHeight)
                     .clipped()
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        showingImagePreview = true
+                    }
             } else if let imageURL = imageURL, let url = URL(string: imageURL) {
                 AsyncImage(url: url) { phase in
                     switch phase {
@@ -52,6 +62,10 @@ struct RecipeHeroImageSection: View {
                             .aspectRatio(contentMode: .fill)
                             .frame(width: geometry.size.width, height: imageHeight)
                             .clipped()
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                showingImagePreview = true
+                            }
                     default:
                         placeholderImage(width: geometry.size.width, height: imageHeight)
                     }
@@ -63,6 +77,7 @@ struct RecipeHeroImageSection: View {
             // Dark gradient overlay for text readability
             RecipeImageGradient.textOverlay
                 .frame(width: geometry.size.width, height: imageHeight)
+                .allowsHitTesting(false)
 
             // Photo generation button or loading indicator (only if no image exists)
             if imageData == nil && imageURL == nil && generatedImageData == nil {
@@ -87,6 +102,12 @@ struct RecipeHeroImageSection: View {
             }
         }
         .frame(height: imageHeight)
+        .fullScreenCover(isPresented: $showingImagePreview) {
+            RecipeImagePreview(
+                imageData: generatedImageData ?? imageData,
+                imageURL: imageURL
+            )
+        }
     }
 
     @ViewBuilder
@@ -100,6 +121,148 @@ struct RecipeHeroImageSection: View {
             endPoint: .bottomTrailing
         )
         .frame(width: width, height: height)
+    }
+}
+
+// MARK: - Full Screen Image Preview
+
+/// Full-screen recipe image preview with dismiss gesture
+struct RecipeImagePreview: View {
+    @Environment(\.dismiss) private var dismiss
+    let imageData: Data?
+    let imageURL: String?
+
+    @State private var scale: CGFloat = 1.0
+    @State private var lastScale: CGFloat = 1.0
+    @State private var offset: CGSize = .zero
+    @State private var lastOffset: CGSize = .zero
+    @State private var imageSize: CGSize = .zero
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                // Black background
+                Color.black
+                    .ignoresSafeArea()
+
+                // Image content
+                GeometryReader { geometry in
+                Group {
+                    if let imageData = imageData,
+                       let uiImage = UIImage(data: imageData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    } else if let imageURL = imageURL,
+                              let url = URL(string: imageURL) {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                            case .failure:
+                                placeholderView
+                            case .empty:
+                                ProgressView()
+                                    .tint(.white)
+                            @unknown default:
+                                placeholderView
+                            }
+                        }
+                    } else {
+                        placeholderView
+                    }
+                }
+                .frame(width: geometry.size.width, height: geometry.size.height)
+                .background(
+                    GeometryReader { imageGeometry in
+                        Color.clear.onAppear {
+                            imageSize = imageGeometry.size
+                        }
+                    }
+                )
+                .scaleEffect(scale)
+                .offset(offset)
+                .gesture(
+                    MagnificationGesture(minimumScaleDelta: 0)
+                        .onChanged { value in
+                            let delta = value / lastScale
+                            lastScale = value
+                            let newScale = scale * delta
+                            scale = min(max(newScale, 1.0), 4.0)
+                        }
+                        .onEnded { _ in
+                            lastScale = 1.0
+                            if scale <= 1.0 {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    scale = 1.0
+                                    offset = .zero
+                                    lastOffset = .zero
+                                }
+                            }
+                        }
+                        .simultaneously(with: scale > 1.0 ? DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                let newOffset = CGSize(
+                                    width: lastOffset.width + value.translation.width,
+                                    height: lastOffset.height + value.translation.height
+                                )
+
+                                // Calculate maximum allowed offset based on zoom level
+                                let scaledWidth = geometry.size.width * scale
+                                let scaledHeight = geometry.size.height * scale
+                                let maxOffsetX = max(0, (scaledWidth - geometry.size.width) / 2)
+                                let maxOffsetY = max(0, (scaledHeight - geometry.size.height) / 2)
+
+                                // Clamp offset to prevent showing black background
+                                offset = CGSize(
+                                    width: min(max(newOffset.width, -maxOffsetX), maxOffsetX),
+                                    height: min(max(newOffset.height, -maxOffsetY), maxOffsetY)
+                                )
+                            }
+                            .onEnded { _ in
+                                lastOffset = offset
+                            } : nil)
+                )
+                .onTapGesture(count: 2) {
+                    withAnimation(.spring(response: 0.3)) {
+                        if scale > 1.0 {
+                            scale = 1.0
+                            offset = .zero
+                            lastOffset = .zero
+                        } else {
+                            scale = 2.0
+                        }
+                    }
+                }
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(action: {
+                        dismiss()
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundStyle(.white)
+                    }
+                }
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
+        }
+        }
+    }
+
+    private var placeholderView: some View {
+        VStack {
+            Image(systemName: "photo")
+                .font(.system(size: 64))
+                .foregroundStyle(.white.opacity(0.5))
+            Text("Fotoğraf yüklenemedi")
+                .font(.system(size: 16, weight: .medium, design: .rounded))
+                .foregroundStyle(.white.opacity(0.7))
+                .padding(.top, 8)
+        }
     }
 }
 

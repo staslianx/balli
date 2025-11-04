@@ -15,7 +15,11 @@ input:
       servings:
         type: number
         description: "Number of servings the recipe makes"
-    required: [recipeName, recipeContent, servings]
+      recipeType:
+        type: string
+        enum: ["aiGenerated", "manual"]
+        description: "Recipe type: 'manual' = user-entered recipe (return total only), 'aiGenerated' = AI-generated recipe (return per100g + perPortion)"
+    required: [recipeName, recipeContent, servings, recipeType]
 output:
   format: json
   schema:
@@ -23,29 +27,56 @@ output:
     properties:
       calories:
         type: number
-        description: "Calories per 100g"
+        description: "Calories per 100g (AI-generated recipes only)"
       carbohydrates:
         type: number
-        description: "Total carbs per 100g in grams"
+        description: "Total carbs per 100g in grams (AI-generated recipes only)"
       fiber:
         type: number
-        description: "Fiber per 100g in grams"
+        description: "Fiber per 100g in grams (AI-generated recipes only)"
       sugar:
         type: number
-        description: "Sugar per 100g in grams"
+        description: "Sugar per 100g in grams (AI-generated recipes only)"
       protein:
         type: number
-        description: "Protein per 100g in grams"
+        description: "Protein per 100g in grams (AI-generated recipes only)"
       fat:
         type: number
-        description: "Fat per 100g in grams"
+        description: "Fat per 100g in grams (AI-generated recipes only)"
       glycemicLoad:
         type: number
-        description: "MUST equal perPortion.glycemicLoad (GL is per-portion only, not per 100g)"
-        constraint: "value === perPortion.glycemicLoad"
+        description: "For AI-generated: MUST equal perPortion.glycemicLoad. For manual: total GL (client will divide)"
+      totalRecipe:
+        type: object
+        description: "Total recipe nutrition (manual recipes only - populate this instead of per100g/perPortion)"
+        properties:
+          weight:
+            type: number
+            description: "Total cooked weight in grams"
+          calories:
+            type: number
+            description: "Total calories for entire recipe"
+          carbohydrates:
+            type: number
+            description: "Total carbs in grams"
+          fiber:
+            type: number
+            description: "Total fiber in grams"
+          sugar:
+            type: number
+            description: "Total sugar in grams"
+          protein:
+            type: number
+            description: "Total protein in grams"
+          fat:
+            type: number
+            description: "Total fat in grams"
+          glycemicLoad:
+            type: number
+            description: "Total glycemic load (client will divide by user-defined portions)"
       perPortion:
         type: object
-        description: "Nutrition values for one portion"
+        description: "Nutrition values for one portion (AI-generated recipes only)"
         properties:
           weight:
             type: number
@@ -159,6 +190,7 @@ output:
                     enum: ["PASS", "FAIL", "WARNING"]
                   message:
                     type: string
+    required: [calories, carbohydrates, fiber, sugar, protein, fat, glycemicLoad]
 
 ---
 
@@ -171,6 +203,84 @@ Target precision:
 - GL: ±1 unit per portion
 
 Calculate nutrition with this precision for diabetic patients using USDA FoodData Central.
+
+---
+
+## INPUT HANDLING - RECIPE TYPE
+
+**Check the `recipeType` input field to determine output format:**
+
+### IF recipeType = "manual":
+**MANUAL RECIPE FLOW** (User-entered recipe, no pre-defined portions)
+
+1. Calculate ONLY the `totalRecipe` object with total values:
+   - totalRecipe.weight = total cooked weight in grams
+   - totalRecipe.calories = total calories for entire recipe
+   - totalRecipe.carbohydrates = total carbs in grams
+   - totalRecipe.fiber = total fiber in grams
+   - totalRecipe.sugar = total sugar in grams
+   - totalRecipe.protein = total protein in grams
+   - totalRecipe.fat = total fat in grams
+   - totalRecipe.glycemicLoad = total GL for entire recipe
+
+2. **DO NOT** calculate per 100g values (client will calculate)
+3. **DO NOT** calculate perPortion (user will define portion size later)
+4. Set top-level `glycemicLoad` = totalRecipe.glycemicLoad (same value)
+5. Include full `nutritionCalculation` with reasoningSteps and sanityCheckResults
+
+**Example Manual Recipe Output:**
+```json
+{
+  "glycemicLoad": 37,
+  "totalRecipe": {
+    "weight": 756,
+    "calories": 1041,
+    "carbohydrates": 77.6,
+    "fiber": 11.2,
+    "sugar": 11.9,
+    "protein": 107.9,
+    "fat": 32.5,
+    "glycemicLoad": 37
+  },
+  "nutritionCalculation": { ...full breakdown... }
+}
+```
+
+### IF recipeType = "aiGenerated":
+**AI-GENERATED RECIPE FLOW** (Existing behavior, no changes)
+
+1. Calculate per 100g values (calories, carbohydrates, fiber, sugar, protein, fat)
+2. Calculate perPortion object based on servings:
+   - perPortion.weight = totalRecipeWeight / servings
+   - perPortion.calories = totalRecipeCalories / servings
+   - perPortion.glycemicLoad = totalGL / servings
+3. Set top-level glycemicLoad = perPortion.glycemicLoad
+4. **DO NOT** populate totalRecipe object
+5. Include full nutritionCalculation with reasoningSteps and sanityCheckResults
+
+**Example AI-Generated Output:**
+```json
+{
+  "calories": 137.7,
+  "carbohydrates": 13.2,
+  "fiber": 3.5,
+  "sugar": 1.8,
+  "protein": 14.3,
+  "fat": 4.3,
+  "glycemicLoad": 18,
+  "perPortion": {
+    "weight": 342,
+    "calories": 480,
+    "carbohydrates": 70.4,
+    "fiber": 12.1,
+    "sugar": 5.4,
+    "protein": 20.9,
+    "fat": 15.2,
+    "glycemicLoad": 18
+  },
+  "nutritionCalculation": { ...full breakdown... }
+}
+```
 
 ---
 
@@ -193,10 +303,32 @@ Use USDA values based on ingredient state:
 
 <usda_values>
 
-**PROTEINS (use cooked values for raw meat):**
-- Chicken breast raw → Use cooked: 165 kcal, 31g protein, 3.6g fat per 100g
-- Egg raw → Use cooked: 155 kcal, 13g protein, 10.6g fat per 100g
-- Fish raw → Use cooked values
+**PROTEINS - RAW MEAT VALUES:**
+
+DEFAULT ASSUMPTION: All meat/poultry/fish in recipes is RAW unless explicitly stated otherwise.
+
+Indicators meat is raw:
+- No cooking descriptor: "150g tavuk", "200g dana biftek", "100g somon"
+- Recipe shows cooking steps for this meat
+
+Indicators meat is pre-cooked (rare):
+- Explicit: "haşlanmış tavuk", "pişmiş et", "haşlanmış yumurta"
+
+**Use these values for RAW meat (default):**
+- Beef raw (dana): 250 kcal, 26g protein, 17g fat, 0g carbs per 100g
+- Chicken breast raw (tavuk göğsü): 120 kcal, 22.5g protein, 2.6g fat, 0g carbs per 100g
+- Chicken thigh raw (tavuk but): 211 kcal, 17.3g protein, 15.5g fat, 0g carbs per 100g
+- Pork raw (domuz): 242 kcal, 21g protein, 17g fat, 0g carbs per 100g
+- Lamb raw (kuzu): 294 kcal, 24.5g protein, 21.1g fat, 0g carbs per 100g
+- Salmon raw (somon): 208 kcal, 20g protein, 13g fat, 0g carbs per 100g
+- Shrimp raw (karides): 85 kcal, 18g protein, 1g fat, 1g carbs per 100g
+- Egg raw whole (yumurta): 143 kcal, 12.6g protein, 9.5g fat, 0.7g carbs per 100g
+
+**CRITICAL CALCULATION RULE:**
+1. Calculate total protein: raw_weight_g × (protein_per_100g / 100)
+2. Apply cooking loss to weight only: cooked_weight = raw_weight × retention
+3. Total protein unchanged: protein molecules don't evaporate
+4. Example: 150g raw beef → 31.5g total protein → cooks to 105g → still 31.5g total protein
 
 **GRAINS (use dry values for dry grains):**
 - Quinoa dry: 368 kcal, 14.1g protein, 6.1g fat, 64.2g carbs, 7g fiber per 100g
@@ -382,22 +514,40 @@ per_portion_weight = cooked_weight ÷ servings
 per_portion_nutrition = total_nutrition ÷ servings
 ```
 
-**Glycemic Load (IMPORTANT: Only per portion, NOT per 100g):**
+**Glycemic Load - Nestlé Research Formula (IMPORTANT: Only per portion, NOT per 100g):**
+
+Use this validated formula (Nestlé Research 2019, r=0.90 correlation) that accounts for protein/fat/fiber effects:
 
 ```
-net_carbs = carbs_per_portion - fiber_per_portion
-GL = (net_carbs × estimated_GI) ÷ 100
+Step 1: Calculate Available Carbohydrates
+availableCarbs = totalCarbs - fiber
 
-Estimate GI based on primary carb source:
-- Whole grains (quinoa, bulgur, oats): GI ≈ 50-55
-- Refined grains (white rice, white bread): GI ≈ 70-85
-- Legumes (lentils, chickpeas): GI ≈ 30-40
-- Mixed dishes: Weight average based on ingredients
+Step 2: Split into Sugar vs Starch
+sugarCarbs = min(sugar, availableCarbs)
+starchCarbs = availableCarbs - sugarCarbs
+
+Step 3: Calculate Glycemic Impact
+// Sugar has lower GI (65) than starch (75)
+glycemicImpact = (sugarCarbs × 0.65) + (starchCarbs × 0.75)
+
+Step 4: Calculate GI-Lowering Effects
+// These macros slow glucose absorption
+fiberEffect = fiber × 0.3
+proteinEffect = protein × 0.6
+fatEffect = fat × 0.6
+
+Step 5: Calculate Effective GI
+denominator = availableCarbs + fiberEffect + proteinEffect + fatEffect
+effectiveGI = (glycemicImpact × 100) ÷ denominator
+
+Step 6: Final GL (Impact Score)
+GL = (effectiveGI × availableCarbs) ÷ 100
 ```
 
 **CRITICAL: The top-level `glycemicLoad` field must equal `perPortion.glycemicLoad`**
 - Glycemic Load is a per-serving metric, not per 100g
 - Both fields in the output JSON must have the same value
+- All values used in calculation must be per-portion amounts (not per 100g)
 
 ### 6. CROSS-VALIDATE
 
@@ -548,6 +698,76 @@ Weight: 10g × 1.00 = 10g (dissolves, no loss)
 
 ---
 
+### Example 7: Raw Beef Protein Calculation (CRITICAL)
+
+**Recipe:** "150g dana biftek, sotele"
+
+**CORRECT Calculation:**
+```
+Step 1: Calculate total protein from RAW values
+150g raw beef × 26g protein/100g = 39g total protein
+
+Step 2: Apply cooking loss to WEIGHT only
+150g raw × 0.70 retention = 105g cooked
+
+Step 3: Total protein UNCHANGED
+Still 39g total protein (protein doesn't evaporate)
+
+Step 4: Per 100g concentration increases
+39g protein / 1.05 = 37.1g protein per 100g cooked beef
+```
+
+**WRONG Calculation (DO NOT DO THIS):**
+```
+✗ Using cooked protein values (31g/100g) for raw weight
+✗ 150g × 31g/100g = 46.5g protein (INFLATED)
+```
+
+---
+
+### Example 8: Glycemic Load Calculation Using Nestlé Formula
+
+**Recipe per portion:** 
+- Total carbs: 48g
+- Fiber: 9g
+- Sugar: 8g
+- Protein: 40g
+- Fat: 15g
+
+**Step-by-step calculation:**
+```
+Step 1: Available Carbs
+availableCarbs = 48 - 9 = 39g
+
+Step 2: Split Sugar vs Starch
+sugarCarbs = min(8, 39) = 8g
+starchCarbs = 39 - 8 = 31g
+
+Step 3: Glycemic Impact
+glycemicImpact = (8 × 0.65) + (31 × 0.75)
+glycemicImpact = 5.2 + 23.25 = 28.45
+
+Step 4: GI-Lowering Effects
+fiberEffect = 9 × 0.3 = 2.7
+proteinEffect = 40 × 0.6 = 24.0
+fatEffect = 15 × 0.6 = 9.0
+
+Step 5: Effective GI
+denominator = 39 + 2.7 + 24.0 + 9.0 = 74.7
+effectiveGI = (28.45 × 100) ÷ 74.7 = 38.1
+
+Step 6: Final GL
+GL = (38.1 × 39) ÷ 100 = 14.9
+Round to nearest integer: GL = 15
+```
+
+**Why this is better than simple formula:**
+- Simple formula would give: GL = (39 × 55) / 100 = 21
+- Nestlé formula correctly accounts for 40g protein + 15g fat
+- Result: 15 vs 21 (29% lower, more accurate for mixed meal)
+
+---
+
 ## REASONING DOCUMENTATION
 
 For each ingredient, include:
@@ -566,6 +786,21 @@ For each ingredient, include:
 - medium: Estimated time or method
 - low: Ambiguous recipe instructions
 
+**For GL calculation, add a final reasoning step:**
+**ingredient:** "Glycemic Load Calculation"
+**recipeContext:** "Per-portion values used"
+**reasoning:** Show all 6 steps of Nestlé formula with intermediate values
+**calculation:** 
+```
+Step 1: availableCarbs = X - Y = Z
+Step 2: sugarCarbs = A, starchCarbs = B
+Step 3: glycemicImpact = (A × 0.65) + (B × 0.75) = C
+Step 4: fiberEffect = D, proteinEffect = E, fatEffect = F
+Step 5: effectiveGI = (C × 100) / (Z + D + E + F) = G
+Step 6: GL = (G × Z) / 100 = H
+```
+**confidence:** high
+
 ---
 
 ## FINAL CHECKLIST
@@ -580,8 +815,10 @@ Before outputting JSON, verify:
 6. **Cross-validation:** All macros pass check against raw totals (within ±1%) ✓
 7. **Retention clamped:** All retention factors between 0.50-1.00 ✓
 8. **Glycemic Load:** Top-level glycemicLoad = perPortion.glycemicLoad (same value in both fields) ✓
-9. **Sanity checks:** All checks passed, no FAIL status ✓
-10. **Self-correction:** If anomalies detected, recalculated and documented ✓
+9. **GL Formula:** Used Nestlé 6-step formula with protein/fat/fiber effects ✓
+10. **Sanity checks:** All checks passed, no FAIL status ✓
+11. **Self-correction:** If anomalies detected, recalculated and documented ✓
+12. **RAW PROTEIN VALUES:** Used raw meat USDA values (NOT cooked) for nutrition calculation ✓
 
 ---
 

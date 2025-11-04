@@ -26,14 +26,14 @@ public final class RecipeGenerationCoordinator: ObservableObject {
     // Dependencies
     private let animationController: RecipeAnimationController
     private let formState: RecipeFormState
-    private let generationService: RecipeGenerationService
+    private let generationService: RecipeGenerationServiceProtocol
     private let streamingService: RecipeStreamingService
     private let memoryService: RecipeMemoryService
 
     init(
         animationController: RecipeAnimationController,
         formState: RecipeFormState,
-        generationService: RecipeGenerationService? = nil,
+        generationService: RecipeGenerationServiceProtocol? = nil,
         memoryService: RecipeMemoryService? = nil
     ) {
         self.animationController = animationController
@@ -67,12 +67,13 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                 userContext: userContext
             )
         } else {
-            logger.info("🧭 [ROUTER] Routing to SPONTANEOUS generation")
-            await generateRecipe(mealType: mealType, styleType: styleType, userContext: userContext)
+            logger.info("🧭 [ROUTER] Routing to SPONTANEOUS generation (STREAMING MODE)")
+            // FIXED: Use streaming version since Firebase Function returns SSE format
+            await generateRecipeWithStreaming(mealType: mealType, styleType: styleType, userContext: userContext)
         }
     }
 
-    /// Generate recipe from user-provided ingredients
+    /// Generate recipe from user-provided ingredients WITH STREAMING
     /// - Parameters:
     ///   - mealType: The type of meal (e.g., "Kahvaltı", "Akşam Yemeği")
     ///   - styleType: The style subcategory for the meal type
@@ -84,74 +85,115 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         ingredients: [String],
         userContext: String?
     ) async {
-        logger.info("📥 [COORDINATOR] generateRecipeFromIngredients called - mealType: \(mealType), styleType: \(styleType), ingredients: \(ingredients.joined(separator: ", "))")
+        logger.info("📥 [COORDINATOR] generateRecipeFromIngredients called (STREAMING MODE) - mealType: \(mealType), styleType: \(styleType), ingredients: \(ingredients.joined(separator: ", "))")
 
         isGenerating = true
         animationController.startGenerationAnimation()
         generationError = nil
+        streamingContent = ""
+        tokenCount = 0
 
-        do {
-            // Get user ID for personalization
-            let userId = getUserId()
+        // Get user ID for personalization
+        let userId = getUserId()
 
-            logger.info("👤 [COORDINATOR] User ID resolved: \(userId)")
-            logger.info("🥕 [COORDINATOR] Using \(ingredients.count) ingredients: \(ingredients.joined(separator: ", "))")
-            if let context = userContext, !context.isEmpty {
-                logger.info("📝 [COORDINATOR] User context: '\(context)'")
-            }
-
-            let startTime = Date()
-
-            // Call ingredients-based generation service
-            let response = try await Task.detached(priority: .userInitiated) { [generationService] in
-                return try await generationService.generateRecipeFromIngredients(
-                    mealType: mealType,
-                    styleType: styleType,
-                    ingredients: ingredients,
-                    userId: userId,
-                    userContext: userContext
-                )
-            }.value
-
-            let duration = Date().timeIntervalSince(startTime)
-            logger.info("⏱️ [COORDINATOR] Recipe generation completed in \(String(format: "%.2f", duration))s")
-
-            // Back on MainActor for UI updates
-            logger.info("🍳 [COORDINATOR] Recipe generated successfully: \(response.recipeName)")
-
-            // Populate form state
-            formState.loadFromGenerationResponse(response)
-
-            // Record in memory using extracted ingredients from Cloud Functions
-            await recordRecipeInMemory(
-                mealType: mealType,
-                styleType: styleType,
-                extractedIngredients: response.extractedIngredients,
-                recipeName: response.recipeName
-            )
-
-            // Debug: Verify form state was populated
-            logger.info("📊 [DEBUG] Form state after loading:")
-            logger.info("   recipeName: '\(self.formState.recipeName)'")
-            logger.info("   ingredients count: \(self.formState.ingredients.count)")
-            logger.info("   directions count: \(self.formState.directions.count)")
-            logger.info("   hasRecipeData: \(self.formState.hasRecipeData)")
-
-            // Stop logo rotation
-            animationController.stopGenerationAnimation()
-
-            // Show photo button after successful generation
-            showPhotoButton = true
-
-        } catch {
-            await handleGenerationError(error)
+        logger.info("👤 [COORDINATOR] User ID resolved: \(userId)")
+        logger.info("🥕 [COORDINATOR] Using \(ingredients.count) ingredients: \(ingredients.joined(separator: ", "))")
+        if let context = userContext, !context.isEmpty {
+            logger.info("📝 [COORDINATOR] User context: '\(context)'")
         }
 
-        isGenerating = false
+        let startTime = Date()
+
+        // Call streaming service for ingredients-based generation
+        await streamingService.generateWithIngredients(
+            ingredients: ingredients,
+            mealType: mealType,
+            styleType: styleType,
+            userId: userId,
+            userContext: userContext,
+            onConnected: {
+                Task { @MainActor in
+                    self.logger.info("✅ [STREAMING] Connected to ingredients-based generation")
+                }
+            },
+            onChunk: { chunkText, fullContent, count in
+                Task { @MainActor in
+                    // Update streaming content incrementally
+                    self.streamingContent = fullContent
+                    self.tokenCount = count
+
+                    // Try to parse JSON incrementally to extract recipeContent and recipeName if available
+                    if let jsonData = fullContent.data(using: .utf8),
+                       let parsedJSON = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+
+                        // Extract recipe name early (usually appears in first few chunks)
+                        if let recipeName = (parsedJSON["recipeName"] as? String) ?? (parsedJSON["name"] as? String),
+                           !recipeName.isEmpty,
+                           recipeName != self.formState.recipeName {
+                            self.formState.recipeName = recipeName
+                        }
+
+                        // Extract streaming markdown content - ONLY update if it changed
+                        if let recipeContent = parsedJSON["recipeContent"] as? String,
+                           recipeContent != self.formState.recipeContent {
+                            self.formState.recipeContent = recipeContent
+                        }
+
+                        // Extract notes progressively as they stream - ONLY update if it changed
+                        if let notes = parsedJSON["notes"] as? String,
+                           notes != self.formState.notes {
+                            self.formState.notes = notes
+                        }
+                    }
+
+                    self.logger.debug("📦 [STREAMING] Received chunk: \(count) tokens, \(fullContent.count) chars")
+                }
+            },
+            onComplete: { response in
+                Task { @MainActor in
+                    let duration = Date().timeIntervalSince(startTime)
+                    self.logger.info("⏱️ [COORDINATOR] Recipe generation completed in \(String(format: "%.2f", duration))s")
+                    self.logger.info("🍳 [COORDINATOR] Recipe generated successfully: \(response.recipeName)")
+
+                    // Populate form state with complete response
+                    self.formState.loadFromGenerationResponse(response)
+
+                    // Record in memory using extracted ingredients from Cloud Functions
+                    await self.recordRecipeInMemory(
+                        mealType: mealType,
+                        styleType: styleType,
+                        extractedIngredients: response.extractedIngredients,
+                        recipeName: response.recipeName
+                    )
+
+                    // Debug: Verify form state was populated
+                    self.logger.info("📊 [DEBUG] Form state after loading:")
+                    self.logger.info("   recipeName: '\(self.formState.recipeName)'")
+                    self.logger.info("   ingredients count: \(self.formState.ingredients.count)")
+                    self.logger.info("   directions count: \(self.formState.directions.count)")
+                    self.logger.info("   hasRecipeData: \(self.formState.hasRecipeData)")
+
+                    // Stop logo rotation
+                    self.animationController.stopGenerationAnimation()
+
+                    // Show photo button after successful generation
+                    self.showPhotoButton = true
+
+                    self.isGenerating = false
+                }
+            },
+            onError: { error in
+                Task { @MainActor in
+                    await self.handleGenerationError(error)
+                    self.isGenerating = false
+                }
+            }
+        )
     }
 
     /// Generate recipe with AI (spontaneous, no ingredients)
     public func generateRecipe(mealType: String, styleType: String, userContext: String? = nil) async {
+        logger.info("📥 [COORDINATOR] ========== GENERATE RECIPE CALLED ==========")
         logger.info("📥 [COORDINATOR] generateRecipe called - mealType: \(mealType), styleType: \(styleType)")
 
         isGenerating = true
@@ -164,32 +206,44 @@ public final class RecipeGenerationCoordinator: ObservableObject {
 
             logger.info("👤 [COORDINATOR] User ID resolved: \(userId)")
 
-            // Fetch memory for diversity checking
-            let memoryDicts = await fetchMemoryForGeneration(mealType: mealType, styleType: styleType)
+            // SMART MEMORY USAGE: Only use recipe memory when input is vague/minimal
+            let shouldUseMemory = userContext == nil || userContext?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true
 
-            // Convert to SimpleRecentRecipe for service call
-            let recentRecipes: [SimpleRecentRecipe] = memoryDicts?.compactMap { dict in
-                guard let ingredients = dict["mainIngredients"] as? [String],
-                      let recipeName = dict["recipeName"] as? String else {
-                    return nil
-                }
-                // Use first ingredient as main ingredient, or empty string if none
-                let mainIngredient = ingredients.first ?? ""
-                // Use generic cooking method since we don't store it
-                return SimpleRecentRecipe(
-                    title: recipeName,
-                    mainIngredient: mainIngredient,
-                    cookingMethod: "Genel"
-                )
-            } ?? []
+            let recentRecipes: [SimpleRecentRecipe]
+            let diversityConstraints: DiversityConstraints?
 
-            // Analyze protein variety for diversity constraints
-            let diversityConstraints = await buildDiversityConstraints(mealType: mealType, styleType: styleType)
+            if shouldUseMemory {
+                logger.info("🧠 [MEMORY] User input is vague - using memory for variety")
 
-            logger.info("🚀 [COORDINATOR] Starting recipe generation - mealType: \(mealType), styleType: \(styleType), userId: \(userId), recentRecipesCount: \(recentRecipes.count)")
-            if let context = userContext, !context.isEmpty {
-                logger.info("📝 [COORDINATOR] User context: '\(context)'")
+                // Fetch memory for diversity checking
+                let memoryDicts = await fetchMemoryForGeneration(mealType: mealType, styleType: styleType)
+
+                // Convert to SimpleRecentRecipe for service call
+                recentRecipes = memoryDicts?.compactMap { dict in
+                    guard let ingredients = dict["mainIngredients"] as? [String],
+                          let recipeName = dict["recipeName"] as? String else {
+                        return nil
+                    }
+                    // Use first ingredient as main ingredient, or empty string if none
+                    let mainIngredient = ingredients.first ?? ""
+                    // Use generic cooking method since we don't store it
+                    return SimpleRecentRecipe(
+                        title: recipeName,
+                        mainIngredient: mainIngredient,
+                        cookingMethod: "Genel"
+                    )
+                } ?? []
+
+                // Analyze protein variety for diversity constraints
+                diversityConstraints = await buildDiversityConstraints(mealType: mealType, styleType: styleType)
+            } else {
+                logger.info("🎯 [MEMORY] User is being specific - skipping memory to respect their intent")
+                logger.info("📝 [MEMORY] User context: '\(userContext ?? "")'")
+                recentRecipes = []
+                diversityConstraints = nil
             }
+
+            logger.info("🚀 [COORDINATOR] Starting recipe generation - mealType: \(mealType), styleType: \(styleType), userId: \(userId), recentRecipesCount: \(recentRecipes.count), diversityEnabled: \(diversityConstraints != nil)")
 
             let startTime = Date()
 
@@ -245,9 +299,42 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         isGenerating = false
     }
 
+    /// Generate recipe using ONLY user context (no meal type hints)
+    /// This is used for Flow 3 (Notes only) and Flow 4 (Ingredients + Notes)
+    /// When the user writes notes, they're telling us exactly what to make
+    public func generateRecipeWithUserContextOnly(
+        ingredients: [String]?,
+        userContext: String?
+    ) async {
+        logger.info("🎯 [USER-CONTEXT-ONLY] Generating with user context ONLY - NO meal type hints")
+        logger.info("📝 [USER-CONTEXT] '\(userContext ?? "nil")'")
+
+        if let ingredients = ingredients {
+            logger.info("🥕 [FLOW-4] With ingredients: \(ingredients.joined(separator: ", "))")
+            // Use ingredients-based generation with user context
+            await generateRecipeFromIngredients(
+                mealType: "Genel",  // Placeholder (will be ignored by prompt)
+                styleType: "Genel",  // Placeholder (will be ignored by prompt)
+                ingredients: ingredients,
+                userContext: userContext
+            )
+        } else {
+            logger.info("📝 [FLOW-3] Notes only, no ingredients")
+            // Use spontaneous generation with user context ONLY
+            await generateRecipeWithStreaming(
+                mealType: "Genel",  // Placeholder (will be ignored by prompt)
+                styleType: "Genel",  // Placeholder (will be ignored by prompt)
+                userContext: userContext
+            )
+        }
+    }
+
     /// Generate recipe with streaming support
-    public func generateRecipeWithStreaming(mealType: String, styleType: String) async {
+    public func generateRecipeWithStreaming(mealType: String, styleType: String, userContext: String? = nil) async {
         logger.info("📥 [COORDINATOR] generateRecipeWithStreaming called - mealType: \(mealType), styleType: \(styleType)")
+        if let context = userContext {
+            logger.info("📝 [COORDINATOR] User context: '\(context)'")
+        }
 
         isGenerating = true
         animationController.startGenerationAnimation()
@@ -260,37 +347,57 @@ public final class RecipeGenerationCoordinator: ObservableObject {
 
         logger.info("👤 [COORDINATOR] User ID resolved: \(userId)")
 
-        // Fetch memory for diversity checking
-        let memoryDicts = await fetchMemoryForGeneration(mealType: mealType, styleType: styleType)
+        // SMART MEMORY USAGE: Only use recipe memory when input is vague/minimal
+        // Flow 1 (Empty): Use memory - AI needs context
+        // Flow 2 (Ingredients only): Use memory - helps avoid repetition
+        // Flow 3 (Notes only): Skip memory - user is explicit about what they want
+        // Flow 4 (Ingredients + notes): Skip memory - user already giving full context
+        let shouldUseMemory = userContext == nil || userContext?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true
 
-        // Convert to SimpleRecentRecipe for service call
-        let recentRecipes: [SimpleRecentRecipe] = memoryDicts?.compactMap { dict in
-            guard let ingredients = dict["mainIngredients"] as? [String],
-                  let recipeName = dict["recipeName"] as? String else {
-                return nil
-            }
-            let mainIngredient = ingredients.first ?? ""
-            return SimpleRecentRecipe(
-                title: recipeName,
-                mainIngredient: mainIngredient,
-                cookingMethod: "Genel"
-            )
-        } ?? []
+        let recentRecipes: [SimpleRecentRecipe]
+        let diversityConstraints: DiversityConstraints?
 
-        // Analyze protein variety for diversity constraints
-        let diversityConstraints = await buildDiversityConstraints(mealType: mealType, styleType: styleType)
+        if shouldUseMemory {
+            logger.info("🧠 [MEMORY] User input is vague - using memory for variety")
 
-        logger.info("🚀 [COORDINATOR] Starting recipe generation with streaming - mealType: \(mealType), styleType: \(styleType), userId: \(userId), recentRecipesCount: \(recentRecipes.count)")
+            // Fetch memory for diversity checking
+            let memoryDicts = await fetchMemoryForGeneration(mealType: mealType, styleType: styleType)
+
+            // Convert to SimpleRecentRecipe for service call
+            recentRecipes = memoryDicts?.compactMap { dict in
+                guard let ingredients = dict["mainIngredients"] as? [String],
+                      let recipeName = dict["recipeName"] as? String else {
+                    return nil
+                }
+                let mainIngredient = ingredients.first ?? ""
+                return SimpleRecentRecipe(
+                    title: recipeName,
+                    mainIngredient: mainIngredient,
+                    cookingMethod: "Genel"
+                )
+            } ?? []
+
+            // Analyze protein variety for diversity constraints
+            diversityConstraints = await buildDiversityConstraints(mealType: mealType, styleType: styleType)
+        } else {
+            logger.info("🎯 [MEMORY] User is being specific - skipping memory to respect their intent")
+            logger.info("📝 [MEMORY] User context: '\(userContext ?? "")'")
+            recentRecipes = []
+            diversityConstraints = nil
+        }
+
+        logger.info("🚀 [COORDINATOR] Starting recipe generation with streaming - mealType: \(mealType), styleType: \(styleType), userId: \(userId), recentRecipesCount: \(recentRecipes.count), diversityEnabled: \(diversityConstraints != nil)")
 
         let startTime = Date()
 
-        // Call streaming service with diversity constraints
+        // Call streaming service with diversity constraints and user context
         await streamingService.generateSpontaneous(
             mealType: mealType,
             styleType: styleType,
             userId: userId,
             recentRecipes: recentRecipes,
             diversityConstraints: diversityConstraints,
+            userContext: userContext,
             onConnected: {
                 Task { @MainActor in
                     self.logger.info("✅ [STREAMING] Connected to recipe generation")

@@ -29,7 +29,7 @@ struct AnswerCardView: View {
     private let researchFontSize: Double = 19.0
     @State private var selectedCitationIndex: Int?
     @State private var showTaskSummary = true
-    @State private var maxProgressReached: Double = 0.0 // Track highest progress to prevent backwards movement
+    @State private var progressCalculator = ResearchProgressCalculator() // Track progress without backwards movement
     @State private var showBadge = false // Animate badge appearance
     @State private var showSourcePill = false // Animate source pill appearance
 
@@ -60,88 +60,16 @@ struct AnswerCardView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Query - positioned right under toolbar
-            Text(answer.query)
-                .font(.system(size: 30, weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            // Image attachment (if present) - show thumbnail below question
-            if let imageAttachment = answer.imageAttachment,
-               let thumbnail = imageAttachment.thumbnail {
-                Image(uiImage: thumbnail)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 120, height: 120)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color.primary.opacity(0.1), lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
-            }
-
-            // Badges row - tier badge and source pill side by side
-            // Reserve minimum height to prevent layout shift when sources appear
-            HStack(spacing: 8) {
-                // Research type badge - matched to source pill design
-                // RULES:
-                // 1. Model tiers (T1/T2) → CPU icon + "Model"
-                // 2. Web Search (T2+) → Globe icon + "Web'de Arama"
-                // 3. Deep Research (T3) → Gyroscope icon + "Derin Araştırma"
-                if shouldShowBadge, let tier = answer.tier, showBadge {
-                    HStack(spacing: 8) {
-                        Image(systemName: tier.iconName)
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundStyle(tier.badgeForegroundColor(for: colorScheme))
-                        Text(tier.label)
-                            .font(.system(size: 14, weight: .semibold, design: .default))
-                            .foregroundStyle(tier.badgeForegroundColor(for: colorScheme))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                    .frame(height: 30)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background {
-                        Capsule()
-                            .fill(Color(.systemBackground))
-                    }
-                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-                    .transition(.scale.combined(with: .opacity))
-                    .layoutPriority(1)
-                }
-
-                // Collective source pill: only show when there are actual sources
-                if !answer.sources.isEmpty && showSourcePill {
-                    CollectiveSourcePill(sources: answer.sources)
-                        .lineLimit(1)
-                        .fixedSize(horizontal: true, vertical: false)
-                        .transition(.scale.combined(with: .opacity))
-                        .layoutPriority(1)
-                }
-
-                Spacer()
-            }
-            .frame(minHeight: 46) // Reserve vertical space to prevent shift when pill appears
-            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showBadge)
-            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: showSourcePill)
-
-            if let tier = answer.tier,
-               tier.showsThinkingSummary,
-               let thinkingSummary = answer.thinkingSummary?.trimmingCharacters(in: .whitespacesAndNewlines),
-               !thinkingSummary.isEmpty {
-                HStack(alignment: .top, spacing: 8) {
-                    Image(systemName: "brain.head.profile")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                    Text(thinkingSummary)
-                        .font(.system(size: 13, weight: .regular, design: .rounded))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(4)
-                }
-            }
+            // Header section - query, image, badges, thinking summary
+            AnswerCardHeaderSection(
+                query: answer.query,
+                imageAttachment: answer.imageAttachment,
+                tier: answer.tier,
+                sources: answer.sources,
+                thinkingSummary: answer.thinkingSummary,
+                showBadge: showBadge,
+                showSourcePill: showSourcePill
+            )
 
             // Current research stage - shown during deep research with progress bar
             renderStageCard()
@@ -158,18 +86,7 @@ struct AnswerCardView: View {
                     fontSize: researchFontSize
                 )
                 .padding(.vertical, 8)
-                .onAppear {
-                    logger.debug("AnswerCardView displaying answer: \(answer.content.count) chars")
-                    if answer.content.count > 100 {
-                        logger.debug("Last 100 chars: ...\(answer.content.suffix(100))")
-                    }
-                }
-                .onChange(of: answer.content) { oldValue, newValue in
-                    logger.debug("AnswerCardView content changed: \(oldValue.count) → \(newValue.count) chars")
-                    if newValue.count > 100 {
-                        logger.debug("New last 100 chars: ...\(newValue.suffix(100))")
-                    }
-                }
+                .transition(.opacity.animation(.easeIn(duration: 0.25).delay(0.15)))
 
                 // Action row (single location)
                 ResearchResponseActionRow(
@@ -235,6 +152,7 @@ struct AnswerCardView: View {
             showBadge = false
             showSourcePill = false
             lastStageBeforeContent = nil
+            progressCalculator.reset() // Reset progress tracking for new answer
 
             // Re-trigger animations for new answer
             if shouldShowBadge, answer.tier != nil {
@@ -286,10 +204,13 @@ struct AnswerCardView: View {
         if let stageMessage = displayStage, answer.content.isEmpty {
             ResearchStageStatusCard(
                 stageMessage: stageMessage,
-                progress: effectiveProgress(for: stageMessage)
+                progress: progressCalculator.effectiveProgress(for: stageMessage)
             )
             .padding(.top, 12)
-            .transition(.opacity.animation(.easeInOut(duration: 0.4)))
+            .transition(.asymmetric(
+                insertion: .opacity.animation(.easeInOut(duration: 0.4)),
+                removal: .opacity.animation(.easeOut(duration: 0.3))
+            ))
             .onAppear {
                 logger.debug("🎬 Stage card appeared: \(stageMessage)")
                 showTaskSummary = false
@@ -308,30 +229,6 @@ struct AnswerCardView: View {
 
     /// Calculate progress percentage based on current research stage
     /// Maps each stage message to a progress value from 0.0 to 1.0
-    private func calculateProgress(for stageMessage: String) -> Double {
-        switch stageMessage {
-        case "Araştırma planını yapıyorum":        return 0.10  // Stage 1: Planning
-        case "Araştırmaya başlıyorum":             return 0.20  // Stage 2: Starting research
-        case "Kaynakları topluyorum":              return 0.35  // Stage 3: Collecting sources
-        case "Kaynakları değerlendiriyorum":       return 0.50  // Stage 4: Evaluating sources
-        case "Ek kaynaklar arıyorum":              return 0.60  // Stage 5: Searching additional
-        case "Ek kaynakları inceliyorum":          return 0.70  // Stage 6: Examining additional
-        case "En ilgili kaynakları seçiyorum":     return 0.80  // Stage 7: Selecting best
-        case "Bilgileri bir araya getiriyorum":    return 0.90  // Stage 8: Gathering info
-        case "Kapsamlı bir rapor yazıyorum":       return 0.95  // Stage 9: Writing report
-        default:                                    return 0.50  // Unknown stage - show halfway
-        }
-    }
-
-    /// Get effective progress - never goes backwards during multi-round research
-    /// Returns max of current stage progress and highest reached so far
-    private func effectiveProgress(for stageMessage: String) -> Double {
-        let rawProgress = calculateProgress(for: stageMessage)
-
-        // Always return the max between current and what we've reached
-        // This prevents backwards movement during multi-round research
-        return max(rawProgress, maxProgressReached)
-    }
 
     // MARK: - Helper Types
 
@@ -344,76 +241,30 @@ struct AnswerCardView: View {
 
 // MARK: - Previews
 
-#Preview("Araştırma Badge with Shimmer") {
+#Preview("Complete Answer with Sources") {
     AnswerCardView(
         answer: SearchAnswer(
-            id: "preview-1",
+            id: "preview-complete",
             query: "What are the health benefits of Mediterranean diet?",
-            content: "",
-            sources: [],
-            tier: .search // "Araştırma"
-        ),
-        enableStreaming: true,
-        isStreamingComplete: false,
-        isSearchingSources: true // Shimmer active
-    )
-    .padding()
-}
-
-#Preview("Derin Araştırma Badge with Shimmer") {
-    AnswerCardView(
-        answer: SearchAnswer(
-            id: "preview-2",
-            query: "How does quantum computing work?",
-            content: "",
-            sources: [],
-            tier: .research // "Derin Araştırma"
-        ),
-        enableStreaming: true,
-        isStreamingComplete: false,
-        isSearchingSources: true // Shimmer active
-    )
-    .padding()
-}
-
-#Preview("Badge without Shimmer (Complete)") {
-    AnswerCardView(
-        answer: SearchAnswer(
-            id: "preview-3",
-            query: "What is Swift concurrency?",
-            content: "Swift concurrency provides modern async/await patterns for handling asynchronous operations.",
-            sources: [],
-            tier: .search
+            content: "The Mediterranean diet is associated with numerous health benefits including reduced risk of cardiovascular disease, improved cognitive function, and better metabolic health.",
+            sources: [
+                ResearchSource(id: "1", url: URL(string: "https://example.com")!, domain: "example.com", title: "Harvard Medical", snippet: nil, publishDate: nil, author: nil, credibilityBadge: nil, faviconURL: nil),
+                ResearchSource(id: "2", url: URL(string: "https://example.com")!, domain: "example.com", title: "Mayo Clinic", snippet: nil, publishDate: nil, author: nil, credibilityBadge: nil, faviconURL: nil)
+            ],
+            tier: .research
         ),
         enableStreaming: false,
         isStreamingComplete: true,
-        isSearchingSources: false // No shimmer when complete
+        isSearchingSources: false
     )
     .padding()
 }
 
-#Preview("Dark Mode with Shimmer") {
+#Preview("Research Stage with Progress") {
     AnswerCardView(
         answer: SearchAnswer(
-            id: "preview-4",
-            query: "Climate change impacts on oceans",
-            content: "",
-            sources: [],
-            tier: .research
-        ),
-        enableStreaming: true,
-        isStreamingComplete: false,
-        isSearchingSources: true
-    )
-    .padding()
-    .preferredColorScheme(.dark)
-}
-
-#Preview("Research Stage with Progress Card - Gathering Info") {
-    AnswerCardView(
-        answer: SearchAnswer(
-            id: "preview-6",
-            query: "What are the long-term effects of intermittent fasting?",
+            id: "preview-stage",
+            query: "How does climate change affect ocean ecosystems?",
             content: "",
             sources: [],
             tier: .research
@@ -426,36 +277,18 @@ struct AnswerCardView: View {
     .padding()
 }
 
-#Preview("Research Stage with Progress Card - Writing Report") {
+#Preview("Dark Mode") {
     AnswerCardView(
         answer: SearchAnswer(
-            id: "preview-7",
-            query: "How does climate change affect ocean ecosystems?",
-            content: "",
+            id: "preview-dark",
+            query: "What is Swift concurrency?",
+            content: "Swift concurrency provides modern async/await patterns.",
             sources: [],
-            tier: .research
+            tier: .search
         ),
-        enableStreaming: true,
-        isStreamingComplete: false,
-        isSearchingSources: false,
-        currentStage: "Kapsamlı bir rapor yazıyorum"
-    )
-    .padding()
-}
-
-#Preview("Research Stage with Progress Card - Dark Mode") {
-    AnswerCardView(
-        answer: SearchAnswer(
-            id: "preview-8",
-            query: "What are the benefits of meditation?",
-            content: "",
-            sources: [],
-            tier: .research
-        ),
-        enableStreaming: true,
-        isStreamingComplete: false,
-        isSearchingSources: false,
-        currentStage: "Kaynakları değerlendiriyorum"
+        enableStreaming: false,
+        isStreamingComplete: true,
+        isSearchingSources: false
     )
     .padding()
     .preferredColorScheme(.dark)

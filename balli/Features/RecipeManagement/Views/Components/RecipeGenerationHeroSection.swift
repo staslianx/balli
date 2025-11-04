@@ -83,7 +83,10 @@ struct RecipeGenerationMetadata: View {
     let recipeName: String
     let recipeContent: String
     let geometry: GeometryProxy
+    @Binding var editableRecipeName: String
+    let isManualRecipe: Bool
     @Environment(\.colorScheme) private var colorScheme
+    @FocusState.Binding var isNameFieldFocused: Bool
 
     var body: some View{
         // Calculate consistent hero image height (50% of screen including safe area)
@@ -103,8 +106,15 @@ struct RecipeGenerationMetadata: View {
                         .frame(height: 40)
                 }
 
-                // Recipe title
-                if !recipeName.isEmpty {
+                // Recipe title - editable for manual recipes, display-only for AI-generated
+                if isManualRecipe {
+                    TextField("Tarif ismi (zorunlu)", text: $editableRecipeName)
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
+                        .focused($isNameFieldFocused)
+                        .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
+                        .submitLabel(.done)
+                } else if !recipeName.isEmpty {
                     Text(recipeName)
                         .font(.system(size: 34, weight: .bold, design: .rounded))
                         .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
@@ -131,8 +141,13 @@ struct RecipeGenerationStoryCard: View {
     let isCalculatingNutrition: Bool
     let currentLoadingStep: String?
     let nutritionCalculationProgress: Int
+    let hasNutritionData: Bool
     let geometry: GeometryProxy
     let onTap: () -> Void
+
+    private var nutritionButtonText: String {
+        hasNutritionData ? "Besin değerlerini görüntüle" : "Besin değerlerini analiz et"
+    }
 
     var body: some View {
         // Calculate consistent hero image height (50% of screen including safe area)
@@ -146,7 +161,7 @@ struct RecipeGenerationStoryCard: View {
 
             RecipeStoryCard(
                 title: storyCardTitle,
-                description: "Besin değerlerini analiz et",
+                description: nutritionButtonText,
                 thumbnailURL: nil,
                 isLoading: isCalculatingNutrition,
                 loadingStep: currentLoadingStep,
@@ -171,7 +186,11 @@ struct RecipeGenerationCompleteHero: View {
     let isCalculatingNutrition: Bool
     let currentLoadingStep: String?
     let nutritionCalculationProgress: Int
+    let hasNutritionData: Bool
     let geometry: GeometryProxy
+    @Binding var editableRecipeName: String
+    let isManualRecipe: Bool
+    @FocusState.Binding var isNameFieldFocused: Bool
     let onGeneratePhoto: () -> Void
     let onStoryCardTap: () -> Void
 
@@ -203,7 +222,10 @@ struct RecipeGenerationCompleteHero: View {
             RecipeGenerationMetadata(
                 recipeName: recipeName,
                 recipeContent: recipeContent,
-                geometry: geometry
+                geometry: geometry,
+                editableRecipeName: $editableRecipeName,
+                isManualRecipe: isManualRecipe,
+                isNameFieldFocused: $isNameFieldFocused
             )
 
             // Story card - positioned absolutely at fixed offset
@@ -212,6 +234,7 @@ struct RecipeGenerationCompleteHero: View {
                 isCalculatingNutrition: isCalculatingNutrition,
                 currentLoadingStep: currentLoadingStep,
                 nutritionCalculationProgress: nutritionCalculationProgress,
+                hasNutritionData: hasNutritionData,
                 geometry: geometry,
                 onTap: onStoryCardTap
             )

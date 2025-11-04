@@ -180,8 +180,9 @@ public class RecipeNutritionHandler: ObservableObject {
 
     /// Calculate nutrition values on-demand using Gemini 2.5 Pro
     /// Called when user taps the nutrition values button
-    public func calculateNutrition() {
-        logger.info("🍽️ [NUTRITION] Starting on-demand nutrition calculation")
+    /// - Parameter isManualRecipe: If true, calculates nutrition for manual recipe (servings unknown)
+    public func calculateNutrition(isManualRecipe: Bool = false) {
+        logger.info("🍽️ [NUTRITION] Starting on-demand nutrition calculation - isManualRecipe: \(isManualRecipe)")
 
         // Validate we have recipe data
         guard !formState.recipeName.isEmpty else {
@@ -210,7 +211,8 @@ public class RecipeNutritionHandler: ObservableObject {
                 let nutritionData = try await nutritionRepository.calculateNutrition(
                     recipeName: formState.recipeName,
                     recipeContent: formState.recipeContent,
-                    servings: 1  // Always 1 = entire recipe as one portion
+                    servings: isManualRecipe ? nil : 1,  // nil for manual recipes, 1 for AI recipes
+                    recipeType: isManualRecipe ? "manual" : "aiGenerated"
                 )
 
                 // Update form state with calculated values

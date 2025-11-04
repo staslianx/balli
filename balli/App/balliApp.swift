@@ -8,6 +8,7 @@
 
 import SwiftUI
 import CoreData
+import HealthKit
 import OSLog
 
 @main
@@ -40,16 +41,57 @@ struct balliApp: App {
 
         // Initialize recipe sync coordinator for automatic recipe syncing
         // This ensures recipes with photos are synced to Firestore and Firebase Storage
-        // The singleton pattern ensures the coordinator is ready to observe CoreData changes
+        // Uses DependencyContainer to support testing and proper dependency injection
         Task { @MainActor in
-            _ = RecipeSyncCoordinator.shared
+            _ = DependencyContainer.shared.recipeSyncCoordinator
         }
 
         // Initialize meal sync coordinator for automatic meal syncing
         // This ensures meal entries are synced to Firestore in real-time
-        // The singleton pattern ensures the coordinator is ready to observe CoreData changes
+        // Uses DependencyContainer to support testing and proper dependency injection
         Task { @MainActor in
-            _ = MealSyncCoordinator.shared
+            _ = DependencyContainer.shared.mealSyncCoordinator
+        }
+
+        // Initialize activity sync service for daily activity data collection
+        // This ensures steps, calories, and exercise data are automatically stored for correlation analysis
+        Task { @MainActor in
+            let appLogger = Logger(subsystem: "com.anaxoniclabs.balli", category: "app.lifecycle")
+            let healthStore = HKHealthStore()
+            let authManager = HealthKitAuthorizationManager(healthStore: healthStore)
+            let activityService = ActivitySyncService(healthStore: healthStore, authManager: authManager)
+
+            // Setup background delivery
+            await activityService.setupBackgroundDelivery()
+
+            // Sync today's activity on app launch
+            do {
+                try await activityService.syncTodayActivity()
+                appLogger.info("✅ Today's activity synced")
+            } catch {
+                appLogger.error("Failed to sync today's activity: \(error.localizedDescription)")
+            }
+
+            // Backfill historical data if not completed recently
+            // Runs silently in background - no UI blocking
+            let shouldBackfill: Bool = {
+                guard UserDefaults.standard.bool(forKey: "ActivityBackfillCompleted"),
+                      let lastBackfill = UserDefaults.standard.object(forKey: "ActivityBackfillDate") as? Date else {
+                    return true
+                }
+                let daysSince = Calendar.current.dateComponents([.day], from: lastBackfill, to: Date()).day ?? 0
+                return daysSince >= 7
+            }()
+
+            if shouldBackfill {
+                Task.detached(priority: .background) {
+                    do {
+                        try await activityService.backfillHistoricalData(days: 90)
+                    } catch {
+                        appLogger.error("Historical activity backfill failed: \(error.localizedDescription)")
+                    }
+                }
+            }
         }
     }
 

@@ -16,6 +16,10 @@ import OSLog
 @MainActor
 final class DexcomService: ObservableObject {
 
+    // MARK: - Singleton
+
+    static let shared = DexcomService()
+
     // MARK: - Published State
 
     @Published var isConnected: Bool = false
@@ -74,14 +78,13 @@ final class DexcomService: ObservableObject {
 
     // MARK: - Initialization
 
-    init(configuration: DexcomConfiguration = .default()) {
+    private init(configuration: DexcomConfiguration = .default()) {
         self.configuration = configuration
         self.authManager = DexcomAuthManager(configuration: configuration)
         self.apiClient = DexcomAPIClient(configuration: configuration, authManager: authManager)
 
-        Task {
-            await checkConnectionStatus()
-        }
+        // PERFORMANCE FIX: Don't check connection on init - let views call it explicitly when needed
+        // This prevents 4+ simultaneous connection checks on app launch
     }
 
     // MARK: - Connection Management
@@ -133,66 +136,51 @@ final class DexcomService: ObservableObject {
     /// Also proactively refreshes token if needed to prevent expiration
     /// FIX: Always checks authentication and updates state, but debounces expensive token refresh
     func checkConnectionStatus() async {
-        // 🔍 FORENSIC LOG: Entry point
-        logger.info("🔍 FORENSIC [checkConnectionStatus]: ENTRY - current cached isConnected=\(self.isConnected)")
-        await DexcomDiagnosticsLogger.shared.logConnection("checkConnectionStatus() ENTRY - cached state: \(self.isConnected)", level: .debug)
+        #if DEBUG
+        logger.debug("checkConnectionStatus() - cached isConnected=\(self.isConnected)")
+        #endif
 
         // Determine if we should refresh token (expensive operation) or just check auth status (cheap)
         var shouldRefreshToken = true
         if let lastCheck = lastConnectionCheck {
             let timeSinceLastCheck = Date().timeIntervalSince(lastCheck)
             if timeSinceLastCheck < connectionCheckDebounceInterval {
-                logger.debug("⏭️ [checkConnectionStatus]: Within debounce window (\(String(format: "%.1f", timeSinceLastCheck))s ago) - will check auth but SKIP token refresh")
-                await DexcomDiagnosticsLogger.shared.logConnection("Within debounce window - checking auth but skipping refresh", level: .debug)
+                logger.debug("Within debounce window (\(String(format: "%.1f", timeSinceLastCheck))s) - checking auth but skipping token refresh")
                 shouldRefreshToken = false
             }
         }
 
-        // 🔧 FIX: ALWAYS check authentication status and update isConnected
-        // This ensures callers never see stale cached values
-        logger.info("🔍 FORENSIC [checkConnectionStatus]: Checking authentication status (always runs)")
-        await DexcomDiagnosticsLogger.shared.logConnection("Checking authentication status", level: .debug)
-
+        // Always check authentication status and update isConnected
         let authenticated = await authManager.isAuthenticated()
-        logger.info("✅ FORENSIC [checkConnectionStatus]: Auth check complete - authenticated=\(authenticated)")
-        await DexcomDiagnosticsLogger.shared.logConnection("Authentication check result: \(authenticated)", level: .info)
 
-        // Update state immediately - no more stale cached values!
+        #if DEBUG
+        logger.debug("Auth check complete - authenticated=\(authenticated)")
+        #endif
+
+        // Update state immediately
         let oldState = isConnected
         isConnected = authenticated
         connectionStatus = authenticated ? .connected : .disconnected
 
-        logger.info("✅ FORENSIC [checkConnectionStatus]: State updated - OLD=\(oldState) → NEW=\(self.isConnected)")
-        logger.info("📢 FORENSIC: Callers will now see isConnected=\(self.isConnected) on their next read")
-        await DexcomDiagnosticsLogger.shared.logConnection("Updated connection state - OLD=\(oldState) → NEW=\(self.isConnected)", level: authenticated ? .success : .error)
+        if oldState != isConnected {
+            logger.info("Connection state changed: \(oldState) → \(self.isConnected)")
+        }
 
         // Only refresh token if NOT within debounce window
         if authenticated && shouldRefreshToken {
-            lastConnectionCheck = Date() // Update timestamp only when we actually refresh
-
-            logger.debug("Checking if token refresh needed...")
-            await DexcomDiagnosticsLogger.shared.logTokenRefresh("Checking if token refresh needed", level: .debug)
+            lastConnectionCheck = Date()
 
             do {
                 let didRefresh = try await authManager.refreshIfNeeded()
                 if didRefresh {
-                    logger.info("✅ Token proactively refreshed to prevent expiration")
-                    await DexcomDiagnosticsLogger.shared.logTokenRefresh("Token proactively refreshed successfully", level: .success)
-                } else {
-                    logger.debug("Token refresh not needed - token still valid")
-                    await DexcomDiagnosticsLogger.shared.logTokenRefresh("Token refresh not needed - token still valid", level: .info)
+                    logger.info("Token proactively refreshed")
                 }
             } catch {
-                logger.error("❌ Failed to proactively refresh token: \(error.localizedDescription)")
-                await DexcomDiagnosticsLogger.shared.logTokenRefresh("Token refresh FAILED: \(error.localizedDescription)", level: .error)
+                logger.error("Failed to refresh token: \(error.localizedDescription)")
                 // Don't mark as disconnected yet - token might still be valid
             }
-        } else if authenticated {
-            logger.debug("⏭️ Skipped token refresh (within debounce window) - will check again later")
-            await DexcomDiagnosticsLogger.shared.logTokenRefresh("Token refresh skipped - within debounce window", level: .debug)
-        } else {
-            logger.error("❌ User NOT authenticated - connection lost")
-            await DexcomDiagnosticsLogger.shared.logConnection("User NOT authenticated - connection LOST", level: .error)
+        } else if !authenticated {
+            logger.error("User not authenticated - connection lost")
         }
     }
 
@@ -238,6 +226,17 @@ final class DexcomService: ObservableObject {
             if let reading = reading {
                 latestReading = reading
                 logger.info("Latest reading: \(reading.value) mg/dL at \(reading.displayTime)")
+
+                // Auto-save latest reading to Core Data
+                logger.info("💾 [AUTO-SAVE] Saving latest reading to Core Data...")
+                let repository = GlucoseReadingRepository()
+                let healthReading = reading.toHealthGlucoseReading(deviceName: currentDevice?.deviceName)
+                let objectID = try await repository.saveReading(from: healthReading)
+                if let objectID = objectID {
+                    logger.info("✅ [AUTO-SAVE] Saved latest reading with objectID: \(objectID)")
+                } else {
+                    logger.info("ℹ️ [AUTO-SAVE] Latest reading already exists (duplicate)")
+                }
             } else {
                 logger.notice("No glucose reading available (might be normal if account is new)")
             }
@@ -260,6 +259,15 @@ final class DexcomService: ObservableObject {
                 if let firstReading = readings.first {
                     latestReading = firstReading
                     logger.info("Most recent: \(firstReading.value) mg/dL at \(firstReading.displayTime)")
+                }
+
+                // Auto-save fallback readings to Core Data
+                if !readings.isEmpty {
+                    logger.info("💾 [AUTO-SAVE] Saving \(readings.count) fallback readings to Core Data...")
+                    let repository = GlucoseReadingRepository()
+                    let healthReadings = readings.map { $0.toHealthGlucoseReading(deviceName: currentDevice?.deviceName) }
+                    let savedCount = try await repository.saveReadings(from: healthReadings)
+                    logger.info("✅ [AUTO-SAVE] Saved \(savedCount) fallback readings (duplicates skipped)")
                 }
             } catch {
                 logger.error("7-day fetch also failed: \(error.localizedDescription)")
@@ -304,11 +312,16 @@ final class DexcomService: ObservableObject {
 
                 logger.info("📊 Fetched \(historicalReadings.count) historical readings")
 
-                // Log historical data fetch success
-                logger.info("✅ Historical data fetch complete: \(historicalReadings.count) readings over 7 days")
+                // Auto-save historical readings to Core Data
+                if !historicalReadings.isEmpty {
+                    logger.info("💾 [AUTO-SAVE] Saving \(historicalReadings.count) historical readings to Core Data...")
+                    let repository = GlucoseReadingRepository()
+                    let healthReadings = historicalReadings.map { $0.toHealthGlucoseReading(deviceName: currentDevice?.deviceName) }
+                    let savedCount = try await repository.saveReadings(from: healthReadings)
+                    logger.info("✅ [AUTO-SAVE] Saved \(savedCount) new historical readings (duplicates skipped)")
+                }
 
-                // Note: ViewModel will handle persisting these to CoreData when it fetches data
-                // We don't auto-persist here to avoid duplicate writes
+                logger.info("✅ Historical data fetch complete: \(historicalReadings.count) readings over 7 days")
             } catch {
                 logger.error("⚠️ Failed to fetch historical data: \(error.localizedDescription)")
                 // Don't throw - this is optional enhancement, not critical failure

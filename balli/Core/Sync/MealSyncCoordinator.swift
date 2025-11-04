@@ -14,7 +14,7 @@ import OSLog
 
 /// Coordinates automatic synchronization of meal entries
 @MainActor
-final class MealSyncCoordinator: ObservableObject {
+final class MealSyncCoordinator: MealSyncCoordinatorProtocol {
 
     // MARK: - Singleton
 
@@ -33,8 +33,8 @@ final class MealSyncCoordinator: ObservableObject {
     private let persistenceController: Persistence.PersistenceController
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "MealSyncCoordinator")
 
-    // Observers
-    nonisolated(unsafe) private var coreDataObserver: NSObjectProtocol?
+    // Observers - stored on MainActor for proper isolation
+    private var coreDataObserver: NSObjectProtocol?
 
     // Sync control
     private var syncTask: Task<Void, Never>?
@@ -53,8 +53,13 @@ final class MealSyncCoordinator: ObservableObject {
 
     deinit {
         syncTask?.cancel()
-        if let observer = coreDataObserver {
-            NotificationCenter.default.removeObserver(observer)
+        // Cleanup observer - safe because we're accessing from MainActor-isolated context
+        // The observer is stored as NSObjectProtocol which doesn't require Sendable
+        // We use assumeIsolated to explicitly verify we're on MainActor during deinit
+        MainActor.assumeIsolated {
+            if let observer = coreDataObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
         }
     }
 

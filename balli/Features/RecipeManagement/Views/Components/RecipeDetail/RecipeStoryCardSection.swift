@@ -14,13 +14,18 @@ struct RecipeStoryCardSection: View {
     let isCalculatingNutrition: Bool
     let currentLoadingStep: String?
     let nutritionCalculationProgress: Int
+    let hasNutritionData: Bool
     let onTap: () -> Void
+
+    private var nutritionButtonText: String {
+        hasNutritionData ? "Besin değerlerini görüntüle" : "Besin değerlerini analiz et"
+    }
 
     var body: some View {
         if hasStory {
             RecipeStoryCard(
                 title: "balli'nin tarif analizi",
-                description: "Besin değerlerini analiz et",
+                description: nutritionButtonText,
                 thumbnailURL: nil,
                 isLoading: isCalculatingNutrition,
                 loadingStep: currentLoadingStep,
@@ -34,12 +39,25 @@ struct RecipeStoryCardSection: View {
 
 // MARK: - Preview
 
-#Preview("Default State") {
+#Preview("Default State - No Nutrition Data") {
     RecipeStoryCardSection(
         hasStory: true,
         isCalculatingNutrition: false,
         currentLoadingStep: nil,
         nutritionCalculationProgress: 0,
+        hasNutritionData: false,
+        onTap: {}
+    )
+    .padding()
+}
+
+#Preview("Default State - With Nutrition Data") {
+    RecipeStoryCardSection(
+        hasStory: true,
+        isCalculatingNutrition: false,
+        currentLoadingStep: nil,
+        nutritionCalculationProgress: 0,
+        hasNutritionData: true,
         onTap: {}
     )
     .padding()
@@ -51,6 +69,7 @@ struct RecipeStoryCardSection: View {
         isCalculatingNutrition: true,
         currentLoadingStep: "Tarife tekrar bakıyorum",
         nutritionCalculationProgress: 6,
+        hasNutritionData: false,
         onTap: {}
     )
     .padding()
@@ -62,6 +81,7 @@ struct RecipeStoryCardSection: View {
         isCalculatingNutrition: true,
         currentLoadingStep: "Pişirme etkilerini belirliyorum",
         nutritionCalculationProgress: 48,
+        hasNutritionData: false,
         onTap: {}
     )
     .padding()
@@ -73,6 +93,7 @@ struct RecipeStoryCardSection: View {
         isCalculatingNutrition: true,
         currentLoadingStep: "Sağlamasını yapıyorum",
         nutritionCalculationProgress: 100,
+        hasNutritionData: false,
         onTap: {}
     )
     .padding()
@@ -84,6 +105,7 @@ struct RecipeStoryCardSection: View {
         isCalculatingNutrition: false,
         currentLoadingStep: nil,
         nutritionCalculationProgress: 0,
+        hasNutritionData: false,
         onTap: {}
     )
     .padding()

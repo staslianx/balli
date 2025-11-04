@@ -159,6 +159,7 @@ public final class RecipePersistenceCoordinator: ObservableObject {
             directions: formState.directions,
             notes: formState.notes,
             recipeContent: formState.recipeContent.isEmpty ? nil : formState.recipeContent,
+            isManualRecipe: formState.isManualRecipe,
             // Per-100g nutrition values
             calories: formState.calories,
             carbohydrates: formState.carbohydrates,

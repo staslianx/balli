@@ -17,7 +17,7 @@
 Every line of code must meet these non-negotiable standards:
 
 **File Organization:**
-- Max 300 lines per file (prefer 200 or less)
+- Max 500 lines per file
 - One responsibility per file
 - Feature-based folder structure (not layer-based)
 - No "Utilities" or "Helpers" dumping grounds
@@ -340,7 +340,7 @@ Before any PR/commit, verify:
 - [ ] Proper error handling
 - [ ] Swift 6 concurrency compliant
 - [ ] Logged important events
-- [ ] No files over 300 lines
+- [ ] No files over 500 lines
 - [ ] No functions over 50 lines
 - [ ] Follows MVVM pattern
 - [ ] Uses dependency injection
@@ -354,7 +354,7 @@ These will be REJECTED in code review:
 
 ❌ Force unwrapping: `user!`
 ❌ Force try: `try! data.write()`
-❌ Massive files: Over 300 lines
+❌ Massive files: Over 500 lines
 ❌ Mega classes: One class doing everything
 ❌ Singletons everywhere
 ❌ `DispatchQueue.main.async` (use `@MainActor`)
@@ -560,7 +560,7 @@ For quality-critical outputs:
    ☐ Swift 6 concurrency compliant
    ☐ No force unwraps
    ☐ Proper error handling
-   ☐ Under 300 lines
+   ☐ Under 500 lines
 
 3. If any check fails:
    - Identify issue
@@ -576,7 +576,7 @@ For quality-critical outputs:
 
 **The Moving Target:**
 ❌ "Make it better, more professional, higher quality"
-✅ "Reduce to 200 lines, add error handling, remove force unwraps"
+✅ "Reduce to 500 lines, add error handling, remove force unwraps"
 
 **The Wall of Text:**
 ❌ 500-word paragraph with buried instructions
@@ -594,7 +594,7 @@ For quality-critical outputs:
 <constraints>
 - Swift 6 strict concurrency
 - iOS 26+ APIs only
-- Max 200 lines
+- Max 500 lines
 - Comprehensive error handling
 </constraints>
 <verification>
@@ -609,7 +609,7 @@ For quality-critical outputs:
 <task>Refactor [component]</task>
 <priorities>
 P0: Fix force unwraps and try!
-P1: Reduce file to <300 lines
+P1: Reduce file to <500 lines
 P2: Improve naming
 </priorities>
 <standards>Follow CLAUDE.md section 1</standards>

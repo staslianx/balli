@@ -27,17 +27,24 @@ class RecipeStreamingService {
         mealType: String,
         styleType: String,
         userId: String,
+        userContext: String? = nil,
         onConnected: @escaping @Sendable () -> Void,
         onChunk: @escaping @Sendable (String, String, Int) -> Void,  // (chunkText, fullContent, tokenCount)
         onComplete: @escaping @Sendable (RecipeGenerationResponse) -> Void,
         onError: @escaping @Sendable (Error) -> Void
     ) async {
-        let requestBody: [String: Any] = [
+        var requestBody: [String: Any] = [
             "ingredients": ingredients,
             "mealType": mealType,
             "styleType": styleType,
-            "userId": userId
+            "userId": userId,
+            "streamingEnabled": true
         ]
+
+        // Add userContext if provided
+        if let userContext = userContext {
+            requestBody["userContext"] = userContext
+        }
 
         await performStreaming(
             url: generateFromIngredientsURL,
@@ -56,6 +63,7 @@ class RecipeStreamingService {
         userId: String,
         recentRecipes: [SimpleRecentRecipe] = [],
         diversityConstraints: DiversityConstraints? = nil,
+        userContext: String? = nil,
         onConnected: @escaping @Sendable () -> Void,
         onChunk: @escaping @Sendable (String, String, Int) -> Void,  // (chunkText, fullContent, tokenCount)
         onComplete: @escaping @Sendable (RecipeGenerationResponse) -> Void,
@@ -74,8 +82,14 @@ class RecipeStreamingService {
             "mealType": mealType,
             "styleType": styleType,
             "userId": userId,
-            "recentRecipes": recentRecipesData
+            "recentRecipes": recentRecipesData,
+            "streamingEnabled": true  // FIXED: Explicitly request streaming
         ]
+
+        // Add user context if provided
+        if let context = userContext, !context.isEmpty {
+            requestBody["userContext"] = context
+        }
 
         // Add diversity constraints if provided
         if let constraints = diversityConstraints {

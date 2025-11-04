@@ -1085,93 +1085,7 @@ export const transcribeMeal = onRequest({
 // COST TRACKING & REPORTING ENDPOINTS
 // ============================================
 
-import {
-  getTodayCostReport,
-  getWeeklyCostReport,
-  getMonthlyCostReport,
-  getFeatureComparisonReport,
-  formatCostReport
-} from './cost-tracking/cost-reporter';
-
-// Get today's cost summary
-export const getTodayCosts = onRequest({
-  timeoutSeconds: 30,
-  memory: '256MiB'
-}, async (req, res) => {
-  corsHandler(req, res, async () => {
-    try {
-      const report = await getTodayCostReport();
-      res.json({
-        success: true,
-        data: report,
-        formatted: formatCostReport(report)
-      });
-    } catch (error) {
-      console.error('Failed to get today costs:', error);
-      res.status(500).json({ error: 'Failed to retrieve cost data' });
-    }
-  });
-});
-
-// Get this week's cost summary
-export const getWeeklyCosts = onRequest({
-  timeoutSeconds: 30,
-  memory: '256MiB'
-}, async (req, res) => {
-  corsHandler(req, res, async () => {
-    try {
-      const report = await getWeeklyCostReport();
-      res.json({
-        success: true,
-        data: report,
-        formatted: formatCostReport(report)
-      });
-    } catch (error) {
-      console.error('Failed to get weekly costs:', error);
-      res.status(500).json({ error: 'Failed to retrieve cost data' });
-    }
-  });
-});
-
-// Get this month's cost summary
-export const getMonthlyCosts = onRequest({
-  timeoutSeconds: 30,
-  memory: '256MiB'
-}, async (req, res) => {
-  corsHandler(req, res, async () => {
-    try {
-      const report = await getMonthlyCostReport();
-      res.json({
-        success: true,
-        data: report,
-        formatted: formatCostReport(report)
-      });
-    } catch (error) {
-      console.error('Failed to get monthly costs:', error);
-      res.status(500).json({ error: 'Failed to retrieve cost data' });
-    }
-  });
-});
-
-// Get feature comparison report
-export const getFeatureCosts = onRequest({
-  timeoutSeconds: 30,
-  memory: '256MiB'
-}, async (req, res) => {
-  corsHandler(req, res, async () => {
-    try {
-      const days = parseInt(req.query.days as string) || 7;
-      const report = await getFeatureComparisonReport(days);
-      res.json({
-        success: true,
-        data: report
-      });
-    } catch (error) {
-      console.error('Failed to get feature costs:', error);
-      res.status(500).json({ error: 'Failed to retrieve cost data' });
-    }
-  });
-});
+// REMOVED: Cost tracking endpoints - not needed
 
 // ============================================
 // ACTIVE EXPORTS - ONLY ESSENTIAL FUNCTIONS
@@ -1183,17 +1097,7 @@ export { diabetesAssistantStream } from './diabetes-assistant-stream';
 // Export session metadata generation endpoint
 export { generateSessionMetadata } from './generate-session-metadata';
 
-// Export memory sync endpoints (cross-conversation memory)
-export {
-  syncUserFacts,
-  syncConversationSummaries,
-  syncRecipePreferences,
-  syncGlucosePatterns,
-  syncUserPreferences
-} from './memory-sync';
-
-// Export EDAMAM test endpoint (developer testing only)
-export { testEdamamNutrition } from './test-edamam-nutrition';
+// REMOVED: Memory sync endpoints - deleted to free up CPU quota
 
 // ============================================
 // RECIPE NUTRITION CALCULATOR
@@ -1203,21 +1107,73 @@ export { testEdamamNutrition } from './test-edamam-nutrition';
 interface NutritionInput {
   recipeName: string;
   recipeContent: string;
-  servings: number;
+  servings: number | null;  // null for manual recipes
+  recipeType?: "aiGenerated" | "manual";  // NEW: explicit recipe type
 }
 
+// Response for AI-generated recipes (existing format)
 interface NutritionResult {
-  calories: number;
-  carbohydrates: number;
+  calories: number;  // per 100g
+  carbohydrates: number;  // per 100g
   fiber: number;
   sugar: number;
   protein: number;
   fat: number;
-  glycemicLoad: number;
+  glycemicLoad: number;  // per portion
+  perPortion?: {
+    weight: number;
+    calories: number;
+    carbohydrates: number;
+    fiber: number;
+    sugar: number;
+    protein: number;
+    fat: number;
+    glycemicLoad: number;
+  };
   nutritionCalculation?: {
     totalRecipeWeight: number;
     totalRecipeCalories: number;
     calculationNotes: string;
+    reasoningSteps?: Array<{
+      ingredient: string;
+      recipeContext: string;
+      reasoning: string;
+      calculation: string;
+      confidence: "high" | "medium" | "low";
+    }>;
+  };
+  digestionTiming?: {
+    hasMismatch: boolean;
+    mismatchHours: number;
+    severity: "low" | "medium" | "high";
+    glucosePeakTime: number;
+    timingInsight: string;
+  };
+}
+
+// Response for manual recipes (NEW format)
+interface ManualRecipeNutritionResult {
+  totalRecipe: {
+    weight: number;
+    calories: number;
+    carbohydrates: number;
+    fiber: number;
+    sugar: number;
+    protein: number;
+    fat: number;
+    glycemicLoad: number;
+  };
+  nutritionCalculation?: {
+    totalRecipeWeight: number;
+    totalRecipeCalories: number;
+    calculationNotes: string;
+    reasoningSteps?: Array<{
+      ingredient: string;
+      recipeContext: string;
+      reasoning: string;
+      calculation: string;
+      confidence: "high" | "medium" | "low";
+    }>;
   };
 }
 
@@ -1237,16 +1193,20 @@ export const calculateRecipeNutrition = onRequest({
     const input = req.body as NutritionInput;
 
     // Validate input
-    if (!input.recipeName || !input.recipeContent || !input.servings) {
+    if (!input.recipeName || !input.recipeContent) {
       res.status(400).json({
         success: false,
-        error: 'Missing required fields: recipeName, recipeContent, servings'
+        error: 'Missing required fields: recipeName, recipeContent'
       });
       return;
     }
 
+    // Determine recipe type
+    const isManualRecipe = input.recipeType === "manual" || input.servings === null;
+
     console.log(`🍽️ [NUTRITION-CALC] Analyzing nutrition for: ${input.recipeName}`);
-    console.log(`🍽️ [NUTRITION-CALC] Servings: ${input.servings}`);
+    console.log(`🍽️ [NUTRITION-CALC] Recipe Type: ${isManualRecipe ? 'MANUAL' : 'AI-GENERATED'}`);
+    console.log(`🍽️ [NUTRITION-CALC] Servings: ${input.servings ?? 'null (manual recipe)'}`);
 
     // Load nutrition calculator prompt
     const nutritionPrompt = ai.prompt('recipe_nutrition_calculator');
@@ -1255,22 +1215,68 @@ export const calculateRecipeNutrition = onRequest({
     const result = await nutritionPrompt({
       recipeName: input.recipeName,
       recipeContent: input.recipeContent,
-      servings: input.servings
+      servings: input.servings ?? 1,  // Default to 1 if null (manual recipes)
+      recipeType: isManualRecipe ? "manual" : "aiGenerated"
     }, {
       model: getTier3Model() // Explicitly use Gemini 2.5 Pro
     });
 
-    const nutrition = result.output as NutritionResult;
+    // Log the complete AI response with all reasoning
+    console.log(`\n${'='.repeat(80)}`);
+    console.log(`🤖 [NUTRITION-CALC] COMPLETE AI OUTPUT`);
+    console.log(`${'='.repeat(80)}`);
+    console.log(JSON.stringify(result.output, null, 2));
+    console.log(`${'='.repeat(80)}\n`);
 
-    console.log(`✅ [NUTRITION-CALC] Calculation complete:`);
-    console.log(`   Calories: ${nutrition.calories} kcal/100g`);
-    console.log(`   Carbs: ${nutrition.carbohydrates}g, Protein: ${nutrition.protein}g, Fat: ${nutrition.fat}g`);
-    console.log(`   Glycemic Load: ${nutrition.glycemicLoad}`);
+    if (isManualRecipe) {
+      // Manual recipe: return totalRecipe format
+      const manualResult = result.output as ManualRecipeNutritionResult;
 
-    res.status(200).json({
-      success: true,
-      data: nutrition
-    });
+      console.log(`✅ [NUTRITION-CALC] Manual Recipe Calculation complete:`);
+      console.log(`   Total Weight: ${manualResult.totalRecipe.weight}g`);
+      console.log(`   Total Calories: ${manualResult.totalRecipe.calories} kcal`);
+      console.log(`   Total Carbs: ${manualResult.totalRecipe.carbohydrates}g, Protein: ${manualResult.totalRecipe.protein}g, Fat: ${manualResult.totalRecipe.fat}g`);
+      console.log(`   Total Glycemic Load: ${manualResult.totalRecipe.glycemicLoad}`);
+
+      // Log reasoning if available
+      if (manualResult.nutritionCalculation?.calculationNotes) {
+        console.log(`\n📋 [NUTRITION-CALC] CALCULATION NOTES:`);
+        console.log(manualResult.nutritionCalculation.calculationNotes);
+      }
+
+      res.status(200).json({
+        success: true,
+        data: manualResult
+      });
+    } else {
+      // AI-generated recipe: return existing format
+      const nutrition = result.output as NutritionResult;
+
+      console.log(`✅ [NUTRITION-CALC] AI Recipe Calculation complete:`);
+      console.log(`   Calories: ${nutrition.calories} kcal/100g`);
+      console.log(`   Carbs: ${nutrition.carbohydrates}g, Protein: ${nutrition.protein}g, Fat: ${nutrition.fat}g`);
+      console.log(`   Glycemic Load: ${nutrition.glycemicLoad}`);
+
+      // Log per-portion values
+      if (nutrition.perPortion) {
+        console.log(`\n   Per-Portion Values:`);
+        console.log(`   Weight: ${nutrition.perPortion.weight}g`);
+        console.log(`   Calories: ${nutrition.perPortion.calories} kcal`);
+        console.log(`   Carbs: ${nutrition.perPortion.carbohydrates}g, Protein: ${nutrition.perPortion.protein}g, Fat: ${nutrition.perPortion.fat}g`);
+        console.log(`   Glycemic Load: ${nutrition.perPortion.glycemicLoad}`);
+      }
+
+      // Log reasoning if available
+      if (nutrition.nutritionCalculation?.calculationNotes) {
+        console.log(`\n📋 [NUTRITION-CALC] CALCULATION NOTES:`);
+        console.log(nutrition.nutritionCalculation.calculationNotes);
+      }
+
+      res.status(200).json({
+        success: true,
+        data: nutrition
+      });
+    }
 
   } catch (error: any) {
     console.error('❌ [NUTRITION-CALC] Error:', error);

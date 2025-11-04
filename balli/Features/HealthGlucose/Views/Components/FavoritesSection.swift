@@ -86,20 +86,22 @@ struct FavoritesSection: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name.NSManagedObjectContextDidSave)) { notification in
-            logger.info("🔔 RECEIVED: NSManagedObjectContextDidSave notification")
+            // PERFORMANCE FIX: Only refetch if FoodItem entities were actually modified
+            // This prevents infinite loop where fetch → save → fetch → save...
+            guard let userInfo = notification.userInfo else { return }
 
-            // Log details about what was saved
-            if let userInfo = notification.userInfo {
-                if let updated = userInfo[NSUpdatedObjectsKey] as? Set<NSManagedObject> {
-                    logger.info("  - Updated objects: \(updated.count)")
-                    for obj in updated {
-                        if let foodItem = obj as? FoodItem {
-                            logger.info("    • FoodItem: \(foodItem.name) - \(foodItem.servingSize)g, \(foodItem.totalCarbs)g carbs")
-                        }
-                    }
-                }
+            // Check if any FoodItem was inserted, updated, or deleted
+            let hasFoodItemChanges =
+                (userInfo[NSInsertedObjectsKey] as? Set<NSManagedObject>)?.contains(where: { $0 is FoodItem }) == true ||
+                (userInfo[NSUpdatedObjectsKey] as? Set<NSManagedObject>)?.contains(where: { $0 is FoodItem }) == true ||
+                (userInfo[NSDeletedObjectsKey] as? Set<NSManagedObject>)?.contains(where: { $0 is FoodItem }) == true
+
+            guard hasFoodItemChanges else {
+                logger.debug("⏭️ Ignoring save notification - no FoodItem changes")
+                return
             }
 
+            logger.info("🔔 FoodItem changed - refreshing favorites")
             Task {
                 await fetchFavorites()
             }
@@ -269,8 +271,6 @@ struct FavoritesSection: View {
 
     @MainActor
     private func fetchFavorites() async {
-        logger.info("🔍 FAVORITES FETCH STARTED")
-
         do {
             // Create fetch request
             let request = FoodItem.fetchRequest()
@@ -285,13 +285,6 @@ struct FavoritesSection: View {
             // Perform fetch on main context (safe because we're on MainActor)
             let results = try viewContext.fetch(request)
 
-            logger.info("📦 Fetched \(results.count) favorite items from Core Data")
-
-            // Log details of each favorite item
-            for (index, item) in results.enumerated() {
-                logger.info("  [\(index)] \(item.name) - \(item.servingSize)g portion, \(item.totalCarbs)g carbs")
-            }
-
             // Check if data actually changed
             let itemsChanged = favoriteItems.count != results.count ||
                 zip(favoriteItems, results).contains { old, new in
@@ -300,11 +293,11 @@ struct FavoritesSection: View {
                     old.name != new.name
                 }
 
+            #if DEBUG
             if itemsChanged {
-                logger.info("✅ Favorites data CHANGED - updating UI")
-            } else {
-                logger.info("⚪️ Favorites data UNCHANGED - no UI update needed")
+                logger.debug("Favorites updated: \(results.count) items")
             }
+            #endif
 
             // Always update to ensure favorites list reflects latest changes
             // Content-based IDs on ProductCardView will trigger re-renders only for changed items
@@ -313,7 +306,7 @@ struct FavoritesSection: View {
             refreshID = UUID() // Force SwiftUI to refresh the view
 
         } catch {
-            logger.error("❌ Failed to fetch favorites: \(error.localizedDescription)")
+            logger.error("Failed to fetch favorites: \(error.localizedDescription)")
             fetchError = error
             // Don't clear favoriteItems - keep showing last known state
         }
@@ -334,8 +327,7 @@ struct FavoritesSection: View {
                 try viewContext.save()
                 logger.info("✅ Persisted favorite status for '\(itemName)': \(newFavoriteStatus)")
 
-                // Refresh the list after toggling
-                await fetchFavorites()
+                // NO NEED to call fetchFavorites() here - NSManagedObjectContextDidSave notification will trigger it
             } catch {
                 logger.error("❌ Failed to save favorite for '\(itemName)': \(error.localizedDescription)")
                 // Revert on error

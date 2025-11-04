@@ -13,8 +13,8 @@ import Foundation
 struct EdamamTestResult: Codable, Sendable {
     let testId: String
     let recipeName: String
-    let geminiNutrition: NutritionValues
-    let edamamNutrition: NutritionValues
+    let geminiNutrition: EdamamNutritionValues
+    let edamamNutrition: EdamamNutritionValues
     let accuracyScores: AccuracyScores
     let overallAccuracy: Int
     let recognitionRate: Int
@@ -57,7 +57,7 @@ struct EdamamTestResult: Codable, Sendable {
 
 // MARK: - Nutrition Values
 
-struct NutritionValues: Codable, Sendable {
+struct EdamamNutritionValues: Codable, Sendable {
     let calories: Double
     let carbohydrates: Double
     let protein: Double
