@@ -5,24 +5,15 @@ public actor TokenBuffer {
     private var buffers: [String: String] = [:]
     private var pendingTasks: [String: Task<Void, Never>] = [:]
 
-    /// Appends a token to the buffer for the specified answerId and schedules a debounced delivery.
+    /// Appends a token and delivers immediately - NO batching/delays for smooth streaming
     /// - Parameters:
-    ///   - token: The token string to append.
-    ///   - answerId: The identifier for the answer whose tokens are buffered.
-    ///   - deliver: The closure called with the concatenated tokens after debounce.
+    ///   - token: The token string to deliver.
+    ///   - answerId: The identifier for the answer.
+    ///   - deliver: The closure called immediately with the token.
     public func appendToken(_ token: String, for answerId: String, deliver: @escaping @Sendable (String) -> Void) async {
-        buffers[answerId, default: ""] += token
-
-        // Cancel existing task if any
-        pendingTasks[answerId]?.cancel()
-
-        // Schedule new debounce task
-        let task = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(70))
-            guard let self = self else { return }
-            await self.deliverBufferedTokens(for: answerId, deliver: deliver)
-        }
-        pendingTasks[answerId] = task
+        // STREAMING FIX: Deliver tokens immediately, no batching
+        // The irregular chunking (CHUNK...CH...UNK) was caused by batching layers creating race conditions
+        deliver(token)
     }
 
     /// Immediately flushes any buffered tokens for the specified answerId and delivers them.

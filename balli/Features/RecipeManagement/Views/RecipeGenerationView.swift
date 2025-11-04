@@ -13,6 +13,7 @@ import OSLog
 struct RecipeGenerationView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.managedObjectContext) private var viewContext
 
     @StateObject private var viewModel: RecipeViewModel
     @StateObject private var actionsHandler = RecipeGenerationActionsHandler()
@@ -42,12 +43,8 @@ struct RecipeGenerationView: View {
         category: "RecipeGenerationView"
     )
 
-    // MARK: - Shopping List Query for Dynamic Basket Icon
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \ShoppingListItem.dateCreated, ascending: false)],
-        animation: .default
-    )
-    private var allShoppingItems: FetchedResults<ShoppingListItem>
+    // MARK: - Shopping List State for Dynamic Basket Icon
+    @State private var hasUncheckedIngredients = false
 
     enum FocusField {
         case ingredient
@@ -78,18 +75,6 @@ struct RecipeGenerationView: View {
     /// Determines if recipe is a manual entry (vs AI-generated)
     private var isManualRecipe: Bool {
         viewModel.recipeName.isEmpty && (!manualIngredients.isEmpty || !manualSteps.isEmpty)
-    }
-
-    /// Check if this recipe has unchecked ingredients in shopping list (for dynamic basket icon)
-    /// Matches by recipe name since generated recipes may not be saved yet
-    private var hasUncheckedIngredientsForRecipe: Bool {
-        let recipeName = viewModel.recipeName.trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard !recipeName.isEmpty else { return false }
-
-        return allShoppingItems.contains { item in
-            item.recipeName == recipeName && !item.isCompleted
-        }
     }
 
     var body: some View {
@@ -123,7 +108,7 @@ struct RecipeGenerationView: View {
                                 // Action buttons
                                 RecipeGenerationActionButtons(
                                     isFavorited: actionsHandler.isFavorited,
-                                    hasUncheckedIngredientsInShoppingList: hasUncheckedIngredientsForRecipe
+                                    hasUncheckedIngredientsInShoppingList: hasUncheckedIngredients
                                 ) { action in
                                     actionsHandler.handleAction(action, viewModel: viewModel)
                                 }
@@ -184,73 +169,84 @@ struct RecipeGenerationView: View {
                 }
             }
 
-            ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 12) {
-                    // Save button (visible for AI-generated recipes or manual entries)
-                    if shouldShowSaveButton {
-                        Button {
-                            Task {
-                                await saveRecipe()
-                            }
-                        } label: {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(ThemeColors.primaryPurple)
-                        }
-                    }
-
-                    // Generate menu button (balli logo)
+            // Save button (separate toolbar item)
+            if shouldShowSaveButton {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
-                        // EDGE CASE PROTECTION: If recipe already exists, treat notes as personal notes (not prompts)
-                        // This prevents accidental regeneration when user writes post-generation notes
-                        let hasExistingRecipe = !viewModel.recipeName.isEmpty
-
-                        if hasExistingRecipe {
-                            // Recipe exists → User's notes are personal, not prompts
-                            // Always show menu for explicit "regenerate" intent
-                            logger.info("⚠️ [EDGE-CASE] Recipe exists - treating notes as personal, showing menu for explicit regenerate")
-                            showingMealSelection = true
-                            return
-                        }
-
-                        // Smart behavior based on recipe generation flow logic:
-                        // Flow 1: No ingredients + No notes → Show menu (need user intent)
-                        // Flow 2: Ingredients only + No notes → Show menu (ingredients ambiguous without context)
-                        // Flow 3: No ingredients + Notes → Skip menu (notes contain explicit intent)
-                        // Flow 4: Ingredients + Notes → Skip menu (user being specific)
-
-                        let hasIngredients = !manualIngredients.isEmpty
-                        let hasUserNotes = !userNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-
-                        if hasUserNotes {
-                            // Flows 3 & 4: Has notes (with or without ingredients) → Skip menu
-                            if hasIngredients {
-                                logger.info("🎯 [FLOW-4] Ingredients + Notes - skipping menu, user is specific")
-                            } else {
-                                logger.info("🎯 [FLOW-3] Notes only - skipping menu, notes contain intent")
-                            }
-                            Task {
-                                await startGenerationWithDefaults()
-                            }
-                        } else {
-                            // Flows 1 & 2: No notes → Show menu
-                            if hasIngredients {
-                                logger.info("🥕 [FLOW-2] Ingredients only - showing menu for context")
-                            } else {
-                                logger.info("📋 [FLOW-1] Empty state - showing menu for intent")
-                            }
-                            showingMealSelection = true
+                        Task {
+                            await saveRecipe()
                         }
                     } label: {
-                        Image("balli-logo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 24, height: 24)
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(ThemeColors.primaryPurple)
                     }
+                    .buttonStyle(.plain)
                 }
+            }
+
+            // Generate menu button (balli logo - separate toolbar item)
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    // EDGE CASE PROTECTION: If recipe already exists, treat notes as personal notes (not prompts)
+                    // This prevents accidental regeneration when user writes post-generation notes
+                    let hasExistingRecipe = !viewModel.recipeName.isEmpty
+
+                    if hasExistingRecipe {
+                        // Recipe exists → User's notes are personal, not prompts
+                        // Always show menu for explicit "regenerate" intent
+                        logger.info("⚠️ [EDGE-CASE] Recipe exists - treating notes as personal, showing menu for explicit regenerate")
+                        showingMealSelection = true
+                        return
+                    }
+
+                    // Smart behavior based on recipe generation flow logic:
+                    // Flow 1: No ingredients + No notes → Show menu (need user intent)
+                    // Flow 2: Ingredients only + No notes → Show menu (ingredients ambiguous without context)
+                    // Flow 3: No ingredients + Notes → Skip menu (notes contain explicit intent)
+                    // Flow 4: Ingredients + Notes → Skip menu (user being specific)
+
+                    let hasIngredients = !manualIngredients.isEmpty
+                    let hasUserNotes = !userNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+
+                    if hasUserNotes {
+                        // Flows 3 & 4: Has notes (with or without ingredients) → Skip menu
+                        if hasIngredients {
+                            logger.info("🎯 [FLOW-4] Ingredients + Notes - skipping menu, user is specific")
+                        } else {
+                            logger.info("🎯 [FLOW-3] Notes only - skipping menu, notes contain intent")
+                        }
+                        Task {
+                            await startGenerationWithDefaults()
+                        }
+                    } else {
+                        // Flows 1 & 2: No notes → Show menu
+                        if hasIngredients {
+                            logger.info("🥕 [FLOW-2] Ingredients only - showing menu for context")
+                        } else {
+                            logger.info("📋 [FLOW-1] Empty state - showing menu for intent")
+                        }
+                        showingMealSelection = true
+                    }
+                } label: {
+                    Image("balli-logo")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 28, height: 28)
+                        .rotationEffect(.degrees(viewModel.isRotatingLogo ? 360 : 0))
+                        .animation(
+                            viewModel.isRotatingLogo ?
+                                .linear(duration: 1.0).repeatForever(autoreverses: false) :
+                                .default,
+                            value: viewModel.isRotatingLogo
+                        )
+                }
+                .buttonStyle(.plain)
             }
         }
         .toolbarBackground(.automatic, for: .navigationBar)
+        .toolbarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .sheet(isPresented: $showingMealSelection) {
             RecipeMealSelectionView(
                 selectedMealType: $selectedMealType,
@@ -297,9 +293,52 @@ struct RecipeGenerationView: View {
             actionsHandler.onShowToast = { toast in
                 toastMessage = toast
             }
+
+            // Set up shopping list update callback
+            actionsHandler.onShoppingListUpdated = {
+                await checkShoppingListStatus()
+            }
+
+            // Check shopping list status on view appear
+            Task {
+                await checkShoppingListStatus()
+            }
+        }
+        .onChange(of: viewModel.recipeName) { _, _ in
+            Task {
+                await checkShoppingListStatus()
+            }
         }
         .onChange(of: viewModel.isCalculatingNutrition) { oldValue, newValue in
             handleNutritionCalculationChange(oldValue: oldValue, newValue: newValue)
+        }
+    }
+
+    // MARK: - Shopping List Status
+
+    /// Check if this recipe has unchecked ingredients in shopping list
+    /// Matches by recipe name since generated recipes may not be saved yet
+    @MainActor
+    private func checkShoppingListStatus() async {
+        let recipeName = viewModel.recipeName.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard !recipeName.isEmpty else {
+            hasUncheckedIngredients = false
+            return
+        }
+
+        let request = ShoppingListItem.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "recipeName == %@ AND isCompleted == NO",
+            recipeName
+        )
+
+        do {
+            let count = try viewContext.count(for: request)
+            hasUncheckedIngredients = count > 0
+        } catch {
+            logger.error("❌ Failed to check shopping list status: \(error.localizedDescription)")
+            hasUncheckedIngredients = false
         }
     }
 
@@ -307,6 +346,9 @@ struct RecipeGenerationView: View {
 
     /// Generate recipe with user-selected meal type and style (called from meal selection modal)
     private func startGeneration() async {
+        logger.info("🚀 [VIEW] ========== START GENERATION ==========")
+        logger.info("🚀 [VIEW] MealType: '\(selectedMealType)', StyleType: '\(selectedStyleType)'")
+
         isGenerating = true
         isSaved = false
 
@@ -319,10 +361,17 @@ struct RecipeGenerationView: View {
         // Log what we're passing
         if let ingredients = ingredientsList {
             logger.info("🥕 [VIEW] Starting generation with \(ingredients.count) ingredients: \(ingredients.joined(separator: ", "))")
+        } else {
+            logger.info("🥕 [VIEW] No ingredients provided")
         }
+
         if let context = contextText {
             logger.info("📝 [VIEW] User context: '\(context)'")
+        } else {
+            logger.info("📝 [VIEW] No user context")
         }
+
+        logger.info("🔄 [VIEW] Calling viewModel.generationCoordinator.generateRecipeSmartRouting...")
 
         // Smart routing: Use ingredients-based generation if ingredients exist, otherwise spontaneous
         await viewModel.generationCoordinator.generateRecipeSmartRouting(
@@ -331,7 +380,13 @@ struct RecipeGenerationView: View {
             ingredients: ingredientsList,
             userContext: contextText
         )
+
+        logger.info("✅ [VIEW] Generation call completed - isGenerating: \(isGenerating)")
+        logger.info("✅ [VIEW] Recipe name: '\(viewModel.recipeName)'")
+        logger.info("✅ [VIEW] Has recipe data: \(viewModel.hasRecipeData)")
+
         isGenerating = false
+        logger.info("🏁 [VIEW] ========== GENERATION FINISHED ==========")
     }
 
     /// Generate recipe with default meal type when user has provided notes (skips meal selection)

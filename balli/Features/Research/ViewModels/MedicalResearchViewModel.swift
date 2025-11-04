@@ -63,6 +63,19 @@ class MedicalResearchViewModel: ObservableObject {
     /// Prevents handleFirstTokenArrival from being called multiple times per answer
     private var firstTokenProcessed: Set<String> = []
 
+    // MARK: - Token Batching (Performance Critical)
+
+    /// Accumulator for tokens before publishing to @Published answers array
+    /// Key: answerId, Value: accumulated content since last flush
+    private var tokenAccumulator: [String: String] = [:]
+
+    /// Batching task per answer - cancels previous when new tokens arrive
+    private var batchingTasks: [String: Task<Void, Never>] = [:]
+
+    /// Batching interval - flush every 8ms to achieve smooth 120fps streaming
+    /// (Very low delay for instant visual updates while preventing excessive SwiftUI updates)
+    private let tokenBatchInterval: Duration = .milliseconds(8)
+
     // MARK: - Convenience Properties
 
     /// Check if search is in progress
@@ -109,8 +122,8 @@ class MedicalResearchViewModel: ObservableObject {
 
     // MARK: - NotificationCenter Observers
 
-    // nonisolated(unsafe) allows deinit to access these from any isolation context
-    nonisolated(unsafe) private var observers: [NSObjectProtocol] = []
+    // Stored on MainActor for proper isolation - deinit runs on MainActor since class is @MainActor
+    private var observers: [NSObjectProtocol] = []
 
     // MARK: - Initialization
 
@@ -185,10 +198,12 @@ class MedicalResearchViewModel: ObservableObject {
     }
 
     deinit {
-        for observer in observers {
-            NotificationCenter.default.removeObserver(observer)
+        MainActor.assumeIsolated {
+            for observer in observers {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            observers.removeAll()
         }
-        observers.removeAll()
     }
 
     // MARK: - Session Management
@@ -496,6 +511,11 @@ class MedicalResearchViewModel: ObservableObject {
     // MARK: - Event Handlers
 
     private func handleToken(_ token: String, answerId: String) async {
+        // STREAMING FIX: Update UI immediately with each token - no batching
+        // The irregular chunking pattern was caused by race conditions between batching layers
+        logger.debug("🔍 [TOKEN] Parsed token: length=\(token.count), last='\(token.last ?? Character(" "))', content='\(token)'")
+
+        // Update answer immediately - no accumulation, no delay
         await eventHandler.handleToken(
             token,
             answerId: answerId,
@@ -504,13 +524,35 @@ class MedicalResearchViewModel: ObservableObject {
             getFirstTokenProcessed: { @MainActor [weak self] in self?.firstTokenProcessed ?? [] },
             updateAnswer: { @MainActor [weak self] index, answer, shouldAnimate in
                 guard let self = self else { return }
-                if shouldAnimate {
-                    withAnimation(.easeIn(duration: 0.4)) {
-                        self.answers[index] = answer
-                    }
-                } else {
-                    self.answers[index] = answer
-                }
+                // Direct update - no animation
+                self.answers[index] = answer
+            },
+            markFirstTokenProcessed: { @MainActor [weak self] id in self?.firstTokenProcessed.insert(id) }
+        )
+    }
+
+    /// Flush accumulated tokens for an answer to the @Published answers array
+    private func flushContentBuffer(for answerId: String) async {
+        guard let bufferedContent = tokenAccumulator[answerId], !bufferedContent.isEmpty else {
+            return
+        }
+
+        // Clear buffer
+        tokenAccumulator[answerId] = nil
+
+        // Update answer with accumulated content
+        await eventHandler.handleToken(
+            bufferedContent,
+            answerId: answerId,
+            getAnswers: { @MainActor [weak self] in self?.answers ?? [] },
+            getAnswerIndex: { @MainActor [weak self] id in self?.answerIndexLookup[id] },
+            getFirstTokenProcessed: { @MainActor [weak self] in self?.firstTokenProcessed ?? [] },
+            updateAnswer: { @MainActor [weak self] index, answer, shouldAnimate in
+                guard let self = self else { return }
+                // STREAMING FIX: Remove animation during token streaming
+                // Animation overlaps caused choppy rendering (400ms animation × 20 updates/sec = disaster)
+                // SwiftUI handles smooth incremental text updates natively without explicit animation
+                self.answers[index] = answer
             },
             markFirstTokenProcessed: { @MainActor [weak self] id in self?.firstTokenProcessed.insert(id) }
         )
@@ -556,6 +598,14 @@ class MedicalResearchViewModel: ObservableObject {
     }
 
     private func handleComplete(_ response: ResearchSearchResponse, query: String, answerId: String) async {
+        // PERFORMANCE FIX: Flush any remaining tokens before marking complete
+        await flushContentBuffer(for: answerId)
+
+        // Cancel any pending batching task
+        batchingTasks[answerId]?.cancel()
+        batchingTasks.removeValue(forKey: answerId)
+        tokenAccumulator.removeValue(forKey: answerId)
+
         await eventHandler.handleComplete(
             response,
             query: query,
@@ -574,6 +624,14 @@ class MedicalResearchViewModel: ObservableObject {
     }
 
     private func handleError(_ error: Error, query: String, answerId: String) async {
+        // PERFORMANCE FIX: Flush any remaining tokens before error handling
+        await flushContentBuffer(for: answerId)
+
+        // Cancel any pending batching task
+        batchingTasks[answerId]?.cancel()
+        batchingTasks.removeValue(forKey: answerId)
+        tokenAccumulator.removeValue(forKey: answerId)
+
         await eventHandler.handleError(
             error,
             query: query,

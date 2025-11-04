@@ -42,7 +42,9 @@ struct MarkdownText: View {
     // PERFORMANCE FIX: Cache parsed blocks to avoid re-parsing on every render
     @State private var parsedBlocks: [MarkdownBlock] = []
     @State private var lastParsedContent: String = ""
+    @State private var lastContentLength: Int = 0
     @State private var isInitialParse = true
+    @State private var parseTask: Task<Void, Never>?
 
     init(
         content: String,
@@ -90,16 +92,19 @@ struct MarkdownText: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .task(id: content) {
-            // PERFORMANCE: Parse on background thread only when content changes
-            await parseContentAsync()
+        .onChange(of: content) { _, newContent in
+            // PERFORMANCE: Parse immediately for smooth streaming
+            // Parsing is already async on background thread, no need to throttle
+            parseTask?.cancel()
+
+            parseTask = Task {
+                await parseContentAsync()
+            }
         }
         .onAppear {
-            // Handle initial render if task hasn't run yet
-            if isInitialParse {
-                Task {
-                    await parseContentAsync()
-                }
+            // Handle initial render
+            Task {
+                await parseContentAsync()
             }
         }
     }
@@ -111,7 +116,6 @@ struct MarkdownText: View {
         // Skip if content hasn't changed
         guard content != lastParsedContent else { return }
 
-        isInitialParse = false
         let contentToParse = content
 
         // Parse on background thread with high priority for responsive UI
@@ -122,6 +126,8 @@ struct MarkdownText: View {
         // Update state on main thread
         parsedBlocks = blocks
         lastParsedContent = contentToParse
+        lastContentLength = contentToParse.count
+        isInitialParse = false
     }
 }
 
