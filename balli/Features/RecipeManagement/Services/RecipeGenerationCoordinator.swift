@@ -29,6 +29,7 @@ public final class RecipeGenerationCoordinator: ObservableObject {
     private let generationService: RecipeGenerationServiceProtocol
     private let streamingService: RecipeStreamingService
     private let memoryService: RecipeMemoryService
+    private let tokenBuffer = TokenBuffer()  // Smooth streaming delivery
 
     init(
         animationController: RecipeAnimationController,
@@ -122,11 +123,13 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     self.streamingContent = fullContent
                     self.tokenCount = count
 
-                    // Display markdown content as it streams token-by-token
-                    // Backend now sends markdown directly (not JSON), so this shows clean recipe content immediately
-                    self.formState.recipeContent = fullContent
-
-                    self.logger.debug("📦 [STREAMING] Received chunk: \(count) tokens, \(fullContent.count) chars")
+                    // Use TokenBuffer for smooth token-by-token delivery (like research)
+                    await self.tokenBuffer.appendToken(chunkText, for: "recipe-generation") { deliveredContent in
+                        Task { @MainActor in
+                            self.formState.recipeContent = deliveredContent
+                            self.logger.debug("📦 [STREAMING] Delivered \(deliveredContent.count) chars")
+                        }
+                    }
                 }
             },
             onComplete: { response in
@@ -389,11 +392,13 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     self.streamingContent = fullContent
                     self.tokenCount = count
 
-                    // Display markdown content as it streams token-by-token
-                    // Backend now sends markdown directly (not JSON), so this shows clean recipe content immediately
-                    self.formState.recipeContent = fullContent
-
-                    self.logger.debug("📦 [STREAMING] Received chunk: \(count) tokens, \(fullContent.count) chars")
+                    // Use TokenBuffer for smooth token-by-token delivery (like research)
+                    await self.tokenBuffer.appendToken(chunkText, for: "recipe-generation") { deliveredContent in
+                        Task { @MainActor in
+                            self.formState.recipeContent = deliveredContent
+                            self.logger.debug("📦 [STREAMING] Delivered \(deliveredContent.count) chars")
+                        }
+                    }
                 }
             },
             onComplete: { response in
