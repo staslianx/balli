@@ -71,50 +71,7 @@ input:
         description: "Optional user context or notes for recipe generation (e.g., 'diabetes-friendly tiramisu', 'low-carb', 'gluten-free')"
     required: [mealType, spontaneous]
 output:
-  format: json
-  schema:
-    type: object
-    properties:
-      name:
-        type: string
-        description: "Short, catchy recipe name in TURKISH ONLY (2-3 words max) DO NOT USE WORDS LIKE 'BÜYÜ' 'RÜYA' 'CENNET' 'SİHİR'"
-      servings:
-        type: number
-        description: "Number of servings - ALWAYS 1 unless user specifies otherwise"
-      prepTime:
-        type: number
-        description: "Preparation time in minutes (number only, e.g., 15)"
-      cookTime:
-        type: number
-        description: "Cooking time in minutes (number only, e.g., 30)"
-      metadata:
-        type: object
-        properties:
-          cuisine:
-            type: string
-            description: "Cuisine type (e.g., Turkish, Italian)"
-          primaryProtein:
-            type: string
-            description: "Main protein (e.g., chicken, beef, fish, vegetarian)"
-          cookingMethod:
-            type: string
-            description: "Primary cooking method (e.g., sautéing, baking)"
-          mealType:
-            type: string
-            description: "Meal type (e.g., breakfast, dinner, snack)"
-          difficulty:
-            type: string
-            description: "Difficulty level (easy, medium, hard)"
-          dietaryTags:
-            type: array
-            items:
-              type: string
-            description: "Dietary tags (e.g., high-protein, low-carb)"
-        description: "Recipe metadata for categorization"
-      recipeContent:
-        type: string
-        description: "MARKDOWN formatında tarif içeriği. Format:\n## Malzemeler\n---\n- 250g tavuk göğsü (küçük parçalar halinde doğranmış)\n- 2 yemek kaşığı zeytinyağı (30g)\n- 1 orta boy soğan (100-120g, ince doğranmış)\n\n## Yapılışı\n---\n1. İlk adım açıklaması\n2. İkinci adım açıklaması"
-    required: [name, servings, prepTime, cookTime, metadata, recipeContent]
+  format: text
 ---
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -213,11 +170,17 @@ Neden ağırlık kritik?
 - Porsiyon kontrolü için kritik (diyabet yönetimi)
 - AI'nin besin değerlerini doğru hesaplaması için zorunlu
 
-## MARKDOWN FORMAT KURALLARI
+## MARKDOWN OUTPUT FORMAT
 
-recipeContent formatı:
+Output sadece markdown olmalı - JSON yok, açıklama yok!
+
+Format:
 
 ```markdown
+# Tavuk Sote
+
+**Hazırlık:** 10 dakika | **Pişirme:** 15 dakika | **Porsiyon:** 1 kişi
+
 ## Malzemeler
 ---
 - 120g tavuk göğsü (küçük parçalar halinde doğranmış)
@@ -233,8 +196,15 @@ recipeContent formatı:
 4. Sıcak servis yap.
 ```
 
+✅ İlk satır: # Tarif Adı (h1 başlık)
+✅ İkinci satır: **Hazırlık:** X dakika | **Pişirme:** X dakika | **Porsiyon:** 1 kişi
+✅ Boş satır
+✅ ## Malzemeler (h2 başlık)
 ✅ Başlık altına --- (üç tire) ZORUNLU
 ✅ Malzemeler: - ile başla (madde işareti)
+✅ Boş satır
+✅ ## Yapılışı (h2 başlık)
+✅ Başlık altına --- (üç tire) ZORUNLU
 ✅ Yapılışı: 1. 2. 3. (numaralı liste)
 
 ## TARIF ÖZEL KURALLARI
@@ -353,13 +323,15 @@ Pişirme yöntemi için öneri: {{#each diversityConstraints.avoidMethods}}{{thi
 
 ## ÇIKTI KURALLARI
 
-✅ Sadece JSON çıktı ver
+✅ Sadece MARKDOWN çıktı ver (JSON YOK!)
 ✅ Tüm metin TÜRKÇE (İngilizce çeviri ekleme)
-✅ servings: ALWAYS 1
-✅ recipeContent: Tamamen Türkçe markdown
+✅ Porsiyon: ALWAYS 1 kişi
 ✅ Her malzemede gram/ml ağırlık zorunlu
+✅ İlk satır: # Tarif Adı
+✅ İkinci satır: **Hazırlık:** X dakika | **Pişirme:** X dakika | **Porsiyon:** 1 kişi
 
-❌ JSON dışında hiçbir açıklama yazma
+❌ JSON formatı kullanma
 ❌ "Here is the recipe" gibi İngilizce giriş yapma
 ❌ Malzeme başlığı altına --- koymayı unutma
 ❌ Yapılışı başlığı altına --- koymayı unutma
+❌ Markdown dışında hiçbir şey yazma (açıklama, yorum yok)

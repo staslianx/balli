@@ -15,9 +15,7 @@ import { z } from 'genkit';
 import { logProviderSwitch, getRecipeModel, getTier3Model } from './providers';
 import { cacheManager } from './cache-manager';
 import { ai } from './genkit-instance';
-import {
-  extractMainIngredients
-} from './services/recipe-memory';
+// Removed extractMainIngredients - using markdown parsing instead
 import {
   logTokenUsage,
   logImageUsage,
@@ -47,6 +45,45 @@ setImmediate(async () => {
     console.warn('⚠️ [STARTUP] Cache warmup failed, continuing without cache:', error);
   }
 });
+
+/**
+ * Extract ingredients from markdown recipe content
+ * Parses the ## Malzemeler section and extracts ingredient names
+ */
+function extractIngredientsFromMarkdown(markdown: string): string[] {
+  const ingredients: string[] = [];
+
+  // Find the Malzemeler section
+  const malzemelerMatch = markdown.match(/##\s*Malzemeler\s*\n---\n([\s\S]*?)(?=\n##|\n$)/);
+  if (!malzemelerMatch) {
+    console.warn('⚠️ [INGREDIENT-EXTRACT] Could not find Malzemeler section in markdown');
+    return ingredients;
+  }
+
+  const malzemelerSection = malzemelerMatch[1];
+  const lines = malzemelerSection.split('\n');
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('- ')) {
+      // Extract ingredient line: "- 120g tavuk göğsü (küçük parçalar halinde doğranmış)"
+      const ingredientText = trimmed.substring(2).trim();
+
+      // Remove weight/measurement at start (e.g., "120g", "1 yemek kaşığı")
+      const withoutWeight = ingredientText.replace(/^[\d/.]+\s*(g|ml|kg|adet|çay kaşığı|yemek kaşığı|su bardağı)?\s*/i, '');
+
+      // Extract main ingredient name before parentheses or commas
+      const mainIngredient = withoutWeight.split(/[,(]/)[0].trim();
+
+      if (mainIngredient && mainIngredient.length > 2) {
+        ingredients.push(mainIngredient);
+      }
+    }
+  }
+
+  console.log(`🥕 [INGREDIENT-EXTRACT] Extracted ${ingredients.length} ingredients: ${ingredients.slice(0, 5).join(', ')}${ingredients.length > 5 ? '...' : ''}`);
+  return ingredients;
+}
 
 // Configure CORS
 const corsHandler = cors.default({
@@ -392,82 +429,47 @@ export const generateRecipeFromIngredients = onRequest({
             }
           }
 
-          // Sanitize JSON by fixing control characters in string values
-          // Gemini sometimes outputs raw newlines in strings which break JSON.parse()
-          const sanitizeJSON = (jsonStr: string): string => {
-            let result = '';
-            let inString = false;
-            let escapeNext = false;
+          // Parse metadata from markdown
+          // Format: # Recipe Name\n**Hazırlık:** X dakika | **Pişirme:** X dakika | **Porsiyon:** 1 kişi
+          const lines = fullContent.split('\n');
+          let recipeName = 'Tarif';
+          let prepTime = 15;
+          let cookTime = 20;
 
-            for (let i = 0; i < jsonStr.length; i++) {
-              const char = jsonStr[i];
-
-              if (escapeNext) {
-                result += char;
-                escapeNext = false;
-                continue;
-              }
-
-              if (char === '\\') {
-                result += char;
-                escapeNext = true;
-                continue;
-              }
-
-              if (char === '"') {
-                result += char;
-                inString = !inString;
-                continue;
-              }
-
-              // Only escape control characters when inside a string
-              if (inString) {
-                if (char === '\n') result += '\\n';
-                else if (char === '\r') result += '\\r';
-                else if (char === '\t') result += '\\t';
-                else result += char;
-              } else {
-                result += char;
-              }
-            }
-
-            return result;
-          };
-
-          // Parse the final JSON response
-          let parsedRecipe;
-          try {
-            const sanitizedContent = sanitizeJSON(fullContent);
-            parsedRecipe = JSON.parse(sanitizedContent);
-          } catch (parseError) {
-            // Try to extract JSON from the content
-            const jsonMatch = fullContent.match(/\{[\s\S]*\}/);
-            if (jsonMatch) {
-              const sanitizedMatch = sanitizeJSON(jsonMatch[0]);
-              parsedRecipe = JSON.parse(sanitizedMatch);
-            } else {
-              console.error('❌ [JSON-PARSE] Failed to parse recipe JSON:', parseError);
-              console.error('❌ [JSON-PARSE] Content preview:', fullContent.substring(0, 500));
-              throw new Error('Failed to parse recipe JSON');
-            }
+          // Extract recipe name from first line (# Recipe Name)
+          if (lines[0]?.startsWith('# ')) {
+            recipeName = lines[0].substring(2).trim();
           }
 
-          // Send completion event - flatten recipe data for iOS app compatibility
-          // Map 'name' field to 'recipeName' for iOS compatibility
+          // Extract times from second line
+          const timeLine = lines[1] || '';
+          const prepMatch = timeLine.match(/\*\*Hazırlık:\*\*\s*(\d+)\s*dakika/i);
+          const cookMatch = timeLine.match(/\*\*Pişirme:\*\*\s*(\d+)\s*dakika/i);
+
+          if (prepMatch) prepTime = parseInt(prepMatch[1]);
+          if (cookMatch) cookTime = parseInt(cookMatch[1]);
+
+          console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min`);
+
+          // Send completion event with markdown content
           const recipeData = {
-            ...parsedRecipe,
-            recipeName: parsedRecipe.name || parsedRecipe.recipeName,  // Support both field names
-            fullContent: JSON.stringify(parsedRecipe),  // Also provide as fullContent for backward compatibility
+            recipeName: recipeName,
+            name: recipeName,  // Alias for compatibility
+            recipeContent: fullContent,  // The full markdown content
+            prepTime: prepTime,
+            cookTime: cookTime,
+            servings: 1,
             tokenCount: tokenCount,
-            // CRITICAL FIX: iOS requires nutrition fields even if not calculated yet
-            // Empty strings signal "not calculated" and trigger on-demand calculation
-            calories: parsedRecipe.calories || "",
-            carbohydrates: parsedRecipe.carbohydrates || "",
-            fiber: parsedRecipe.fiber || "",
-            protein: parsedRecipe.protein || "",
-            fat: parsedRecipe.fat || "",
-            sugar: parsedRecipe.sugar || "",
-            glycemicLoad: parsedRecipe.glycemicLoad || ""
+            // Extract ingredients for memory system (parse from markdown)
+            extractedIngredients: extractIngredientsFromMarkdown(fullContent),
+            // Empty nutrition fields - will be calculated on-demand by iOS
+            calories: "",
+            carbohydrates: "",
+            fiber: "",
+            protein: "",
+            fat: "",
+            sugar: "",
+            glycemicLoad: ""
           };
 
           console.log(`📊 [NUTRITION-CHECK] Recipe data nutrition fields: calories="${recipeData.calories}", carbs="${recipeData.carbohydrates}", protein="${recipeData.protein}"`);
@@ -633,106 +635,48 @@ export const generateSpontaneousRecipe = onRequest({
           }
         }
 
-        // Sanitize JSON by fixing control characters in string values
-        // Gemini sometimes outputs raw newlines in strings which break JSON.parse()
-        const sanitizeJSON = (jsonStr: string): string => {
-          let result = '';
-          let inString = false;
-          let escapeNext = false;
+        // Parse metadata from markdown (same as ingredients-based generation)
+        const lines = fullContent.split('\n');
+        let recipeName = 'Tarif';
+        let prepTime = 15;
+        let cookTime = 20;
 
-          for (let i = 0; i < jsonStr.length; i++) {
-            const char = jsonStr[i];
-
-            if (escapeNext) {
-              result += char;
-              escapeNext = false;
-              continue;
-            }
-
-            if (char === '\\') {
-              result += char;
-              escapeNext = true;
-              continue;
-            }
-
-            if (char === '"') {
-              result += char;
-              inString = !inString;
-              continue;
-            }
-
-            // Only escape control characters when inside a string
-            if (inString) {
-              if (char === '\n') result += '\\n';
-              else if (char === '\r') result += '\\r';
-              else if (char === '\t') result += '\\t';
-              else result += char;
-            } else {
-              result += char;
-            }
-          }
-
-          return result;
-        };
-
-        // Parse the final JSON response
-        let parsedRecipe;
-        try {
-          const sanitizedContent = sanitizeJSON(fullContent);
-          parsedRecipe = JSON.parse(sanitizedContent);
-        } catch (parseError) {
-          // Try to extract JSON from the content
-          const jsonMatch = fullContent.match(/\{[\s\S]*\}/);
-          if (jsonMatch) {
-            const sanitizedMatch = sanitizeJSON(jsonMatch[0]);
-            parsedRecipe = JSON.parse(sanitizedMatch);
-          } else {
-            console.error('❌ [JSON-PARSE] Failed to parse recipe JSON:', parseError);
-            console.error('❌ [JSON-PARSE] Content preview:', fullContent.substring(0, 500));
-            throw new Error('Failed to parse recipe JSON');
-          }
+        // Extract recipe name from first line (# Recipe Name)
+        if (lines[0]?.startsWith('# ')) {
+          recipeName = lines[0].substring(2).trim();
         }
 
-        // Extract main ingredients for memory system (streaming mode)
-        // CRITICAL: Wrap in try-catch to prevent blocking stream completion
-        let extractedIngredients: string[] = [];
-        try {
-          const recipeContent = parsedRecipe.recipeContent || '';
-          const recipeName = parsedRecipe.name || parsedRecipe.recipeName || '';
+        // Extract times from second line
+        const timeLine = lines[1] || '';
+        const prepMatch = timeLine.match(/\*\*Hazırlık:\*\*\s*(\d+)\s*dakika/i);
+        const cookMatch = timeLine.match(/\*\*Pişirme:\*\*\s*(\d+)\s*dakika/i);
 
-          console.log(`🔍 [STREAMING-EXTRACTION] Recipe generated: "${recipeName}"`);
-          console.log(`🔍 [STREAMING-EXTRACTION] Extracting main ingredients using Gemini...`);
+        if (prepMatch) prepTime = parseInt(prepMatch[1]);
+        if (cookMatch) cookTime = parseInt(cookMatch[1]);
 
-          extractedIngredients = await extractMainIngredients(recipeContent, recipeName);
+        console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min`);
 
-          if (extractedIngredients.length === 0) {
-            console.log(`⚠️ [STREAMING-EXTRACTION] WARNING: Failed to extract ingredients!`);
-          } else {
-            console.log(`✅ [STREAMING-EXTRACTION] Extracted ${extractedIngredients.length} main ingredients:`);
-            console.log(`✅ [STREAMING-EXTRACTION] [${extractedIngredients.join(', ')}]`);
-          }
-        } catch (extractionError) {
-          console.error(`❌ [STREAMING-EXTRACTION] Extraction failed, continuing without ingredients:`, extractionError);
-          extractedIngredients = []; // Ensure it's always an array
-        }
+        // Extract ingredients from markdown
+        const extractedIngredients = extractIngredientsFromMarkdown(fullContent);
 
-        // Send completion event - flatten recipe data for iOS app compatibility
-        // Map 'name' field to 'recipeName' for iOS compatibility
+        // Send completion event with markdown content
         const recipeData = {
-          ...parsedRecipe,
-          recipeName: parsedRecipe.name || parsedRecipe.recipeName,  // Support both field names
-          fullContent: JSON.stringify(parsedRecipe),  // Also provide as fullContent for backward compatibility
+          recipeName: recipeName,
+          name: recipeName,  // Alias for compatibility
+          recipeContent: fullContent,  // The full markdown content
+          prepTime: prepTime,
+          cookTime: cookTime,
+          servings: 1,
           tokenCount: tokenCount,
-          extractedIngredients,  // ADD extracted ingredients for iOS memory system
-          // CRITICAL FIX: iOS requires nutrition fields even if not calculated yet
-          // Empty strings signal "not calculated" and trigger on-demand calculation
-          calories: parsedRecipe.calories || "",
-          carbohydrates: parsedRecipe.carbohydrates || "",
-          fiber: parsedRecipe.fiber || "",
-          protein: parsedRecipe.protein || "",
-          fat: parsedRecipe.fat || "",
-          sugar: parsedRecipe.sugar || "",
-          glycemicLoad: parsedRecipe.glycemicLoad || ""
+          extractedIngredients,  // For iOS memory system
+          // Empty nutrition fields - will be calculated on-demand by iOS
+          calories: "",
+          carbohydrates: "",
+          fiber: "",
+          protein: "",
+          fat: "",
+          sugar: "",
+          glycemicLoad: ""
         };
 
         console.log(`📊 [NUTRITION-CHECK] Recipe data nutrition fields: calories="${recipeData.calories}", carbs="${recipeData.carbohydrates}", protein="${recipeData.protein}"`);

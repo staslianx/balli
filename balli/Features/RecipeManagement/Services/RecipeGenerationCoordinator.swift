@@ -122,8 +122,8 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     self.streamingContent = fullContent
                     self.tokenCount = count
 
-                    // FIX: Show raw content immediately during streaming for smooth UX
-                    // The user sees content build up token-by-token, then we parse JSON when complete
+                    // Display markdown content as it streams token-by-token
+                    // Backend now sends markdown directly (not JSON), so this shows clean recipe content immediately
                     self.formState.recipeContent = fullContent
 
                     self.logger.debug("📦 [STREAMING] Received chunk: \(count) tokens, \(fullContent.count) chars")
@@ -389,8 +389,8 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     self.streamingContent = fullContent
                     self.tokenCount = count
 
-                    // FIX: Show raw content immediately during streaming for smooth UX
-                    // The user sees content build up token-by-token, then we parse JSON when complete
+                    // Display markdown content as it streams token-by-token
+                    // Backend now sends markdown directly (not JSON), so this shows clean recipe content immediately
                     self.formState.recipeContent = fullContent
 
                     self.logger.debug("📦 [STREAMING] Received chunk: \(count) tokens, \(fullContent.count) chars")
