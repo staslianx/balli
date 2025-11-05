@@ -22,8 +22,8 @@ struct RecipeMetadataSection: View {
             // AI-generated: Show balli logo
             // Manual: Show user name in Galano Alt Semibold white
             if recipeSource == RecipeConstants.Source.ai {
-                // AI-generated recipe - show balli logo
-                Image("balli-text-logo-dark")
+                // AI-generated recipe - show balli logo (same size in both light and dark mode)
+                Image("balli-text-logo")
                     .resizable()
                     .scaledToFit()
                     .frame(height: 40)

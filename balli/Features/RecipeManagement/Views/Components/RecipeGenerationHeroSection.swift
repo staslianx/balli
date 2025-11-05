@@ -98,9 +98,9 @@ struct RecipeGenerationMetadata: View {
             Spacer(minLength: 0)
 
             VStack(alignment: .leading, spacing: 4) {
-                // Logo - Shows balli logo if AI-generated recipe
+                // Logo - Shows balli logo if AI-generated recipe (same size in both light and dark mode)
                 if !recipeContent.isEmpty {
-                    Image("balli-text-logo-dark")
+                    Image("balli-text-logo")
                         .resizable()
                         .scaledToFit()
                         .frame(height: 40)
