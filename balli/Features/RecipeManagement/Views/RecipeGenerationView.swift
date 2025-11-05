@@ -243,7 +243,7 @@ struct RecipeGenerationView: View {
         }
         .sheet(isPresented: $showingNutritionModal) {
             NutritionalValuesView(
-                recipe: nil,  // Recipe not saved yet during generation
+                recipe: ObservableRecipeWrapper(recipe: nil),  // Recipe not saved yet during generation
                 recipeName: viewModel.recipeName,
                 calories: viewModel.calories,
                 carbohydrates: viewModel.carbohydrates,

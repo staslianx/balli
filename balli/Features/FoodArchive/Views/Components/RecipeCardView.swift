@@ -92,7 +92,7 @@ struct RecipeCardView: View {
                     if recipe.isFavorite {
                         Image(systemName: "star.fill")
                             .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .semibold))
-                            .foregroundColor(colorScheme == .light ? .white : Color(red: 1, green: 0.85, blue: 0, opacity: 1))
+                            .foregroundColor(Color(red: 1, green: 0.85, blue: 0, opacity: 1))
                             .padding(.bottom, 16)
                             .padding(.trailing, 16)
                     }

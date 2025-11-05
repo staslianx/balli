@@ -195,7 +195,7 @@ struct RecipeDetailView: View {
         .toolbarBackground(.automatic, for: .navigationBar)
         .sheet(isPresented: $viewModel.showingNutritionalValues) {
             NutritionalValuesView(
-                recipe: recipeData.recipe,
+                recipe: ObservableRecipeWrapper(recipe: recipeData.recipe),
                 recipeName: recipeData.recipeName,
                 calories: String(format: "%.0f", recipeData.recipe.calories),
                 carbohydrates: String(format: "%.1f", recipeData.recipe.totalCarbs),

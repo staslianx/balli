@@ -22,7 +22,13 @@ final class DexcomService: ObservableObject {
 
     // MARK: - Published State
 
-    @Published var isConnected: Bool = false
+    @Published var isConnected: Bool = false {
+        didSet {
+            if oldValue != isConnected {
+                logger.info("📡 [STATE] isConnected changed: \(oldValue) → \(self.isConnected)")
+            }
+        }
+    }
     @Published var connectionStatus: ConnectionStatus = .disconnected
     @Published var lastSync: Date?
     @Published var latestReading: DexcomGlucoseReading?

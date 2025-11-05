@@ -16,7 +16,7 @@ struct NutritionalValuesView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.managedObjectContext) private var viewContext
 
-    let recipe: Recipe?  // Optional - only available for saved recipes
+    @ObservedObject var recipe: ObservableRecipeWrapper
     let recipeName: String
 
     // Per-100g values
@@ -94,7 +94,9 @@ struct NutritionalValuesView: View {
                         VStack(spacing: ResponsiveDesign.Spacing.small) {
                             nutritionRow(
                                 label: "Kalori",
-                                value: displayedCalories,
+                                value: selectedTab == 0
+                                    ? String(format: "%.0f", (Double(caloriesPerServing) ?? 0) * portionMultiplier)
+                                    : calories,
                                 unit: "kcal"
                             )
 
@@ -105,7 +107,9 @@ struct NutritionalValuesView: View {
 
                             nutritionRow(
                                 label: "Karbonhidrat",
-                                value: displayedCarbohydrates,
+                                value: selectedTab == 0
+                                    ? String(format: "%.1f", (Double(carbohydratesPerServing) ?? 0) * portionMultiplier)
+                                    : carbohydrates,
                                 unit: "g"
                             )
 
@@ -116,7 +120,9 @@ struct NutritionalValuesView: View {
 
                             nutritionRow(
                                 label: "Lif",
-                                value: displayedFiber,
+                                value: selectedTab == 0
+                                    ? String(format: "%.1f", (Double(fiberPerServing) ?? 0) * portionMultiplier)
+                                    : fiber,
                                 unit: "g"
                             )
 
@@ -127,7 +133,9 @@ struct NutritionalValuesView: View {
 
                             nutritionRow(
                                 label: "Şeker",
-                                value: displayedSugar,
+                                value: selectedTab == 0
+                                    ? String(format: "%.1f", (Double(sugarPerServing) ?? 0) * portionMultiplier)
+                                    : sugar,
                                 unit: "g"
                             )
 
@@ -138,7 +146,9 @@ struct NutritionalValuesView: View {
 
                             nutritionRow(
                                 label: "Protein",
-                                value: displayedProtein,
+                                value: selectedTab == 0
+                                    ? String(format: "%.1f", (Double(proteinPerServing) ?? 0) * portionMultiplier)
+                                    : protein,
                                 unit: "g"
                             )
 
@@ -149,7 +159,9 @@ struct NutritionalValuesView: View {
 
                             nutritionRow(
                                 label: "Yağ",
-                                value: displayedFat,
+                                value: selectedTab == 0
+                                    ? String(format: "%.1f", (Double(fatPerServing) ?? 0) * portionMultiplier)
+                                    : fat,
                                 unit: "g"
                             )
 
@@ -162,7 +174,7 @@ struct NutritionalValuesView: View {
 
                                 nutritionRow(
                                     label: "Glisemik Yük",
-                                    value: displayedGlycemicLoad,
+                                    value: String(format: "%.0f", (Double(glycemicLoadPerServing) ?? 0) * portionMultiplier),
                                     unit: ""
                                 )
                             }
@@ -206,7 +218,7 @@ struct NutritionalValuesView: View {
     /// Saves the adjusted portion size to the recipe
     private func savePortionSize() {
         // Ensure recipe exists
-        guard let recipe = recipe else {
+        guard recipe.exists else {
             logger.warning("⚠️ Cannot save portion - recipe not available")
             return
         }
@@ -224,6 +236,9 @@ struct NutritionalValuesView: View {
 
         // Update recipe
         recipe.updatePortionSize(adjustingPortionWeight)
+
+        // Reset multiplier to 1.0 after saving new portion
+        portionMultiplier = 1.0
 
         // Save to Core Data
         do {
@@ -278,35 +293,30 @@ struct NutritionalValuesView: View {
 
     /// Whether portion adjustment is available (recipe must be saved)
     private var canAdjustPortion: Bool {
-        recipe != nil
+        recipe.exists
     }
 
     /// Current portion size from recipe
     private var currentPortionSize: Double {
-        guard let recipe = recipe else { return 0 }
-        return recipe.portionSize > 0 ? recipe.portionSize : recipe.totalRecipeWeight
+        let portionSize = recipe.portionSize
+        let totalWeight = recipe.totalRecipeWeight
+        return portionSize > 0 ? portionSize : totalWeight
     }
 
     /// Number of portions the recipe makes based on current adjustment
     private var adjustedPortionCount: Double {
-        guard let recipe = recipe, adjustingPortionWeight > 0 else { return 1.0 }
+        guard recipe.exists, adjustingPortionWeight > 0 else { return 1.0 }
         return recipe.totalRecipeWeight / adjustingPortionWeight
     }
 
     /// Nutrition for the adjusted portion size
     private var adjustedPortionNutrition: NutritionValues {
-        guard let recipe = recipe else {
-            return NutritionValues(
-                calories: 0, carbohydrates: 0, fiber: 0,
-                sugar: 0, protein: 0, fat: 0, glycemicLoad: 0
-            )
-        }
-        return recipe.calculatePortionNutrition(for: adjustingPortionWeight)
+        recipe.calculatePortionNutrition(for: adjustingPortionWeight)
     }
 
     /// Whether portion is defined in recipe
     private var isPortionDefined: Bool {
-        recipe?.isPortionDefined ?? false
+        recipe.recipe?.isPortionDefined ?? false
     }
 
     /// Determines whether the absorption timing chart should be displayed
@@ -333,79 +343,11 @@ struct NutritionalValuesView: View {
 
     private var infoText: Text {
         if selectedTab == 0 {
-            // Porsiyon tab
-            if !totalRecipeWeight.isEmpty && totalRecipeWeight != "0" {
-                let multipliedWeight = (Double(totalRecipeWeight) ?? 0) * portionMultiplier
-                return Text("1 porsiyon: **\(String(format: "%.0f", multipliedWeight))g**")
-            } else {
-                return Text("1 porsiyon")
-            }
+            // Porsiyon tab - no longer showing portion weight since it's in the card above
+            return Text("")
         } else {
             // 100g tab
             return Text("100g için")
-        }
-    }
-
-    private var displayedCalories: String {
-        if selectedTab == 0 {
-            let value = (Double(caloriesPerServing) ?? 0) * portionMultiplier
-            return String(format: "%.0f", value)
-        } else {
-            return calories
-        }
-    }
-
-    private var displayedCarbohydrates: String {
-        if selectedTab == 0 {
-            let value = (Double(carbohydratesPerServing) ?? 0) * portionMultiplier
-            return String(format: "%.1f", value)
-        } else {
-            return carbohydrates
-        }
-    }
-
-    private var displayedFiber: String {
-        if selectedTab == 0 {
-            let value = (Double(fiberPerServing) ?? 0) * portionMultiplier
-            return String(format: "%.1f", value)
-        } else {
-            return fiber
-        }
-    }
-
-    private var displayedSugar: String {
-        if selectedTab == 0 {
-            let value = (Double(sugarPerServing) ?? 0) * portionMultiplier
-            return String(format: "%.1f", value)
-        } else {
-            return sugar
-        }
-    }
-
-    private var displayedProtein: String {
-        if selectedTab == 0 {
-            let value = (Double(proteinPerServing) ?? 0) * portionMultiplier
-            return String(format: "%.1f", value)
-        } else {
-            return protein
-        }
-    }
-
-    private var displayedFat: String {
-        if selectedTab == 0 {
-            let value = (Double(fatPerServing) ?? 0) * portionMultiplier
-            return String(format: "%.1f", value)
-        } else {
-            return fat
-        }
-    }
-
-    private var displayedGlycemicLoad: String {
-        if selectedTab == 0 {
-            let value = (Double(glycemicLoadPerServing) ?? 0) * portionMultiplier
-            return String(format: "%.0f", value)
-        } else {
-            return glycemicLoad
         }
     }
 
@@ -503,7 +445,7 @@ struct NutritionalValuesView: View {
                     .frame(maxWidth: .infinity)
 
                     // Slider
-                    if let recipe = recipe {
+                    if recipe.exists {
                         VStack(spacing: 8) {
                             Slider(
                                 value: $adjustingPortionWeight,
@@ -632,6 +574,59 @@ struct NutritionalValuesView: View {
     }
 }
 
+// MARK: - Observable Recipe Wrapper
+
+/// Wrapper to make optional Recipe observable for SwiftUI reactivity
+@MainActor
+final class ObservableRecipeWrapper: ObservableObject {
+    let recipe: Recipe?
+
+    init(recipe: Recipe?) {
+        self.recipe = recipe
+    }
+
+    /// Convenience accessor for portion size
+    var portionSize: Double {
+        recipe?.portionSize ?? 0
+    }
+
+    /// Convenience accessor for total recipe weight
+    var totalRecipeWeight: Double {
+        recipe?.totalRecipeWeight ?? 0
+    }
+
+    /// Convenience accessor for portion multiplier
+    var portionMultiplier: Double {
+        get { recipe?.portionMultiplier ?? 1.0 }
+        set {
+            recipe?.portionMultiplier = newValue
+            objectWillChange.send()
+        }
+    }
+
+    /// Update portion size
+    func updatePortionSize(_ size: Double) {
+        recipe?.updatePortionSize(size)
+        objectWillChange.send()
+    }
+
+    /// Calculate nutrition for portion
+    func calculatePortionNutrition(for portionWeight: Double) -> NutritionValues {
+        guard let recipe = recipe else {
+            return NutritionValues(
+                calories: 0, carbohydrates: 0, fiber: 0,
+                sugar: 0, protein: 0, fat: 0, glycemicLoad: 0
+            )
+        }
+        return recipe.calculatePortionNutrition(for: portionWeight)
+    }
+
+    /// Whether recipe exists
+    var exists: Bool {
+        recipe != nil
+    }
+}
+
 // MARK: - Preview
 
 #Preview("With Both Values - Low Warning") {
@@ -652,7 +647,7 @@ struct NutritionalValuesView: View {
     recipe.portionSize = 350
 
     return NutritionalValuesView(
-        recipe: recipe,
+        recipe: ObservableRecipeWrapper(recipe: recipe),
         recipeName: "Izgara Tavuk Salatası",
         // Per-100g
         calories: "165",
@@ -695,7 +690,7 @@ struct NutritionalValuesView: View {
     recipe.portionSize = 400
 
     return NutritionalValuesView(
-        recipe: recipe,
+        recipe: ObservableRecipeWrapper(recipe: recipe),
         recipeName: "Carbonara Makarna",
         // Per-100g
         calories: "180",
@@ -731,7 +726,7 @@ struct NutritionalValuesView: View {
     recipe.portionSize = 0
 
     return NutritionalValuesView(
-        recipe: recipe,
+        recipe: ObservableRecipeWrapper(recipe: recipe),
         recipeName: "Test Tarifi",
         calories: "",
         carbohydrates: "",

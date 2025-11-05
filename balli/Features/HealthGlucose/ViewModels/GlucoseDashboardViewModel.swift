@@ -41,8 +41,14 @@ final class GlucoseDashboardViewModel: ObservableObject {
 
     /// Loads glucose data from Dexcom service
     func loadData() async {
-        guard dexcomService.isConnected else { return }
+        logger.info("🔵 [LOAD] loadData() called - isConnected: \(self.dexcomService.isConnected)")
 
+        guard dexcomService.isConnected else {
+            logger.warning("⚠️ [LOAD] Skipping loadData() - not connected (isConnected=false)")
+            return
+        }
+
+        logger.info("✅ [LOAD] Starting data fetch - connection confirmed")
         isLoading = true
         error = nil
 
@@ -50,13 +56,14 @@ final class GlucoseDashboardViewModel: ObservableObject {
             // Always fetch 1 day of data for the 6am-6am view
             glucoseReadings = try await dexcomService.fetchRecentReadings(days: 1)
             glucoseReadings.sort { $0.timestamp > $1.timestamp }
-            logger.info("Loaded \(self.glucoseReadings.count) glucose readings")
+            logger.info("✅ [LOAD] Loaded \(self.glucoseReadings.count) glucose readings")
         } catch {
             self.error = error.localizedDescription
-            logger.error("Failed to load glucose data: \(error.localizedDescription)")
+            logger.error("❌ [LOAD] Failed to load glucose data: \(error.localizedDescription)")
         }
 
         isLoading = false
+        logger.info("🏁 [LOAD] loadData() complete - readings: \(self.glucoseReadings.count), isLoading: false")
     }
 
     // MARK: - Chart X-Axis Range
