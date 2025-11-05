@@ -75,20 +75,22 @@ struct NutritionalValuesView: View {
 
                     // Main Card Container - matching LoggedMealsView style
                     VStack(alignment: .leading, spacing: 0) {
-                        // Info Text Header
-                        infoText
-                            .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .padding(.horizontal, ResponsiveDesign.Spacing.large)
-                            .padding(.top, ResponsiveDesign.Spacing.large)
-                            .padding(.bottom, ResponsiveDesign.Spacing.medium)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        // Info Text Header (only shown in 100g tab)
+                        if selectedTab == 1 {
+                            infoText
+                                .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold, design: .rounded))
+                                .foregroundStyle(.primary)
+                                .padding(.horizontal, ResponsiveDesign.Spacing.large)
+                                .padding(.top, ResponsiveDesign.Spacing.large)
+                                .padding(.bottom, ResponsiveDesign.Spacing.medium)
+                                .frame(maxWidth: .infinity, alignment: .leading)
 
-                        // Divider below header
-                        Rectangle()
-                            .fill(Color.secondary.opacity(0.2))
-                            .frame(height: 0.5)
-                            .padding(.horizontal, ResponsiveDesign.Spacing.large)
+                            // Divider below header
+                            Rectangle()
+                                .fill(Color.secondary.opacity(0.2))
+                                .frame(height: 0.5)
+                                .padding(.horizontal, ResponsiveDesign.Spacing.large)
+                        }
 
                         // Nutritional Values Rows
                         VStack(spacing: ResponsiveDesign.Spacing.small) {

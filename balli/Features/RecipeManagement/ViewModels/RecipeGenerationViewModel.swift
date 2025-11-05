@@ -115,6 +115,9 @@ final class RecipeGenerationViewModel: ObservableObject {
         isGenerating = true
         isSaved = false
 
+        // Clear any previous errors before starting new generation
+        recipeViewModel.generationCoordinator.generationError = nil
+
         // Extract ingredients from manual ingredients list
         let ingredientsList: [String]? = manualIngredients.isEmpty ? nil : manualIngredients.map { $0.text }
 
@@ -136,6 +139,9 @@ final class RecipeGenerationViewModel: ObservableObject {
     func startGenerationWithDefaults() async {
         isGenerating = true
         isSaved = false
+
+        // Clear any previous errors before starting new generation
+        recipeViewModel.generationCoordinator.generationError = nil
 
         // Extract ingredients from manual ingredients list
         let ingredientsList: [String]? = manualIngredients.isEmpty ? nil : manualIngredients.map { $0.text }
@@ -189,6 +195,15 @@ final class RecipeGenerationViewModel: ObservableObject {
             return
         }
 
+        // Wait for nutrition calculation to finish if it's running
+        if recipeViewModel.isCalculatingNutrition {
+            logger.info("⏳ [VM] Nutrition calculation in progress - waiting for completion...")
+            while recipeViewModel.isCalculatingNutrition {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            logger.info("✅ [VM] Nutrition calculation completed - proceeding with save")
+        }
+
         // Build manual recipe content ONLY if this is truly a manual recipe (no AI generation happened)
         // If user provided ingredients but AI generated a recipe, DON'T overwrite the AI content
         let hasAIGeneratedContent = !recipeViewModel.recipeName.isEmpty || !recipeViewModel.recipeContent.isEmpty
@@ -217,9 +232,40 @@ final class RecipeGenerationViewModel: ObservableObject {
         if recipeViewModel.persistenceCoordinator.showingSaveConfirmation {
             logger.info("✅ [VM] Save confirmed - showing success state")
             isSaved = true
+
+            // Reset state after successful save to prevent ghost data on next generation
+            resetStateAfterSave()
         } else {
             logger.warning("⚠️ [VM] Save confirmation not shown")
         }
+    }
+
+    /// Reset generation state after successful save
+    /// Prevents ghost data from appearing in next recipe generation
+    private func resetStateAfterSave() {
+        logger.info("🧹 [VM] Resetting state after successful save")
+
+        // Reset manual entry state
+        manualIngredients = []
+        manualSteps = []
+
+        // Reset user context
+        userNotes = ""
+
+        // Reset meal selection to defaults
+        selectedMealType = "Kahvaltı"
+        selectedStyleType = ""
+
+        // Reset shopping list state
+        hasUncheckedIngredients = false
+
+        // Reset story card
+        storyCardTitle = "balli'nin tarif analizi"
+
+        // Clear recipe view model state
+        recipeViewModel.clearAllFields()
+
+        logger.info("✅ [VM] State reset complete - ready for next recipe")
     }
 
     private func buildManualRecipeContent() {

@@ -66,6 +66,59 @@ struct RecipeGenerationView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
+                // MARK: - Error Banner
+                if let errorMessage = viewModel.generationError {
+                    VStack {
+                        HStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.white)
+                                .font(.system(size: 20))
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Tarif Oluşturulamadı")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundStyle(.white)
+
+                                Text(errorMessage)
+                                    .font(.system(size: 14))
+                                    .foregroundStyle(.white.opacity(0.9))
+                            }
+
+                            Spacer()
+
+                            Button {
+                                // Retry generation with same parameters
+                                let (shouldShowMenu, _) = generationViewModel.determineGenerationFlow()
+                                if shouldShowMenu {
+                                    showingMealSelection = true
+                                } else {
+                                    Task {
+                                        await generationViewModel.startGenerationWithDefaults()
+                                    }
+                                }
+                            } label: {
+                                Text("Tekrar Dene")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color.white.opacity(0.2))
+                                    .cornerRadius(8)
+                            }
+                        }
+                        .padding(16)
+                        .background(Color.red.gradient)
+                        .cornerRadius(12)
+                        .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 60)
+
+                        Spacer()
+                    }
+                    .zIndex(100)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
                 // MARK: - Scrollable Content
                 ScrollView {
                     ZStack(alignment: .top) {
@@ -271,13 +324,15 @@ struct RecipeGenerationView: View {
             }
         }
         .onAppear {
-            // Set up toast callback
-            actionsHandler.onShowToast = { toast in
+            // Set up toast callback with weak self to prevent retain cycles
+            actionsHandler.onShowToast = { [weak actionsHandler] toast in
+                guard actionsHandler != nil else { return }
                 toastMessage = toast
             }
 
-            // Set up shopping list update callback
-            actionsHandler.onShoppingListUpdated = {
+            // Set up shopping list update callback with weak self to prevent retain cycles
+            actionsHandler.onShoppingListUpdated = { [weak generationViewModel] in
+                guard let generationViewModel else { return }
                 await generationViewModel.checkShoppingListStatus()
             }
 

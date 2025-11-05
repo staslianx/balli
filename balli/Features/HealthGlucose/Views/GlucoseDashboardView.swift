@@ -8,6 +8,7 @@
 
 import SwiftUI
 import Charts
+import OSLog
 
 @MainActor
 struct GlucoseDashboardView: View {
@@ -15,8 +16,23 @@ struct GlucoseDashboardView: View {
     // MARK: - Environment
 
     @Environment(\.colorScheme) private var colorScheme
-    @ObservedObject private var dexcomService = DexcomService.shared
-    @StateObject private var viewModel = GlucoseDashboardViewModel(dexcomService: DexcomService.shared)
+
+    // MARK: - Dependencies (Injected)
+
+    @ObservedObject var dexcomService: DexcomService
+    @ObservedObject var viewModel: GlucoseDashboardViewModel
+
+    private let logger = AppLoggers.Health.glucose
+
+    // MARK: - Initialization
+
+    init(
+        dexcomService: DexcomService = DexcomService.shared,
+        viewModel: GlucoseDashboardViewModel? = nil
+    ) {
+        self.dexcomService = dexcomService
+        self.viewModel = viewModel ?? GlucoseDashboardViewModel(dexcomService: dexcomService)
+    }
 
     // MARK: - Body
 
@@ -59,10 +75,22 @@ struct GlucoseDashboardView: View {
         .navigationTitle("Glucose")
         .navigationBarTitleDisplayMode(.large)
         .task {
+            // Ensure connection status is fresh before loading data
+            await dexcomService.checkConnectionStatus()
             await viewModel.loadData()
         }
         .refreshable {
             await viewModel.loadData()
+        }
+        .onChange(of: dexcomService.isConnected) { oldValue, newValue in
+            logger.info("🔄 [VIEW] Connection status changed: \(oldValue) → \(newValue)")
+            // Reload data when connection status changes from disconnected to connected
+            if !oldValue && newValue {
+                logger.info("✅ [VIEW] Connection established - reloading glucose data")
+                Task {
+                    await viewModel.loadData()
+                }
+            }
         }
     }
 
@@ -398,9 +426,32 @@ struct GlucoseDashboardView: View {
 
 // MARK: - Preview
 
-#Preview {
+#Preview("Connected with Data") {
     NavigationStack {
-        GlucoseDashboardView()
+        GlucoseDashboardView(
+            dexcomService: .previewConnected,
+            viewModel: .previewWithData
+        )
+    }
+    .injectDependencies()
+}
+
+#Preview("Disconnected") {
+    NavigationStack {
+        GlucoseDashboardView(
+            dexcomService: .previewDisconnected,
+            viewModel: .previewEmpty
+        )
+    }
+    .injectDependencies()
+}
+
+#Preview("Loading") {
+    NavigationStack {
+        GlucoseDashboardView(
+            dexcomService: .previewConnected,
+            viewModel: .previewLoading
+        )
     }
     .injectDependencies()
 }

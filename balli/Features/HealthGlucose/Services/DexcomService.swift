@@ -569,5 +569,34 @@ extension DexcomService {
         // Don't set latestReading for mock - it requires Decoder
         return service
     }
+
+    /// Preview service with connected state
+    static var previewConnected: DexcomService {
+        let mockConfig = DexcomConfiguration.mock
+        let service = DexcomService(configuration: mockConfig)
+        service.isConnected = true
+        service.connectionStatus = .connected
+        service.lastSync = Date()
+        return service
+    }
+
+    /// Preview service with disconnected state
+    static var previewDisconnected: DexcomService {
+        let mockConfig = DexcomConfiguration.mock
+        let service = DexcomService(configuration: mockConfig)
+        service.isConnected = false
+        service.connectionStatus = .disconnected
+        return service
+    }
+
+    /// Preview service with error state
+    static var previewError: DexcomService {
+        let mockConfig = DexcomConfiguration.mock
+        let service = DexcomService(configuration: mockConfig)
+        service.isConnected = false
+        service.connectionStatus = .error(.notConnected)
+        service.error = .notConnected
+        return service
+    }
 }
 #endif

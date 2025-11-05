@@ -188,3 +188,49 @@ final class GlucoseDashboardViewModel: ObservableObject {
         }
     }
 }
+
+// MARK: - Preview Support
+
+#if DEBUG
+extension GlucoseDashboardViewModel {
+    /// Preview with sample glucose data
+    static var previewWithData: GlucoseDashboardViewModel {
+        let service = DexcomService.mock
+        let vm = GlucoseDashboardViewModel(dexcomService: service)
+
+        // Add sample readings
+        let now = Date()
+        vm.glucoseReadings = (0..<24).map { index in
+            let timestamp = Calendar.current.date(byAdding: .hour, value: -Int(index), to: now) ?? now
+            let value = 120.0 + Double.random(in: -30...30)
+
+            return HealthGlucoseReading(
+                id: UUID(),
+                value: value,
+                timestamp: timestamp,
+                source: "dexcom_api",
+                metadata: ["trend": "Flat"]
+            )
+        }
+
+        return vm
+    }
+
+    /// Preview with no data (empty state)
+    static var previewEmpty: GlucoseDashboardViewModel {
+        let service = DexcomService.mock
+        let vm = GlucoseDashboardViewModel(dexcomService: service)
+        vm.glucoseReadings = []
+        return vm
+    }
+
+    /// Preview in loading state
+    static var previewLoading: GlucoseDashboardViewModel {
+        let service = DexcomService.mock
+        let vm = GlucoseDashboardViewModel(dexcomService: service)
+        vm.isLoading = true
+        vm.glucoseReadings = []
+        return vm
+    }
+}
+#endif

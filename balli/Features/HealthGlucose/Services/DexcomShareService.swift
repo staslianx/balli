@@ -23,7 +23,13 @@ final class DexcomShareService: ObservableObject {
 
     // MARK: - Published State
 
-    @Published var isConnected: Bool = false
+    @Published var isConnected: Bool = false {
+        didSet {
+            if oldValue != isConnected {
+                logger.info("📡 [SHARE STATE] isConnected changed: \(oldValue) → \(self.isConnected)")
+            }
+        }
+    }
     @Published var connectionStatus: ConnectionStatus = .disconnected
     @Published var lastSync: Date?
     @Published var latestReading: DexcomShareGlucoseReading?
@@ -126,16 +132,28 @@ final class DexcomShareService: ObservableObject {
 
     /// Check if connected and update status
     /// ENHANCED: Auto-recovers expired sessions using stored credentials
-    /// ENHANCED: Debounced to prevent excessive checks (max once per 2 seconds)
+    /// ENHANCED: Debounced to prevent excessive EXPENSIVE checks (max once per 2 seconds)
+    /// BUT always returns current cached state immediately
     /// This ensures users stay connected without re-entering credentials
     func checkConnectionStatus() async {
-        // ANTI-SPAM: Debounce connection checks to prevent 7-8 checks per second
+        logger.info("🔍 [DexcomShareService]: checkConnectionStatus() called - current cached state: \(self.isConnected)")
+
+        // ANTI-SPAM: Debounce EXPENSIVE checks (keychain, session validation, recovery)
+        // But still allow caller to read current cached state immediately
+        var shouldPerformExpensiveCheck = true
         if let lastCheck = lastConnectionCheck {
             let timeSinceLastCheck = Date().timeIntervalSince(lastCheck)
             if timeSinceLastCheck < connectionCheckDebounceInterval {
-                logger.debug("⏭️ Skipping Share connection check - debounced (checked \(String(format: "%.1f", timeSinceLastCheck))s ago)")
-                return
+                logger.debug("⏭️ [DexcomShareService]: Within debounce window (\(String(format: "%.1f", timeSinceLastCheck))s) - returning cached state without expensive check")
+                shouldPerformExpensiveCheck = false
+                // Don't return early! Let caller observe current cached isConnected value
             }
+        }
+
+        if !shouldPerformExpensiveCheck {
+            // Debounced - but isConnected is already set to current state
+            // Caller can read it immediately
+            return
         }
 
         lastConnectionCheck = Date()

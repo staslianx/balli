@@ -132,3 +132,25 @@ final class HosgeldinViewModel: ObservableObject {
         }
     }
 }
+
+// MARK: - Preview Support
+
+#if DEBUG
+extension HosgeldinViewModel {
+    /// Create preview ViewModel with mock dependencies
+    static func preview(viewContext: NSManagedObjectContext) -> HosgeldinViewModel {
+        let mockHealthKit = MockHealthKitService()
+        let mockDexcom = DexcomService.previewConnected
+        let mockDexcomShare = DexcomShareService.preview
+        let mockPermissions = HealthKitPermissionManager.shared
+
+        return HosgeldinViewModel(
+            healthKitService: mockHealthKit,
+            dexcomService: mockDexcom,
+            dexcomShareService: mockDexcomShare,
+            healthKitPermissions: mockPermissions,
+            viewContext: viewContext
+        )
+    }
+}
+#endif

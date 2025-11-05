@@ -28,11 +28,11 @@ struct UnifiedDashboardView: View {
     let variant: DashboardVariant
 
     // Main ViewModel
-    @StateObject private var viewModel: HosgeldinViewModel
+    @ObservedObject var viewModel: HosgeldinViewModel
 
     // Dependencies
-    @ObservedObject private var dexcomService = DexcomService.shared
-    @ObservedObject private var dexcomShareService = DexcomShareService.shared
+    @ObservedObject var dexcomService: DexcomService
+    @ObservedObject var dexcomShareService: DexcomShareService
 
     // Sheet state
     @State private var showingMealHistory = false
@@ -40,20 +40,32 @@ struct UnifiedDashboardView: View {
 
     // MARK: - Initialization
 
-    init(variant: DashboardVariant, viewContext: NSManagedObjectContext) {
+    init(
+        variant: DashboardVariant,
+        viewContext: NSManagedObjectContext,
+        viewModel: HosgeldinViewModel? = nil,
+        dexcomService: DexcomService = DexcomService.shared,
+        dexcomShareService: DexcomShareService = DexcomShareService.shared
+    ) {
         self.variant = variant
+        self.dexcomService = dexcomService
+        self.dexcomShareService = dexcomShareService
 
-        // Initialize ViewModel with shared dependencies
-        let dependencies = DependencyContainer.shared
-        let dexcomService = DexcomService.shared
+        // Use provided ViewModel or create new one with dependencies
+        if let existingViewModel = viewModel {
+            self.viewModel = existingViewModel
+        } else {
+            // Initialize ViewModel with shared dependencies
+            let dependencies = DependencyContainer.shared
 
-        _viewModel = StateObject(wrappedValue: HosgeldinViewModel(
-            healthKitService: dependencies.healthKitService,
-            dexcomService: dexcomService,
-            dexcomShareService: DexcomShareService.shared,
-            healthKitPermissions: HealthKitPermissionManager.shared,
-            viewContext: viewContext
-        ))
+            self.viewModel = HosgeldinViewModel(
+                healthKitService: dependencies.healthKitService,
+                dexcomService: dexcomService,
+                dexcomShareService: dexcomShareService,
+                healthKitPermissions: HealthKitPermissionManager.shared,
+                viewContext: viewContext
+            )
+        }
     }
 
     // MARK: - Body
@@ -84,14 +96,20 @@ struct UnifiedDashboardView: View {
                 }
                 .background(Color(.systemBackground))
                 .navigationBarTitleDisplayMode(.inline)
+                .task {
+                    // Check both connection statuses before loading data
+                    await dexcomService.checkConnectionStatus()
+                    await dexcomShareService.checkConnectionStatus()
+                }
                 .onAppear {
                     viewModel.onAppear()
                 }
                 .onChange(of: dexcomService.isConnected) { _, isConnected in
                     viewModel.onDexcomConnectionChange(isConnected)
                 }
-                .onChange(of: dexcomShareService.isConnected) { _, isConnected in
-                    if isConnected {
+                .onChange(of: dexcomShareService.isConnected) { oldValue, newValue in
+                    // Reload glucose data when Share connection is established
+                    if !oldValue && newValue {
                         viewModel.glucoseChartViewModel.loadGlucoseData()
                     }
                 }
@@ -294,13 +312,33 @@ struct UnifiedDashboardView: View {
 // MARK: - Previews
 
 #Preview("Welcome Variant") {
-    UnifiedDashboardView(variant: .welcome, viewContext: PersistenceController.preview.container.viewContext)
-        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
-        .environmentObject(HealthKitPermissionManager.shared)
+    let context = PersistenceController.preview.container.viewContext
+    let viewModel = HosgeldinViewModel.preview(viewContext: context)
+
+    return UnifiedDashboardView(
+        variant: .welcome,
+        viewContext: context,
+        viewModel: viewModel,
+        dexcomService: .previewConnected,
+        dexcomShareService: .preview
+    )
+    .environment(\.managedObjectContext, context)
+    .environmentObject(HealthKitPermissionManager.shared)
+    .injectDependencies()
 }
 
 #Preview("Today Variant") {
-    UnifiedDashboardView(variant: .today, viewContext: PersistenceController.preview.container.viewContext)
-        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
-        .environmentObject(HealthKitPermissionManager.shared)
+    let context = PersistenceController.preview.container.viewContext
+    let viewModel = HosgeldinViewModel.preview(viewContext: context)
+
+    return UnifiedDashboardView(
+        variant: .today,
+        viewContext: context,
+        viewModel: viewModel,
+        dexcomService: .previewConnected,
+        dexcomShareService: .preview
+    )
+    .environment(\.managedObjectContext, context)
+    .environmentObject(HealthKitPermissionManager.shared)
+    .injectDependencies()
 }

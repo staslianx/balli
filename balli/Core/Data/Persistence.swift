@@ -196,14 +196,22 @@ extension PersistenceController {
 // MARK: - Preview Support
 
 extension PersistenceController {
+    /// Lightweight preview controller for SwiftUI previews
+    /// CRITICAL: Uses waitForReady: false to prevent 5-second preview timeouts
+    /// In-memory store loads almost instantly, no need to block
     public static var preview: PersistenceController {
-        let controller = PersistenceController(inMemory: true, waitForReady: true)
+        let controller = PersistenceController(inMemory: true, waitForReady: false)
 
         #if DEBUG
-        do {
-            try controller.generatePreviewData()
-        } catch {
-            AppLoggers.Data.coredata.error("Failed to generate preview data: \(error.localizedDescription)")
+        // Note: Preview data generation is async and non-blocking
+        // Views will render empty state first, then populate when data loads
+        // This is intentional to keep previews fast
+        Task {
+            do {
+                try controller.generatePreviewData()
+            } catch {
+                AppLoggers.Data.coredata.error("Failed to generate preview data: \(error.localizedDescription)")
+            }
         }
         #endif
 
