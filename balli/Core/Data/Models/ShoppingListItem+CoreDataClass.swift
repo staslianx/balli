@@ -10,7 +10,7 @@ import CoreData
 
 @objc(ShoppingListItem)
 public class ShoppingListItem: NSManagedObject, @unchecked Sendable {
-    
+
     override public func awakeFromInsert() {
         super.awakeFromInsert()
         setPrimitiveValue(UUID(), forKey: "id")

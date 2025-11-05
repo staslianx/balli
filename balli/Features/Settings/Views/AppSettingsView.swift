@@ -60,14 +60,16 @@ struct AppSettingsView: View {
                 // MARK: - Genel (General)
                 Section("Genel") {
                     Toggle(isOn: $notificationsEnabled) {
-                        Label("Bildirimler", systemImage: "bell")
+                        Label("Bildirimler", systemImage: "bell.fill")
                     }
                     .tint(AppTheme.primaryPurple)
 
-                    Picker("Görünüş", selection: $selectedTheme) {
+                    Picker(selection: $selectedTheme) {
                         ForEach(themes, id: \.self) { theme in
                             Text(theme).tag(theme)
                         }
+                    } label: {
+                        Label("Görünüş", systemImage: "circle.lefthalf.striped.horizontal.inverse")
                     }
                     .tint(AppTheme.primaryPurple)
                     .onChange(of: selectedTheme) { _, newValue in
@@ -78,13 +80,13 @@ struct AppSettingsView: View {
                 // MARK: - Veri (Data)
                 Section("Veri") {
                     NavigationLink(destination: DexcomConnectionView()) {
-                        Label("Dexcom", systemImage: "sensor.tag.radiowaves.forward")
+                        Label("Dexcom", systemImage: "sensor.tag.radiowaves.forward.fill")
                             .imageScale(.medium)
                     }
                     .tint(AppTheme.primaryPurple)
 
                     NavigationLink(destination: HealthKitManagerView()) {
-                        Label("Apple Sağlık", systemImage: "heart.text.square")
+                        Label("Apple Sağlık", systemImage: "heart.text.square.fill")
                     }
                     .tint(AppTheme.primaryPurple)
 
@@ -106,7 +108,7 @@ struct AppSettingsView: View {
                     .tint(AppTheme.primaryPurple)
 
                     NavigationLink(destination: DataExportView()) {
-                        Label("Verileri Dışa Aktar", systemImage: "square.and.arrow.up")
+                        Label("Verileri Dışa Aktar", systemImage: "square.and.arrow.up.fill")
                     }
                     .tint(AppTheme.primaryPurple)
                 }
@@ -114,7 +116,7 @@ struct AppSettingsView: View {
                 // MARK: - Uygulama Bilgisi (App Info)
                 Section("Uygulama Bilgisi") {
                     HStack {
-                        Label("Sürüm", systemImage: "app.badge")
+                        Label("Sürüm", systemImage: "app.badge.fill")
                         Spacer()
                         Text("1.0.0")
                             .foregroundStyle(.secondary)
@@ -123,12 +125,12 @@ struct AppSettingsView: View {
                     Button(action: {
                         openMessagesApp(email: "stasli.anx@icloud.com")
                     }) {
-                        Label("İletişim", systemImage: "envelope")
+                        Label("İletişim", systemImage: "envelope.fill")
                             .foregroundStyle(.primary)
                     }
 
                     NavigationLink(destination: AboutView()) {
-                        Label("Hakkında", systemImage: "info.circle")
+                        Label("Hakkında", systemImage: "info.circle.fill")
                     }
                     .tint(AppTheme.primaryPurple)
                 }
@@ -144,12 +146,12 @@ struct AppSettingsView: View {
                 // MARK: - Tanı (Diagnostics)
                 Section("Tanı") {
                     NavigationLink(destination: DexcomDiagnosticsView()) {
-                        Label("Dexcom Log", systemImage: "stethoscope")
+                        Label("Dexcom Log", systemImage: "stethoscope.circle.fill")
                     }
                     .tint(AppTheme.primaryPurple)
 
                     NavigationLink(destination: AIDiagnosticsView()) {
-                        Label("AI Log", systemImage: "brain")
+                        Label("AI Log", systemImage: "brain.fill")
                     }
                     .tint(AppTheme.primaryPurple)
                 }

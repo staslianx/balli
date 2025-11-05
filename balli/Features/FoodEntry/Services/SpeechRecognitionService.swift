@@ -11,6 +11,7 @@ import Foundation
 import AVFoundation
 import Combine
 import os.log
+import os
 
 // MARK: - Speech Recognition Service
 
@@ -381,8 +382,15 @@ final class AudioEngineWrapper: @unchecked Sendable {
     private let audioQueue = DispatchQueue(label: "com.balli.speech.audio", qos: .userInitiated)
     private let logger = os.Logger(subsystem: "com.balli.diabetes", category: "AudioEngine")
 
-    /// State tracking for continuation management - accessed only on audioQueue
-    private var hasResumed = false
+    /// Thread-safe state tracking for continuation management
+    private let lock = OSAllocatedUnfairLock()
+    private var _hasResumed = false
+
+    /// Thread-safe access to hasResumed flag
+    private var hasResumed: Bool {
+        get { lock.withLock { _hasResumed } }
+        set { lock.withLock { _hasResumed = newValue } }
+    }
 
     /// Start audio engine and configure audio session on background thread with timeout protection
     /// - Parameters:
@@ -468,7 +476,7 @@ final class AudioEngineWrapper: @unchecked Sendable {
                                 // Normalize to 0-1 range with high sensitivity
                                 let normalizedLevel = min(1.0, max(0.0, rms * 50.0))
 
-                                // Update on main actor
+                                // Update on main actor (Swift 6 concurrency compliance)
                                 Task { @MainActor in
                                     levelUpdate(normalizedLevel)
                                 }

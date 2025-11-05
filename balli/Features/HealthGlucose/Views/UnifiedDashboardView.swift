@@ -44,12 +44,19 @@ struct UnifiedDashboardView: View {
         variant: DashboardVariant,
         viewContext: NSManagedObjectContext,
         viewModel: HosgeldinViewModel? = nil,
-        dexcomService: DexcomService = DexcomService.shared,
-        dexcomShareService: DexcomShareService = DexcomShareService.shared
+        // Swift limitation: @ObservedObject requires concrete types
+        // Force cast centralized in default parameter to enable DI testing
+        dexcomService: DexcomService = DependencyContainer.shared.dexcomService as! DexcomService,
+        dexcomShareService: DexcomShareService = DependencyContainer.shared.dexcomShareService as! DexcomShareService
     ) {
         self.variant = variant
-        self.dexcomService = dexcomService
-        self.dexcomShareService = dexcomShareService
+
+        // Use provided services (force cast only occurs in default parameters)
+        let resolvedDexcomService = dexcomService
+        let resolvedDexcomShareService = dexcomShareService
+
+        self.dexcomService = resolvedDexcomService
+        self.dexcomShareService = resolvedDexcomShareService
 
         // Use provided ViewModel or create new one with dependencies
         if let existingViewModel = viewModel {
@@ -60,8 +67,8 @@ struct UnifiedDashboardView: View {
 
             self.viewModel = HosgeldinViewModel(
                 healthKitService: dependencies.healthKitService,
-                dexcomService: dexcomService,
-                dexcomShareService: dexcomShareService,
+                dexcomService: resolvedDexcomService,
+                dexcomShareService: resolvedDexcomShareService,
                 healthKitPermissions: HealthKitPermissionManager.shared,
                 viewContext: viewContext
             )
@@ -97,9 +104,13 @@ struct UnifiedDashboardView: View {
                 .background(Color(.systemBackground))
                 .navigationBarTitleDisplayMode(.inline)
                 .task {
-                    // Check both connection statuses before loading data
-                    await dexcomService.checkConnectionStatus()
-                    await dexcomShareService.checkConnectionStatus()
+                    // RACE CONDITION FIX: Run connection checks in parallel instead of sequential
+                    // This prevents blocking and allows both services to check simultaneously
+                    async let dexcomCheck: Void = dexcomService.checkConnectionStatus()
+                    async let shareCheck: Void = dexcomShareService.checkConnectionStatus()
+
+                    // Wait for both to complete
+                    _ = await (dexcomCheck, shareCheck)
                 }
                 .onAppear {
                     viewModel.onAppear()
@@ -129,7 +140,7 @@ struct UnifiedDashboardView: View {
                 }
                 .sheet(isPresented: $viewModel.showingVoiceInput) {
                     VoiceInputView()
-                        .presentationDetents([.medium, .large])
+                        .presentationDetents([.large])
                         .presentationDragIndicator(.visible)
                         .presentationBackgroundInteraction(.enabled)
                 }
@@ -181,19 +192,24 @@ struct UnifiedDashboardView: View {
 
     @ViewBuilder
     private var logoView: some View {
-        let logo = Image("balli-text-logo")
-            .resizable()
-            .scaledToFit()
-            .frame(height: 28)
-
         switch variant {
         case .welcome:
-            logo
+            Image(colorScheme == .dark ? "balli-text-logo-dark" : "balli-text-logo")
+                .resizable()
+                .renderingMode(.original)
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 35, height: 35)
         case .today:
-            logo
-                .onLongPressGesture(minimumDuration: 0.5) {
-                    showingSettings = true
-                }
+            HStack(spacing: 8) {
+                Image(colorScheme == .dark ? "balli-text-logo-dark" : "balli-text-logo")
+                    .resizable()
+                    .renderingMode(.original)
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 35, height: 35)
+                    .onLongPressGesture(minimumDuration: 0.5) {
+                        showingSettings = true
+                    }
+            }
         }
     }
 

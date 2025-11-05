@@ -31,13 +31,18 @@ final class DexcomSyncCoordinator: ObservableObject {
     private let syncInterval: TimeInterval = 300 // 5 minutes (matches Dexcom CGM update frequency)
     private var syncTask: Task<Void, Never>?
 
-    // Dependencies
-    private let dexcomService = DependencyContainer.shared.dexcomService
-    private let dexcomShareService = DexcomShareService.shared
+    // Dependencies - Use protocol types for proper dependency injection
+    private let dexcomService: any DexcomServiceProtocol
+    private let dexcomShareService: any DexcomShareServiceProtocol
 
     // MARK: - Initialization
 
-    private init() {
+    private init(
+        dexcomService: any DexcomServiceProtocol = DependencyContainer.shared.dexcomService,
+        dexcomShareService: any DexcomShareServiceProtocol = DependencyContainer.shared.dexcomShareService
+    ) {
+        self.dexcomService = dexcomService
+        self.dexcomShareService = dexcomShareService
         logger.info("🔄 DexcomSyncCoordinator initialized")
     }
 
@@ -121,7 +126,7 @@ final class DexcomSyncCoordinator: ObservableObject {
         // Try Dexcom Official API sync
         if dexcomService.isConnected {
             do {
-                try await dexcomService.syncData()
+                try await dexcomService.syncData(includeHistorical: false)
                 successfulSources.append("Official")
                 logger.debug("✅ Official API sync successful")
             } catch {

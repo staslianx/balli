@@ -81,9 +81,25 @@ EVIDENCE QUALITY LEVELS:
 - "low": Mostly general web sources, limited peer-reviewed evidence, or outdated information.
 
 CONTINUATION DECISION LOGIC:
-- STOP if: Evidence quality = "high" OR all key aspects covered FOR DIABETES CONTEXT OR max rounds reached
-- STOP if: No new sources found (diminishing returns)
-- CONTINUE if: Evidence quality = "low"/"medium" AND gaps exist AND rounds < max
+IMPORTANT: For Tier 3 (DEEP_RESEARCH), we aim for comprehensive evidence gathering across multiple rounds.
+
+SOURCE QUANTITY REQUIREMENTS (Tier 3):
+- Round 1: Even with 9+ high-quality sources, CONTINUE if < 20 sources (incomplete coverage)
+- Round 2+: CONTINUE if < 30 total sources AND gaps exist AND evidence not "high"
+- Only STOP early if: 30+ sources gathered OR (high quality AND no gaps AND 15+ sources)
+
+STOPPING CONDITIONS (ALL must be true to stop before max rounds):
+1. Evidence quality = "high" (authoritative medical sources)
+2. AND total sources >= 15 (minimum comprehensive threshold for T3)
+3. AND no critical gaps identified
+4. OR max rounds reached
+5. OR no new sources found (diminishing returns)
+
+CONTINUE if ANY of these:
+- Total sources < 15 (not comprehensive enough for T3)
+- Evidence quality = "low"/"medium" (need better sources)
+- Critical gaps exist (missing key information)
+- Round 1 and sources < 20 (T3 should do multiple rounds)
 
 KNOWLEDGE GAPS: Identify specific missing information types (DIABETES-RELEVANT):
 - "Limited peer-reviewed evidence"
@@ -114,13 +130,23 @@ ${roundsSummary}
 Sample sources found (first 15):
 ${sourceSample}
 
-Total sources so far: ${totalSources}
+**CRITICAL CONTEXT FOR DECISION:**
+- Current round: ${roundNumber}/${maxRounds}
+- Total sources collected: ${totalSources}
+- This is TIER 3 (DEEP_RESEARCH) - we aim for comprehensive multi-round research
+- Minimum threshold: 15 sources (stop early only if quality high + no gaps + 15+ sources)
+- Target threshold: 20-30 sources for comprehensive coverage
+- Round 1 with < 20 sources: SHOULD CONTINUE (T3 needs multiple rounds)
 
 Assess:
 1. Evidence quality (low/medium/high) - based on source types and coverage
-2. Knowledge gaps still present - what specific information is missing?
-3. Should we continue research? - consider quality, gaps, and rounds remaining
-4. Reasoning - why continue or stop?
+2. Knowledge gaps still present - what SPECIFIC diabetes-relevant information is missing?
+3. Should we continue research? - MUST consider:
+   - If Round 1 and < 20 sources → CONTINUE (T3 needs comprehensive coverage)
+   - If < 15 total sources → CONTINUE (below minimum threshold)
+   - If high quality + no gaps + 15+ sources → CAN STOP
+   - If medium/low quality → CONTINUE (need better evidence)
+4. Reasoning - explain decision based on source quantity, quality, and gaps
 
 Return JSON with: evidenceQuality, gapsIdentified[], shouldContinue, reasoning`
     });
@@ -163,16 +189,34 @@ Return JSON with: evidenceQuality, gapsIdentified[], shouldContinue, reasoning`
       reflection.gapsIdentified = [];
     }
 
-    // Override: Never continue past max rounds
+    // SAFETY OVERRIDE 1: Never continue past max rounds
     if (roundNumber >= maxRounds) {
       reflection.shouldContinue = false;
       reflection.reasoning += ` (Max rounds ${maxRounds} reached)`;
     }
 
-    // Override: Stop if no sources found this round
+    // SAFETY OVERRIDE 2: Stop if no sources found this round (diminishing returns)
     if (currentRound.sourceCount === 0) {
       reflection.shouldContinue = false;
       reflection.reasoning += ' (No new sources found)';
+    }
+
+    // SAFETY OVERRIDE 3: Force continue if Round 1 with < 20 sources (T3 needs comprehensive coverage)
+    if (roundNumber === 1 && totalSources < 20 && roundNumber < maxRounds) {
+      reflection.shouldContinue = true;
+      reflection.reasoning = `Round 1 with only ${totalSources} sources - continuing for comprehensive T3 research. ` + reflection.reasoning;
+      logger.info(
+        `⚠️ [LATENTS-REFLECTOR] OVERRIDE: Forcing continue for Round 1 with ${totalSources} sources (T3 minimum: 20)`
+      );
+    }
+
+    // SAFETY OVERRIDE 4: Force continue if < 15 total sources (below minimum threshold)
+    if (totalSources < 15 && roundNumber < maxRounds && currentRound.sourceCount > 0) {
+      reflection.shouldContinue = true;
+      reflection.reasoning = `Only ${totalSources} sources collected - below T3 minimum threshold (15). ` + reflection.reasoning;
+      logger.info(
+        `⚠️ [LATENTS-REFLECTOR] OVERRIDE: Forcing continue with ${totalSources} sources (T3 minimum: 15)`
+      );
     }
 
     logger.info(

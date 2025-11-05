@@ -46,7 +46,9 @@ protocol DependencyContainerProtocol {
 
     // Health Services
     var healthKitService: HealthKitServiceProtocol { get }
-    var dexcomService: DexcomService { get }
+    var dexcomService: any DexcomServiceProtocol { get }
+    var dexcomShareService: any DexcomShareServiceProtocol { get }
+    var dexcomBackgroundRefreshManager: DexcomBackgroundRefreshManagerProtocol { get }
 
     // Memory Services
     var memoryService: MemoryService { get }
@@ -59,8 +61,8 @@ protocol DependencyContainerProtocol {
 
     // PHASE 1 - Recipe Services
     var recipeGenerationService: RecipeGenerationServiceProtocol { get }
-    var recipeSyncCoordinator: RecipeSyncCoordinatorProtocol { get }
-    var mealSyncCoordinator: MealSyncCoordinatorProtocol { get }
+    var recipeSyncCoordinator: any RecipeSyncCoordinatorProtocol { get }
+    var mealSyncCoordinator: any MealSyncCoordinatorProtocol { get }
 }
 
 // MARK: - Main Dependency Container
@@ -92,8 +94,19 @@ final class DependencyContainer: ObservableObject, DependencyContainerProtocol {
         HealthKitService()
     }()
 
-    lazy var dexcomService: DexcomService = {
-        DexcomService.shared
+    lazy var dexcomService: any DexcomServiceProtocol = {
+        DexcomService(configuration: .default())
+    }()
+
+    lazy var dexcomShareService: any DexcomShareServiceProtocol = {
+        DexcomShareService(server: .international, glucoseRepository: GlucoseReadingRepository())
+    }()
+
+    lazy var dexcomBackgroundRefreshManager: DexcomBackgroundRefreshManagerProtocol = {
+        DexcomBackgroundRefreshManager(
+            officialService: dexcomService,
+            shareService: dexcomShareService
+        )
     }()
 
     // Memory Services
@@ -153,7 +166,7 @@ final class DependencyContainer: ObservableObject, DependencyContainerProtocol {
 
     /// Recipe synchronization coordinator for CoreData ↔ Firestore sync
     /// - Note: Returns protocol type to enable dependency injection and testing
-    lazy var recipeSyncCoordinator: RecipeSyncCoordinatorProtocol = {
+    lazy var recipeSyncCoordinator: any RecipeSyncCoordinatorProtocol = {
         // TEMPORARY: Still uses singleton for backward compatibility
         // Phase 1 will convert this to creating new instance when all usages are updated
         RecipeSyncCoordinator.shared
@@ -161,7 +174,7 @@ final class DependencyContainer: ObservableObject, DependencyContainerProtocol {
 
     /// Meal synchronization coordinator for CoreData ↔ Firestore sync
     /// - Note: Returns protocol type to enable dependency injection and testing
-    lazy var mealSyncCoordinator: MealSyncCoordinatorProtocol = {
+    lazy var mealSyncCoordinator: any MealSyncCoordinatorProtocol = {
         // TEMPORARY: Still uses singleton for backward compatibility
         // Phase 1 will convert this to creating new instance when all usages are updated
         MealSyncCoordinator.shared

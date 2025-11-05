@@ -164,7 +164,7 @@ private struct Approach2_PlainStreaming: View {
                 currentIndex = endIndex
 
                 // Sleep for 30ms between chunks
-                try? await Task.sleep(nanoseconds: 30_000_000)
+                try? await Task.sleep(for: .milliseconds(30))
             }
 
             isStreaming = false
@@ -264,13 +264,13 @@ private struct Approach3_StreamThenWave: View {
                 currentIndex = endIndex
 
                 // Sleep for 30ms between chunks
-                try? await Task.sleep(nanoseconds: 30_000_000)
+                try? await Task.sleep(for: .milliseconds(30))
             }
 
             isStreaming = false
 
             // When streaming completes, trigger animation
-            try? await Task.sleep(nanoseconds: 300_000_000) // 300ms delay
+            try? await Task.sleep(for: .milliseconds(300))
             withAnimation(.easeInOut(duration: 0.3)) {
                 showWithAnimation = true
             }

@@ -61,11 +61,16 @@ actor OfflineCache {
 
     private init() {
         // Set up cache directory
-        guard let documentsPath = FileManager.default.urls(
+        let documentsPath: URL
+        if let cachesDir = FileManager.default.urls(
             for: .cachesDirectory,
             in: .userDomainMask
-        ).first else {
-            fatalError("Failed to access caches directory")
+        ).first {
+            documentsPath = cachesDir
+        } else {
+            // FALLBACK: Use temporary directory if caches unavailable
+            logger.warning("Failed to access caches directory - using temporary directory")
+            documentsPath = FileManager.default.temporaryDirectory
         }
 
         self.cacheDirectory = documentsPath.appendingPathComponent("OfflineCache")

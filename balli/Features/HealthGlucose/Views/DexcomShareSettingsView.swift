@@ -9,7 +9,8 @@
 import SwiftUI
 
 struct DexcomShareSettingsView: View {
-    @ObservedObject private var shareService = DexcomShareService.shared
+    // Use protocol type - conforms to ObservableObject so @ObservedObject works
+    @ObservedObject private var shareService: DexcomShareService
     @Environment(\.dismiss) private var dismiss
 
     @State private var username: String = ""
@@ -21,6 +22,19 @@ struct DexcomShareSettingsView: View {
     @State private var showingSuccess = false
 
     @AppStorage("isRealTimeModeEnabled") private var isRealTimeModeEnabled = false
+
+    // MARK: - Initialization
+
+    init(shareService: DexcomShareService) {
+        self.shareService = shareService
+    }
+
+    // Default initializer for standard app usage
+    init() {
+        // Swift limitation: Can't directly assign protocol to @ObservedObject property wrapper
+        // Must use concrete type when accessing via property wrapper, but DI allows testing
+        self.init(shareService: DependencyContainer.shared.dexcomShareService as! DexcomShareService)
+    }
 
     var body: some View {
         NavigationStack {

@@ -701,6 +701,9 @@
         <!-- Highlights (JSON encoded array of TextHighlight) -->
         <attribute name="highlightsJSON" optional="YES" attributeType="String"/>
 
+        <!-- Relationships -->
+        <relationship name="highlights" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TextHighlightEntity" inverseName="researchAnswer" inverseEntity="TextHighlightEntity"/>
+
         <!-- Indexes -->
         <fetchIndex name="byTimestampIndex">
             <fetchIndexElement property="timestamp" type="Binary" order="descending"/>
@@ -708,6 +711,141 @@
         <fetchIndex name="byQueryIndex">
             <fetchIndexElement property="query" type="Binary" order="ascending"/>
         </fetchIndex>
+    </entity>
+
+    <!-- TextHighlightEntity - Core Data persistence for text highlights -->
+    <entity name="TextHighlightEntity" representedClassName="TextHighlightEntity" syncable="YES" codeGenerationType="class">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" attributeType="Date" usesScalarValueType="NO"/>
+
+        <!-- Color and Position -->
+        <attribute name="colorRawValue" attributeType="String"/>
+        <attribute name="startOffset" attributeType="Integer 32" usesScalarValueType="YES"/>
+        <attribute name="length" attributeType="Integer 32" usesScalarValueType="YES"/>
+        <attribute name="text" attributeType="String"/>
+
+        <!-- Relationships -->
+        <relationship name="researchAnswer" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ResearchAnswer" inverseName="highlights" inverseEntity="ResearchAnswer"/>
+
+        <!-- Indexes -->
+        <fetchIndex name="byCreatedAtIndex">
+            <fetchIndexElement property="createdAt" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="byColorIndex">
+            <fetchIndexElement property="colorRawValue" type="Binary" order="ascending"/>
+        </fetchIndex>
+    </entity>
+
+    <!-- MemoryEntryEntity - Core Data persistence for AI memory entries -->
+    <entity name="MemoryEntryEntity" representedClassName="MemoryEntryEntity" syncable="YES" codeGenerationType="class">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="String"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="expiresAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+
+        <!-- Memory Type and Tier -->
+        <attribute name="typeRawValue" attributeType="String"/>
+        <attribute name="tierRawValue" optional="YES" attributeType="String"/>
+        <attribute name="source" attributeType="String" defaultValueString="user_stated"/>
+
+        <!-- Content -->
+        <attribute name="content" attributeType="String"/>
+        <attribute name="confidence" attributeType="Double" defaultValueString="1.0" usesScalarValueType="YES"/>
+
+        <!-- Metadata (JSON encoded dictionary) -->
+        <attribute name="metadataJSON" optional="YES" attributeType="String"/>
+
+        <!-- Vector Embedding (JSON encoded array) -->
+        <attribute name="embeddingJSON" optional="YES" attributeType="String"/>
+
+        <!-- Indexes -->
+        <fetchIndex name="byTimestampIndex">
+            <fetchIndexElement property="timestamp" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="byTypeIndex">
+            <fetchIndexElement property="typeRawValue" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byTierIndex">
+            <fetchIndexElement property="tierRawValue" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byExpiresAtIndex">
+            <fetchIndexElement property="expiresAt" type="Binary" order="ascending"/>
+        </fetchIndex>
+
+        <!-- Unique constraint on id -->
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="id"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
+
+    <!-- UserMemoryPreferenceEntity - Core Data persistence for user memory preferences -->
+    <entity name="UserMemoryPreferenceEntity" representedClassName="UserMemoryPreferenceEntity" syncable="YES" codeGenerationType="class">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="key" attributeType="String"/>
+        <attribute name="lastUpdated" attributeType="Date" usesScalarValueType="NO"/>
+
+        <!-- Value Storage (type-specific attributes) -->
+        <attribute name="stringValue" optional="YES" attributeType="String"/>
+        <attribute name="intValue" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="doubleValue" optional="YES" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="boolValue" optional="YES" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="dateValue" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="arrayJSON" optional="YES" attributeType="String"/>
+
+        <!-- Value Type Indicator -->
+        <attribute name="valueType" attributeType="String"/>
+
+        <!-- Indexes -->
+        <fetchIndex name="byKeyIndex">
+            <fetchIndexElement property="key" type="Binary" order="ascending"/>
+        </fetchIndex>
+
+        <!-- Unique constraint on key -->
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="key"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
+    </entity>
+
+    <!-- StoredMessageEntity - Core Data persistence for conversation messages -->
+    <entity name="StoredMessageEntity" representedClassName="StoredMessageEntity" syncable="YES" codeGenerationType="class">
+        <!-- Identifiers -->
+        <attribute name="id" attributeType="String"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="userId" attributeType="String"/>
+        <attribute name="sessionId" optional="YES" attributeType="String"/>
+
+        <!-- Message Content -->
+        <attribute name="text" attributeType="String"/>
+        <attribute name="isUser" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+
+        <!-- Sync Status -->
+        <attribute name="syncStatusRawValue" attributeType="String" defaultValueString="pending"/>
+        <attribute name="syncError" optional="YES" attributeType="String"/>
+        <attribute name="retryCount" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+
+        <!-- Indexes -->
+        <fetchIndex name="byTimestampIndex">
+            <fetchIndexElement property="timestamp" type="Binary" order="descending"/>
+        </fetchIndex>
+        <fetchIndex name="byUserIdIndex">
+            <fetchIndexElement property="userId" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="bySyncStatusIndex">
+            <fetchIndexElement property="syncStatusRawValue" type="Binary" order="ascending"/>
+        </fetchIndex>
+
+        <!-- Unique constraint on id -->
+        <uniquenessConstraints>
+            <uniquenessConstraint>
+                <constraint value="id"/>
+            </uniquenessConstraint>
+        </uniquenessConstraints>
     </entity>
 
     <elements>
@@ -730,5 +868,9 @@
         <element name="HealthNotificationSettings" positionX="900" positionY="530" width="128" height="284"/>
         <element name="ResearchAnswer" positionX="1100" positionY="90" width="128" height="284"/>
         <element name="DailyActivity" positionX="700" positionY="700" width="128" height="284"/>
+        <element name="TextHighlightEntity" positionX="1100" positionY="400" width="128" height="164"/>
+        <element name="MemoryEntryEntity" positionX="1300" positionY="90" width="128" height="284"/>
+        <element name="UserMemoryPreferenceEntity" positionX="1300" positionY="400" width="128" height="224"/>
+        <element name="StoredMessageEntity" positionX="1300" positionY="650" width="128" height="224"/>
     </elements>
 </model>

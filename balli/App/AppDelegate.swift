@@ -85,9 +85,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             self.handleHealthSyncTask(processingTask)
         }
 
-        // Register Dexcom background refresh
+        // Register Dexcom background refresh using injected dependency
         Task { @MainActor in
-            DexcomBackgroundRefreshManager.shared.registerBackgroundTask()
+            let dependencies = DependencyContainer.shared
+            dependencies.dexcomBackgroundRefreshManager.registerBackgroundTask()
         }
     }
 

@@ -81,7 +81,7 @@ struct PlaceholderStateView: View {
                         .font(.system(size: 80, weight: .bold))
                         .foregroundStyle(.secondary.opacity(0.3))
 
-                    Text("Kayıt için dokunun")
+                    Text("Kayıt için dokun")
                         .font(.system(size: 17, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
                         .padding(.top, 8)

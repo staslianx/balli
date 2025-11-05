@@ -59,8 +59,12 @@ actor DexcomShareAPIClient {
         // Validate maxCount
         let validatedCount = min(max(maxCount, DexcomShareServer.minReadings), DexcomShareServer.maxReadings)
 
-        // Build request
-        var components = URLComponents(url: server.glucoseURL, resolvingAgainstBaseURL: false)!
+        // Build request - safely unwrap URLComponents
+        guard var components = URLComponents(url: server.glucoseURL, resolvingAgainstBaseURL: false) else {
+            // Swift 6: Explicit self required when capturing actor property in closure (string interpolation)
+            logger.error("Failed to create URLComponents from glucose URL: \(self.server.glucoseURL)")
+            throw DexcomShareError.invalidConfiguration
+        }
 
         // Get session ID
         let sessionId = try await authManager.getSessionId()

@@ -47,8 +47,8 @@ const mealTranscriptionResponseSchema = {
         },
         mealType: {
             type: generative_ai_1.SchemaType.STRING,
-            description: "Type of meal: kahvaltı, öğle yemeği, akşam yemeği, or atıştırmalık",
-            enum: ["kahvaltı", "öğle yemeği", "akşam yemeği", "atıştırmalık"]
+            description: "Type of meal: kahvaltı, akşam yemeği, or ara öğün",
+            enum: ["kahvaltı", "akşam yemeği", "ara öğün"]
         },
         mealTime: {
             type: generative_ai_1.SchemaType.STRING,

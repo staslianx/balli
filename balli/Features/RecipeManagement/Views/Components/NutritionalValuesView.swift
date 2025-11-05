@@ -68,9 +68,15 @@ struct NutritionalValuesView: View {
                     }
                     .pickerStyle(.segmented)
 
-                    // Unified Portion Card (only in Porsiyon tab and when recipe is saved)
-                    if selectedTab == 0 && canAdjustPortion {
-                        unifiedPortionCard
+                    // Portion Controls (always shown in Porsiyon tab)
+                    if selectedTab == 0 {
+                        if canAdjustPortion {
+                            // Full portion card with base adjustment for saved recipes
+                            unifiedPortionCard
+                        } else {
+                            // Multiplier-only card for unsaved recipes (during generation)
+                            multiplierOnlyCard
+                        }
                     }
 
                     // Main Card Container - matching LoggedMealsView style
@@ -212,6 +218,10 @@ struct NutritionalValuesView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
             }
+            .onAppear {
+                // Initialize slider to current effective portion size
+                adjustingPortionWeight = currentPortionSize * portionMultiplier
+            }
         }
     }
 
@@ -252,21 +262,64 @@ struct NutritionalValuesView: View {
                 showSuccessBanner = true
             }
 
-            // Collapse section after brief delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            // Collapse section after brief delay (Swift 6 concurrency compliance)
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.0))
                 withAnimation {
                     showSuccessBanner = false
                 }
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        isPortionAdjustmentExpanded = false
-                    }
+                try? await Task.sleep(for: .seconds(0.3))
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isPortionAdjustmentExpanded = false
                 }
             }
 
         } catch {
             logger.error("❌ Failed to save portion size: \(error.localizedDescription)")
+        }
+    }
+
+    /// Save portion size for unsaved recipes (updates in-memory state, not CoreData)
+    private func savePortionSizeForUnsavedRecipe() {
+        logger.info("💾 [PORTION] Saving portion size for unsaved recipe")
+        logger.info("   Adjusted weight: \(adjustingPortionWeight)g")
+        logger.info("   Current multiplier: \(portionMultiplier)")
+
+        // Validate portion size
+        guard adjustingPortionWeight >= minPortionSize else {
+            logger.error("❌ [PORTION] Portion size too small: \(adjustingPortionWeight)g")
+            return
+        }
+
+        let totalWeight = Double(totalRecipeWeight) ?? 0
+        guard adjustingPortionWeight <= totalWeight else {
+            logger.error("❌ [PORTION] Portion size exceeds total weight: \(adjustingPortionWeight)g > \(totalWeight)g")
+            return
+        }
+
+        // Update portion multiplier binding
+        // This will update the formState in RecipeViewModel
+        let newMultiplier = adjustingPortionWeight / currentPortionSize
+        portionMultiplier = newMultiplier
+        logger.info("✅ [PORTION] Updated multiplier to \(newMultiplier)")
+
+        // Show success banner
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            showSuccessBanner = true
+        }
+
+        // Hide banner and collapse section after delay
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.5))
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                showSuccessBanner = false
+            }
+
+            try? await Task.sleep(for: .seconds(0.3))
+            withAnimation(.easeInOut(duration: 0.3)) {
+                isPortionAdjustmentExpanded = false
+            }
         }
     }
 
@@ -300,9 +353,14 @@ struct NutritionalValuesView: View {
 
     /// Current portion size from recipe
     private var currentPortionSize: Double {
-        let portionSize = recipe.portionSize
-        let totalWeight = recipe.totalRecipeWeight
-        return portionSize > 0 ? portionSize : totalWeight
+        if recipe.exists {
+            let portionSize = recipe.portionSize
+            let totalWeight = recipe.totalRecipeWeight
+            return portionSize > 0 ? portionSize : totalWeight
+        } else {
+            // For unsaved recipes, use the string parameter passed to the view
+            return Double(totalRecipeWeight) ?? 0
+        }
     }
 
     /// Number of portions the recipe makes based on current adjustment
@@ -545,6 +603,152 @@ struct NutritionalValuesView: View {
         }
     }
 
+    /// Full portion card for unsaved recipes - includes slider and save button
+    private var multiplierOnlyCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header row
+            Button {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    isPortionAdjustmentExpanded.toggle()
+                    if isPortionAdjustmentExpanded {
+                        // Initialize adjustment weight with current portion size
+                        adjustingPortionWeight = currentPortionSize * portionMultiplier
+                    }
+                }
+            } label: {
+                HStack(spacing: ResponsiveDesign.Spacing.medium) {
+                    // Left: "Porsiyon" label
+                    Text("Porsiyon")
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
+                        .foregroundColor(.primary)
+
+                    Spacer()
+
+                    // Center-Right: Current portion or stepper
+                    if !isPortionAdjustmentExpanded {
+                        // Show current portion value
+                        if let weightValue = Double(totalRecipeWeight), weightValue > 0 {
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text("\(Int(weightValue * portionMultiplier))")
+                                    .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .bold, design: .rounded))
+                                    .foregroundStyle(AppTheme.primaryPurple)
+
+                                Text("g")
+                                    .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .medium, design: .rounded))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+
+                        // Portion multiplier stepper
+                        HStack(spacing: 8) {
+                            Button {
+                                if portionMultiplier > 0.5 {
+                                    portionMultiplier -= 0.5
+                                }
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(AppTheme.primaryPurple)
+                            }
+                            .disabled(portionMultiplier <= 0.5)
+
+                            Text(String(format: "%.1f", portionMultiplier) + "x")
+                                .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .bold, design: .rounded))
+                                .monospacedDigit()
+                                .foregroundColor(AppTheme.primaryPurple)
+                                .frame(minWidth: 50)
+
+                            Button {
+                                portionMultiplier += 0.5
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundStyle(AppTheme.primaryPurple)
+                            }
+                        }
+                    }
+
+                    // Right: Chevron
+                    Image(systemName: isPortionAdjustmentExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(AppTheme.primaryPurple)
+                }
+                .padding(ResponsiveDesign.Spacing.medium)
+            }
+            .buttonStyle(.plain)
+
+            // Expanded slider content
+            if isPortionAdjustmentExpanded {
+                VStack(spacing: ResponsiveDesign.Spacing.medium) {
+                    Divider()
+                        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+
+                    // Gram display
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(Int(adjustingPortionWeight))")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(48), weight: .bold, design: .rounded))
+                            .foregroundStyle(AppTheme.primaryPurple)
+
+                        Text("g")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .medium, design: .rounded))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Slider for unsaved recipe
+                    if let maxWeight = Double(totalRecipeWeight), maxWeight > 0 {
+                        VStack(spacing: 8) {
+                            Slider(
+                                value: $adjustingPortionWeight,
+                                in: minPortionSize...maxWeight,
+                                step: sliderStep
+                            )
+                            .tint(AppTheme.primaryPurple)
+                            .onChange(of: adjustingPortionWeight) { _, newValue in
+                                // Update portion multiplier to reflect slider changes
+                                guard let baseWeight = Double(totalRecipeWeight), baseWeight > 0 else { return }
+                                let ratio = newValue / baseWeight
+                                portionMultiplier = ratio
+                            }
+
+                            // Min/Max labels
+                            HStack {
+                                Text("\(Int(minPortionSize))g")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+
+                                Spacer()
+
+                                Text("\(Int(maxWeight))g")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                    }
+
+                    // Save button
+                    Button(action: savePortionSizeForUnsavedRecipe) {
+                        Text("Porsiyonu Kaydet")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(AppTheme.primaryPurple)
+                            .cornerRadius(24)
+                    }
+                    .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                    .padding(.bottom, ResponsiveDesign.Spacing.medium)
+                    .shadow(color: AppTheme.primaryPurple.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
+        .background(.clear)
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
+    }
 
     private func nutritionRow(
         label: String,

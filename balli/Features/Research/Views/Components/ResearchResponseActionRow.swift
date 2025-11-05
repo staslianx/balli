@@ -100,7 +100,7 @@ struct ResearchResponseActionRow: View {
     private func showTransientCopyConfirmation() {
         showCopyConfirmation = true
         Task { @MainActor in
-            try? await Task.sleep(nanoseconds: 1_500_000_000) // 1.5 seconds
+            try? await Task.sleep(for: .milliseconds(1500))
             showCopyConfirmation = false
         }
     }

@@ -139,7 +139,7 @@ class ResearchStageDisplayManager {
             logger.info("⏸️ Waiting for view to be ready...")
 
             while coordinator.viewReadySignals[answerId] != true {
-                try? await Task.sleep(nanoseconds: 50_000_000)  // Check every 50ms
+                try? await Task.sleep(for: .milliseconds(50))
             }
 
             logger.info("✅ View is ready, starting stage display")
@@ -160,7 +160,7 @@ class ResearchStageDisplayManager {
 
                     if remaining > 0 {
                         logger.info("⏳ Holding '\(currentStage.userMessage)' for \(String(format: "%.1f", remaining))s more")
-                        try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
+                        try? await Task.sleep(for: .seconds(remaining))
                     }
                 }
 

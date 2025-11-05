@@ -67,7 +67,10 @@ extension MealEntry {
     /// Calculate portion multiplier based on quantity and unit
     private func calculatePortionMultiplier() -> Double {
         guard let food = foodItem else { return 1.0 }
-        
+
+        // Prevent division by zero - if servingSize is 0, return 1.0
+        guard food.servingSize > 0 else { return 1.0 }
+
         // If using same unit as food item
         if unit == food.servingUnit {
             return quantity / food.servingSize

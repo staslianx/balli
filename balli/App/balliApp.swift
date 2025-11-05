@@ -93,6 +93,17 @@ struct balliApp: App {
                 }
             }
         }
+
+        // Clean up old offline audio files to prevent storage leaks
+        // Runs silently in background - deletes audio files older than 7 days
+        Task.detached(priority: .background) {
+            do {
+                try await GeminiTranscriptionService.shared.cleanupOldAudioFiles()
+            } catch {
+                let logger = Logger(subsystem: "com.anaxoniclabs.balli", category: "app.lifecycle")
+                logger.error("Audio file cleanup failed: \(error.localizedDescription)")
+            }
+        }
     }
 
     var body: some Scene {
@@ -204,7 +215,7 @@ struct balliApp: App {
                 await AppLifecycleCoordinator.shared.saveContext()
 
                 // Schedule Dexcom background refresh (checks connection in 4 hours)
-                DexcomBackgroundRefreshManager.shared.scheduleBackgroundRefresh()
+                DependencyContainer.shared.dexcomBackgroundRefreshManager.scheduleBackgroundRefresh()
 
                 // End background task
                 UIApplication.shared.endBackgroundTask(backgroundTaskID)

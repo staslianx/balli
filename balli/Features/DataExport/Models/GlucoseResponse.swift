@@ -139,8 +139,13 @@ extension GlucoseResponse {
 
         guard !windowReadings.isEmpty else { return nil }
 
-        // Find peak
-        let peakReading = windowReadings.max(by: { $0.value < $1.value })!
+        // Find peak - use guard to safely unwrap instead of force unwrap
+        guard let peakReading = windowReadings.max(by: { $0.value < $1.value }) else {
+            // This should be impossible given the isEmpty guard above, but handle defensively
+            // Return nil to indicate invalid glucose response data
+            return nil
+        }
+
         let peak = peakReading.value
         let peakTime = peakReading.timestamp
         let peakMinutes = Int(peakTime.timeIntervalSince(mealTimestamp) / 60)

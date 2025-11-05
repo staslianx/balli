@@ -42,12 +42,24 @@ final class PersistenceOperations: @unchecked Sendable {
             throw CoreDataError.contextUnavailable
         }
 
+        // Get viewContext for merging changes on main thread
+        let viewContext = coreDataStack.viewContext
+
         // Execute block with proper async handling
         return try await withCheckedThrowingContinuation { continuation in
             // Run the async block in a detached task to avoid capturing actor context
             Task.detached {
                 do {
                     let result = try await block(taskContext)
+
+                    // CRITICAL FIX: Merge changes to viewContext on main thread
+                    // This prevents "Publishing changes from background threads" warnings
+                    if taskContext.hasChanges {
+                        await MainActor.run {
+                            viewContext.refreshAllObjects()
+                        }
+                    }
+
                     continuation.resume(returning: result)
                 } catch {
                     continuation.resume(throwing: error)

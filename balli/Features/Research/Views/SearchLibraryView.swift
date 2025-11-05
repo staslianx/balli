@@ -82,9 +82,9 @@ struct SearchLibraryView: View {
                     } label: {
                         Label(
                             isShowingHighlightsOnly ? "Tümünü Göster" : "Sadece Vurgular",
-                            systemImage: isShowingHighlightsOnly ? "doc.text" : "highlighter"
+                            systemImage: isShowingHighlightsOnly ? "append.page.fill" : "highlighter"
                         )
-                        .foregroundStyle(isShowingHighlightsOnly ? .purple : .primary)
+                        .foregroundStyle(isShowingHighlightsOnly ? ThemeColors.primaryPurple : .primary)
                         .font(.system(size: 15, weight: .medium))
                     }
                 }
@@ -159,7 +159,7 @@ struct SearchLibraryView: View {
                             Button(role: .destructive) {
                                 deleteThread(thread)
                             } label: {
-                                Image(systemName: "trash")
+                                Label("Sil", systemImage: "trash")
                             }
                         }
                 }
@@ -180,6 +180,8 @@ struct SearchLibraryView: View {
                     systemImage: "highlighter",
                     description: Text("Araştırmalarda metin vurguladıkça burada görünecek")
                 )
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(ThemeColors.primaryPurple)
                 .frame(maxHeight: .infinity)
             } else if filteredHighlights.isEmpty {
                 ContentUnavailableView(
@@ -223,7 +225,7 @@ struct SearchLibraryView: View {
                             Button(role: .destructive) {
                                 deleteHighlight(item.highlight.id, from: item.answerId)
                             } label: {
-                                Image(systemName: "trash")
+                                Label("Sil", systemImage: "trash")
                             }
                         }
                     }
@@ -355,13 +357,13 @@ struct SearchAnswerRow: View, Equatable {
 
             // Answer preview (up to 3 lines, wrapped, last line truncates)
             Text(answer.content)
-                .font(.system(size: ResponsiveDesign.Font.scaledSize(13), weight: .regular, design: .rounded))
+                .font(.custom("Manrope-Medium", size: ResponsiveDesign.Font.scaledSize(13)))
                 .foregroundColor(.secondary)
                 .lineLimit(3)
                 .truncationMode(.tail)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(ResponsiveDesign.Spacing.medium)
+        .padding(ResponsiveDesign.Spacing.large)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(.clear)
         .glassEffect(

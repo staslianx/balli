@@ -200,6 +200,7 @@ struct RecipeGenerationView: View {
                         )
                     }
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .scrollIndicators(.hidden)
                 .background(Color(.secondarySystemBackground))
                 .ignoresSafeArea(edges: .top)
@@ -355,11 +356,8 @@ struct RecipeGenerationView: View {
                 logger.info("  Per-serving: cal=\(viewModel.caloriesPerServing), carbs=\(viewModel.carbohydratesPerServing), protein=\(viewModel.proteinPerServing)")
                 loadingHandler.clearLoadingStep()
 
-                // Small delay to ensure formState is fully updated
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(100))
-                    showingNutritionModal = true
-                }
+                // Don't auto-open modal - user taps story card to view nutrition
+                logger.info("📌 [NUTRITION] Modal ready - user can tap story card to view")
             } else if !oldValue && newValue {
                 // Calculation started
                 logger.info("🔄 [NUTRITION] Calculation started, beginning loading animation")

@@ -23,10 +23,14 @@ public final class PersistenceController: @unchecked Sendable {
 
     private let logger = AppLoggers.Data.coredata
     private let coreDataStack: CoreDataStack
-    private var migrationManager: MigrationManager!
-    private var monitor: PersistenceMonitor!
-    private var operations: PersistenceOperations!
-    private var lifecycleManager: PersistenceLifecycleManager!
+
+    // CRITICAL: Regular optionals instead of implicitly unwrapped to prevent crashes
+    // These are initialized in performInitialization() and guarded by isReady checks
+    private var migrationManager: MigrationManager?
+    private var monitor: PersistenceMonitor?
+    private var operations: PersistenceOperations?
+    private var lifecycleManager: PersistenceLifecycleManager?
+
     private let isReadyStorage = AtomicBool(false)
     private let errorHandler = PersistenceErrorHandler()
 
@@ -120,9 +124,14 @@ public final class PersistenceController: @unchecked Sendable {
         }.value
 
         // Initialize lifecycle manager (depends on monitor)
+        // monitor is guaranteed to be set by the Task above
+        guard let monitor = self.monitor else {
+            throw CoreDataError.contextUnavailable // Should never happen
+        }
+
         self.lifecycleManager = PersistenceLifecycleManager(
             coreDataStack: self.coreDataStack,
-            monitor: self.monitor,
+            monitor: monitor,
             errorHandler: self.errorHandler
         )
 
@@ -148,6 +157,13 @@ public final class PersistenceController: @unchecked Sendable {
     // MARK: - Notification Handling
 
     private func setupNotifications() {
+        // This is called from performInitialization after lifecycleManager is set
+        // Safe to force unwrap here since initialization ensures it's set
+        guard let lifecycleManager = lifecycleManager else {
+            logger.error("setupNotifications called but lifecycleManager is nil")
+            return
+        }
+
         lifecycleManager.setupNotifications(
             onRemoteChange: { [weak self] in
                 await self?.processRemoteChanges()
@@ -221,7 +237,7 @@ public final class PersistenceController: @unchecked Sendable {
         _ block: @escaping @Sendable (NSManagedObjectContext) async throws -> T
     ) async throws -> T where T: Sendable {
         // Ensure Core Data is ready
-        guard await isReady else {
+        guard await isReady, let operations = operations else {
             logger.warning("Background task attempted before Core Data is ready")
             throw CoreDataError.contextUnavailable
         }
@@ -235,6 +251,11 @@ public final class PersistenceController: @unchecked Sendable {
         _ type: T.Type,
         predicate: NSPredicate? = nil
     ) async throws -> Int {
+        guard await isReady, let operations = operations else {
+            logger.warning("Batch delete attempted before Core Data is ready")
+            throw CoreDataError.contextUnavailable
+        }
+
         return try await operations.batchDelete(
             type,
             predicate: predicate,
@@ -248,74 +269,81 @@ public final class PersistenceController: @unchecked Sendable {
     // MARK: - State Management
 
     public func prepareForBackground() async {
+        guard await isReady,
+              let lifecycleManager = lifecycleManager,
+              let operations = operations else {
+            logger.warning("prepareForBackground called before Core Data is ready")
+            return
+        }
+
         await lifecycleManager.prepareForBackground(
             viewContext: viewContext,
             isBackgroundWorkInProgress: operations.isBackgroundWorkInProgress,
             onSave: { [weak self] in
                 try await self?.save()
             },
-            onWaitForBackgroundOperations: { [weak self] in
-                await self?.operations.waitForBackgroundOperations()
+            onWaitForBackgroundOperations: { [weak operations] in
+                await operations?.waitForBackgroundOperations()
             }
         )
     }
     
     public func handleMemoryPressure() async {
-        guard await isReady else {
+        guard await isReady, let lifecycleManager = lifecycleManager else {
             logger.warning("handleMemoryPressure called before Core Data ready")
             return
         }
 
         await Task { @PersistenceActor in
-            await self.lifecycleManager.handleMemoryPressure(viewContext: self.viewContext)
+            await lifecycleManager.handleMemoryPressure(viewContext: self.viewContext)
         }.value
     }
     
     // MARK: - Health Monitoring
     
     public func checkHealth() async -> DataHealth {
-        guard await isReady else {
+        guard await isReady, let monitor = monitor else {
             logger.warning("checkHealth called before Core Data ready")
             return DataHealth(isHealthy: false)
         }
 
         return await Task { @PersistenceActor in
-            await self.monitor.checkHealth()
+            await monitor.checkHealth()
         }.value
     }
-    
+
     public func getMetrics() async -> HealthMetrics {
-        guard await isReady else {
+        guard await isReady, let monitor = monitor else {
             logger.warning("getMetrics called before Core Data ready")
             return HealthMetrics()
         }
 
         return await Task { @PersistenceActor in
-            await self.monitor.getMetrics()
+            await monitor.getMetrics()
         }.value
     }
     
     // MARK: - Migration
     
     public func checkMigrationNeeded() async throws -> Bool {
-        guard await isReady else {
+        guard await isReady, let migrationManager = migrationManager else {
             logger.warning("checkMigrationNeeded called before Core Data ready")
             throw CoreDataError.contextUnavailable
         }
 
         return try await Task { @PersistenceActor in
-            try await self.migrationManager.checkMigrationNeeded()
+            try await migrationManager.checkMigrationNeeded()
         }.value
     }
-    
+
     public func migrateStoreIfNeeded() async throws {
-        guard await isReady else {
+        guard await isReady, let migrationManager = migrationManager else {
             logger.warning("migrateStoreIfNeeded called before Core Data ready")
             throw CoreDataError.contextUnavailable
         }
 
         try await Task { @PersistenceActor in
-            try await self.migrationManager.migrateStoreIfNeeded()
+            try await migrationManager.migrateStoreIfNeeded()
         }.value
     }
     
@@ -340,8 +368,13 @@ public final class PersistenceController: @unchecked Sendable {
     }
 
     private func logOperation(_ operation: String, success: Bool) async {
+        guard let monitor = monitor else {
+            logger.warning("logOperation called before monitor is initialized")
+            return
+        }
+
         await Task { @PersistenceActor in
-            self.monitor.logOperation(operation, success: success)
+            monitor.logOperation(operation, success: success)
         }.value
     }
 }

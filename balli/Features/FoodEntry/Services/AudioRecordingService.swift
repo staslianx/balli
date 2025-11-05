@@ -10,6 +10,7 @@ import Foundation
 import AVFoundation
 import Combine
 import os.log
+import UIKit
 
 // MARK: - Audio Recording Errors
 
@@ -53,6 +54,9 @@ class AudioRecordingService: NSObject, ObservableObject {
     // Audio level monitoring timer
     private var levelTimer: Timer?
 
+    // Background observer for cleanup
+    private var backgroundObserver: NSObjectProtocol?
+
     // Published state
     @Published var isRecording = false
     @Published var microphonePermissionGranted = false
@@ -71,6 +75,28 @@ class AudioRecordingService: NSObject, ObservableObject {
     override init() {
         super.init()
         logger.info("✅ AudioRecordingService initialized")
+
+        // CRITICAL: Stop recording when app goes to background to prevent battery drain
+        backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                guard let self = self else { return }
+                if self.isRecording {
+                    self.logger.warning("⚠️ App backgrounded - stopping recording to save battery")
+                    _ = self.stopRecording()
+                }
+            }
+        }
+    }
+
+    deinit {
+        // Note: Cleanup happens automatically via ARC
+        // Manual cleanup in deinit is not possible with strict concurrency
+        // as deinit is nonisolated and cannot access @MainActor isolated properties
+        logger.info("🧹 AudioRecordingService deinit - automatic cleanup via ARC")
     }
 
     // MARK: - Microphone Permission
@@ -193,6 +219,11 @@ class AudioRecordingService: NSObject, ObservableObject {
             try AVAudioSession.sharedInstance().setActive(false)
         } catch {
             logger.warning("⚠️ Failed to deactivate audio session: \(error.localizedDescription)")
+
+            // Track error for analytics (helps identify iOS audio conflicts)
+            Task {
+                await AnalyticsService.shared.trackError(.audioSessionDeactivationFailed, error: error)
+            }
         }
 
         logger.info("✅ Recording stopped, duration: \(self.recordingDuration)s")

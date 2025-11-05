@@ -57,7 +57,7 @@ final class RecipeDetailViewModel: ObservableObject {
     // Loading animation steps
     private let loadingSteps: [(label: String, duration: TimeInterval, progress: Int)] = [
         ("Tarife tekrar bakıyorum", 5.0, 6),
-        ("Malzemeleri inceliyorum", 6.0, 13),
+        ("Malzemeleri gruplara ayırıyorum", 6.0, 13),
         ("Ağırlıkları belirliyorum", 7.0, 21),
         ("Ham besin değerlerini hesaplıyorum", 7.0, 30),
         ("Pişirme yöntemlerini analiz ediyorum", 7.0, 39),
@@ -65,7 +65,7 @@ final class RecipeDetailViewModel: ObservableObject {
         ("Pişirme kayıplarını hesaplıyorum", 7.0, 57),
         ("Sıvı emilimini hesaplıyorum", 7.0, 66),
         ("100g için değerleri hesaplıyorum", 7.0, 75),
-        ("1 porsiyon için değerleri hesaplıyorum", 7.0, 84),
+        ("Porsiyon değerlerini hesaplıyorum", 7.0, 84),
         ("Glisemik yükü hesaplıyorum", 7.0, 92),
         ("Sağlamasını yapıyorum", 8.0, 100)
     ]
@@ -447,9 +447,6 @@ final class RecipeDetailViewModel: ObservableObject {
             try viewContext.save()
 
             logger.info("✅ Nutrition calculation complete")
-
-            // Show nutritional values
-            showingNutritionalValues = true
 
         } catch {
             logger.error("❌ Nutrition calculation failed: \(error.localizedDescription)")

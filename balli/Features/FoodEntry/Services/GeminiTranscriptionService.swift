@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 import os.log
 
 // MARK: - Transcription Errors
@@ -184,6 +185,18 @@ actor GeminiTranscriptionService {
 
         logger.info("🔄 Sending transcription request to Cloud Function...")
 
+        // Show network activity indicator
+        await MainActor.run {
+            UIApplication.shared.isNetworkActivityIndicatorVisible = true
+        }
+
+        // Ensure indicator is hidden when function exits (success or error)
+        defer {
+            Task { @MainActor in
+                UIApplication.shared.isNetworkActivityIndicatorVisible = false
+            }
+        }
+
         // Execute request
         do {
             let (data, response) = try await session.data(for: request)
@@ -334,5 +347,72 @@ actor GeminiTranscriptionService {
         )
 
         logger.info("📥 Queued audio transcription for offline processing")
+    }
+
+    // MARK: - File Cleanup
+
+    /// Clean up old audio files from offline storage
+    /// Call this on app launch to prevent storage leaks from crashed/killed transcriptions
+    /// - Parameter olderThan: Delete files older than this many days (default: 7)
+    func cleanupOldAudioFiles(olderThan days: Int = 7) async throws {
+        guard let documentsPath = FileManager.default.urls(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask
+        ).first else {
+            logger.warning("⚠️ Documents directory unavailable for cleanup")
+            return
+        }
+
+        let audioDirectory = documentsPath.appendingPathComponent("OfflineAudio")
+
+        // Check if directory exists
+        guard FileManager.default.fileExists(atPath: audioDirectory.path) else {
+            logger.info("ℹ️ No OfflineAudio directory found - nothing to clean up")
+            return
+        }
+
+        // Get all files in directory
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: audioDirectory,
+            includingPropertiesForKeys: [.creationDateKey],
+            options: []
+        ) else {
+            logger.warning("⚠️ Failed to enumerate audio files for cleanup")
+            return
+        }
+
+        let cutoffDate = Calendar.current.date(byAdding: .day, value: -days, to: Date())!
+        var deletedCount = 0
+        var totalSize: Int64 = 0
+
+        for fileURL in files {
+            // Get file creation date
+            guard let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
+                  let creationDate = attributes[.creationDate] as? Date else {
+                continue
+            }
+
+            // Delete if older than cutoff
+            if creationDate < cutoffDate {
+                if let size = attributes[.size] as? Int64 {
+                    totalSize += size
+                }
+
+                do {
+                    try FileManager.default.removeItem(at: fileURL)
+                    deletedCount += 1
+                    logger.info("🗑️ Cleaned up old audio: \(fileURL.lastPathComponent)")
+                } catch {
+                    logger.error("❌ Failed to delete \(fileURL.lastPathComponent): \(error.localizedDescription)")
+                }
+            }
+        }
+
+        if deletedCount > 0 {
+            let sizeMB = Double(totalSize) / 1_048_576
+            logger.info("✅ Cleanup complete: deleted \(deletedCount) files, freed \(String(format: "%.2f", sizeMB)) MB")
+        } else {
+            logger.info("ℹ️ No old files to clean up")
+        }
     }
 }

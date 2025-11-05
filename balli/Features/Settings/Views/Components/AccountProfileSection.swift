@@ -33,18 +33,6 @@ struct AccountProfileSection: View {
             }
 
             Spacer()
-
-            // TEST badge for test users
-            if userManager.isTestUser {
-                Text("TEST")
-                    .font(.system(size: 12, weight: .regular, design: .rounded))
-                    .fontWeight(.bold)
-                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(Color.orange)
-                    .cornerRadius(4)
-            }
         }
         .padding(.vertical, 12)
     }

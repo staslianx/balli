@@ -23,11 +23,11 @@ struct RecipeMetadataSection: View {
             // Manual: Show user name in Galano Alt Semibold white
             if recipeSource == RecipeConstants.Source.ai {
                 // AI-generated recipe - show balli logo (same size in both light and dark mode)
-                Image("balli-text-logo")
+                Image("balli-text-logo-dark")
                     .resizable()
                     .scaledToFit()
                     .frame(height: 40)
-                    .offset(x:-4, y:4)
+                    .offset(x:-9, y:4)
             } else if let author = author {
                 // Manual recipe - show user name in Galano Alt Semibold white
                 Text(author)

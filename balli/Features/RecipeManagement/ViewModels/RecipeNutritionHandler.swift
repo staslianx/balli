@@ -191,8 +191,13 @@ public class RecipeNutritionHandler: ObservableObject {
             return
         }
 
-        guard !formState.recipeContent.isEmpty else {
-            logger.error("❌ [NUTRITION] Cannot calculate - no recipe content")
+        // Allow calculation if EITHER recipeContent exists OR ingredients + directions exist
+        // This handles streaming recipes where content may not be fully populated yet
+        let hasContent = !formState.recipeContent.isEmpty ||
+                         (!formState.ingredients.isEmpty && !formState.directions.isEmpty)
+
+        guard hasContent else {
+            logger.error("❌ [NUTRITION] Cannot calculate - no recipe content or ingredients")
             nutritionCalculationError = "Recipe content is required"
             return
         }

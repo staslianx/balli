@@ -10,8 +10,6 @@ import CoreData
 import OSLog
 
 struct ShoppingListViewSimple: View {
-    private let logger = AppLoggers.Shopping.list
-
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.colorScheme) var colorScheme
     @FetchRequest(
@@ -22,65 +20,30 @@ struct ShoppingListViewSimple: View {
         animation: .spring()
     ) private var items: FetchedResults<ShoppingListItem>
 
-    // Performance optimization
-    private let fetchBatchSize = 20
+    @StateObject private var viewModel: ShoppingListViewModel
 
-    // Ingredient parser for text input
-    @State private var ingredientParser = IngredientParser()
-    @State private var showCompletedItems = false
+    init(viewContext: NSManagedObjectContext? = nil) {
+        // Accept optional injected viewContext for preview support
+        // If nil, ViewModel will use environment context via updateContext() in onAppear
+        let context = viewContext ?? PersistenceController.preview.container.viewContext
+        _viewModel = StateObject(wrappedValue: ShoppingListViewModel(viewContext: context))
+    }
 
+    // Computed properties using ViewModel
     private var uncheckedItems: [ShoppingListItem] {
-        items.filter { !$0.isCompleted && !$0.isFromRecipe }
+        viewModel.uncheckedItems(from: Array(items))
     }
 
     private var completedItems: [ShoppingListItem] {
-        items.filter { $0.isCompleted && !$0.isFromRecipe }
+        viewModel.completedItems(from: Array(items))
     }
 
-    // Group recipe items by recipe - only unchecked recipes
     private var recipeGroups: [(recipeName: String, recipeId: UUID, items: [ShoppingListItem], allCompleted: Bool)] {
-        let recipeItems = items.filter { $0.isFromRecipe }
-
-        // Group by recipe ID (which is unique)
-        let grouped = Dictionary(grouping: recipeItems) { item in
-            item.recipeId ?? UUID()
-        }
-
-        return grouped.compactMap { recipeId, items in
-            guard let firstItem = items.first else { return nil }
-            let recipeName = firstItem.recipeName ?? "Tarif"
-            let allCompleted = items.allSatisfy { $0.isCompleted }
-
-            // Only return recipes that are not fully completed
-            if allCompleted {
-                return nil
-            }
-
-            return (recipeName: recipeName, recipeId: recipeId, items: items, allCompleted: allCompleted)
-        }.sorted { $0.items.first?.dateCreated ?? Date() > $1.items.first?.dateCreated ?? Date() }
+        viewModel.recipeGroups(from: Array(items))
     }
 
-    // Group completed recipe items by recipe
     private var completedRecipeGroups: [(recipeName: String, recipeId: UUID, items: [ShoppingListItem])] {
-        let recipeItems = items.filter { $0.isFromRecipe }
-
-        // Group by recipe ID (which is unique)
-        let grouped = Dictionary(grouping: recipeItems) { item in
-            item.recipeId ?? UUID()
-        }
-
-        return grouped.compactMap { recipeId, items in
-            guard let firstItem = items.first else { return nil }
-            let recipeName = firstItem.recipeName ?? "Tarif"
-            let allCompleted = items.allSatisfy { $0.isCompleted }
-
-            // Only return recipes that are fully completed
-            if !allCompleted {
-                return nil
-            }
-
-            return (recipeName: recipeName, recipeId: recipeId, items: items)
-        }.sorted { $0.items.first?.dateCreated ?? Date() > $1.items.first?.dateCreated ?? Date() }
+        viewModel.completedRecipeGroups(from: Array(items))
     }
 
     @MainActor
@@ -125,13 +88,9 @@ struct ShoppingListViewSimple: View {
                     if !completedItems.isEmpty || !completedRecipeGroups.isEmpty {
                         HStack {
                             Spacer()
-                            Button(action: {
-                                withAnimation(.spring()) {
-                                    showCompletedItems.toggle()
-                                }
-                            }) {
+                            Button(action: viewModel.toggleCompletedSection) {
                                 HStack(spacing: ResponsiveDesign.Spacing.xSmall) {
-                                    Image(systemName: showCompletedItems ? "chevron.down.circle.fill" : "chevron.right.circle.fill")
+                                    Image(systemName: viewModel.showCompletedItems ? "chevron.down.circle.fill" : "chevron.right.circle.fill")
                                         .font(.system(size: 14, weight: .medium))
                                     Text("\(completedItems.count + completedRecipeGroups.count) tamamlandı")
                                         .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .medium, design: .rounded))
@@ -150,7 +109,7 @@ struct ShoppingListViewSimple: View {
                     }
 
                     // Show completed items when toggled
-                    if showCompletedItems {
+                    if viewModel.showCompletedItems {
                         // Show completed recipe groups
                         ForEach(completedRecipeGroups, id: \.recipeId) { group in
                             RecipeShoppingSection(
@@ -234,9 +193,7 @@ struct ShoppingListViewSimple: View {
                 VStack {
                     Spacer()
                     ShoppingListInputContainer(
-                        onAddIngredients: { ingredients in
-                            addIngredients(ingredients)
-                        }
+                        onAddIngredients: viewModel.addIngredients
                     )
                 }
             }
@@ -262,73 +219,29 @@ struct ShoppingListViewSimple: View {
                     }
                 }
             }
-        }
-    }
-
-    private func addIngredients(_ ingredients: [ParsedIngredient]) {
-        Task {
-            let _ = await ingredientParser.createShoppingItems(
-                from: ingredients,
-                in: viewContext
-            )
-
-            await MainActor.run {
-                saveContext()
+            .onAppear {
+                // Inject the actual viewContext into ViewModel on appear
+                viewModel.updateContext(viewContext)
             }
         }
     }
 
-    private func saveItem(_ item: ShoppingListItem, newText: String, newQuantity: String?) {
-        let trimmed = newText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            deleteItem(item)
-            return
-        }
+    // MARK: - Helper Functions (delegate to ViewModel)
 
-        item.name = trimmed.capitalized
-        item.quantity = newQuantity?.trimmingCharacters(in: .whitespacesAndNewlines)
-        item.lastModified = Date()
-        saveContext()
+    private func saveItem(_ item: ShoppingListItem, newText: String, newQuantity: String?) {
+        viewModel.saveItem(item, newText: newText, newQuantity: newQuantity)
     }
 
     private func toggleItem(_ item: ShoppingListItem) {
-        withAnimation(.spring()) {
-            item.isCompleted.toggle()
-            item.lastModified = Date()
-
-            // If this item is from a recipe and we just checked it off,
-            // check if all other items in the recipe are also completed
-            if item.isFromRecipe && item.isCompleted, let recipeId = item.recipeId {
-                let recipeItems = items.filter { $0.isFromRecipe && $0.recipeId == recipeId }
-                let allCompleted = recipeItems.allSatisfy { $0.isCompleted }
-
-                // If all items in the recipe are now completed, we're done
-                // The recipe will automatically move to completed section via recipeGroups filtering
-            }
-
-            saveContext()
-        }
+        viewModel.toggleItem(item, allItems: Array(items))
     }
 
     private func deleteItem(_ item: ShoppingListItem) {
-        withAnimation(.spring()) {
-            viewContext.delete(item)
-            saveContext()
-        }
-    }
-
-    private func saveContext() {
-        do {
-            try viewContext.save()
-        } catch {
-            logger.error("Failed to save shopping list context: \(error.localizedDescription)")
-        }
+        viewModel.deleteItem(item)
     }
 
     private func updateItemNote(_ item: ShoppingListItem, note: String?) {
-        item.notes = note?.isEmpty == true ? nil : note
-        item.lastModified = Date()
-        saveContext()
+        viewModel.updateItemNote(item, note: note)
     }
 
 }
@@ -476,7 +389,7 @@ struct EditableItemRow: View {
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive, action: onDelete) {
-                Image(systemName: "trash")
+                Label("Sil", systemImage: "trash")
             }
         }
     }

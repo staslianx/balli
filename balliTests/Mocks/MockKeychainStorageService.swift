@@ -56,9 +56,9 @@ final class MockKeychainStorageService: KeychainStorageServiceProtocol, @uncheck
         let data = try JSONEncoder().encode(item)
         let storageKey = "\(itemType.rawValue).\(key)"
 
-        lock.lock()
-        storage[storageKey] = data
-        lock.unlock()
+        lock.withLock {
+            storage[storageKey] = data
+        }
     }
 
     func retrieve<T: Codable & Sendable>(
@@ -78,9 +78,9 @@ final class MockKeychainStorageService: KeychainStorageServiceProtocol, @uncheck
 
         let storageKey = "\(itemType.rawValue).\(key)"
 
-        lock.lock()
-        let data = storage[storageKey]
-        lock.unlock()
+        let data = lock.withLock {
+            storage[storageKey]
+        }
 
         guard let data = data else {
             return nil
@@ -102,9 +102,9 @@ final class MockKeychainStorageService: KeychainStorageServiceProtocol, @uncheck
 
         let storageKey = "\(itemType.rawValue).\(key)"
 
-        lock.lock()
-        storage.removeValue(forKey: storageKey)
-        lock.unlock()
+        lock.withLock {
+            storage.removeValue(forKey: storageKey)
+        }
     }
 
     // MARK: - Biometric Authentication
@@ -122,9 +122,9 @@ final class MockKeychainStorageService: KeychainStorageServiceProtocol, @uncheck
             throw error
         }
 
-        lock.lock()
-        storage.removeAll()
-        lock.unlock()
+        lock.withLock {
+            storage.removeAll()
+        }
     }
 
     // MARK: - Monitoring and Debug
@@ -132,9 +132,9 @@ final class MockKeychainStorageService: KeychainStorageServiceProtocol, @uncheck
     func getStorageStatistics() async -> [String: Any] {
         getStorageStatisticsCallCount += 1
 
-        lock.lock()
-        let count = storage.count
-        lock.unlock()
+        let count = lock.withLock {
+            storage.count
+        }
 
         return [
             "total_items": count,
@@ -166,9 +166,9 @@ final class MockKeychainStorageService: KeychainStorageServiceProtocol, @uncheck
 
     /// Reset all mock state
     func reset() {
-        lock.lock()
-        storage.removeAll()
-        lock.unlock()
+        lock.withLock {
+            storage.removeAll()
+        }
 
         shouldThrowOnStore = false
         shouldThrowOnRetrieve = false

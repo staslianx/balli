@@ -29,7 +29,8 @@ struct RecipeStoryCardSection: View {
                 thumbnailURL: nil,
                 isLoading: isCalculatingNutrition,
                 loadingStep: currentLoadingStep,
-                loadingProgress: Double(nutritionCalculationProgress)
+                loadingProgress: Double(nutritionCalculationProgress),
+                isComplete: hasNutritionData
             ) {
                 onTap()
             }

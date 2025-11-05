@@ -62,8 +62,24 @@ final class MemoryPersistenceService {
                 logger.info("Successfully created in-memory fallback container")
             } catch {
                 logger.critical("CRITICAL: Failed to create in-memory fallback container: \(error.localizedDescription)")
-                // This should never happen, but if it does, fail gracefully
-                fatalError("Unable to initialize memory storage. Please restart the app. Error: \(error)")
+
+                // ABSOLUTE LAST RESORT: Create empty schema container
+                // This allows app to continue without memory features
+                logger.fault("Creating emergency empty-schema container - memory features disabled")
+
+                do {
+                    let emptySchema = Schema([])
+                    let emergencyContainer = try ModelContainer(for: emptySchema)
+                    self.modelContext = ModelContext(emergencyContainer)
+                    self.writer = MemoryPersistenceWriter(modelContext: modelContext)
+                    self.reader = MemoryPersistenceReader(modelContext: modelContext)
+                    logger.warning("Emergency container created - memory features will not work, but app can continue")
+                } catch {
+                    // If even THIS fails, SwiftData is completely broken
+                    // Use fatalError only as absolute last resort after all attempts
+                    logger.fault("💥 FAULT: SwiftData completely broken - cannot create any ModelContainer")
+                    fatalError("SwiftData framework is non-functional. Please reinstall the app. Error: \(error)")
+                }
             }
         }
     }

@@ -10,6 +10,7 @@ import SwiftUI
 import HealthKit
 import CoreData
 import OSLog
+import Combine
 
 @MainActor
 final class GlucoseChartViewModel: ObservableObject {
@@ -41,10 +42,11 @@ final class GlucoseChartViewModel: ObservableObject {
     private var lastLoadTime: Date?
     private let minimumLoadInterval: TimeInterval = 60 // Don't reload more than once per 60 seconds
 
-    // MARK: - Observers
+    // MARK: - Combine Subscriptions
 
-    // nonisolated(unsafe) allows deinit to access these from any isolation context
-    nonisolated(unsafe) private var observers: [NSObjectProtocol] = []
+    /// Combine cancellables for automatic cleanup (replaces NotificationCenter observers)
+    /// MEMORY LEAK FIX: Combine automatically cleans up subscriptions when cancellables are released
+    private var cancellables = Set<AnyCancellable>()
     private var lastRefreshTime: Date?
 
     // MARK: - Initialization
@@ -73,31 +75,24 @@ final class GlucoseChartViewModel: ObservableObject {
         // Load Real-Time Mode preference
         self.isRealTimeModeEnabled = UserDefaults.standard.bool(forKey: "isRealTimeModeEnabled")
 
-        // Set up observers for automatic updates
-        setupObservers()
+        // Set up Combine subscriptions for automatic updates
+        setupSubscriptions()
     }
 
-    deinit {
-        // Remove all observers
-        for observer in observers {
-            NotificationCenter.default.removeObserver(observer)
-        }
-        observers.removeAll()
-    }
+    // Note: deinit removed - Combine automatically cancels subscriptions when cancellables set is deallocated
 
-    // MARK: - Observers Setup
+    // MARK: - Combine Subscriptions Setup
 
-    private func setupObservers() {
-        // Observe scene becoming active (app returns to foreground)
-        observers.append(
-            NotificationCenter.default.addObserver(
-                forName: .sceneDidBecomeActive,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    guard let self = self else { return }
+    /// MEMORY LEAK FIX: Use Combine instead of NotificationCenter observers
+    /// Combine automatically cancels subscriptions when cancellables are released (no manual cleanup needed)
+    private func setupSubscriptions() {
+        // Subscribe to scene becoming active (app returns to foreground)
+        NotificationCenter.default.publisher(for: .sceneDidBecomeActive)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
 
+                Task { @MainActor in
                     // DEBOUNCE: Don't refresh if we just refreshed
                     if let lastRefresh = self.lastRefreshTime,
                        Date().timeIntervalSince(lastRefresh) < 2.0 {
@@ -110,17 +105,16 @@ final class GlucoseChartViewModel: ObservableObject {
                     await self.refreshData()
                 }
             }
-        )
+            .store(in: &cancellables)
 
-        // Observe Core Data changes (meal entries added/updated/deleted)
+        // Subscribe to Core Data changes (meal entries added/updated/deleted)
         if let context = viewContext {
-            observers.append(
-                NotificationCenter.default.addObserver(
-                    forName: .NSManagedObjectContextObjectsDidChange,
-                    object: context,
-                    queue: .main
-                ) { [weak self] notification in
-                    // Extract data from notification synchronously on main queue
+            NotificationCenter.default.publisher(for: .NSManagedObjectContextObjectsDidChange, object: context)
+                .receive(on: DispatchQueue.main)
+                .sink { [weak self] notification in
+                    guard let self = self else { return }
+
+                    // Extract data from notification
                     let inserted = (notification.userInfo?[NSInsertedObjectsKey] as? Set<NSManagedObject>) ?? []
                     let updated = (notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject>) ?? []
                     let deleted = (notification.userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObject>) ?? []
@@ -129,10 +123,9 @@ final class GlucoseChartViewModel: ObservableObject {
                                         updated.contains { $0 is MealEntry } ||
                                         deleted.contains { $0 is MealEntry }
 
-                    // Then handle asynchronously
+                    // Handle meal changes asynchronously
                     if hasMealChanges {
-                        Task { @MainActor [weak self] in
-                            guard let self = self else { return }
+                        Task { @MainActor in
                             self.logger.info("Meal entry changed (inserted/updated/deleted) - refreshing meal logs")
                             if let timeRange = self.calculateTimeRange() {
                                 self.loadMealLogs(timeRange: timeRange)
@@ -140,22 +133,21 @@ final class GlucoseChartViewModel: ObservableObject {
                         }
                     }
                 }
-            )
+                .store(in: &cancellables)
         }
 
-        // Observe custom data refresh notifications from Dexcom services
-        observers.append(
-            NotificationCenter.default.addObserver(
-                forName: .glucoseDataDidUpdate,
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                Task { @MainActor [weak self] in
-                    self?.logger.info("Glucose data updated - loading with debounce protection")
-                    self?.loadGlucoseData()  // Use loadGlucoseData (with debounce) instead of refreshData (bypasses debounce)
+        // Subscribe to custom data refresh notifications from Dexcom services
+        NotificationCenter.default.publisher(for: .glucoseDataDidUpdate)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+
+                Task { @MainActor in
+                    self.logger.info("Glucose data updated - loading with debounce protection")
+                    self.loadGlucoseData()  // Use loadGlucoseData (with debounce) instead of refreshData (bypasses debounce)
                 }
             }
-        )
+            .store(in: &cancellables)
     }
 
     // MARK: - Public Methods

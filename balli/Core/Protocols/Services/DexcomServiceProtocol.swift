@@ -4,55 +4,34 @@
 //
 //  Protocol definition for DexcomService
 //  Enables dependency injection and testing
+//  Swift 6 strict concurrency compliant
 //
 
 import Foundation
+import CoreData
 import AuthenticationServices
 
-/// Protocol for Dexcom integration service
+/// Protocol for Dexcom CGM integration service
 @MainActor
-protocol DexcomServiceProtocol: AnyObject, ObservableObject {
-
-    // MARK: - Published Properties
-
+protocol DexcomServiceProtocol: ObservableObject {
+    // MARK: - Published State
     var isConnected: Bool { get }
-    var connectionStatus: String { get }
-    var isLoading: Bool { get }
+    var connectionStatus: DexcomService.ConnectionStatus { get }
+    var lastSync: Date? { get }
+    var latestReading: DexcomGlucoseReading? { get }
+    var currentDevice: DexcomDevice? { get }
     var error: DexcomError? { get }
-    var latestReading: HealthGlucoseReading? { get }
-    var readings: [HealthGlucoseReading] { get }
 
     // MARK: - Connection Management
-
-    /// Initiate OAuth connection flow with Dexcom
-    /// - Parameter presentationAnchor: The window to present the web auth session in
     func connect(presentationAnchor: ASPresentationAnchor) async throws
-
-    /// Disconnect from Dexcom and clear stored credentials
-    func disconnect() async
-
-    /// Check current connection status
+    func disconnect() async throws
     func checkConnectionStatus() async
 
-    // MARK: - Data Synchronization
-
-    /// Sync glucose readings from Dexcom API
-    /// - Parameter force: Force sync even if recently synced
-    func syncData(force: Bool) async throws
-
-    /// Fetch recent glucose readings
-    /// - Parameter days: Number of days to fetch (default 7)
-    /// - Returns: Array of glucose readings
+    // MARK: - Data Fetching
+    func syncData(includeHistorical: Bool) async throws
     func fetchRecentReadings(days: Int) async throws -> [HealthGlucoseReading]
+    func fetchGlucoseReadings(startDate: Date, endDate: Date?) async throws -> [HealthGlucoseReading]
 
-    // MARK: - Token Management
-
-    /// Refresh OAuth access token if needed
-    func refreshTokenIfNeeded() async throws
-
-    // MARK: - Background Operations
-
-    /// Perform background data fetch
-    /// - Returns: Boolean indicating if new data was fetched
-    func performBackgroundFetch() async -> Bool
+    // MARK: - Device Management
+    func fetchDevices() async throws -> [DexcomDevice]
 }

@@ -104,22 +104,23 @@ struct RecipeMealSelectionView: View {
 
     private var categoryListView: some View {
         ScrollView {
-            VStack(spacing: ResponsiveDesign.Spacing.small) {
+            VStack(spacing: ResponsiveDesign.Spacing.medium) {
                 ForEach(RecipeCategory.allCases, id: \.self) { category in
                     categoryCard(category)
                 }
             }
-            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
-            .padding(.top, ResponsiveDesign.Spacing.medium)
+            .padding(.horizontal, ResponsiveDesign.Spacing.large)
+            .padding(.top, ResponsiveDesign.Spacing.large)
             .padding(.bottom, ResponsiveDesign.Spacing.xLarge)
         }
+        .background(Color(.systemBackground))
     }
 
     private func categoryCard(_ category: RecipeCategory) -> some View {
         Button(action: {
             if category.hasSubcategories {
                 // Has subcategories - show subcategory list
-                withAnimation {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     selectedCategory = category
                 }
             } else {
@@ -130,48 +131,55 @@ struct RecipeMealSelectionView: View {
                 dismiss()
             }
         }) {
-            HStack(spacing: ResponsiveDesign.Spacing.small) {
-                // Icon
-                Text(category.icon)
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(28)))
+            HStack(spacing: ResponsiveDesign.Spacing.medium) {
+                // Icon with background
+                ZStack {
+                    Circle()
+                        .fill(AppTheme.primaryPurple.opacity(0.1))
+                        .frame(width: 56, height: 56)
+
+                    Text(category.icon)
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(32)))
+                }
 
                 // Category name
                 Text(category.displayName)
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 // Chevron indicator
                 if category.hasSubcategories {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold))
+                        .foregroundStyle(AppTheme.primaryPurple)
                 }
             }
-            .padding(.vertical, ResponsiveDesign.Spacing.small)
-            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+            .padding(.vertical, ResponsiveDesign.Spacing.medium)
+            .padding(.horizontal, ResponsiveDesign.Spacing.large)
             .contentShape(Rectangle())
             .background(.clear)
-            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
-            .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(CategoryButtonStyle())
     }
 
     // MARK: - Subcategory List View
 
     private var subcategoryListView: some View {
         ScrollView {
-            VStack(spacing: ResponsiveDesign.Spacing.small) {
+            VStack(spacing: ResponsiveDesign.Spacing.medium) {
                 ForEach(selectedCategory?.subcategories ?? [], id: \.self) { subcategory in
                     subcategoryCard(subcategory)
                 }
             }
-            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
-            .padding(.top, ResponsiveDesign.Spacing.medium)
+            .padding(.horizontal, ResponsiveDesign.Spacing.large)
+            .padding(.top, ResponsiveDesign.Spacing.large)
             .padding(.bottom, ResponsiveDesign.Spacing.xLarge)
         }
+        .background(Color(.systemBackground))
     }
 
     private func subcategoryCard(_ subcategory: String) -> some View {
@@ -181,23 +189,44 @@ struct RecipeMealSelectionView: View {
             onGenerate()
             dismiss()
         }) {
-            HStack(spacing: ResponsiveDesign.Spacing.small) {
+            HStack(spacing: ResponsiveDesign.Spacing.medium) {
+                // Dot indicator
+                Circle()
+                    .fill(AppTheme.primaryPurple)
+                    .frame(width: 8, height: 8)
+
                 // Subcategory name
                 Text(subcategory)
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(17), weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Arrow indicator
+                Image(systemName: "arrow.right")
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold))
+                    .foregroundStyle(AppTheme.primaryPurple)
             }
-            .padding(.vertical, ResponsiveDesign.Spacing.small)
-            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+            .padding(.vertical, ResponsiveDesign.Spacing.medium)
+            .padding(.horizontal, ResponsiveDesign.Spacing.large)
             .contentShape(Rectangle())
             .background(.clear)
-            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
-            .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(CategoryButtonStyle())
+    }
+}
+
+// MARK: - Custom Button Style
+
+struct CategoryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: configuration.isPressed)
     }
 }
 

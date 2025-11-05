@@ -30,6 +30,7 @@ extension Recipe {
     }
 
     /// Device identifier for multi-device sync conflict resolution
+    @MainActor
     var deviceIdentifier: String {
         UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
     }
@@ -67,7 +68,7 @@ extension Recipe {
 
     /// Whether recipe has photo
     var hasPhoto: Bool {
-        return imageData != nil || (imageURL != nil && !imageURL!.isEmpty)
+        return imageData != nil || (imageURL.map { !$0.isEmpty } == true)
     }
 
     /// Net carbs per serving (total carbs - fiber)

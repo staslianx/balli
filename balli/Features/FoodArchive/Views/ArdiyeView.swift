@@ -215,13 +215,16 @@ struct ArdiyeView: View {
         .toolbar {
             // Logo with long-press gesture for settings
             ToolbarItem(placement: .principal) {
-                Image("balli-text-logo")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(height: 28)
-                    .onLongPressGesture(minimumDuration: 0.5) {
-                        showingSettings = true
-                    }
+                HStack(spacing: 8) {
+                    Image(colorScheme == .dark ? "balli-text-logo-dark" : "balli-text-logo")
+                        .resizable()
+                        .renderingMode(.original)
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 35, height: 35)
+                        .onLongPressGesture(minimumDuration: 0.5) {
+                            showingSettings = true
+                        }
+                }
             }
 
             // Shopping basket — top-left (dynamic: filled when unchecked items exist)
@@ -313,7 +316,7 @@ struct ArdiyeView: View {
                             Button(role: .destructive, action: {
                                 deleteItem(item)
                             }) {
-                                Image(systemName: "trash")
+                                Label("Sil", systemImage: "trash")
                             }
                         }
                     }

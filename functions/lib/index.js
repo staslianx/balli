@@ -414,8 +414,18 @@ exports.generateRecipeFromIngredients = (0, https_1.onRequest)({
                         ...parsedRecipe,
                         recipeName: parsedRecipe.name || parsedRecipe.recipeName, // Support both field names
                         fullContent: JSON.stringify(parsedRecipe), // Also provide as fullContent for backward compatibility
-                        tokenCount: tokenCount
+                        tokenCount: tokenCount,
+                        // CRITICAL FIX: iOS requires nutrition fields even if not calculated yet
+                        // Empty strings signal "not calculated" and trigger on-demand calculation
+                        calories: parsedRecipe.calories || "",
+                        carbohydrates: parsedRecipe.carbohydrates || "",
+                        fiber: parsedRecipe.fiber || "",
+                        protein: parsedRecipe.protein || "",
+                        fat: parsedRecipe.fat || "",
+                        sugar: parsedRecipe.sugar || "",
+                        glycemicLoad: parsedRecipe.glycemicLoad || ""
                     };
+                    console.log(`📊 [NUTRITION-CHECK] Recipe data nutrition fields: calories="${recipeData.calories}", carbs="${recipeData.carbohydrates}", protein="${recipeData.protein}"`);
                     const completedEvent = {
                         type: "completed",
                         data: recipeData,
@@ -647,8 +657,18 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                     recipeName: parsedRecipe.name || parsedRecipe.recipeName, // Support both field names
                     fullContent: JSON.stringify(parsedRecipe), // Also provide as fullContent for backward compatibility
                     tokenCount: tokenCount,
-                    extractedIngredients // ADD extracted ingredients for iOS memory system
+                    extractedIngredients, // ADD extracted ingredients for iOS memory system
+                    // CRITICAL FIX: iOS requires nutrition fields even if not calculated yet
+                    // Empty strings signal "not calculated" and trigger on-demand calculation
+                    calories: parsedRecipe.calories || "",
+                    carbohydrates: parsedRecipe.carbohydrates || "",
+                    fiber: parsedRecipe.fiber || "",
+                    protein: parsedRecipe.protein || "",
+                    fat: parsedRecipe.fat || "",
+                    sugar: parsedRecipe.sugar || "",
+                    glycemicLoad: parsedRecipe.glycemicLoad || ""
                 };
+                console.log(`📊 [NUTRITION-CHECK] Recipe data nutrition fields: calories="${recipeData.calories}", carbs="${recipeData.carbohydrates}", protein="${recipeData.protein}"`);
                 const completedEvent = {
                     type: "completed",
                     data: recipeData,

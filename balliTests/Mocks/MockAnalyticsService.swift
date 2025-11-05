@@ -36,10 +36,13 @@ actor MockAnalyticsService: AnalyticsServiceProtocol {
         lastEventTime[eventName] = Date()
     }
 
-    func trackError(_ event: AnalyticsEvent, error: Error) async {
+    func trackError(_ event: AnalyticsEvent, error: Error) {
         trackErrorCallCount += 1
         trackedErrors.append((event, error))
-        await track(event, properties: ["error": error.localizedDescription])
+        // Track async in background (protocol requires sync)
+        Task {
+            await track(event, properties: ["error": error.localizedDescription])
+        }
     }
 
     func startTimedEvent(_ event: AnalyticsEvent) -> @Sendable () async -> Void {
@@ -90,7 +93,7 @@ actor MockAnalyticsService: AnalyticsServiceProtocol {
             await complete()
             return result
         } catch {
-            await trackError(.dexcomSyncFailed, error: error)
+            trackError(.dexcomSyncFailed, error: error)
             throw error
         }
     }
@@ -103,7 +106,7 @@ actor MockAnalyticsService: AnalyticsServiceProtocol {
             await track(.dexcomConnectionSuccess)
             return result
         } catch {
-            await trackError(.dexcomConnectionFailed, error: error)
+            trackError(.dexcomConnectionFailed, error: error)
             throw error
         }
     }

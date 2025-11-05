@@ -100,7 +100,7 @@ struct RecipeGenerationMetadata: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Logo - Shows balli logo if AI-generated recipe (same size in both light and dark mode)
                 if !recipeContent.isEmpty {
-                    Image("balli-text-logo")
+                    Image("balli-text-logo-dark")
                         .resizable()
                         .scaledToFit()
                         .frame(height: 40)
@@ -165,7 +165,8 @@ struct RecipeGenerationStoryCard: View {
                 thumbnailURL: nil,
                 isLoading: isCalculatingNutrition,
                 loadingStep: currentLoadingStep,
-                loadingProgress: Double(nutritionCalculationProgress)
+                loadingProgress: Double(nutritionCalculationProgress),
+                isComplete: hasNutritionData
             ) {
                 onTap()
             }

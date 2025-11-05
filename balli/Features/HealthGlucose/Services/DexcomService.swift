@@ -14,11 +14,7 @@ import OSLog
 
 /// High-level service for Dexcom CGM integration
 @MainActor
-final class DexcomService: ObservableObject {
-
-    // MARK: - Singleton
-
-    static let shared = DexcomService()
+final class DexcomService: DexcomServiceProtocol {
 
     // MARK: - Published State
 
@@ -82,9 +78,14 @@ final class DexcomService: ObservableObject {
     private var lastConnectionCheck: Date?
     private let connectionCheckDebounceInterval: TimeInterval = 2.0 // 2 seconds
 
+    // RACE CONDITION FIX: Ensure only one connection check runs at a time
+    private var connectionCheckTask: Task<Void, Never>?
+
     // MARK: - Initialization
 
-    private init(configuration: DexcomConfiguration = .default()) {
+    /// Public initializer for dependency injection
+    /// - Parameter configuration: Dexcom API configuration (defaults to EU region)
+    init(configuration: DexcomConfiguration = .default()) {
         self.configuration = configuration
         self.authManager = DexcomAuthManager(configuration: configuration)
         self.apiClient = DexcomAPIClient(configuration: configuration, authManager: authManager)
@@ -141,53 +142,82 @@ final class DexcomService: ObservableObject {
     /// Check if connected and update status
     /// Also proactively refreshes token if needed to prevent expiration
     /// FIX: Always checks authentication and updates state, but debounces expensive token refresh
+    /// RACE CONDITION FIX: Cancels previous check and runs only one at a time
     func checkConnectionStatus() async {
-        #if DEBUG
-        logger.debug("checkConnectionStatus() - cached isConnected=\(self.isConnected)")
-        #endif
+        // Cancel any existing connection check task to prevent race conditions
+        connectionCheckTask?.cancel()
 
-        // Determine if we should refresh token (expensive operation) or just check auth status (cheap)
-        var shouldRefreshToken = true
-        if let lastCheck = lastConnectionCheck {
-            let timeSinceLastCheck = Date().timeIntervalSince(lastCheck)
-            if timeSinceLastCheck < connectionCheckDebounceInterval {
-                logger.debug("Within debounce window (\(String(format: "%.1f", timeSinceLastCheck))s) - checking auth but skipping token refresh")
-                shouldRefreshToken = false
-            }
-        }
+        // Create new task for this connection check
+        connectionCheckTask = Task { @MainActor in
+            #if DEBUG
+            logger.debug("checkConnectionStatus() - cached isConnected=\(self.isConnected)")
+            #endif
 
-        // Always check authentication status and update isConnected
-        let authenticated = await authManager.isAuthenticated()
-
-        #if DEBUG
-        logger.debug("Auth check complete - authenticated=\(authenticated)")
-        #endif
-
-        // Update state immediately
-        let oldState = isConnected
-        isConnected = authenticated
-        connectionStatus = authenticated ? .connected : .disconnected
-
-        if oldState != isConnected {
-            logger.info("Connection state changed: \(oldState) → \(self.isConnected)")
-        }
-
-        // Only refresh token if NOT within debounce window
-        if authenticated && shouldRefreshToken {
-            lastConnectionCheck = Date()
-
-            do {
-                let didRefresh = try await authManager.refreshIfNeeded()
-                if didRefresh {
-                    logger.info("Token proactively refreshed")
+            // Determine if we should refresh token (expensive operation) or just check auth status (cheap)
+            var shouldRefreshToken = true
+            if let lastCheck = lastConnectionCheck {
+                let timeSinceLastCheck = Date().timeIntervalSince(lastCheck)
+                if timeSinceLastCheck < connectionCheckDebounceInterval {
+                    logger.debug("Within debounce window (\(String(format: "%.1f", timeSinceLastCheck))s) - checking auth but skipping token refresh")
+                    shouldRefreshToken = false
                 }
-            } catch {
-                logger.error("Failed to refresh token: \(error.localizedDescription)")
-                // Don't mark as disconnected yet - token might still be valid
             }
-        } else if !authenticated {
-            logger.error("User not authenticated - connection lost")
+
+            // Check if task was cancelled before proceeding
+            guard !Task.isCancelled else {
+                logger.debug("Connection check cancelled - newer check in progress")
+                return
+            }
+
+            // Always check authentication status and update isConnected
+            let authenticated = await authManager.isAuthenticated()
+
+            // Check cancellation again after async work
+            guard !Task.isCancelled else {
+                logger.debug("Connection check cancelled after auth check")
+                return
+            }
+
+            #if DEBUG
+            logger.debug("Auth check complete - authenticated=\(authenticated)")
+            #endif
+
+            // Update state immediately
+            let oldState = isConnected
+            isConnected = authenticated
+            connectionStatus = authenticated ? .connected : .disconnected
+
+            if oldState != isConnected {
+                logger.info("Connection state changed: \(oldState) → \(self.isConnected)")
+            }
+
+            // Only refresh token if NOT within debounce window
+            if authenticated && shouldRefreshToken {
+                lastConnectionCheck = Date()
+
+                do {
+                    let didRefresh = try await authManager.refreshIfNeeded()
+
+                    // Check cancellation after token refresh
+                    guard !Task.isCancelled else {
+                        logger.debug("Connection check cancelled after token refresh")
+                        return
+                    }
+
+                    if didRefresh {
+                        logger.info("Token proactively refreshed")
+                    }
+                } catch {
+                    logger.error("Failed to refresh token: \(error.localizedDescription)")
+                    // Don't mark as disconnected yet - token might still be valid
+                }
+            } else if !authenticated {
+                logger.error("User not authenticated - connection lost")
+            }
         }
+
+        // Wait for the task to complete
+        await connectionCheckTask?.value
     }
 
     // MARK: - Data Synchronization

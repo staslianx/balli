@@ -100,28 +100,14 @@ struct MealPreviewEditor: View {
                     ForEach($editableFoods) { $food in
                         VStack(spacing: 12) {
                             // Food name
-                            HStack {
-                                Text("İsim:")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 60, alignment: .leading)
-
-                                TextField("Yiyecek adı", text: $food.name)
-                                    .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                    .glassTextField()
-                            }
+                            TextField("Yiyecek adı", text: $food.name)
+                                .font(.system(size: 16, weight: .semibold, design: .rounded))
+                                .glassTextField()
 
                             // Amount
-                            HStack {
-                                Text("Miktar:")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 60, alignment: .leading)
-
-                                TextField("Örn: 2 adet, 1 dilim", text: $food.amount)
-                                    .font(.system(size: 14, design: .rounded))
-                                    .glassTextField()
-                            }
+                            TextField("Örn: 2 adet, 1 dilim", text: $food.amount)
+                                .font(.system(size: 14, design: .rounded))
+                                .glassTextField()
 
                             // Per-item carbs (if detailed format)
                             if parsedData.isDetailedFormat {
@@ -146,8 +132,8 @@ struct MealPreviewEditor: View {
                             }
                         }
                         .padding(16)
-                        .background(Color.gray.opacity(0.05))
-                        .cornerRadius(12)
+                        .background(AppTheme.primaryPurple.opacity(0.2))
+                        .cornerRadius(24)
                         .padding(.horizontal)
                     }
 
@@ -179,7 +165,7 @@ struct MealPreviewEditor: View {
                                 hasInsulin = false
                                 editableInsulinDosage = 0
                             } label: {
-                                Image(systemName: "trash")
+                                Label("Sil", systemImage: "trash")
                                     .font(.system(size: 14, weight: .medium))
                                     .foregroundStyle(.red)
                             }
@@ -245,10 +231,10 @@ struct MealPreviewEditor: View {
                                         Text(insulinType == "bolus" ? "Hızlı Etkili" : "Uzun Etkili")
                                             .font(.system(size: 12, weight: .medium, design: .rounded))
                                             .foregroundStyle(.white)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
+                                            .padding(.horizontal, 12)
+                                            .padding(.vertical, 6)
                                             .background(insulinType == "bolus" ? AppTheme.primaryPurple : .blue)
-                                            .cornerRadius(6)
+                                            .clipShape(Capsule())
                                     }
                                 }
                             }
@@ -311,7 +297,7 @@ struct MealPreviewEditor: View {
                 // Show transcription at the BOTTOM
                 if let transcription = parsedData.transcription {
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Söylediğiniz:")
+                        Text("Duyduklarım")
                             .font(.system(size: 14, weight: .medium, design: .rounded))
                             .foregroundStyle(.secondary)
 
@@ -331,5 +317,6 @@ struct MealPreviewEditor: View {
             .padding(.top, 32)
             .padding(.bottom, 24)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 }

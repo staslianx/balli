@@ -305,42 +305,15 @@ struct NutritionLabelView: View {
     }
     
     private var caloriesSection: some View {
-        HStack(alignment: .lastTextBaseline, spacing: ResponsiveDesign.Spacing.medium) {
-            HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
-                // ALWAYS show adjusted calories based on slider position
-                Text(adjustedCalories.isEmpty ? "0" : adjustedCalories)
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .semibold, design: .rounded))
-                    .foregroundColor(.primary)
-                    .frame(width: ResponsiveDesign.width(45), height: ResponsiveDesign.height(28), alignment: .trailing)
-                    .opacity(shouldShowValue("calories") ? 1.0 : 0.0)
-
-                Text("kcal")
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .regular, design: .rounded))
-                    .foregroundColor(.primary)
-                    .opacity(shouldShowValue("calories") ? 1.0 : 0.0)
-            }
-            .layoutPriority(1)
-
-            Spacer()
-
-            HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
-                // ALWAYS show current portion size (controlled by slider)
-                // NOT the base serving size from the label
-                Text(String(format: "%.0f", portionGrams))
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
-                    .foregroundColor(.primary)
-                    .frame(width: ResponsiveDesign.width(45), height: ResponsiveDesign.height(28), alignment: .trailing)
-
-                Text("g'da")
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .regular, design: .rounded))
-                    .foregroundColor(.primary)
-            }
-        }
-        .frame(height: ResponsiveDesign.height(28))
-        .padding(.horizontal, ResponsiveDesign.Spacing.large)
-        .padding(.top, ResponsiveDesign.Spacing.medium)
+        CaloriesSectionView(
+            calories: $calories,
+            adjustedCalories: adjustedCalories,
+            servingSize: $servingSize,
+            portionGrams: portionGrams,
+            shouldShowValue: shouldShowValue("calories")
+        )
     }
-    
+
     private var dividerLine: some View {
         Rectangle()
             .fill(Color(.separator))
@@ -402,10 +375,12 @@ struct NutritionLabelView: View {
     
     private var sliderSection: some View {
         // Logarithmic slider (keep original purple color - don't change)
+        // Extra top padding to align with progress bar position in AnalysisNutritionLabelView
+        // Progress bar appears below status text (24pt) + medium spacing, so we add that here
         Slider(value: sliderPosition, in: 0...1, step: 0.01)
             .accentColor(AppTheme.primaryPurple)
             .padding(.horizontal, ResponsiveDesign.Spacing.large)
-            .padding(.top, ResponsiveDesign.Spacing.large)
+            .padding(.top, ResponsiveDesign.Spacing.large + ResponsiveDesign.Spacing.medium + ResponsiveDesign.height(24))
             .animation(.easeInOut(duration: 0.15), value: portionGrams)
     }
 
@@ -464,6 +439,78 @@ struct NutritionLabelView: View {
         }
     }
 
+}
+
+// MARK: - Calories Section Component
+
+/// Separate view for calories section to manage focus state independently
+struct CaloriesSectionView: View {
+    @Binding var calories: String
+    let adjustedCalories: String
+    @Binding var servingSize: String
+    let portionGrams: Double
+    let shouldShowValue: Bool
+
+    @FocusState private var caloriesFocused: Bool
+    @FocusState private var servingSizeFocused: Bool
+
+    var body: some View {
+        HStack(alignment: .lastTextBaseline, spacing: ResponsiveDesign.Spacing.medium) {
+            HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
+                // Always show TextField, but switch between adjusted/base value based on focus
+                TextField("0", text: Binding(
+                    get: {
+                        caloriesFocused ? calories : adjustedCalories
+                    },
+                    set: { newValue in
+                        calories = newValue
+                    }
+                ))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .semibold, design: .rounded))
+                .frame(width: ResponsiveDesign.width(45), height: ResponsiveDesign.height(28))
+                .foregroundColor(.primary)
+                .textFieldStyle(.plain)
+                .focused($caloriesFocused)
+                .opacity(shouldShowValue ? 1.0 : 0.0)
+
+                Text("kcal")
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .regular, design: .rounded))
+                    .foregroundColor(.primary)
+                    .opacity(shouldShowValue ? 1.0 : 0.0)
+            }
+            .layoutPriority(1)
+
+            Spacer()
+
+            HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
+                // Serving size field - tap to edit base, otherwise shows portion grams
+                TextField("0", text: Binding(
+                    get: {
+                        servingSizeFocused ? servingSize : String(format: "%.0f", portionGrams)
+                    },
+                    set: { newValue in
+                        servingSize = newValue
+                    }
+                ))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
+                .frame(width: ResponsiveDesign.width(45), height: ResponsiveDesign.height(28))
+                .foregroundColor(.primary)
+                .textFieldStyle(.plain)
+                .focused($servingSizeFocused)
+
+                Text("g'da")
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .regular, design: .rounded))
+                    .foregroundColor(.primary)
+            }
+        }
+        .frame(height: ResponsiveDesign.height(28))
+        .padding(.horizontal, ResponsiveDesign.Spacing.large)
+        .padding(.top, ResponsiveDesign.Spacing.medium)
+    }
 }
 
 // MARK: - Nutrition Row Component
@@ -535,6 +582,8 @@ struct NutritionLabelRowProportional: View {
     let portionGrams: Double
     let shouldShow: Bool
 
+    @FocusState private var isFocused: Bool
+
     var body: some View {
         HStack {
             Text(label)
@@ -544,13 +593,27 @@ struct NutritionLabelRowProportional: View {
             Spacer()
 
             HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
-                // ALWAYS show adjusted values based on slider position
-                // The slider controls the portion, values update in real-time
-                Text(adjustedValue.isEmpty ? "0" : adjustedValue)
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
-                    .foregroundColor(.primary)
-                    .frame(width: ResponsiveDesign.width(55), height: ResponsiveDesign.height(28), alignment: .trailing)
-                    .opacity(shouldShow ? 1.0 : 0.0)
+                // Always show TextField, but populate it with adjusted value when not focused
+                // This allows: (1) slider updates values in real-time, (2) tap to edit
+                TextField("0", text: Binding(
+                    get: {
+                        // When focused, show base value for editing
+                        // When not focused, show adjusted value for display
+                        isFocused ? baseValue : adjustedValue
+                    },
+                    set: { newValue in
+                        // When user types, update the base value
+                        baseValue = newValue
+                    }
+                ))
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.trailing)
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
+                .frame(width: ResponsiveDesign.width(55), height: ResponsiveDesign.height(28))
+                .foregroundColor(.primary)
+                .textFieldStyle(.plain)
+                .focused($isFocused)
+                .opacity(shouldShow ? 1.0 : 0.0)
 
                 Text(unit)
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .regular, design: .rounded))

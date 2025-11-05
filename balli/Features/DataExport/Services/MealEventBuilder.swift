@@ -102,7 +102,7 @@ actor MealEventBuilder {
 
         // 5. Extract meal details
         let mealName = meal.foodItem?.name
-        let foods = meal.foodItem != nil ? [meal.foodItem!.name] : nil
+        let foods = meal.foodItem.map { [$0.name] }
         let notes = meal.notes
         let photo = meal.photoData != nil ? "embedded" : nil
 

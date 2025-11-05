@@ -34,6 +34,9 @@ enum AnalyticsEvent: String, Sendable {
     case healthKitAuthorizationRequested = "healthkit_authorization_requested"
     case healthKitAuthorizationGranted = "healthkit_authorization_granted"
     case healthKitAuthorizationDenied = "healthkit_authorization_denied"
+
+    // Audio Events
+    case audioSessionDeactivationFailed = "audio_session_deactivation_failed"
 }
 
 /// Analytics service for tracking events and metrics

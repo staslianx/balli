@@ -50,12 +50,22 @@ final class MealEntryService {
         let foodsArray = foods.filter { !$0.name.isEmpty }
         let isGeminiFormat = !foodsArray.isEmpty
 
+        // PRE-COMPUTE VALUES ON MAIN THREAD (before background context)
+        // This prevents Swift 6 concurrency violations when accessing computed properties
+        let isSimpleFormat = foodsArray.allSatisfy { $0.carbsInt == nil }
+
+        // Pre-compute carbs values to avoid accessing computed property on background thread
+        let foodDataArray: [(name: String, amount: String, carbs: Int?)] = foodsArray.map { food in
+            (name: food.name, amount: food.amount, carbs: food.carbsInt)
+        }
+
         // Perform CoreData operations on background context
         try await context.perform {
             if isGeminiFormat {
                 // GEMINI FORMAT: Create separate MealEntry for each food item
                 try self.createGeminiFormatEntries(
-                    foodsArray: foodsArray,
+                    foodDataArray: foodDataArray,
+                    isSimpleFormat: isSimpleFormat,
                     totalCarbs: totalCarbs,
                     mealType: mealType,
                     timestamp: timestamp,
@@ -108,31 +118,36 @@ final class MealEntryService {
 
     /// Create meal entries for Gemini format (separate entry for each food)
     private func createGeminiFormatEntries(
-        foodsArray: [EditableFoodItem],
+        foodDataArray: [(name: String, amount: String, carbs: Int?)],
+        isSimpleFormat: Bool,
         totalCarbs: Int,
         mealType: String,
         timestamp: Date,
         context: NSManagedObjectContext
     ) throws {
-        let isSimpleFormat = foodsArray.allSatisfy { $0.carbsInt == nil }
+        // VALIDATION: Ensure foodDataArray is not empty
+        guard !foodDataArray.isEmpty else {
+            logger.error("❌ Cannot create entries: foodDataArray is empty")
+            throw MealEntryServiceError.invalidFoodData
+        }
 
-        for (index, editableFood) in foodsArray.enumerated() {
+        for (index, foodData) in foodDataArray.enumerated() {
+            // VALIDATION: Skip foods with empty names (should already be filtered, but double-check)
+            let trimmedName = foodData.name.trimmingCharacters(in: .whitespaces)
+            guard !trimmedName.isEmpty else {
+                logger.warning("⚠️ Skipping food item with empty name at index \(index)")
+                continue
+            }
+
             // Create FoodItem
             let foodItem = FoodItem(context: context)
             foodItem.id = UUID()
-            foodItem.name = editableFood.name
-            foodItem.nameTr = editableFood.name
+            foodItem.name = trimmedName  // Use trimmed name
+            foodItem.nameTr = trimmedName
 
-            // Set nutrition (from edited carbs)
-            if let itemCarbs = editableFood.carbsInt {
-                foodItem.totalCarbs = Double(itemCarbs)
-            } else {
-                // For simple format, don't set carbs on individual items
-                foodItem.totalCarbs = 0
-            }
-
+            // Set required properties FIRST before any nutrition values
             // Parse amount if possible (from edited amount)
-            let amountText = editableFood.amount
+            let amountText = foodData.amount.trimmingCharacters(in: .whitespaces)
             if !amountText.isEmpty {
                 let components = amountText.split(separator: " ")
                 if let firstNum = components.first, let value = Double(firstNum) {
@@ -147,11 +162,49 @@ final class MealEntryService {
                 foodItem.servingUnit = "porsiyon"
             }
 
-            foodItem.gramWeight = foodItem.totalCarbs
+            // Set remaining required properties
             foodItem.source = "voice-gemini"
             foodItem.dateAdded = Date()
+            foodItem.lastModified = Date()
             foodItem.lastUsed = Date()
             foodItem.useCount = 1
+
+            // Initialize all required Double properties with defaults
+            foodItem.servingsPerContainer = 1.0
+            foodItem.gramWeight = 0.0
+            foodItem.calories = 0.0
+            foodItem.fiber = 0.0
+            foodItem.sugars = 0.0
+            foodItem.addedSugars = 0.0
+            foodItem.sugarAlcohols = 0.0
+            foodItem.protein = 0.0
+            foodItem.totalFat = 0.0
+            foodItem.saturatedFat = 0.0
+            foodItem.transFat = 0.0
+            foodItem.sodium = 0.0
+            foodItem.carbsConfidence = 0.0
+            foodItem.overallConfidence = 0.0
+            foodItem.ocrConfidence = 0.0
+
+            // Now set nutrition (from pre-computed carbs)
+            // IMPORTANT: Only set per-item carbs if this is NOT simple format
+            if let itemCarbs = foodData.carbs, itemCarbs > 0 {
+                foodItem.totalCarbs = Double(itemCarbs)
+            } else if isSimpleFormat {
+                // For simple format, don't set carbs on individual items
+                foodItem.totalCarbs = 0
+            } else {
+                // Detailed format but this item has no carbs - set to 0
+                foodItem.totalCarbs = 0
+            }
+
+            // Set gramWeight - ensure it's never zero to prevent division errors
+            // Use max of 1.0 or totalCarbs, but prefer a more realistic minimum
+            if foodItem.totalCarbs > 0 {
+                foodItem.gramWeight = max(10.0, foodItem.totalCarbs)  // Minimum 10g
+            } else {
+                foodItem.gramWeight = 100.0  // Default for items without carb data
+            }
 
             // Create MealEntry
             let mealEntry = MealEntry(context: context)
@@ -161,6 +214,17 @@ final class MealEntryService {
             mealEntry.foodItem = foodItem
             mealEntry.quantity = 1.0
             mealEntry.unit = "porsiyon"
+
+            // Initialize all consumed nutrition values (required before calculateNutrition)
+            mealEntry.portionGrams = 0.0
+            mealEntry.consumedCarbs = 0.0
+            mealEntry.consumedProtein = 0.0
+            mealEntry.consumedFat = 0.0
+            mealEntry.consumedCalories = 0.0
+            mealEntry.consumedFiber = 0.0
+            mealEntry.glucoseBefore = 0.0
+            mealEntry.glucoseAfter = 0.0
+            mealEntry.insulinUnits = 0.0
 
             // Calculate and set nutrition
             mealEntry.calculateNutrition()
@@ -183,14 +247,33 @@ final class MealEntryService {
         foodItem.id = UUID()
         foodItem.name = "Sesli Giriş: \(mealType.capitalized)"
         foodItem.nameTr = "Sesli Giriş: \(mealType.capitalized)"
-        foodItem.totalCarbs = Double(totalCarbs)
         foodItem.servingSize = 1.0
         foodItem.servingUnit = "porsiyon"
-        foodItem.gramWeight = Double(totalCarbs)
         foodItem.source = "voice-gemini"
         foodItem.dateAdded = Date()
+        foodItem.lastModified = Date()
         foodItem.lastUsed = Date()
         foodItem.useCount = 1
+
+        // Initialize all required Double properties with defaults
+        foodItem.servingsPerContainer = 1.0
+        foodItem.calories = 0.0
+        foodItem.fiber = 0.0
+        foodItem.sugars = 0.0
+        foodItem.addedSugars = 0.0
+        foodItem.sugarAlcohols = 0.0
+        foodItem.protein = 0.0
+        foodItem.totalFat = 0.0
+        foodItem.saturatedFat = 0.0
+        foodItem.transFat = 0.0
+        foodItem.sodium = 0.0
+        foodItem.carbsConfidence = 0.0
+        foodItem.overallConfidence = 0.0
+        foodItem.ocrConfidence = 0.0
+
+        foodItem.totalCarbs = Double(totalCarbs)
+        // Ensure gramWeight is never zero to prevent division errors
+        foodItem.gramWeight = max(1.0, Double(totalCarbs))
 
         let mealEntry = MealEntry(context: context)
         mealEntry.id = UUID()
@@ -199,6 +282,18 @@ final class MealEntryService {
         mealEntry.foodItem = foodItem
         mealEntry.quantity = 1.0
         mealEntry.unit = "porsiyon"
+
+        // Initialize all consumed nutrition values (required before calculateNutrition)
+        mealEntry.portionGrams = 0.0
+        mealEntry.consumedCarbs = 0.0
+        mealEntry.consumedProtein = 0.0
+        mealEntry.consumedFat = 0.0
+        mealEntry.consumedCalories = 0.0
+        mealEntry.consumedFiber = 0.0
+        mealEntry.glucoseBefore = 0.0
+        mealEntry.glucoseAfter = 0.0
+        mealEntry.insulinUnits = 0.0
+
         mealEntry.calculateNutrition()
         mealEntry.consumedCarbs = Double(totalCarbs)
     }
@@ -212,8 +307,12 @@ final class MealEntryService {
         context: NSManagedObjectContext
     ) throws {
         // Get the first meal entry for relationship (bolus insulin is linked to meals)
-        let mealEntries = try context.fetch(MealEntry.fetchRequest()) as [MealEntry]
-        let firstMealEntry = mealEntries.filter { $0.timestamp == timestamp }.first
+        let fetchRequest: NSFetchRequest<MealEntry> = MealEntry.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "timestamp == %@", timestamp as NSDate)
+        fetchRequest.fetchLimit = 1
+
+        let mealEntries = try context.fetch(fetchRequest)
+        let firstMealEntry = mealEntries.first
 
         // Create MedicationEntry
         let medication = MedicationEntry(context: context)
@@ -260,6 +359,7 @@ final class MealEntryService {
 enum MealEntryServiceError: LocalizedError {
     case missingPersistentStore
     case invalidCarbValue
+    case invalidFoodData
     case saveFailed(Error)
 
     var errorDescription: String? {
@@ -268,6 +368,8 @@ enum MealEntryServiceError: LocalizedError {
             return "CoreData persistent store coordinator not available"
         case .invalidCarbValue:
             return "Invalid carbohydrate value provided"
+        case .invalidFoodData:
+            return "Invalid food data - no valid food items found"
         case .saveFailed(let error):
             return "Failed to save meal entry: \(error.localizedDescription)"
         }

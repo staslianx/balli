@@ -25,7 +25,7 @@ struct HighlightCard: View {
     var body: some View {
         // Highlighted text filling entire card (max 8 lines, wrapped, then truncate)
         Text(highlight.text)
-            .font(.custom("Manrope", size: researchFontSize))
+            .font(.custom("Manrope-Medium", size: researchFontSize))
             .foregroundStyle(.primary)
             .lineLimit(8)
             .truncationMode(.tail)

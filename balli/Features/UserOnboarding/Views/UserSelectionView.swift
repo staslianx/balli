@@ -10,8 +10,8 @@ import SwiftUI
 
 struct UserSelectionView: View {
     @Environment(\.userManager) private var userManager
+    @Environment(\.colorScheme) private var colorScheme
     @AppStorage("isSerhatModeEnabled") private var isSerhatModeEnabled: Bool = false
-    @State private var showDeveloperMenu: Bool = false
 
     var body: some View {
         ZStack {
@@ -24,8 +24,8 @@ struct UserSelectionView: View {
 
                 // Centered Content
                 VStack(spacing: 32) {
-                    // Logo
-                    Image("balli-text-logo")
+                    // Logo - adapts to dark/light mode
+                    Image(colorScheme == .dark ? "balli-text-logo-dark" : "balli-text-logo")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(height: 44)
@@ -55,11 +55,14 @@ struct UserSelectionView: View {
                 .padding(.bottom, 40)
             }
 
-            // Developer Wrench Button (Bottom-Left)
+            // Developer Wrench Menu (Top-Right)
             VStack {
-                Spacer()
                 HStack {
-                    Button(action: { showDeveloperMenu = true }) {
+                    Spacer()
+
+                    Menu {
+                        Toggle("Serhat Mode", isOn: $isSerhatModeEnabled)
+                    } label: {
                         Image(systemName: "wrench.adjustable")
                             .font(.system(size: 20, weight: .regular))
                             .foregroundColor(.secondary)
@@ -70,14 +73,11 @@ struct UserSelectionView: View {
                                     .shadow(color: .black.opacity(0.1), radius: 4, x: 0, y: 2)
                             )
                     }
-                    .popover(isPresented: $showDeveloperMenu) {
-                        DeveloperMenuView(isSerhatModeEnabled: $isSerhatModeEnabled)
-                    }
-                    .padding(.leading, 16)
-                    .padding(.bottom, 16)
-
-                    Spacer()
+                    .padding(.trailing, 16)
+                    .padding(.top, 16)
                 }
+
+                Spacer()
             }
         }
         .interactiveDismissDisabled()
@@ -88,43 +88,6 @@ struct UserSelectionView: View {
         withAnimation(.easeInOut(duration: 0.3)) {
             userManager.selectUser(selectedUser)
         }
-    }
-}
-
-// MARK: - Developer Menu Component
-
-struct DeveloperMenuView: View {
-    @Binding var isSerhatModeEnabled: Bool
-
-    var body: some View {
-        VStack(spacing: 20) {
-            // Header
-            Text("Geliştirici Seçenekleri")
-                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                .foregroundColor(.primary)
-                .padding(.top, 16)
-
-            Divider()
-
-            // Serhat Mode Toggle
-            Toggle(isOn: $isSerhatModeEnabled) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Serhat Mode")
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .foregroundColor(.primary)
-
-                    Text("Test kullanıcısı olarak giriş yap")
-                        .font(.system(size: 13, weight: .regular, design: .rounded))
-                        .foregroundColor(.secondary)
-                }
-            }
-            .toggleStyle(SwitchToggleStyle(tint: AppTheme.primaryPurple))
-            .padding(.horizontal, 16)
-
-            Spacer()
-        }
-        .frame(width: 280, height: 160)
-        .background(Color(.systemBackground))
     }
 }
 
@@ -142,9 +105,4 @@ struct DeveloperMenuView: View {
         .onAppear {
             UserDefaults.standard.set(true, forKey: "isSerhatModeEnabled")
         }
-}
-
-#Preview("Developer Menu") {
-    DeveloperMenuView(isSerhatModeEnabled: .constant(false))
-        .padding()
 }

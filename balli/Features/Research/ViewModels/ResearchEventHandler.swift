@@ -60,7 +60,11 @@ final class ResearchEventHandler {
         await tokenBuffer.appendToken(token, for: answerId) { [weak self] batchedContent in
             guard let self = self else { return }
 
+            let deliverStart = Date()
+            print("🟣 [DELIVER-CALLBACK] Received batchedContent length=\(batchedContent.count), creating MainActor Task")
             Task { @MainActor in
+                let mainActorStart = Date()
+                print("🟡 [MAINACTOR-START] Task executing \((mainActorStart.timeIntervalSince(deliverStart)*1000))ms after deliver callback")
                 guard let index = capturedGetAnswerIndex(answerId) else { return }
 
                 let currentAnswer = capturedGetAnswers()[index]
@@ -89,6 +93,9 @@ final class ResearchEventHandler {
                 )
 
                 capturedUpdateAnswer(index, updatedAnswer, currentAnswer.content.isEmpty)
+
+                let mainActorEnd = Date()
+                print("✅ [MAINACTOR-END] Answer updated, took \((mainActorEnd.timeIntervalSince(mainActorStart)*1000))ms, new content length: \(updatedAnswer.content.count)")
             }
         }
     }
@@ -238,11 +245,19 @@ final class ResearchEventHandler {
         let finalContent = currentAnswer.content.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedTier = ResponseTier(tier: response.tier, processingTier: response.processingTier) ?? currentAnswer.tier
 
+        // FIX: Preserve sources from sourcesReady event if complete response has no sources
+        // This handles T2 race condition where sourcesReady arrives before complete
+        if sources.isEmpty && !currentAnswer.sources.isEmpty {
+            logger.info("📊 [COMPLETE] Preserving \(currentAnswer.sources.count) sources from sourcesReady (complete had none)")
+        } else if !sources.isEmpty {
+            logger.info("📊 [COMPLETE] Using \(sources.count) sources from complete event")
+        }
+
         let finalAnswer = SearchAnswer(
             id: answerId,
             query: query,
             content: finalContent,
-            sources: sources,
+            sources: sources.isEmpty ? currentAnswer.sources : sources,  // Preserve sources from sourcesReady if complete has none
             timestamp: Date(),
             tokenCount: nil,
             tier: resolvedTier,

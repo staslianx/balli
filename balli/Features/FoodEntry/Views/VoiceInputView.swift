@@ -103,6 +103,9 @@ struct VoiceInputView: View {
             }
         }
         .onDisappear {
+            // CRITICAL: Invalidate timer BEFORE cleanup to prevent memory leak
+            recordingTimer?.invalidate()
+            recordingTimer = nil
             audioRecorder.cleanup()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
@@ -281,6 +284,21 @@ struct VoiceInputView: View {
                     // Convert to ParsedMealData
                     parsedMealData = ParsedMealData(from: mealData)
 
+                    // Determine if this is simple format (no per-item carbs intended)
+                    // Simple format = either all items have nil carbs, OR only one item has carbs that matches the total
+                    let foodsWithCarbs = mealData.foods.filter { $0.carbs != nil }
+                    let isSimpleFormat: Bool
+                    if foodsWithCarbs.isEmpty {
+                        // No items have carbs - definitely simple format
+                        isSimpleFormat = true
+                    } else if foodsWithCarbs.count == 1 && foodsWithCarbs[0].carbs == mealData.totalCarbs {
+                        // Only one item has carbs and it equals total - likely Gemini incorrectly assigned total to one item
+                        isSimpleFormat = true
+                    } else {
+                        // Multiple items have carbs - detailed format
+                        isSimpleFormat = false
+                    }
+
                     // Populate editable fields for user corrections
                     // Auto-capitalize first letter of food names
                     editableFoods = mealData.foods.map { food in
@@ -288,7 +306,7 @@ struct VoiceInputView: View {
                         return EditableFoodItem(
                             name: capitalizedName,
                             amount: food.amount,
-                            carbs: food.carbs
+                            carbs: isSimpleFormat ? nil : food.carbs  // Clear carbs in simple format
                         )
                     }
                     editableTotalCarbs = "\(mealData.totalCarbs)"
@@ -342,10 +360,38 @@ struct VoiceInputView: View {
     }
 
     private func saveMealEntry() async {
-        // Use edited values from user
+        // VALIDATION 1: Total carbs must be positive
         guard let totalCarbs = Int(editableTotalCarbs), totalCarbs > 0 else {
+            await MainActor.run {
+                audioRecorder.error = .recordingFailed("Lütfen geçerli bir karbonhidrat değeri girin (0'dan büyük)")
+            }
             logger.warning("⚠️ Invalid total carbs value: \(editableTotalCarbs)")
             return
+        }
+
+        // VALIDATION 2: At least one food item with non-empty name
+        let validFoods = editableFoods.filter { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
+        guard !validFoods.isEmpty else {
+            await MainActor.run {
+                audioRecorder.error = .recordingFailed("Lütfen en az bir yiyecek adı girin")
+            }
+            logger.warning("⚠️ No valid food items found")
+            return
+        }
+
+        // VALIDATION 3: Check for invalid carbs values in detailed format
+        if parsedMealData?.isDetailedFormat == true {
+            let hasInvalidCarbs = validFoods.contains { food in
+                !food.carbs.isEmpty && food.carbsInt == nil
+            }
+
+            if hasInvalidCarbs {
+                await MainActor.run {
+                    audioRecorder.error = .recordingFailed("Lütfen tüm karbonhidrat değerlerinin sayı olduğundan emin olun")
+                }
+                logger.warning("⚠️ Invalid carbs values in food items")
+                return
+            }
         }
 
         // Use the MealEntryService to save
@@ -356,7 +402,7 @@ struct VoiceInputView: View {
                 totalCarbs: totalCarbs,
                 mealType: editableMealType,
                 timestamp: editableTimestamp,
-                foods: editableFoods,
+                foods: validFoods,  // Use filtered valid foods
                 hasInsulin: hasInsulin,
                 insulinDosage: editableInsulinDosage,
                 insulinType: editableInsulinType,

@@ -197,7 +197,8 @@ final class MedicationFirestoreService: ObservableObject {
             }
 
             // Step 2: Download updates from Firestore
-            let lastSync = lastSyncTime ?? Date.distantPast
+            // Use Unix epoch (1970) instead of Date.distantPast (0001) - Firestore doesn't support dates before 1970
+            let lastSync = lastSyncTime ?? Date(timeIntervalSince1970: 0)
             let firestoreMedications = try await downloadMedications(since: lastSync)
 
             if !firestoreMedications.isEmpty {

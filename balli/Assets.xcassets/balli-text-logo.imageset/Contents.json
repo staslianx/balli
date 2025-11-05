@@ -1,7 +1,7 @@
 {
   "images" : [
     {
-      "filename" : "balli-text-logo.pdf",
+      "filename" : "balli_final_logo-light.pdf",
       "idiom" : "universal"
     },
     {
@@ -11,7 +11,6 @@
           "value" : "dark"
         }
       ],
-      "filename" : "balli_text_logo_dark.pdf",
       "idiom" : "universal"
     }
   ],

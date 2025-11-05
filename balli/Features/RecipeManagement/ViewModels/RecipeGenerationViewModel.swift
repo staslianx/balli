@@ -233,8 +233,9 @@ final class RecipeGenerationViewModel: ObservableObject {
             logger.info("✅ [VM] Save confirmed - showing success state")
             isSaved = true
 
-            // Reset state after successful save to prevent ghost data on next generation
-            resetStateAfterSave()
+            // Keep recipe visible after save - don't reset state
+            // User can continue viewing/interacting with their saved recipe
+            logger.info("📌 [VM] Recipe saved - keeping view state intact")
         } else {
             logger.warning("⚠️ [VM] Save confirmation not shown")
         }

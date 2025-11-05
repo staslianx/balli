@@ -161,7 +161,78 @@ final class UserMemoryCache: @unchecked Sendable {
     var storedRecipes: [String: MemoryEntry] = [:] // Recipe deduplication
     var lastActivityTime = Date()
 
-    init() {}
+    // Repository for Core Data persistence
+    private let repository: MemoryRepository?
+
+    init(repository: MemoryRepository? = nil) {
+        self.repository = repository
+    }
+
+    // MARK: - Persistence Methods
+
+    /// Load memory from Core Data persistence
+    func loadFromPersistence() async throws {
+        guard let repository = repository else { return }
+
+        // Load immediate tier
+        let immediate = try await repository.loadMemoryEntries(tier: .immediate)
+        self.immediateMemory = immediate
+
+        // Load recent tier
+        let recent = try await repository.loadMemoryEntries(tier: .recent)
+        self.recentMemory = recent
+
+        // Load historical tier
+        let historical = try await repository.loadMemoryEntries(tier: .historical)
+        self.historicalMemory = historical
+
+        // Load user facts (persistent tier or type)
+        let facts = try await repository.loadMemoryEntries(type: .userFact)
+        self.userFacts = facts.map { $0.content }
+
+        // Load preferences
+        self.preferences = try await repository.loadPreferences()
+
+        // Load patterns
+        let patterns = try await repository.loadMemoryEntries(type: .mealPattern)
+        self.recentPatterns = patterns
+
+        // Load recipes
+        let recipes = try await repository.loadMemoryEntries(type: .recipe)
+        for recipe in recipes {
+            self.storedRecipes[recipe.id] = recipe
+        }
+    }
+
+    /// Save memory to Core Data persistence
+    func saveToPersistence() async throws {
+        guard let repository = repository else { return }
+
+        // Collect all memory entries to save
+        var allEntries: [MemoryEntry] = []
+        allEntries.append(contentsOf: immediateMemory)
+        allEntries.append(contentsOf: recentMemory)
+        allEntries.append(contentsOf: historicalMemory)
+        allEntries.append(contentsOf: recentPatterns)
+        allEntries.append(contentsOf: storedRecipes.values)
+
+        // Batch save memory entries
+        try await repository.saveMemoryEntries(allEntries)
+
+        // Save preferences
+        for (key, value) in preferences {
+            try await repository.savePreference(key: key, value: value)
+        }
+    }
+
+    /// Background auto-save (call periodically)
+    func backgroundSave() async {
+        do {
+            try await saveToPersistence()
+        } catch {
+            // Silent fail for background saves - will retry next time
+        }
+    }
 
     /// Create a deep copy for testing or serialization
     func copy() -> UserMemoryCache {

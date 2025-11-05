@@ -95,17 +95,17 @@ extension MealEvent {
         row["total_insulin_u"] = totalInsulin.map { String(format: "%.2f", $0) } ?? ""
         row["insulin_carb_ratio"] = insulinToCarbRatio.map { String(format: "%.3f", $0) } ?? ""
 
-        // Glucose
-        row["glucose_before_mg_dl"] = glucoseBefore != nil ? String(format: "%.0f", glucoseBefore!) : ""
-        row["glucose_peak_mg_dl"] = glucoseResponse?.peak != nil ? String(format: "%.0f", glucoseResponse!.peak) : ""
-        row["glucose_change_mg_dl"] = peakGlucoseChange != nil ? String(format: "%.0f", peakGlucoseChange!) : ""
-        row["glucose_change_1h_mg_dl"] = glucoseResponse?.change1h != nil ? String(format: "%.0f", glucoseResponse!.change1h!) : ""
-        row["glucose_change_2h_mg_dl"] = glucoseResponse?.change2h != nil ? String(format: "%.0f", glucoseResponse!.change2h!) : ""
+        // Glucose - Use .map for safe optional unwrapping
+        row["glucose_before_mg_dl"] = glucoseBefore.map { String(format: "%.0f", $0) } ?? ""
+        row["glucose_peak_mg_dl"] = glucoseResponse.map { String(format: "%.0f", $0.peak) } ?? ""
+        row["glucose_change_mg_dl"] = peakGlucoseChange.map { String(format: "%.0f", $0) } ?? ""
+        row["glucose_change_1h_mg_dl"] = glucoseResponse?.change1h.map { String(format: "%.0f", $0) } ?? ""
+        row["glucose_change_2h_mg_dl"] = glucoseResponse?.change2h.map { String(format: "%.0f", $0) } ?? ""
 
-        // Activity
-        row["steps_2h_before"] = activityContext != nil ? String(activityContext!.steps2hBefore) : ""
-        row["steps_2h_after"] = activityContext != nil ? String(activityContext!.steps2hAfter) : ""
-        row["active_calories"] = activityContext != nil ? String(activityContext!.activeCalories) : ""
+        // Activity - Use .map for safe optional unwrapping
+        row["steps_2h_before"] = activityContext.map { String($0.steps2hBefore) } ?? ""
+        row["steps_2h_after"] = activityContext.map { String($0.steps2hAfter) } ?? ""
+        row["active_calories"] = activityContext.map { String($0.activeCalories) } ?? ""
 
         // Meal details
         row["meal_name"] = mealName ?? ""

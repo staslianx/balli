@@ -115,7 +115,7 @@ struct FaviconView: View {
         .task(priority: .background) {
             // Stagger favicon loading to prevent UI freezing
             // Load with increasing delay based on index
-            try? await Task.sleep(nanoseconds: UInt64(index) * 100_000_000) // 0.1s per index
+            try? await Task.sleep(for: .milliseconds(index * 100))
             shouldLoad = true
         }
     }

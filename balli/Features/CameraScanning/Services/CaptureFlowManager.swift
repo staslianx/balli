@@ -67,36 +67,25 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
         self.lifecycleHandler = CaptureLifecycleHandler()
 
         // Initialize persistence with graceful degradation
-        // If this fails, we still allow the app to function but with limited persistence
         let persistenceManager: CaptureSessionPersistence
+        let usedFallback: Bool
         do {
             persistenceManager = try CaptureSessionPersistence()
-            logger.info("Persistence initialized successfully")
+            logger.info("✅ Persistence initialized successfully")
+            usedFallback = false
         } catch {
-            // Graceful degradation: If file system is corrupted or permissions are missing,
-            // log the error comprehensively but don't crash the app.
-            // This can happen in edge cases: low storage, corrupted app container, iOS update issues.
-            logger.error("⚠️ CRITICAL: Failed to initialize persistence: \(error.localizedDescription)")
-            logger.warning("⚠️ App will continue with degraded functionality - captures may not persist")
+            // Graceful degradation: Use in-memory fallback if persistence fails
+            // This can happen due to: low storage, corrupted container, permissions issues
+            logger.error("⚠️ Failed to initialize persistence: \(error.localizedDescription)")
+            logger.warning("⚠️ Using in-memory fallback - captures will not persist across app restarts")
 
-            // In production, we should continue with a fallback mechanism
-            // For now, we use fatalError only in DEBUG to catch issues during development
+            // Use in-memory fallback instead of crashing
+            persistenceManager = CaptureSessionPersistence.inMemoryFallback()
+            usedFallback = true
+
             #if DEBUG
-            fatalError("Unable to initialize capture persistence in DEBUG mode. Error: \(error.localizedDescription)")
-            #else
-            // In production, attempt one retry with a delay
-            logger.info("Attempting persistence recovery after 1 second delay...")
-            Thread.sleep(forTimeInterval: 1.0)
-
-            do {
-                persistenceManager = try CaptureSessionPersistence()
-                logger.info("✅ Persistence recovery successful after retry")
-            } catch {
-                // If retry fails, this is truly catastrophic
-                // Last resort: crash with detailed error for user to contact support
-                logger.critical("❌ Persistence recovery failed: \(error.localizedDescription)")
-                fatalError("Storage system unavailable. Please restart your device and ensure sufficient storage space is available. Error: \(error.localizedDescription)")
-            }
+            // In debug, log prominently but don't crash
+            logger.warning("🐛 DEBUG: Persistence initialization failed - using fallback")
             #endif
         }
 
@@ -110,6 +99,11 @@ public class CaptureFlowManager: ObservableObject, CaptureFlowCoordinating {
 
         setupBindings()
         setupObservers()
+
+        // Log fallback status after initialization
+        if usedFallback {
+            logger.info("📱 App running with in-memory storage only - captures will not persist")
+        }
     }
     
     // MARK: - Setup

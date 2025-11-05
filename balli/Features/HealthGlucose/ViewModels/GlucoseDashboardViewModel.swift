@@ -22,6 +22,7 @@ final class GlucoseDashboardViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let dexcomService: DexcomService
+    private let repository: GlucoseReadingRepository
     private let logger = AppLoggers.Health.glucose
 
     // MARK: - Dashboard Tab
@@ -33,30 +34,62 @@ final class GlucoseDashboardViewModel: ObservableObject {
 
     // MARK: - Initialization
 
-    init(dexcomService: DexcomService = DexcomService.shared) {
-        self.dexcomService = dexcomService
+    /// Initialize with dependency injection support
+    /// - Parameters:
+    ///   - dexcomService: Dexcom service (optional, uses DependencyContainer if not provided)
+    ///   - repository: Glucose data repository
+    init(
+        dexcomService: DexcomService? = nil,
+        repository: GlucoseReadingRepository = GlucoseReadingRepository()
+    ) {
+        // CRITICAL FIX: Safe unwrapping instead of force cast
+        // If DependencyContainer has wrong type, we gracefully fail instead of crashing
+        if let service = dexcomService {
+            self.dexcomService = service
+        } else if let service = DependencyContainer.shared.dexcomService as? DexcomService {
+            self.dexcomService = service
+        } else {
+            // Fallback: Create default DexcomService if container has wrong type
+            // This prevents crashes during initialization
+            let logger = AppLoggers.Health.glucose
+            logger.error("DexcomService not properly configured in DependencyContainer - using default")
+            self.dexcomService = DexcomService()
+        }
+
+        self.repository = repository
     }
 
     // MARK: - Data Loading
 
-    /// Loads glucose data from Dexcom service
+    /// Loads glucose data from Core Data (where Official API data is stored)
+    /// This ensures we display ALL glucose data regardless of API delay
     func loadData() async {
         logger.info("🔵 [LOAD] loadData() called - isConnected: \(self.dexcomService.isConnected)")
 
-        guard dexcomService.isConnected else {
-            logger.warning("⚠️ [LOAD] Skipping loadData() - not connected (isConnected=false)")
-            return
-        }
-
-        logger.info("✅ [LOAD] Starting data fetch - connection confirmed")
         isLoading = true
         error = nil
 
         do {
-            // Always fetch 1 day of data for the 6am-6am view
-            glucoseReadings = try await dexcomService.fetchRecentReadings(days: 1)
-            glucoseReadings.sort { $0.timestamp > $1.timestamp }
-            logger.info("✅ [LOAD] Loaded \(self.glucoseReadings.count) glucose readings")
+            // Calculate date range for last 7 days
+            let endDate = Date()
+            let startDate = Calendar.current.date(byAdding: .day, value: -7, to: endDate) ?? endDate
+
+            logger.info("📊 [LOAD] Loading from Core Data: \(startDate) to \(endDate)")
+
+            // Load ALL readings from Core Data (includes both Official and Share API data)
+            let allReadings = try await repository.fetchReadings(
+                startDate: startDate,
+                endDate: endDate
+            )
+
+            glucoseReadings = allReadings.sorted { $0.timestamp > $1.timestamp }
+            logger.info("✅ [LOAD] Loaded \(self.glucoseReadings.count) glucose readings from Core Data")
+
+            // Log breakdown by source for debugging
+            let officialCount = glucoseReadings.filter { $0.source == "dexcom_official" }.count
+            let shareCount = glucoseReadings.filter { $0.source == "dexcom_share" }.count
+            logger.info("📊 [LOAD] Breakdown: Official API: \(officialCount), Share API: \(shareCount)")
+
         } catch {
             self.error = error.localizedDescription
             logger.error("❌ [LOAD] Failed to load glucose data: \(error.localizedDescription)")
@@ -196,7 +229,8 @@ extension GlucoseDashboardViewModel {
     /// Preview with sample glucose data
     static var previewWithData: GlucoseDashboardViewModel {
         let service = DexcomService.mock
-        let vm = GlucoseDashboardViewModel(dexcomService: service)
+        let repository = GlucoseReadingRepository()
+        let vm = GlucoseDashboardViewModel(dexcomService: service, repository: repository)
 
         // Add sample readings
         let now = Date()
@@ -208,7 +242,7 @@ extension GlucoseDashboardViewModel {
                 id: UUID(),
                 value: value,
                 timestamp: timestamp,
-                source: "dexcom_api",
+                source: "dexcom_official",
                 metadata: ["trend": "Flat"]
             )
         }
@@ -219,7 +253,8 @@ extension GlucoseDashboardViewModel {
     /// Preview with no data (empty state)
     static var previewEmpty: GlucoseDashboardViewModel {
         let service = DexcomService.mock
-        let vm = GlucoseDashboardViewModel(dexcomService: service)
+        let repository = GlucoseReadingRepository()
+        let vm = GlucoseDashboardViewModel(dexcomService: service, repository: repository)
         vm.glucoseReadings = []
         return vm
     }
@@ -227,7 +262,8 @@ extension GlucoseDashboardViewModel {
     /// Preview in loading state
     static var previewLoading: GlucoseDashboardViewModel {
         let service = DexcomService.mock
-        let vm = GlucoseDashboardViewModel(dexcomService: service)
+        let repository = GlucoseReadingRepository()
+        let vm = GlucoseDashboardViewModel(dexcomService: service, repository: repository)
         vm.isLoading = true
         vm.glucoseReadings = []
         return vm

@@ -29,7 +29,7 @@ struct DexcomConnectionView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.window) private var window // Captured by .captureWindow() modifier
-    @ObservedObject private var dexcomService = DexcomService.shared
+    @ObservedObject private var dexcomService: DexcomService
 
     // MARK: - State
 
@@ -37,6 +37,21 @@ struct DexcomConnectionView: View {
     @State private var errorMessage = ""
     @State private var isConnecting = false
     @State private var showingShareSettings = false
+
+    // MARK: - Initialization
+
+    /// Primary initializer accepting concrete type for dependency injection
+    init(dexcomService: DexcomService) {
+        self.dexcomService = dexcomService
+    }
+
+    /// Default initializer for standard app usage
+    /// - Note: Force cast is unavoidable due to Swift's @ObservedObject limitation with protocols
+    init() {
+        // Swift limitation: @ObservedObject requires concrete type, not protocol
+        // Force cast is centralized here to enable testing via primary init
+        self.init(dexcomService: DependencyContainer.shared.dexcomService as! DexcomService)
+    }
 
     // MARK: - Body
 
@@ -450,7 +465,8 @@ struct DexcomConnectionView: View {
 
         // Get hardcoded credentials from configuration
         let credentials = DexcomConfiguration.shareCredentials
-        let shareService = DexcomShareService.shared
+        // Use protocol type - connect() is part of DexcomShareServiceProtocol
+        let shareService = DependencyContainer.shared.dexcomShareService
 
         logger.info("🔄 AUTO-CONNECT: Using \(credentials.server) server")
 

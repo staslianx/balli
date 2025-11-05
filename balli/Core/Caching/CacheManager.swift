@@ -8,10 +8,14 @@
 
 import Foundation
 import UIKit
+import OSLog
 
 /// Actor-based cache manager for thread-safe caching operations
 /// Supports both memory and disk caching with automatic eviction
 actor CacheManager<Key: Hashable & Codable & Sendable, Value: Codable & Sendable> {
+
+    // MARK: - Logger
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "CacheManager")
 
     // MARK: - Configuration
 
@@ -69,11 +73,17 @@ actor CacheManager<Key: Hashable & Codable & Sendable, Value: Codable & Sendable
         self.configuration = configuration
 
         // Setup disk cache directory
-        guard let cacheDirectory = FileManager.default.urls(
+        let cacheDirectory: URL
+        if let standardCache = FileManager.default.urls(
             for: .cachesDirectory,
             in: .userDomainMask
-        ).first else {
-            fatalError("Unable to access cache directory - this should never happen on iOS")
+        ).first {
+            cacheDirectory = standardCache
+        } else {
+            // FALLBACK: If caches directory unavailable, use temporary directory
+            // This can happen in extreme low storage situations
+            logger.warning("Unable to access standard cache directory - using temporary directory")
+            cacheDirectory = FileManager.default.temporaryDirectory
         }
 
         self.diskCacheURL = cacheDirectory

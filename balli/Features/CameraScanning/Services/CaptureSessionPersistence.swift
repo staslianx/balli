@@ -26,24 +26,42 @@ public actor CaptureSessionPersistence {
     private let persistenceQueue = DispatchQueue(label: "com.balli.capture.persistence", qos: .utility)
     
     // MARK: - Initialization
-    
+
+    /// Initialize with full persistence
     public init() throws {
         // Setup directories
         guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
             throw CaptureError.unknownError("Failed to access documents directory")
         }
-        
+
         self.documentsDirectory = documentsURL
         self.sessionsDirectory = documentsURL.appendingPathComponent("CaptureSessions", isDirectory: true)
         self.imagesDirectory = documentsURL.appendingPathComponent("CaptureImages", isDirectory: true)
-        
+
         // Create directories if needed
         try createDirectoriesIfNeeded()
-        
+
         // Load existing sessions
         Task {
             await loadPersistedSessions()
         }
+    }
+
+    /// Initialize with in-memory fallback (no disk persistence)
+    /// Used when file system is unavailable or corrupted
+    private init(inMemoryOnly: Bool) {
+        // Use temporary directory for in-memory mode
+        let tempURL = FileManager.default.temporaryDirectory
+        self.documentsDirectory = tempURL
+        self.sessionsDirectory = tempURL.appendingPathComponent("CaptureSessions_temp", isDirectory: true)
+        self.imagesDirectory = tempURL.appendingPathComponent("CaptureImages_temp", isDirectory: true)
+
+        // Note: We don't create directories or load persisted sessions in fallback mode
+    }
+
+    /// Factory method to create in-memory fallback instance
+    public static func inMemoryFallback() -> CaptureSessionPersistence {
+        return CaptureSessionPersistence(inMemoryOnly: true)
     }
     
     // MARK: - Public Methods

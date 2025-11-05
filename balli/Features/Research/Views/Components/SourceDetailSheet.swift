@@ -18,24 +18,25 @@ struct SourceDetailSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.large) {
                     // Header card with unified citation badge
-                    HStack(spacing: 16) {
+                    HStack(spacing: ResponsiveDesign.Spacing.medium) {
                         // Unified citation number badge (matches SourceListRow)
                         ZStack {
                             Circle()
-                                .fill(AppTheme.primaryPurple.opacity(0.1))
-                                .frame(width: 48, height: 48)
+                                .fill(AppTheme.primaryPurple.opacity(0.15))
+                                .frame(width: 56, height: 56)
+                                .glassEffect(.regular.interactive(), in: Circle())
 
                             Text("\(index)")
-                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                                .font(.system(size: ResponsiveDesign.Font.scaledSize(24), weight: .bold, design: .rounded))
                                 .foregroundStyle(AppTheme.primaryPurple)
                         }
 
-                        VStack(alignment: .leading, spacing: 6) {
+                        VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xxSmall) {
                             // Domain
                             Text(source.domain)
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold, design: .rounded))
                                 .foregroundStyle(.primary)
 
                             // Credibility badge
@@ -59,32 +60,39 @@ struct SourceDetailSheet: View {
                                         .fill(AppTheme.primaryPurple.opacity(0.1))
 
                                     Text(source.domain.prefix(1).uppercased())
-                                        .font(.system(size: 18, weight: .semibold))
+                                        .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .semibold, design: .rounded))
                                         .foregroundStyle(AppTheme.primaryPurple)
                                 }
                             @unknown default:
                                 EmptyView()
                             }
                         }
-                        .frame(width: 48, height: 48)
+                        .frame(width: 56, height: 56)
                         .clipShape(Circle())
                     }
-                    .padding(20)
-                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .padding(ResponsiveDesign.Spacing.large)
+                    .background(.clear)
+                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                    .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
 
                     // Title card
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.small) {
                         Text(source.title)
-                            .font(.system(size: 22, weight: .semibold, design: .rounded))
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(24), weight: .bold, design: .rounded))
                             .foregroundStyle(.primary)
                             .fixedSize(horizontal: false, vertical: true)
+                            .multilineTextAlignment(.leading)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(20)
-                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .padding(ResponsiveDesign.Spacing.large)
+                    .background(.clear)
+                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                    .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
 
                     // Metadata card
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.medium) {
                         if let date = source.publishDate {
                             MetadataRow(icon: "calendar", label: "Yayın Tarihi", value: date.formatted(date: .long, time: .omitted))
                         }
@@ -95,68 +103,74 @@ struct SourceDetailSheet: View {
 
                         MetadataRow(icon: "link", label: "URL", value: source.url.host() ?? source.url.absoluteString)
                     }
-                    .padding(20)
-                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .padding(ResponsiveDesign.Spacing.large)
+                    .background(.clear)
+                    .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                    .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
 
                     // Snippet card
                     if let snippet = source.snippet, !snippet.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.medium) {
                             Label("Özet", systemImage: "text.alignleft")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
                                 .foregroundStyle(.secondary)
 
                             Text(snippet)
-                                .font(.system(size: 16, weight: .regular, design: .rounded))
+                                .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .regular, design: .rounded))
                                 .foregroundStyle(.primary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(20)
-                        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        .padding(ResponsiveDesign.Spacing.large)
+                        .background(.clear)
+                        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
                     }
 
                     // Action buttons
-                    VStack(spacing: 12) {
+                    VStack(spacing: ResponsiveDesign.Spacing.medium) {
                         // Primary action - Read article
                         Button {
                             openURL(source.url)
                             dismiss()
                         } label: {
-                            HStack(spacing: 10) {
+                            HStack(spacing: ResponsiveDesign.Spacing.small) {
                                 Image(systemName: "safari")
-                                    .font(.system(size: 16, weight: .semibold))
+                                    .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold))
 
                                 Text("Makaleyi Oku")
-                                    .font(.system(size: 17, weight: .semibold))
+                                    .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold, design: .rounded))
                             }
                             .frame(maxWidth: .infinity)
-                            .frame(height: 50)
+                            .frame(height: 56)
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(AppTheme.primaryPurple)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                        .shadow(color: AppTheme.primaryPurple.opacity(0.3), radius: ResponsiveDesign.height(4), x: 0, y: ResponsiveDesign.height(2))
 
                         // Secondary action - Share
                         ShareLink(item: source.url, subject: Text(source.title)) {
-                            HStack(spacing: 10) {
+                            HStack(spacing: ResponsiveDesign.Spacing.small) {
                                 Image(systemName: "square.and.arrow.up")
-                                    .font(.system(size: 16, weight: .semibold))
+                                    .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold))
 
                                 Text("Paylaş")
-                                    .font(.system(size: 17, weight: .semibold))
+                                    .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold, design: .rounded))
                             }
                             .frame(maxWidth: .infinity)
-                            .frame(height: 50)
+                            .frame(height: 56)
                         }
                         .buttonStyle(.bordered)
-                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
                     }
-                    .padding(.horizontal, 20)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 20)
+                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                .padding(.vertical, ResponsiveDesign.Spacing.large)
             }
-            .background(Color.appBackground(for: colorScheme).ignoresSafeArea())
+            .background(Color(.systemBackground).ignoresSafeArea())
             .navigationTitle("Kaynak")
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -171,19 +185,19 @@ struct MetadataRow: View {
     let value: String
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: ResponsiveDesign.Spacing.medium) {
             Image(systemName: icon)
-                .font(.system(size: 16, weight: .medium))
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold))
                 .foregroundStyle(AppTheme.primaryPurple)
-                .frame(width: 24)
+                .frame(width: 28)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xxSmall) {
                 Text(label)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(13), weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
 
                 Text(value)
-                    .font(.system(size: 15, weight: .regular))
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(15), weight: .regular, design: .rounded))
                     .foregroundStyle(.primary)
             }
 

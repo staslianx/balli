@@ -205,6 +205,7 @@ actor ResearchStreamParser {
         case .token(let content):
             accumulatedAnswer += content
             tokenCount += 1
+            logger.debug("🟡 [TOKEN-EMIT] length=\(content.count), content='\(content.prefix(20))...', calling onToken callback")
             onToken(content)
 
         case .tierSelected(let tier, let reasoning, let confidence):

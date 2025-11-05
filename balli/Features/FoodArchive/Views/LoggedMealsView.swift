@@ -235,7 +235,7 @@ struct LoggedMealsView: View {
                             Button(role: .destructive) {
                                 deleteMealGroup(mealGroup)
                             } label: {
-                                Image(systemName: "trash")
+                                Label("Sil", systemImage: "trash")
                             }
                         }
 
@@ -250,7 +250,7 @@ struct LoggedMealsView: View {
             }
             .padding(.vertical, ResponsiveDesign.Spacing.small)
         }
-        .background(.clear)
+        .background(Color.white.opacity(0.05))
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
@@ -275,11 +275,23 @@ struct LoggedMealsView: View {
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
 
-                // Ingredient count if multiple
-                if mealGroup.meals.count > 1 {
-                    Text("\(mealGroup.meals.count) malzeme")
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(12), weight: .regular, design: .rounded))
-                        .foregroundStyle(.secondary)
+                // Show ingredient names (up to 3, then "...")
+                Group {
+                    let ingredientNames = mealGroup.meals.compactMap { $0.foodItem?.name }.filter { !$0.isEmpty }
+                    if !ingredientNames.isEmpty {
+                        let displayText: String = {
+                            if ingredientNames.count <= 3 {
+                                return ingredientNames.joined(separator: ", ")
+                            } else {
+                                return ingredientNames.prefix(3).joined(separator: ", ") + "..."
+                            }
+                        }()
+
+                        Text(displayText)
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(12), weight: .regular, design: .rounded))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                    }
                 }
 
                 // Insulin badge if present

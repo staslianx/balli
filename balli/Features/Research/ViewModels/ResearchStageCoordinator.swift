@@ -99,7 +99,7 @@ final class ResearchStageCoordinator {
         }
 
         // Subscribe to manager's stage changes publisher
-        manager.stageChanges
+        let subscription = manager.stageChanges
             .receive(on: RunLoop.main)
             .sink { [weak self] stageMessage in
                 guard let self = self else { return }
@@ -114,7 +114,16 @@ final class ResearchStageCoordinator {
                     self.currentStages[answerId] = nil
                 }
             }
-            .store(in: &cancellables[answerId]!)
+
+        // CRITICAL FIX: Store subscription safely without force unwrap
+        if var existingSet = cancellables[answerId] {
+            existingSet.insert(subscription)
+            cancellables[answerId] = existingSet
+        } else {
+            // This should never happen given the check above, but handle defensively
+            logger.warning("Cancellables set not found despite initialization - creating new set")
+            cancellables[answerId] = [subscription]
+        }
 
         logger.info("✅ Stage change subscription active for answer: \(answerId)")
     }

@@ -300,26 +300,18 @@ async function streamTier1(
 
   const { stream, response } = await ai.generateStream(generateRequest);
 
-  // ===== STEP 3: Stream response word-by-word =====
+  // ===== STEP 3: Stream chunks directly - NO batching, NO delays, NO word-splitting =====
+  // The irregular chunking was caused by race conditions between batching layers
   let fullText = '';
   let chunkCount = 0;
   for await (const chunk of stream) {
     if (chunk.text) {
       chunkCount++;
-      // LOG EVERY CHUNK from Gemini
-      console.log(`🔍 [T1-CHUNK-${chunkCount}] Length: ${chunk.text.length}, Starts: "${chunk.text.slice(0, 20)}", Ends: "${chunk.text.slice(-20)}"`);
+      console.log(`📤 [T1-CHUNK-${chunkCount}] Streaming: length=${chunk.text.length}`);
 
-      const words = chunk.text.split(/(\s+)/);
-
-      for (const word of words) {
-        if (word.length > 0) {
-          const debugWord = word.replace(/ /g, '·').replace(/\n/g, '⏎\n').replace(/\t/g, '→');
-          console.log(`📤 [TIER1-WORD] Sending: "${debugWord}" (length: ${word.length})`);
-
-          writeSSE(res, { type: 'token', content: word });
-          fullText += word;
-        }
-      }
+      // Stream chunk directly - no word-splitting, no delays
+      writeSSE(res, { type: 'token', content: chunk.text });
+      fullText += chunk.text;
     }
   }
 
@@ -691,25 +683,16 @@ async function streamTier2Hybrid(
   for await (const chunk of stream) {
     if (chunk.text) {
       chunkCount++;
-      // LOG EVERY CHUNK from Gemini
-      console.log(`🔍 [T2-CHUNK-${chunkCount}] Length: ${chunk.text.length}, Starts: "${chunk.text.slice(0, 20)}", Ends: "${chunk.text.slice(-20)}"`);
+      console.log(`📤 [T2-CHUNK-${chunkCount}] Streaming: length=${chunk.text.length}`);
 
-      const words = chunk.text.split(/(\s+)/);
+      tokenCount += chunk.text.length;
 
-      for (const word of words) {
-        if (word.length > 0) {
-          tokenCount += word.length;
-
-          const debugWord = word.replace(/ /g, '·').replace(/\n/g, '⏎\n').replace(/\t/g, '→');
-          console.log(`📤 [T2-WORD] Sending: "${debugWord}" (length: ${word.length})`);
-
-          if (!writeSSE(res, { type: 'token', content: word })) {
-            console.error(`❌ [T2-STATELESS] Stream stopped due to size limit`);
-            break;
-          }
-          fullText += word;
-        }
+      // Stream chunk directly - no word-splitting, no delays, no batching
+      if (!writeSSE(res, { type: 'token', content: chunk.text })) {
+        console.error(`❌ [T2-STATELESS] Stream stopped due to size limit`);
+        break;
       }
+      fullText += chunk.text;
     }
   }
 
@@ -989,32 +972,23 @@ async function streamDeepResearch(
   for await (const chunk of stream) {
     if (chunk.text) {
       chunkCount++;
-      // LOG EVERY CHUNK from Gemini
-      console.log(`🔍 [T3-CHUNK-${chunkCount}] Length: ${chunk.text.length}, Starts: "${chunk.text.slice(0, 20)}", Ends: "${chunk.text.slice(-20)}"`);
+      console.log(`📤 [T3-CHUNK-${chunkCount}] Streaming: length=${chunk.text.length}`);
 
       if (firstChunk) {
         writeSSE(res, { type: 'generating', message: 'Derinlemesine araştırma sentezleniyor...' });
         firstChunk = false;
       }
 
-      const words = chunk.text.split(/(\s+)/);
+      tokenCount += chunk.text.length;
 
-      for (const word of words) {
-        if (word.length > 0) {
-          tokenCount += word.length;
+      // Stream chunk directly - no word-splitting, no delays, no batching
+      const writeSuccess = writeSSE(res, { type: 'token', content: chunk.text });
 
-          const debugWord = word.replace(/ /g, '·').replace(/\n/g, '⏎\n').replace(/\t/g, '→');
-          console.log(`📤 [T3-WORD] Sending: "${debugWord}" (length: ${word.length})`);
-
-          const writeSuccess = writeSSE(res, { type: 'token', content: word });
-
-          if (!writeSuccess) {
-            console.error(`❌ [T3-STATELESS] Stream stopped due to size limit at ${tokenCount} tokens`);
-            break;
-          }
-          fullText += word;
-        }
+      if (!writeSuccess) {
+        console.error(`❌ [T3-STATELESS] Stream stopped due to size limit at ${tokenCount} tokens`);
+        break;
       }
+      fullText += chunk.text;
     }
   }
 

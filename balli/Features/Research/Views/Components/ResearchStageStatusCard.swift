@@ -43,7 +43,7 @@ struct ResearchStageStatusCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Status text with stage-specific icon
+            // Status text with stage-specific icon (fixed height to prevent jumping)
             HStack(spacing: 10) {
                 Image(systemName: stageIcon)
                     .font(.system(size: 20, weight: .semibold))
@@ -56,32 +56,33 @@ struct ResearchStageStatusCard: View {
                     .font(.system(size: 16, weight: .medium, design: .rounded))
                     .foregroundStyle(.secondary)
                     .textShimmer(duration: 2.0)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(height: 20, alignment: .leading) // Fixed height to prevent layout shift
 
-            // Progress bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    // Background track
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color.secondary.opacity(0.15))
-                        .frame(height: 8)
+            // Progress bar (fixed height, no GeometryReader to prevent layout issues)
+            ZStack(alignment: .leading) {
+                // Background track
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.secondary.opacity(0.15))
+                    .frame(height: 8)
 
-                    // Filled progress
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    AppTheme.primaryPurple,
-                                    AppTheme.primaryPurple.opacity(0.7)
-                                ],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
+                // Filled progress
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                AppTheme.primaryPurple,
+                                AppTheme.primaryPurple.opacity(0.7)
+                            ],
+                            startPoint: .leading,
+                            endPoint: .trailing
                         )
-                        .frame(width: geometry.size.width * animatedProgress, height: 8)
-                }
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .scaleEffect(x: animatedProgress, y: 1.0, anchor: .leading)
             }
-            .frame(height: 20)
+            .frame(height: 8) // Fixed height for consistency
         }
         .padding(18)
         .background {

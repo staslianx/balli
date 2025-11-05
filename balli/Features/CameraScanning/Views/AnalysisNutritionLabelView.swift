@@ -29,6 +29,9 @@ struct AnalysisNutritionLabelView: View {
     /// Color scheme for dynamic colors
     @Environment(\.colorScheme) private var colorScheme
 
+    /// Rotation state for logo animation
+    @State private var isRotating = false
+
     // MARK: - Body
 
     var body: some View {
@@ -169,11 +172,21 @@ struct AnalysisNutritionLabelView: View {
 
     private var progressSection: some View {
         VStack(spacing: ResponsiveDesign.Spacing.medium) {
-            // Status with SF symbol - Fixed height to prevent jumping
+            // Status with rotating balli logo - Fixed height to prevent jumping
             HStack(spacing: ResponsiveDesign.Spacing.small) {
-                Image(systemName: currentStage.icon)
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .medium))
+                Image("balli-logo")
+                    .resizable()
+                    .renderingMode(.template)
                     .foregroundColor(currentStage.iconColor)
+                    .frame(width: ResponsiveDesign.Font.scaledSize(24), height: ResponsiveDesign.Font.scaledSize(24))
+                    .aspectRatio(contentMode: .fit)
+                    .rotationEffect(.degrees(isRotating ? 360 : 0))
+                    .animation(
+                        isRotating ?
+                            .linear(duration: 1.0).repeatForever(autoreverses: false) :
+                            .default,
+                        value: isRotating
+                    )
 
                 Text(currentStage.message)
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .medium, design: .rounded))
@@ -181,6 +194,20 @@ struct AnalysisNutritionLabelView: View {
             }
             .frame(height: ResponsiveDesign.height(24))
             .multilineTextAlignment(.center)
+            .onAppear {
+                // Start rotation when view appears (if not completed)
+                if currentStage != .completed {
+                    isRotating = true
+                }
+            }
+            .onChange(of: currentStage) { oldValue, newValue in
+                // Stop rotation when analysis completes
+                if newValue == .completed {
+                    isRotating = false
+                } else if !isRotating {
+                    isRotating = true
+                }
+            }
 
             // Clean progress bar
             GeometryReader { geometry in

@@ -117,6 +117,7 @@ struct SearchDetailView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationBarTitleDisplayMode(.inline)
         .toast($toastMessage)
         .toolbar {
@@ -148,7 +149,7 @@ struct SearchDetailView: View {
                     }
                 } label: {
                     Image(systemName: "highlighter")
-                        .foregroundStyle(Color.purple)
+                        .foregroundStyle(ThemeColors.primaryPurple)
                         .font(.system(size: 20))
                 }
                 .simultaneousGesture(
@@ -162,38 +163,31 @@ struct SearchDetailView: View {
         .task {
             print("📂 [SearchDetailView] Task started for answer: \(answer.id)")
 
-            // Initialize session manager and inject into highlight manager
-            let container: ModelContainer
-            do {
-                container = try ResearchSessionModelContainer.shared.makeContext().container
-            } catch {
-                logger.error("Failed to create persistent session container: \(error.localizedDescription)")
+            // Initialize session manager using storage configuration
+            let storageState = ResearchStorageConfiguration.configureStorage()
 
-                // Fallback to in-memory container
-                let schema = Schema([ResearchSession.self, SessionMessage.self])
-                let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            switch storageState {
+            case .persistent(let container), .inMemory(let container):
+                // Storage available - set up session manager
+                let metadataGenerator = SessionMetadataGenerator()
+                let sessionManager = ResearchSessionManager(
+                    modelContainer: container,
+                    userId: "demo_user",
+                    metadataGenerator: metadataGenerator
+                )
+                highlightManager.setSessionManager(sessionManager)
+                print("📂 [SearchDetailView] Session manager set")
 
-                do {
-                    container = try ModelContainer(for: schema, configurations: [config])
-                    logger.info("Successfully created in-memory fallback container")
-                } catch {
-                    logger.critical("CRITICAL: Failed to create in-memory fallback container: \(error.localizedDescription)")
-                    // This should never happen, but if it does, fail gracefully
-                    fatalError("Unable to initialize session storage. Please restart the app. Error: \(error)")
-                }
+                // Load existing highlights
+                await highlightManager.loadHighlights(for: answer.id)
+                print("📂 [SearchDetailView] Highlights loaded: \(highlightManager.highlights[answer.id]?.count ?? 0)")
+
+            case .unavailable(let error):
+                // Storage unavailable - continue without persistence
+                logger.error("Storage unavailable in SearchDetailView: \(error.localizedDescription)")
+                toastMessage = .error(ResearchStorageConfiguration.degradedModeMessage())
+                print("📂 [SearchDetailView] Running in degraded mode - no highlight persistence")
             }
-            let metadataGenerator = SessionMetadataGenerator()
-            let sessionManager = ResearchSessionManager(
-                modelContainer: container,
-                userId: "demo_user",
-                metadataGenerator: metadataGenerator
-            )
-            highlightManager.setSessionManager(sessionManager)
-            print("📂 [SearchDetailView] Session manager set")
-
-            // Load existing highlights
-            await highlightManager.loadHighlights(for: answer.id)
-            print("📂 [SearchDetailView] Highlights loaded: \(highlightManager.highlights[answer.id]?.count ?? 0)")
         }
         .onAppear {
             // Animate badge appearance

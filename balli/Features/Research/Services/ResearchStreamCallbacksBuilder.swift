@@ -51,8 +51,14 @@ final class ResearchStreamCallbacksBuilder {
         return (
             onToken: { [weak viewModel] token in
                 guard let viewModel = viewModel else { return }
+                let timestamp = Date()
+                print("🔴 [CALLBACK-RECEIVED] Token arrived at \(timestamp.timeIntervalSince1970), length=\(token.count), creating Task")
                 Task {
+                    let taskStart = Date()
+                    print("🟠 [TASK-START] Task executing \(taskStart.timeIntervalSince(timestamp)*1000)ms after callback")
                     await viewModel.handleToken(token, answerId: answerId)
+                    let taskEnd = Date()
+                    print("🟢 [TASK-END] handleToken completed in \(taskEnd.timeIntervalSince(taskStart)*1000)ms")
                 }
             },
             onTierSelected: { [weak viewModel] tier in

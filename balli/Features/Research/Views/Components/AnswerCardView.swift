@@ -75,27 +75,30 @@ struct AnswerCardView: View {
             renderStageCard()
 
 
-            // Answer content - markdown rendered with smooth streaming
-            // 🔧 FIX: Always display content when available (no holding)
+            // Answer content - markdown rendered with smooth character-by-character animation
+            // Uses AnimatedStreamingTextView to convert chunky tokens into smooth display
             if !answer.content.isEmpty {
-                StreamingAnswerView(
-                    content: answer.content,
+                AnimatedStreamingTextView(
+                    sourceContent: answer.content,
                     isStreaming: !isStreamingComplete,
                     sourceCount: answer.sources.count,
                     sources: answer.sources,
                     fontSize: researchFontSize
                 )
                 .padding(.vertical, 8)
-                .transition(.opacity.animation(.easeIn(duration: 0.25).delay(0.15)))
+                .transition(.opacity.animation(.easeIn(duration: 0.15)))
 
-                // Action row (single location)
-                ResearchResponseActionRow(
-                    content: answer.content,
-                    shareSubject: answer.query
-                ) { feedback in
-                    guard let feedback else { return }
-                    let rating = feedback == .positive ? "up" : "down"
-                    onFeedback?(rating, answer)
+                // Action row - only show when streaming is complete
+                if isStreamingComplete {
+                    ResearchResponseActionRow(
+                        content: answer.content,
+                        shareSubject: answer.query
+                    ) { feedback in
+                        guard let feedback else { return }
+                        let rating = feedback == .positive ? "up" : "down"
+                        onFeedback?(rating, answer)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
 

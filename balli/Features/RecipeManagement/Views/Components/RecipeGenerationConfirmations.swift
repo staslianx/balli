@@ -14,7 +14,7 @@ import OSLog
 struct LoadingStepsConfiguration {
     static let steps: [(label: String, duration: TimeInterval, progress: Int)] = [
         ("Tarife tekrar bakıyorum", 5.0, 6),
-        ("Malzemeleri inceliyorum", 6.0, 13),
+        ("Malzemeleri gruplara ayırıyorum", 6.0, 13),
         ("Ağırlıkları belirliyorum", 7.0, 21),
         ("Ham besin değerlerini hesaplıyorum", 7.0, 30),
         ("Pişirme yöntemlerini analiz ediyorum", 7.0, 39),
@@ -22,7 +22,7 @@ struct LoadingStepsConfiguration {
         ("Pişirme kayıplarını hesaplıyorum", 7.0, 57),
         ("Sıvı emilimini hesaplıyorum", 7.0, 66),
         ("100g için değerleri hesaplıyorum", 7.0, 75),
-        ("1 porsiyon için değerleri hesaplıyorum", 7.0, 84),
+        ("Porsiyon değerlerini hesaplıyorum", 7.0, 84),
         ("Glisemik yükü hesaplıyorum", 7.0, 92),
         ("Sağlamasını yapıyorum", 8.0, 100)
     ]

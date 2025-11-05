@@ -74,10 +74,13 @@ actor HealthKitNutritionService {
                     )
                 }
 
-                // Update the specific nutrition value
-                var entry = nutritionEntries[roundedDate]!
-                let value = extractNutritionValue(from: sample, type: type)
+                // Update the specific nutrition value - use guard instead of force unwrap
+                guard var entry = nutritionEntries[roundedDate] else {
+                    logger.error("Failed to retrieve nutrition entry that was just created - data corruption possible")
+                    continue
+                }
 
+                let value = extractNutritionValue(from: sample, type: type)
                 entry = updateNutritionEntry(entry, type: type, value: value)
                 nutritionEntries[roundedDate] = entry
             }

@@ -57,33 +57,74 @@ final class ResearchViewModelInitializer {
     /// Initialize core components (without observers that need `self`)
     /// Call this first, then setup observers after assigning to view model properties
     func initializeCoreComponents() -> ResearchViewModelCoreComponents {
-        // Initialize session manager with ModelContainer, userId, and metadata generator
-        let container: ModelContainer
-        do {
-            container = try ResearchSessionModelContainer.shared.makeContext().container
-        } catch {
-            logger.error("Failed to create persistent session container: \(error.localizedDescription)")
+        // Initialize session manager using storage configuration
+        let storageState = ResearchStorageConfiguration.configureStorage()
 
-            // Fallback to in-memory container
+        let sessionManager: ResearchSessionManager
+        let metadataGenerator = SessionMetadataGenerator()
+
+        switch storageState {
+        case .persistent(let container), .inMemory(let container):
+            // Storage available - create session manager
+            sessionManager = ResearchSessionManager(
+                modelContainer: container,
+                userId: currentUserId,
+                metadataGenerator: metadataGenerator
+            )
+            logger.info("✅ Session manager initialized with storage")
+
+        case .unavailable(let error):
+            // Storage unavailable - create session manager with in-memory-only container
+            // This is a degraded mode where session history won't persist across app restarts
+            logger.warning("⚠️ Creating session manager in degraded mode: \(error.localizedDescription)")
+
+            // Create a minimal in-memory container for the session
             let schema = Schema([ResearchSession.self, SessionMessage.self])
             let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
 
-            do {
-                container = try ModelContainer(for: schema, configurations: [config])
-                logger.info("Successfully created in-memory fallback container")
-            } catch {
-                logger.critical("CRITICAL: Failed to create in-memory fallback container: \(error.localizedDescription)")
-                // This should never happen, but if it does, fail gracefully
-                fatalError("Unable to initialize session storage. Please restart the app. Error: \(error)")
+            // This should always succeed since it's in-memory only
+            if let container = try? ModelContainer(for: schema, configurations: [config]) {
+                sessionManager = ResearchSessionManager(
+                    modelContainer: container,
+                    userId: currentUserId,
+                    metadataGenerator: metadataGenerator
+                )
+                logger.info("✅ Session manager initialized in degraded mode (no persistence)")
+            } else {
+                // CRITICAL FIX: If even in-memory container fails, try one more time without config
+                logger.critical("⚠️ CRITICAL: In-memory container with config failed - trying default configuration")
+
+                do {
+                    let defaultContainer = try ModelContainer(for: schema)
+                    sessionManager = ResearchSessionManager(
+                        modelContainer: defaultContainer,
+                        userId: currentUserId,
+                        metadataGenerator: metadataGenerator
+                    )
+                    logger.info("✅ Created session manager with default container as last resort")
+                } catch {
+                    // If this fails, SwiftData is completely broken
+                    // Create a minimal container with no schema as absolute last fallback
+                    logger.fault("💥 FAULT: Cannot create ModelContainer at all: \(error.localizedDescription)")
+                    logger.fault("Research functionality will be severely degraded - sessions won't be saved")
+
+                    // Use an empty schema as absolute minimum
+                    let emptySchema = Schema([])
+                    do {
+                        let emergencyContainer = try ModelContainer(for: emptySchema)
+                        sessionManager = ResearchSessionManager(
+                            modelContainer: emergencyContainer,
+                            userId: currentUserId,
+                            metadataGenerator: metadataGenerator
+                        )
+                        logger.warning("Created emergency session manager with empty schema")
+                    } catch {
+                        // This should truly be impossible - if even empty schema fails, SwiftData is broken
+                        fatalError("SwiftData completely broken - cannot create any ModelContainer: \(error)")
+                    }
+                }
             }
         }
-
-        let metadataGenerator = SessionMetadataGenerator()
-        let sessionManager = ResearchSessionManager(
-            modelContainer: container,
-            userId: currentUserId,
-            metadataGenerator: metadataGenerator
-        )
 
         // Initialize extracted components
         let eventHandler = ResearchEventHandler(

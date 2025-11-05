@@ -123,9 +123,15 @@ struct FlowTextWithCitations: View {
                     .background(Color.secondary.opacity(0.15))
                     .clipShape(RoundedRectangle(cornerRadius: 3))
             } else {
+                // Use specific font variant names for custom fonts (fontWeight modifier doesn't work reliably with custom fonts)
+                let fontVariant = if isBold {
+                    fontName + "-Bold"
+                } else {
+                    fontName + "-Medium"
+                }
+
                 let baseText = Text(String(word) + trailingSpace)
-                    .font(.custom(fontName, size: fontSize))
-                    .fontWeight(isBold ? .bold : .medium)
+                    .font(.custom(fontVariant, size: fontSize))
                     .foregroundStyle(.primary)
 
                 if isItalic {

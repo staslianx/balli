@@ -237,6 +237,10 @@ public class RecipeDataManager {
         recipe.totalRecipeWeight = Double(data.totalRecipeWeight) ?? 0.0
         recipe.portionMultiplier = data.portionMultiplier
 
+        // Set initial portion size to Gemini's recommended weight
+        // This is the "1 portion" weight that nutrition was calculated for
+        recipe.portionSize = Double(data.totalRecipeWeight) ?? 0.0
+
         // Save time fields
         recipe.prepTime = Int16(data.prepTime) ?? 0
         recipe.cookTime = Int16(data.cookTime) ?? 0

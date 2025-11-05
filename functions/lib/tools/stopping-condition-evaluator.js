@@ -34,9 +34,13 @@ function evaluateStoppingConditions(roundNumber, maxRounds, currentRound, allRou
     if (roundNumber >= maxRounds) {
         triggeredConditions.push(`Max rounds (${maxRounds}) reached`);
     }
-    // CONDITION 2: High evidence quality with no gaps
-    if (reflection.evidenceQuality === 'high' && reflection.gapsIdentified.length === 0) {
-        triggeredConditions.push('High evidence quality with comprehensive coverage');
+    // CONDITION 2: High evidence quality with no gaps AND minimum sources (T3 requirement)
+    const totalSources = allRounds.reduce((sum, r) => sum + r.sourceCount, 0);
+    const MIN_SOURCES_FOR_HIGH_QUALITY_STOP = 15; // T3 minimum threshold
+    if (reflection.evidenceQuality === 'high' &&
+        reflection.gapsIdentified.length === 0 &&
+        totalSources >= MIN_SOURCES_FOR_HIGH_QUALITY_STOP) {
+        triggeredConditions.push(`High evidence quality with comprehensive coverage (${totalSources} sources)`);
     }
     // CONDITION 3: No sources found this round (diminishing returns)
     if (currentRound.sourceCount === 0) {
@@ -47,16 +51,17 @@ function evaluateStoppingConditions(roundNumber, maxRounds, currentRound, allRou
         triggeredConditions.push(`Reflection recommends stopping: ${reflection.reasoning}`);
     }
     // CONDITION 5: Total sources exceed comprehensive threshold
-    const totalSources = allRounds.reduce((sum, r) => sum + r.sourceCount, 0);
-    // INCREASED: Was 30, now 50 to allow multiple rounds for truly deep research
-    // With API timeouts fixed, Round 1 should get ~25 sources, so we want at least 2 rounds
-    const COMPREHENSIVE_THRESHOLD = 50; // Stop if we have 50+ sources
+    // INCREASED: Was 30, now 40 to allow multiple rounds for truly deep research
+    // T3 should aim for 20-40 sources across multiple rounds
+    const COMPREHENSIVE_THRESHOLD = 40; // Stop if we have 40+ sources
     if (totalSources >= COMPREHENSIVE_THRESHOLD) {
         triggeredConditions.push(`Comprehensive source coverage (${totalSources} sources)`);
     }
-    // CONDITION 6: High quality with few gaps
-    if (reflection.evidenceQuality === 'high' && reflection.gapsIdentified.length <= 1) {
-        triggeredConditions.push('High quality evidence with minimal gaps');
+    // CONDITION 6: High quality with few gaps AND minimum sources
+    if (reflection.evidenceQuality === 'high' &&
+        reflection.gapsIdentified.length <= 1 &&
+        totalSources >= MIN_SOURCES_FOR_HIGH_QUALITY_STOP) {
+        triggeredConditions.push(`High quality evidence with minimal gaps (${totalSources} sources)`);
     }
     // CONDITION 7: Diminishing returns (very few sources in last 2 rounds)
     if (allRounds.length >= 2) {

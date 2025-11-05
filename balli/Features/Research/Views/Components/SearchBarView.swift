@@ -21,6 +21,23 @@ struct SearchBarView: View {
     @State private var showPhotosPicker = false
     @State private var selectedPhotoItem: PhotosPickerItem?
 
+    // Dark mode dissolved purple gradient
+    private var dissolvedPurpleDark: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: AppTheme.primaryPurple.opacity(0.12), location: 0.0),
+                .init(color: AppTheme.primaryPurple.opacity(0.08), location: 0.15),
+                .init(color: AppTheme.primaryPurple.opacity(0.05), location: 0.25),
+                .init(color: AppTheme.primaryPurple.opacity(0.03), location: 0.5),
+                .init(color: AppTheme.primaryPurple.opacity(0.05), location: 0.75),
+                .init(color: AppTheme.primaryPurple.opacity(0.08), location: 0.85),
+                .init(color: AppTheme.primaryPurple.opacity(0.12), location: 1.0)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
     private func handleSubmit() {
         if !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
             isInputFocused = false // Dismiss keyboard
@@ -81,7 +98,7 @@ struct SearchBarView: View {
                 .focused($isInputFocused)
                 .lineLimit(1...6)
                 // Remove heavy design font modifier
-                .font(.system(size: 17))
+                .font(.system(size: 19))
                 .foregroundColor(.primary)
                 .padding(.horizontal, ResponsiveDesign.Spacing.medium)
                 .padding(.top, ResponsiveDesign.Spacing.medium)
@@ -93,16 +110,6 @@ struct SearchBarView: View {
                 .autocorrectionDisabled(true)
                 // Optimize keyboard for faster response
                 .keyboardType(.default)
-                // Swipe down gesture to dismiss keyboard
-                .gesture(
-                    DragGesture(minimumDistance: 20)
-                        .onEnded { value in
-                            // Only dismiss if dragging downward
-                            if value.translation.height > 0 {
-                                isInputFocused = false
-                            }
-                        }
-                )
 
             // Send/Stop button at the bottom
             HStack {
@@ -120,15 +127,18 @@ struct SearchBarView: View {
                         Label("Fotoğraf Seç", systemImage: "photo.on.rectangle")
                     }
                 } label: {
-                    Image(systemName: "paperclip")
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .medium, design: .rounded))
-                        .foregroundColor(AppTheme.primaryPurple)
-                        .frame(width: 36, height: 36)
-                        .background(Color(.systemGray6))
-                        .clipShape(Circle())
+                    ZStack {
+                        Circle()
+                            .fill(Color(.systemGray6))
+                            .frame(width: ResponsiveDesign.Font.scaledSize(36), height: ResponsiveDesign.Font.scaledSize(36))
+
+                        Image(systemName: "paperclip")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .medium, design: .rounded))
+                            .foregroundColor(AppTheme.primaryPurple)
+                    }
                 }
                 .disabled(isSearching)
-                .padding(.leading, ResponsiveDesign.height(6))
+                .padding(.leading, ResponsiveDesign.Spacing.small)
 
                 Spacer()
 
@@ -137,7 +147,7 @@ struct SearchBarView: View {
                         // Stop button (red) during streaming
                         Image(systemName: "stop.circle.fill")
                             .font(.system(size: ResponsiveDesign.Font.scaledSize(36), weight: .regular, design: .rounded))
-                            .foregroundColor(.red)
+                            .foregroundColor(AppTheme.primaryPurple)
                     } else {
                         // Send button (purple) when idle
                         Image(systemName: "arrow.up.circle.fill")
@@ -150,7 +160,15 @@ struct SearchBarView: View {
             }
             .padding(.bottom, ResponsiveDesign.Spacing.xSmall)
         }
-        .background(.clear)
+        .background(
+            Group {
+                if colorScheme == .dark {
+                    dissolvedPurpleDark
+                } else {
+                    Color.clear
+                }
+            }
+        )
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))

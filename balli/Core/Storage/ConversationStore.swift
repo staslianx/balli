@@ -2,81 +2,18 @@
 //  ConversationStore.swift
 //  balli
 //
-//  SwiftData models for local conversation persistence
+//  Manages local conversation persistence using Core Data
 //  Enables offline conversation history and seamless sync
+//  Swift 6 strict concurrency compliant
 //
 
 import Foundation
-import SwiftData
 import OSLog
 
-// MARK: - SwiftData Models
-
-/// A conversation message stored locally with SwiftData
-@Model
-final class StoredMessage {
-    /// Unique message identifier (matches server ID when synced)
-    @Attribute(.unique) var id: String
-
-    /// Message content text
-    var text: String
-
-    /// Whether this is a user message (true) or assistant response (false)
-    var isUser: Bool
-
-    /// Message timestamp
-    var timestamp: Date
-
-    /// User ID this message belongs to
-    var userId: String
-
-    /// Sync status for offline queue management (stored as raw value for SwiftData predicate compatibility)
-    var syncStatusRawValue: String
-
-    /// Optional: Session ID for grouping related messages
-    var sessionId: String?
-
-    /// Optional: Error message if sync failed
-    var syncError: String?
-
-    /// Number of sync retry attempts
-    var retryCount: Int
-
-    init(
-        id: String,
-        text: String,
-        isUser: Bool,
-        timestamp: Date,
-        userId: String,
-        syncStatus: MessageSyncStatus = .pending,
-        sessionId: String? = nil,
-        syncError: String? = nil,
-        retryCount: Int = 0
-    ) {
-        self.id = id
-        self.text = text
-        self.isUser = isUser
-        self.timestamp = timestamp
-        self.userId = userId
-        self.syncStatusRawValue = syncStatus.rawValue
-        self.sessionId = sessionId
-        self.syncError = syncError
-        self.retryCount = retryCount
-    }
-
-    /// Computed property for sync status enum
-    var syncStatus: MessageSyncStatus {
-        get {
-            MessageSyncStatus(rawValue: syncStatusRawValue) ?? .pending
-        }
-        set {
-            syncStatusRawValue = newValue.rawValue
-        }
-    }
-}
+// MARK: - Message Sync Status
 
 /// Sync status for offline message queue
-enum MessageSyncStatus: String, Codable {
+enum MessageSyncStatus: String, Codable, Sendable {
     /// Message not yet sent to server (offline)
     case pending
 
@@ -93,25 +30,24 @@ enum MessageSyncStatus: String, Codable {
     case permanentlyFailed
 }
 
-// MARK: - Conversation Store Actor
+// MARK: - Conversation Store
 
-/// Actor managing local conversation persistence with SwiftData
-/// Handles offline storage, sync status tracking, and query operations
+/// MainActor-bound store managing local conversation persistence
+/// Uses ConversationRepository actor for thread-safe Core Data operations
 @MainActor
 final class ConversationStore: ObservableObject {
 
     // MARK: - Properties
 
     private let logger = Logger(subsystem: "com.anaxoniclabs.balli", category: "ConversationStore")
-    private let modelContainer: ModelContainer?
-    private let modelContext: ModelContext?
+    private let repository: ConversationRepository
 
     /// Error encountered during initialization (if any)
     @Published private(set) var initializationError: Error?
 
     /// Whether the store is ready for operations
     var isReady: Bool {
-        modelContainer != nil && modelContext != nil
+        return true // Repository actor is always ready
     }
 
     // MARK: - Configuration
@@ -124,55 +60,10 @@ final class ConversationStore: ObservableObject {
 
     // MARK: - Initialization
 
-    init() {
-        do {
-            // Configure SwiftData schema
-            let schema = Schema([StoredMessage.self])
-            let modelConfiguration = ModelConfiguration(
-                schema: schema,
-                isStoredInMemoryOnly: false,
-                allowsSave: true
-            )
-
-            let container = try ModelContainer(
-                for: schema,
-                configurations: [modelConfiguration]
-            )
-
-            self.modelContainer = container
-            self.modelContext = ModelContext(container)
-            self.initializationError = nil
-
-            logger.info("✅ ConversationStore initialized with SwiftData persistence")
-
-        } catch {
-            logger.error("❌ Failed to initialize SwiftData container: \(error.localizedDescription)")
-            self.modelContainer = nil
-            self.modelContext = nil
-            self.initializationError = error
-        }
-    }
-
-    // MARK: - Error Handling
-
-    /// Error types for ConversationStore operations
-    enum StorageError: LocalizedError {
-        case storageUnavailable
-
-        var errorDescription: String? {
-            switch self {
-            case .storageUnavailable:
-                return "Conversation storage is unavailable. Please restart the app."
-            }
-        }
-    }
-
-    /// Helper to ensure storage is ready before operations
-    private func ensureReady() throws {
-        guard isReady else {
-            logger.error("❌ Operation attempted on unavailable storage")
-            throw StorageError.storageUnavailable
-        }
+    init(repository: ConversationRepository = ConversationRepository()) {
+        self.repository = repository
+        self.initializationError = nil
+        logger.info("✅ ConversationStore initialized with Core Data persistence")
     }
 
     // MARK: - Message Operations
@@ -185,24 +76,16 @@ final class ConversationStore: ObservableObject {
         userId: String,
         sessionId: String? = nil,
         syncStatus: MessageSyncStatus = .pending
-    ) throws {
-        try ensureReady()
-        guard let context = modelContext else { throw StorageError.storageUnavailable }
-
-        let message = StoredMessage(
-            id: id,
-            text: text,
-            isUser: isUser,
-            timestamp: Date(),
-            userId: userId,
-            syncStatus: syncStatus,
-            sessionId: sessionId
-        )
-
-        context.insert(message)
-
+    ) async throws {
         do {
-            try context.save()
+            try await repository.saveMessage(
+                id: id,
+                text: text,
+                isUser: isUser,
+                userId: userId,
+                sessionId: sessionId,
+                syncStatus: syncStatus
+            )
             logger.info("💾 Saved message locally: \(id) (status: \(syncStatus.rawValue))")
         } catch {
             logger.error("❌ Failed to save message: \(error.localizedDescription)")
@@ -211,27 +94,9 @@ final class ConversationStore: ObservableObject {
     }
 
     /// Update message sync status
-    func updateSyncStatus(messageId: String, status: MessageSyncStatus, error: String? = nil) throws {
-        try ensureReady()
-        guard let context = modelContext else { throw StorageError.storageUnavailable }
-
-        let descriptor = FetchDescriptor<StoredMessage>(
-            predicate: #Predicate { $0.id == messageId }
-        )
-
-        guard let message = try context.fetch(descriptor).first else {
-            logger.warning("⚠️ Message not found for sync status update: \(messageId)")
-            return
-        }
-
-        message.syncStatusRawValue = status.rawValue
-        if let error = error {
-            message.syncError = error
-            message.retryCount += 1
-        }
-
+    func updateSyncStatus(messageId: String, status: MessageSyncStatus, error: String? = nil) async throws {
         do {
-            try context.save()
+            try await repository.updateSyncStatus(messageId: messageId, status: status, error: error)
             logger.debug("🔄 Updated sync status for \(messageId): \(status.rawValue)")
         } catch {
             logger.error("❌ Failed to update sync status: \(error.localizedDescription)")
@@ -240,18 +105,9 @@ final class ConversationStore: ObservableObject {
     }
 
     /// Fetch all messages for a user
-    func fetchMessages(userId: String, limit: Int = 100) throws -> [StoredMessage] {
-        try ensureReady()
-        guard let context = modelContext else { throw StorageError.storageUnavailable }
-
-        var descriptor = FetchDescriptor<StoredMessage>(
-            predicate: #Predicate { $0.userId == userId },
-            sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
-        )
-        descriptor.fetchLimit = limit
-
+    func fetchMessages(userId: String, limit: Int = 100) async throws -> [StoredMessage] {
         do {
-            let messages = try context.fetch(descriptor)
+            let messages = try await repository.fetchMessages(userId: userId, limit: limit)
             logger.debug("📖 Fetched \(messages.count) messages for user")
             return messages
         } catch {
@@ -261,22 +117,9 @@ final class ConversationStore: ObservableObject {
     }
 
     /// Fetch messages pending sync (offline queue)
-    func fetchPendingSyncMessages() throws -> [StoredMessage] {
-        try ensureReady()
-        guard let context = modelContext else { throw StorageError.storageUnavailable }
-
-        let pendingValue = MessageSyncStatus.pending.rawValue
-        let failedValue = MessageSyncStatus.failed.rawValue
-
-        let descriptor = FetchDescriptor<StoredMessage>(
-            predicate: #Predicate { message in
-                message.syncStatusRawValue == pendingValue || message.syncStatusRawValue == failedValue
-            },
-            sortBy: [SortDescriptor(\.timestamp, order: .forward)]
-        )
-
+    func fetchPendingSyncMessages() async throws -> [StoredMessage] {
         do {
-            let messages = try context.fetch(descriptor)
+            let messages = try await repository.fetchPendingSyncMessages()
             logger.info("📤 Found \(messages.count) messages pending sync")
             return messages
         } catch {
@@ -286,23 +129,9 @@ final class ConversationStore: ObservableObject {
     }
 
     /// Delete a message
-    func deleteMessage(id: String) throws {
-        try ensureReady()
-        guard let context = modelContext else { throw StorageError.storageUnavailable }
-
-        let descriptor = FetchDescriptor<StoredMessage>(
-            predicate: #Predicate { $0.id == id }
-        )
-
-        guard let message = try context.fetch(descriptor).first else {
-            logger.warning("⚠️ Message not found for deletion: \(id)")
-            return
-        }
-
-        context.delete(message)
-
+    func deleteMessage(id: String) async throws {
         do {
-            try context.save()
+            try await repository.deleteMessage(id: id)
             logger.info("🗑️ Deleted message: \(id)")
         } catch {
             logger.error("❌ Failed to delete message: \(error.localizedDescription)")
@@ -311,23 +140,10 @@ final class ConversationStore: ObservableObject {
     }
 
     /// Clear old messages (older than maxCacheAge)
-    func clearOldMessages() throws {
-        try ensureReady()
-        guard let context = modelContext else { throw StorageError.storageUnavailable }
-
-        let cutoffDate = Date().addingTimeInterval(-Self.maxCacheAge)
-        let descriptor = FetchDescriptor<StoredMessage>(
-            predicate: #Predicate { $0.timestamp < cutoffDate }
-        )
-
+    func clearOldMessages() async throws {
         do {
-            let oldMessages = try context.fetch(descriptor)
-            for message in oldMessages {
-                context.delete(message)
-            }
-            try context.save()
-
-            logger.info("🧹 Cleared \(oldMessages.count) old messages (older than 7 days)")
+            let count = try await repository.clearOldMessages(maxAge: Self.maxCacheAge)
+            logger.info("🧹 Cleared \(count) old messages (older than 7 days)")
         } catch {
             logger.error("❌ Failed to clear old messages: \(error.localizedDescription)")
             throw error
@@ -335,31 +151,10 @@ final class ConversationStore: ObservableObject {
     }
 
     /// Get storage statistics
-    func getStorageStats() throws -> StorageStatistics {
-        try ensureReady()
-        guard let context = modelContext else { throw StorageError.storageUnavailable }
-
-        let pendingValue = MessageSyncStatus.pending.rawValue
-        let failedValue = MessageSyncStatus.failed.rawValue
-
-        let allDescriptor = FetchDescriptor<StoredMessage>()
-        let pendingDescriptor = FetchDescriptor<StoredMessage>(
-            predicate: #Predicate { $0.syncStatusRawValue == pendingValue }
-        )
-        let failedDescriptor = FetchDescriptor<StoredMessage>(
-            predicate: #Predicate { $0.syncStatusRawValue == failedValue }
-        )
-
+    func getStorageStats() async throws -> StorageStatistics {
         do {
-            let totalCount = try context.fetchCount(allDescriptor)
-            let pendingCount = try context.fetchCount(pendingDescriptor)
-            let failedCount = try context.fetchCount(failedDescriptor)
-
-            return StorageStatistics(
-                totalMessages: totalCount,
-                pendingSync: pendingCount,
-                failedSync: failedCount
-            )
+            let stats = try await repository.getStorageStats()
+            return stats
         } catch {
             logger.error("❌ Failed to get storage stats: \(error.localizedDescription)")
             throw error

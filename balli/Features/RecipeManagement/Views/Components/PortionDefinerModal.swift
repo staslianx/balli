@@ -462,15 +462,15 @@ struct PortionDefinerModal: View {
                 showSuccessFeedback = true
             }
 
-            // Dismiss after brief delay
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            // Dismiss after brief delay (Swift 6 concurrency compliance)
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1.0))
                 withAnimation {
                     showSuccessFeedback = false
                 }
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    dismiss()
-                }
+                try? await Task.sleep(for: .seconds(0.3))
+                dismiss()
             }
 
         } catch {

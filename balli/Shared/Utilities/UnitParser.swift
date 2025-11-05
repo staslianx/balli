@@ -11,10 +11,10 @@ public actor UnitParser: UnitParsing {
     
     // MARK: - Unit Classification System
     
-    private let weightUnits: [String] = ["kilo", "kg", "kilogram", "gram", "gr", "g"]
-    private let volumeUnits: [String] = ["litre", "lt", "l", "ml", "mililitre", "cc"]
-    private let countUnits: [String] = ["adet", "tane", "parça", "dilim", "paket", "kutu", "şişe", "torba", "düzine", "kalıp", "blok"]
-    private let approxUnits: [String] = ["avuç", "tutam", "çimdik", "dal", "sap", "yaprak", "demet"]
+    private let weightUnits: [String] = ["kilo", "kg", "kilogram", "gram", "gr", "g", "ton"]
+    private let volumeUnits: [String] = ["litre", "lt", "l", "ml", "mililitre", "cc", "desilitre", "dl"]
+    private let countUnits: [String] = ["adet", "tane", "parça", "dilim", "paket", "kutu", "şişe", "torba", "düzine", "kalıp", "blok", "çift", "top", "baş", "diş", "bağ", "çubuk", "porsiyon"]
+    private let approxUnits: [String] = ["avuç", "tutam", "çimdik", "dal", "sap", "yaprak", "demet", "damla", "tepeleme"]
 
     // Kitchen measurement units
     private let kitchenUnits: [String] = [
@@ -53,14 +53,16 @@ public actor UnitParser: UnitParsing {
         switch unit {
         case "kilo", "kg", "kilogram": return "kg"
         case "gram", "gr", "g": return "g"
+        case "ton": return "ton"
         default: return "kg"
         }
     }
-    
+
     public func mapVolumeUnit(_ unit: String) async -> String {
         switch unit {
         case "litre", "lt", "l": return "L"
         case "ml", "mililitre", "cc": return "mL"
+        case "desilitre", "dl": return "dL"
         default: return "L"
         }
     }
@@ -95,10 +97,27 @@ public actor UnitParser: UnitParsing {
         if unit == "mL" {
             return "\(Int(quantity)) mL"
         }
-        
+
+        if unit == "dL" {
+            if quantity == Double(Int(quantity)) {
+                return "\(Int(quantity)) dL"
+            } else {
+                return String(format: "%.1f dL", quantity)
+            }
+        }
+
         // For grams
         if unit == "g" {
             return "\(Int(quantity)) g"
+        }
+
+        // For ton
+        if unit == "ton" {
+            if quantity == Double(Int(quantity)) {
+                return "\(Int(quantity)) ton"
+            } else {
+                return String(format: "%.2f ton", quantity)
+            }
         }
         
         // For approximate units, keep as-is with quantity

@@ -37,6 +37,15 @@ struct ProductCardView: View {
         )
     }
 
+    // Light mode solid purple background (matching Tarif/Nedu buttons)
+    private var cardBackground: some ShapeStyle {
+        if colorScheme == .dark {
+            return AnyShapeStyle(dissolvedPurpleDark)
+        } else {
+            return AnyShapeStyle(ThemeColors.primaryPurple)
+        }
+    }
+
     init(
         brand: String,
         name: String,
@@ -128,7 +137,7 @@ struct ProductCardView: View {
                     // Product Brand - allow wrapping for wide cards (recipes)
                     Text(brand)
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(26), weight: .semibold, design: .rounded))
-                        .foregroundColor(colorScheme == .light ? .white : .primary)
+                        .foregroundColor(colorScheme == .dark ? .primary : .black)
                         .lineLimit((width ?? 0) > ResponsiveDesign.width(250) ? nil : 1)
                         .minimumScaleFactor(0.8)
                         .fixedSize(horizontal: false, vertical: false)
@@ -136,7 +145,7 @@ struct ProductCardView: View {
                     // Product Name - allow wrapping for recipe cards
                     Text(name)
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .medium, design: .rounded))
-                        .foregroundColor(colorScheme == .light ? .white.opacity(0.9) : .secondary)
+                        .foregroundColor(colorScheme == .dark ? .secondary : .black.opacity(0.7))
                         .lineLimit(3)  // Allow up to 3 lines for long recipe names
                         .multilineTextAlignment(.leading)
                         .minimumScaleFactor(0.85)  // Allow text to shrink slightly if needed
@@ -147,12 +156,12 @@ struct ProductCardView: View {
                 if let impactLevel = impactLevel {
                     Image(systemName: impactLevel.cardSymbolName)
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .semibold))
-                        .foregroundColor(colorScheme == .light ? .white : AppTheme.primaryPurple)
+                        .foregroundColor(colorScheme == .dark ? AppTheme.primaryPurple : .black)
                         .frame(width: ResponsiveDesign.Font.scaledSize(24), height: ResponsiveDesign.Font.scaledSize(24), alignment: .center)
                 } else {
                     Image(systemName: getCategoryIcon())
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(20)))
-                        .foregroundColor(colorScheme == .light ? .white : AppTheme.primaryPurple)
+                        .foregroundColor(colorScheme == .dark ? AppTheme.primaryPurple : .black)
                         .frame(width: ResponsiveDesign.Font.scaledSize(24), height: ResponsiveDesign.Font.scaledSize(24), alignment: .center)
                 }
             }
@@ -167,7 +176,7 @@ struct ProductCardView: View {
                 // Portion size
                 Text(portion)
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .regular, design: .rounded))
-                    .foregroundColor(colorScheme == .light ? .white.opacity(0.9) : .secondary)
+                    .foregroundColor(colorScheme == .dark ? .secondary : .black.opacity(0.7))
 
                 // Carb value with favorite icon aligned
                 HStack(alignment: .center, spacing: ResponsiveDesign.Spacing.small) {
@@ -175,7 +184,7 @@ struct ProductCardView: View {
                     Text(carbs.replacingOccurrences(of: " gr Karb.", with: "gr"))
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(32), weight: .semibold, design: .rounded))
                         .monospacedDigit()
-                        .foregroundColor(colorScheme == .light ? .white : .primary)
+                        .foregroundColor(colorScheme == .dark ? .primary : .black)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
 
@@ -197,7 +206,7 @@ struct ProductCardView: View {
         .contentShape(Rectangle())
         .background(
             RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous)
-                .fill(colorScheme == .light ? AppTheme.adaptiveBalliGradient(for: colorScheme) : dissolvedPurpleDark)
+                .fill(cardBackground)
         )
         .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .glassEffect(
@@ -222,7 +231,7 @@ struct ProductCardView: View {
             Button(role: .destructive, action: {
                 onDelete?()
             }) {
-                Image(systemName: "trash")
+                Label("Sil", systemImage: "trash")
             }
         }
     }

@@ -232,8 +232,28 @@ actor ResearchHistoryRepository {
                 throw RepositoryError.answerNotFound
             }
 
-            // Encode highlights to JSON
+            // Delete existing highlight entities for this answer
+            if let existingHighlights = entity.highlights as? Set<TextHighlightEntity> {
+                for highlight in existingHighlights {
+                    context.delete(highlight)
+                }
+            }
+
+            // Create new TextHighlightEntity objects from TextHighlight structs
+            for highlight in highlights {
+                let highlightEntity = TextHighlightEntity(context: context)
+                highlightEntity.id = highlight.id
+                highlightEntity.createdAt = highlight.createdAt
+                highlightEntity.colorRawValue = highlight.color.rawValue
+                highlightEntity.startOffset = Int32(highlight.startOffset)
+                highlightEntity.length = Int32(highlight.length)
+                highlightEntity.text = highlight.text
+                highlightEntity.researchAnswer = entity
+            }
+
+            // Also keep JSON backup for migration fallback (can remove in future release)
             entity.highlightsJSON = try self.encodeToJSON(highlights)
+
             try context.save()
 
             self.logger.info("✅ Saved \(highlights.count) highlights for answer: \(answerId)")
@@ -252,9 +272,37 @@ actor ResearchHistoryRepository {
                 return []
             }
 
-            let highlights: [TextHighlight] = try self.decodeFromJSON(entity.highlightsJSON) ?? []
-            self.logger.info("✅ Loaded \(highlights.count) highlights for answer: \(answerId)")
-            return highlights
+            // Try loading from Core Data relationship first
+            if let highlightEntities = entity.highlights as? Set<TextHighlightEntity>, !highlightEntities.isEmpty {
+                let highlights = highlightEntities.map { highlightEntity in
+                    TextHighlight(
+                        id: highlightEntity.id ?? UUID(),
+                        color: TextHighlight.HighlightColor(rawValue: highlightEntity.colorRawValue ?? "") ?? .green,
+                        startOffset: Int(highlightEntity.startOffset),
+                        length: Int(highlightEntity.length),
+                        text: highlightEntity.text ?? "",
+                        createdAt: highlightEntity.createdAt ?? Date()
+                    )
+                }.sorted { $0.createdAt < $1.createdAt } // Sort by creation date
+
+                self.logger.info("✅ Loaded \(highlights.count) highlights from Core Data for answer: \(answerId)")
+                return highlights
+            }
+
+            // Fallback to JSON for migration (old data)
+            if let jsonHighlights: [TextHighlight] = try self.decodeFromJSON(entity.highlightsJSON), !jsonHighlights.isEmpty {
+                self.logger.info("⚠️ Loaded \(jsonHighlights.count) highlights from JSON fallback (migrating...)")
+
+                // Auto-migrate: save to Core Data for next time
+                Task {
+                    try? await self.saveHighlights(jsonHighlights, for: answerId)
+                }
+
+                return jsonHighlights
+            }
+
+            self.logger.debug("ℹ️ No highlights found for answer: \(answerId)")
+            return []
         }
     }
 

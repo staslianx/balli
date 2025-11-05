@@ -14,27 +14,29 @@ import OSLog
 /// Manages background refresh for Dexcom connections
 /// Ensures sessions stay alive and recovers before user opens app
 @MainActor
-final class DexcomBackgroundRefreshManager {
-
-    // MARK: - Singleton
-
-    static let shared = DexcomBackgroundRefreshManager()
+final class DexcomBackgroundRefreshManager: DexcomBackgroundRefreshManagerProtocol {
 
     // MARK: - Properties
 
     private let logger = AppLoggers.Health.glucose
     private let taskIdentifier = "com.anaxoniclabs.balli.dexcom-refresh"
 
-    // Services
-    private let officialService: DexcomService
-    private let shareService: DexcomShareService
+    // Services - injected via dependency injection
+    private let officialService: any DexcomServiceProtocol
+    private let shareService: any DexcomShareServiceProtocol
 
     // MARK: - Initialization
 
-    private init() {
-        // Use shared instances or create new ones
-        self.officialService = DexcomService.shared
-        self.shareService = DexcomShareService.shared
+    /// Public initializer for dependency injection
+    /// - Parameters:
+    ///   - officialService: Official Dexcom OAuth API service
+    ///   - shareService: Unofficial Dexcom Share API service
+    init(
+        officialService: any DexcomServiceProtocol,
+        shareService: any DexcomShareServiceProtocol
+    ) {
+        self.officialService = officialService
+        self.shareService = shareService
     }
 
     // MARK: - Registration

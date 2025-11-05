@@ -26,8 +26,12 @@ struct GlucoseDashboardView: View {
 
     // MARK: - Initialization
 
+    /// Initialize with dependency injection support
+    /// - Parameters:
+    ///   - dexcomService: Dexcom service (force cast in default is unavoidable due to @ObservedObject limitation)
+    ///   - viewModel: Optional pre-configured view model
     init(
-        dexcomService: DexcomService = DexcomService.shared,
+        dexcomService: DexcomService = DependencyContainer.shared.dexcomService as! DexcomService,
         viewModel: GlucoseDashboardViewModel? = nil
     ) {
         self.dexcomService = dexcomService

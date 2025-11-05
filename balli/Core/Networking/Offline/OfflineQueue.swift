@@ -50,11 +50,16 @@ actor OfflineQueue {
 
     private init() {
         // Set up queue file
-        guard let documentsPath = FileManager.default.urls(
+        let documentsPath: URL
+        if let appSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
-        ).first else {
-            fatalError("Failed to access application support directory")
+        ).first {
+            documentsPath = appSupport
+        } else {
+            // FALLBACK: Use temporary directory if application support unavailable
+            logger.warning("Failed to access application support directory - using temporary directory")
+            documentsPath = FileManager.default.temporaryDirectory
         }
 
         let queueDirectory = documentsPath.appendingPathComponent("OfflineQueue")

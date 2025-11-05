@@ -182,7 +182,7 @@ struct RecipeDetailView: View {
                         Button(role: .destructive) {
                             viewModel.deleteRecipe(dismiss: dismiss)
                         } label: {
-                            Image(systemName: "trash")
+                            Label("Sil", systemImage: "trash")
                         }
                     } label: {
                         Image(systemName: "ellipsis")

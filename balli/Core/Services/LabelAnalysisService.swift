@@ -115,9 +115,24 @@ final class LabelAnalysisService: @unchecked Sendable {
                         try self.optimizeImageForOCR(image)
                     }
 
-                    // Convert to JPEG with high quality for text recognition
-                    guard let imageData = optimizedImage.jpegData(compressionQuality: 0.9) else {
+                    // Convert to JPEG with optimized compression for network transmission
+                    // 0.65 quality balances OCR accuracy with network efficiency
+                    // Target: 200-300KB for 1024px image (vs 800KB-1MB at 0.9)
+                    guard let imageData = optimizedImage.jpegData(compressionQuality: 0.65) else {
                         throw LabelAnalysisError.imageProcessingFailed("Failed to convert image to JPEG")
+                    }
+
+                    // Log image size for monitoring
+                    let sizeKB = imageData.count / 1024
+                    await MainActor.run {
+                        self.logger.info("📦 Uploading image: \(sizeKB)KB (target: 200-300KB)")
+                    }
+
+                    // Warning if size is still excessive
+                    if sizeKB > 500 {
+                        await MainActor.run {
+                            self.logger.warning("⚠️ Image size over 500KB: \(sizeKB)KB - consider further optimization")
+                        }
                     }
 
                     // Encode to base64

@@ -65,19 +65,19 @@ struct RecipeCardView: View {
                 Text(item.name)
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                     .fixedSize(horizontal: false, vertical: true)
-                    .foregroundColor(colorScheme == .light ? .white : .primary)
+                    .foregroundColor(.primary)
 
                 Spacer()
 
                 // Serving size
                 Text("\(Int(item.servingSize)) \(item.servingUnit)")
                     .font(.system(size: 14, weight: .regular, design: .rounded))
-                    .foregroundColor(colorScheme == .light ? .white.opacity(0.9) : .primary.opacity(0.7))
+                    .foregroundColor(.primary.opacity(0.7))
 
                 // Carb amount
                 Text(String(format: "%.1f gr Karb.", item.totalCarbs))
                     .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundColor(colorScheme == .light ? .white : .primary)
+                    .foregroundColor(.primary)
             }
             .padding(.vertical, 16)
             .padding(.leading, 16)
@@ -102,7 +102,7 @@ struct RecipeCardView: View {
         .frame(height: 140)
         .background(
             RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(colorScheme == .light ? AppTheme.adaptiveBalliGradient(for: colorScheme) : dissolvedPurpleDark)
+                .fill(dissolvedPurpleDark)
         )
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
         .glassEffect(

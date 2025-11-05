@@ -46,8 +46,8 @@ const mealTranscriptionResponseSchema = {
     },
     mealType: {
       type: SchemaType.STRING,
-      description: "Type of meal: kahvaltı, öğle yemeği, akşam yemeği, or atıştırmalık",
-      enum: ["kahvaltı", "öğle yemeği", "akşam yemeği", "atıştırmalık"]
+      description: "Type of meal: kahvaltı, akşam yemeği, or ara öğün",
+      enum: ["kahvaltı", "akşam yemeği", "ara öğün"]
     },
     mealTime: {
       type: SchemaType.STRING,

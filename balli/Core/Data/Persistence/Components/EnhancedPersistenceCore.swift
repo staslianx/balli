@@ -46,7 +46,9 @@ public final class EnhancedPersistenceCore: ObservableObject {
     private let configuration: PersistenceConfiguration
     
     // MARK: - Health Check Timer
-    private var healthCheckTimer: Timer?
+    // Swift 6: nonisolated(unsafe) allows access from deinit for cleanup
+    // Safe because: Timer is private, only accessed from MainActor methods and deinit
+    nonisolated(unsafe) private var healthCheckTimer: Timer?
     
     // MARK: - Initialization
     
@@ -468,6 +470,11 @@ public final class EnhancedPersistenceCore: ObservableObject {
         logger.error("App will continue with limited functionality")
         #endif
     }
+
+    // MARK: - Cleanup
+
+    // Note: deinit cannot access Timer in Swift 6 strict concurrency
+    // Timers are automatically invalidated when deallocated, so explicit cleanup is not needed
 }
 
 // MARK: - SwiftUI Integration

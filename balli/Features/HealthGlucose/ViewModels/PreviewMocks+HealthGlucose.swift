@@ -197,7 +197,8 @@ extension GlucoseChartViewModel {
     static var preview: GlucoseChartViewModel {
         let healthKitService = PreviewHealthKitService(withGlucoseData: true)
         let dexcomService = DexcomService.mock
-        let dexcomShareService = DexcomShareService.shared
+        // TODO: Create DexcomShareService.mock like DexcomService.mock to eliminate this force cast
+        let dexcomShareService = DependencyContainer.shared.dexcomShareService as! DexcomShareService
         let permissions = HealthKitPermissionManager.preview
 
         let viewModel = GlucoseChartViewModel(
@@ -232,7 +233,8 @@ extension GlucoseChartViewModel {
     static var previewHighGlucose: GlucoseChartViewModel {
         let healthKitService = PreviewHealthKitService(withGlucoseData: true)
         let dexcomService = DexcomService.mock
-        let dexcomShareService = DexcomShareService.shared
+        // TODO: Create DexcomShareService.mock like DexcomService.mock to eliminate this force cast
+        let dexcomShareService = DependencyContainer.shared.dexcomShareService as! DexcomShareService
         let permissions = HealthKitPermissionManager.preview
 
         let viewModel = GlucoseChartViewModel(
@@ -265,7 +267,8 @@ extension GlucoseChartViewModel {
     static var previewLoading: GlucoseChartViewModel {
         let healthKitService = PreviewHealthKitService(withGlucoseData: false)
         let dexcomService = DexcomService.mock
-        let dexcomShareService = DexcomShareService.shared
+        // TODO: Create DexcomShareService.mock like DexcomService.mock to eliminate this force cast
+        let dexcomShareService = DependencyContainer.shared.dexcomShareService as! DexcomShareService
         let permissions = HealthKitPermissionManager.preview
 
         let viewModel = GlucoseChartViewModel(
@@ -287,7 +290,8 @@ extension GlucoseChartViewModel {
     static var previewError: GlucoseChartViewModel {
         let healthKitService = PreviewHealthKitService(withGlucoseData: false)
         let dexcomService = DexcomService.mock
-        let dexcomShareService = DexcomShareService.shared
+        // TODO: Create DexcomShareService.mock like DexcomService.mock to eliminate this force cast
+        let dexcomShareService = DependencyContainer.shared.dexcomShareService as! DexcomShareService
         let permissions = HealthKitPermissionManager.previewDenied
 
         let viewModel = GlucoseChartViewModel(
@@ -310,7 +314,8 @@ extension GlucoseChartViewModel {
     static var previewEmpty: GlucoseChartViewModel {
         let healthKitService = PreviewHealthKitService(withGlucoseData: false)
         let dexcomService = DexcomService.mock
-        let dexcomShareService = DexcomShareService.shared
+        // TODO: Create DexcomShareService.mock like DexcomService.mock to eliminate this force cast
+        let dexcomShareService = DependencyContainer.shared.dexcomShareService as! DexcomShareService
         let permissions = HealthKitPermissionManager.preview
 
         let viewModel = GlucoseChartViewModel(

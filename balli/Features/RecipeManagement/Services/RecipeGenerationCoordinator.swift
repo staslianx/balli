@@ -577,14 +577,15 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         // Combine overused proteins AND recent proteins (high priority)
         let proteinsToAvoid = Set(analysis.overusedProteins + analysis.recentProteins)
         if !proteinsToAvoid.isEmpty {
-            avoidProteins = Array(proteinsToAvoid).sorted()
-            logger.info("🎯 [DIVERSITY] Avoid proteins: \(avoidProteins!.joined(separator: ", "))")
+            let proteins = Array(proteinsToAvoid).sorted()
+            avoidProteins = proteins
+            logger.info("🎯 [DIVERSITY] Avoid proteins: \(proteins.joined(separator: ", "))")
         }
 
         // Suggest underused proteins
         if !analysis.suggestedProteins.isEmpty {
             suggestProteins = analysis.suggestedProteins
-            logger.info("🎯 [DIVERSITY] Suggest proteins: \(suggestProteins!.joined(separator: ", "))")
+            logger.info("🎯 [DIVERSITY] Suggest proteins: \(analysis.suggestedProteins.joined(separator: ", "))")
         }
 
         // Only create constraints if we have actionable data

@@ -34,10 +34,8 @@ struct MealDetailView: View {
                         insulinSection(medications: medications)
                     }
 
-                    // Ingredients list
-                    if mealGroup.meals.count > 1 {
-                        ingredientsSection
-                    }
+                    // Ingredients list - ALWAYS show ingredients
+                    ingredientsSection
                 }
                 .padding()
             }
@@ -104,7 +102,7 @@ struct MealDetailView: View {
             }
         }
         .padding(ResponsiveDesign.Spacing.medium)
-        .background(.clear)
+        .background(Color.white.opacity(0.05))
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 36, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
@@ -134,7 +132,7 @@ struct MealDetailView: View {
             .padding(.vertical, ResponsiveDesign.Spacing.small)
         }
         .padding(ResponsiveDesign.Spacing.medium)
-        .background(.clear)
+        .background(Color.white.opacity(0.05))
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 36, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
@@ -200,7 +198,7 @@ struct MealDetailView: View {
             }
         }
         .padding(ResponsiveDesign.Spacing.medium)
-        .background(.clear)
+        .background(Color.white.opacity(0.05))
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 36, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
@@ -221,7 +219,7 @@ struct MealDetailView: View {
             }
         }
         .padding(ResponsiveDesign.Spacing.medium)
-        .background(.clear)
+        .background(Color.white.opacity(0.05))
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 36, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))

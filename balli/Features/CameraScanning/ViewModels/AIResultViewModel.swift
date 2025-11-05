@@ -8,6 +8,7 @@
 import SwiftUI
 import CoreData
 import os.log
+import Combine
 
 /// View model handling AI result display and editing workflow
 @MainActor
@@ -32,6 +33,10 @@ final class AIResultViewModel: ObservableObject {
     private var captureFlowManager: CaptureFlowManager?
     private let validationService = NutritionValidationService()
     private let logger = os.Logger(subsystem: "com.balli.diabetes", category: "AIResultViewModel")
+
+    // Task and subscription management for proper cleanup
+    private var analysisTask: Task<Void, Never>?
+    private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Initialization
 
@@ -198,27 +203,47 @@ final class AIResultViewModel: ObservableObject {
 
     // MARK: - Private Methods - Analysis Tracking
 
-    /// Start tracking analysis progress
+    /// Start tracking analysis progress using Combine observation (battery-efficient)
     private func startAnalysisTracking() {
         guard let captureFlowManager = captureFlowManager else { return }
 
-        // Observe analysis progress
-        Task { @MainActor in
-            for await _ in Timer.publish(every: 0.15, on: .main, in: .common).autoconnect().values {
-                // Check for completion first
-                if let nutrition = captureFlowManager.extractedNutrition {
-                    // Analysis complete - immediately transition
-                    handleAnalysisComplete(nutrition)
-                    break
-                } else if captureFlowManager.currentError != nil {
-                    // Analysis failed
-                    handleAnalysisError()
-                    break
-                } else if captureFlowManager.isAnalyzing {
-                    // Continue progress simulation only if still analyzing
-                    updateAnalysisState()
+        // Cancel any existing tracking
+        analysisTask?.cancel()
+        cancellables.removeAll()
+
+        // Observe extractedNutrition for completion
+        captureFlowManager.$extractedNutrition
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] nutrition in
+                if let nutrition = nutrition {
+                    self?.handleAnalysisComplete(nutrition)
                 }
             }
+            .store(in: &cancellables)
+
+        // Observe errors
+        captureFlowManager.$currentError
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] error in
+                if error != nil {
+                    self?.handleAnalysisError()
+                }
+            }
+            .store(in: &cancellables)
+
+        // Progress simulation task (runs until analysis completes or is cancelled)
+        analysisTask = Task { @MainActor [weak self, weak captureFlowManager] in
+            guard let self = self, let captureFlowManager = captureFlowManager else { return }
+
+            // Update progress at reasonable intervals (5Hz instead of 6.67Hz)
+            while !Task.isCancelled && captureFlowManager.isAnalyzing {
+                self.updateAnalysisState()
+
+                // Sleep for 200ms between updates (battery-friendly)
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+
+            self.logger.debug("Analysis tracking completed or cancelled")
         }
     }
 
@@ -313,5 +338,17 @@ final class AIResultViewModel: ObservableObject {
 
     var currentImpactLevel: ImpactLevel {
         formState.impactLevel
+    }
+
+    // MARK: - Cleanup
+
+    deinit {
+        logger.debug("AIResultViewModel deinitializing - cleaning up resources")
+
+        // Cancel ongoing tasks
+        analysisTask?.cancel()
+        // Note: cancellables will be automatically cleaned up by ARC
+
+        logger.debug("AIResultViewModel cleanup complete")
     }
 }

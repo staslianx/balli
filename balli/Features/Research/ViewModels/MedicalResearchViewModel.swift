@@ -23,14 +23,8 @@ class MedicalResearchViewModel: ObservableObject {
     /// ViewState pattern consolidates search operation state
     @Published var searchState: ViewState<Void> = .idle
 
-    /// Data store accumulates answers over time (not replaced wholesale)
-    @Published var answers: [SearchAnswer] = []
-
     /// Track tier during search
     @Published var currentSearchTier: ResponseTier? = nil
-
-    /// Track source searching per answer
-    @Published var searchingSourcesForAnswer: [String: Bool] = [:]
 
     // MARK: - Multi-Round Research State (delegated to stageCoordinator)
 
@@ -53,15 +47,10 @@ class MedicalResearchViewModel: ObservableObject {
         stageCoordinator.completedRounds
     }
 
-    // MARK: - Performance Optimization
+    // MARK: - State Management
 
-    /// O(1) lookup dictionary for answer index (answerId -> array index)
-    /// Eliminates O(n) linear search called 5-15x per response
-    private var answerIndexLookup: [String: Int] = [:]
-
-    /// Track which answers have already triggered first token arrival
-    /// Prevents handleFirstTokenArrival from being called multiple times per answer
-    private var firstTokenProcessed: Set<String> = []
+    /// Answer state manager - handles all answer-related state
+    private let stateManager = ResearchAnswerStateManager()
 
     // MARK: - Convenience Properties
 
@@ -75,9 +64,24 @@ class MedicalResearchViewModel: ObservableObject {
         searchState.error
     }
 
-    /// History for library
+    /// Answers array - delegated to state manager
+    var answers: [SearchAnswer] {
+        stateManager.answers
+    }
+
+    /// History for library - delegated to state manager
     var answerHistory: [SearchAnswer] {
-        answers
+        stateManager.answerHistory
+    }
+
+    /// Answers in chronological order (oldest → newest) for UI display - delegated to state manager
+    var answersInChronologicalOrder: [SearchAnswer] {
+        stateManager.answersInChronologicalOrder
+    }
+
+    /// Source searching state - delegated to state manager
+    var searchingSourcesForAnswer: [String: Bool] {
+        stateManager.searchingSourcesForAnswer
     }
 
     // MARK: - Coordinators & Services
@@ -151,6 +155,14 @@ class MedicalResearchViewModel: ObservableObject {
         )
         cancellables.insert(stageCancellable)
 
+        // STREAMING FIX: Forward stateManager.objectWillChange to ViewModel.objectWillChange
+        // This ensures SwiftUI detects answer updates in the nested ObservableObject
+        let stateManagerCancellable = stateManager.objectWillChange
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+        cancellables.insert(stateManagerCancellable)
+
         Task {
             await loadSessionHistory()
             await recoverActiveSession()
@@ -183,8 +195,16 @@ class MedicalResearchViewModel: ObservableObject {
     private func loadSessionHistory() async {
         await sessionCoordinator.loadSessionHistory(
             setSearchState: { @MainActor [weak self] state in self?.searchState = state },
-            setAnswers: { @MainActor [weak self] loadedAnswers in self?.answers = loadedAnswers },
-            rebuildLookup: { @MainActor [weak self] in self?.rebuildAnswerIndexLookup() }
+            setAnswers: { @MainActor [weak self] loadedAnswers in
+                // Replace all answers at once by removing all and inserting each
+                self?.stateManager.removeAllAnswers()
+                for answer in loadedAnswers {
+                    self?.stateManager.insertAnswer(answer, at: self?.stateManager.answers.count ?? 0)
+                }
+            },
+            rebuildLookup: { @MainActor [weak self] in
+                // No-op: stateManager rebuilds lookup automatically during insertAnswer
+            }
         )
     }
 
@@ -256,15 +276,14 @@ class MedicalResearchViewModel: ObservableObject {
 
         logger.info("Starting search - Query: \(query, privacy: .private)")
 
-        answers.insert(placeholderAnswer, at: 0)
-        rebuildAnswerIndexLookup()
+        stateManager.insertAnswer(placeholderAnswer, at: 0)
         searchState = .loading
         currentSearchTier = predictedTier
 
         let answerId = placeholderAnswer.id
 
         // Ensure flag is cleared for this new answer (should already be clear, but be explicit)
-        firstTokenProcessed.remove(answerId)
+        stateManager.clearFirstTokenTracking(for: answerId)
 
         // Initialize stream processor
         _ = streamProcessor.initializeCancellationToken(for: answerId)
@@ -284,9 +303,7 @@ class MedicalResearchViewModel: ObservableObject {
 
     /// Clear all answers and start fresh
     func clearHistory() async {
-        answers.removeAll()
-        answerIndexLookup.removeAll()
-        firstTokenProcessed.removeAll() // Clear first token tracking
+        stateManager.removeAllAnswers()
 
         do {
             try await persistenceManager.clearHistory()
@@ -302,10 +319,7 @@ class MedicalResearchViewModel: ObservableObject {
 
         // CRITICAL: Clear UI state IMMEDIATELY (synchronously) for instant visual feedback
         // This ensures the empty state appears on first tap without delay
-        answers.removeAll()
-        answerIndexLookup.removeAll()
-        searchingSourcesForAnswer.removeAll()
-        firstTokenProcessed.removeAll()
+        stateManager.removeAllAnswers()
         searchState = .idle
         currentSearchTier = nil
 
@@ -363,16 +377,6 @@ class MedicalResearchViewModel: ObservableObject {
         stageCoordinator.signalViewReady(for: answerId)
     }
 
-    // MARK: - Private Helpers
-
-    /// Rebuild the answer index lookup dictionary for O(1) access
-    private func rebuildAnswerIndexLookup() {
-        answerIndexLookup.removeAll(keepingCapacity: true)
-        for (index, answer) in answers.enumerated() {
-            answerIndexLookup[answer.id] = index
-        }
-    }
-
     // MARK: - Streaming Search Implementation
 
     private func performStreamingSearch(
@@ -412,31 +416,42 @@ class MedicalResearchViewModel: ObservableObject {
     func handleToken(_ token: String, answerId: String) async {
         // STREAMING FIX: Update UI immediately with each token - no batching
         // The irregular chunking pattern was caused by race conditions between batching layers
-        logger.debug("🔍 [TOKEN] Parsed token: length=\(token.count), last='\(token.last ?? Character(" "))', content='\(token)'")
+        let vmStart = Date()
+        logger.debug("🔵 [VM-HANDLE-TOKEN] START at \(vmStart.timeIntervalSince1970), token length=\(token.count), content='\(token.prefix(20))...'")
 
         // Update answer immediately - no accumulation, no delay
         await eventHandler.handleToken(
             token,
             answerId: answerId,
-            getAnswers: { @MainActor [weak self] in self?.answers ?? [] },
-            getAnswerIndex: { @MainActor [weak self] id in self?.answerIndexLookup[id] },
-            getFirstTokenProcessed: { @MainActor [weak self] in self?.firstTokenProcessed ?? [] },
+            getAnswers: { @MainActor [weak self] in self?.stateManager.answers ?? [] },
+            getAnswerIndex: { @MainActor [weak self] id in self?.stateManager.getAnswerIndex(for: id) },
+            getFirstTokenProcessed: { @MainActor [weak self] in
+                // Return as Set for compatibility
+                guard let self = self else { return [] }
+                let allIds = self.stateManager.answers.map { $0.id }
+                return Set(allIds.filter { self.stateManager.isFirstTokenProcessed(for: $0) })
+            },
             updateAnswer: { @MainActor [weak self] index, answer, shouldAnimate in
                 guard let self = self else { return }
                 // Direct update - no animation
-                self.answers[index] = answer
+                self.stateManager.updateAnswer(at: index, with: answer)
             },
-            markFirstTokenProcessed: { @MainActor [weak self] id in self?.firstTokenProcessed.insert(id) }
+            markFirstTokenProcessed: { @MainActor [weak self] id in
+                self?.stateManager.markFirstTokenProcessed(for: id)
+            }
         )
+
+        let vmEnd = Date()
+        logger.debug("🟢 [VM-HANDLE-TOKEN] END - took \((vmEnd.timeIntervalSince(vmStart)*1000))ms")
     }
 
     func handleTierSelected(_ tier: String, answerId: String) async {
         await eventHandler.handleTierSelected(
             tier,
             answerId: answerId,
-            getAnswers: { @MainActor [weak self] in self?.answers ?? [] },
+            getAnswers: { @MainActor [weak self] in self?.stateManager.answers ?? [] },
             updateAnswer: { @MainActor [weak self] index, answer in
-                self?.answers[index] = answer
+                self?.stateManager.updateAnswer(at: index, with: answer)
             },
             setCurrentTier: { @MainActor [weak self] tier in
                 self?.currentSearchTier = tier
@@ -450,7 +465,7 @@ class MedicalResearchViewModel: ObservableObject {
             source: source,
             answerId: answerId,
             setSearchingSource: { @MainActor [weak self] id, value in
-                self?.searchingSourcesForAnswer[id] = value
+                self?.stateManager.setSearchingSource(for: id, isSearching: value)
             }
         )
     }
@@ -459,12 +474,12 @@ class MedicalResearchViewModel: ObservableObject {
         await eventHandler.handleSourcesReady(
             sources,
             answerId: answerId,
-            getAnswers: { @MainActor [weak self] in self?.answers ?? [] },
+            getAnswers: { @MainActor [weak self] in self?.stateManager.answers ?? [] },
             updateAnswer: { @MainActor [weak self] index, answer in
-                self?.answers[index] = answer
+                self?.stateManager.updateAnswer(at: index, with: answer)
             },
             setSearchingSource: { @MainActor [weak self] id, value in
-                self?.searchingSourcesForAnswer[id] = value
+                self?.stateManager.setSearchingSource(for: id, isSearching: value)
             }
         )
     }
@@ -474,9 +489,9 @@ class MedicalResearchViewModel: ObservableObject {
             response,
             query: query,
             answerId: answerId,
-            getAnswers: { @MainActor [weak self] in self?.answers ?? [] },
+            getAnswers: { @MainActor [weak self] in self?.stateManager.answers ?? [] },
             updateAnswer: { @MainActor [weak self] index, answer in
-                self?.answers[index] = answer
+                self?.stateManager.updateAnswer(at: index, with: answer)
             },
             setSearchState: { @MainActor [weak self] state in
                 self?.searchState = state
@@ -492,9 +507,9 @@ class MedicalResearchViewModel: ObservableObject {
             error,
             query: query,
             answerId: answerId,
-            getAnswers: { @MainActor [weak self] in self?.answers ?? [] },
+            getAnswers: { @MainActor [weak self] in self?.stateManager.answers ?? [] },
             updateAnswer: { @MainActor [weak self] index, answer in
-                self?.answers[index] = answer
+                self?.stateManager.updateAnswer(at: index, with: answer)
             },
             setSearchState: { @MainActor [weak self] state in
                 self?.searchState = state
@@ -527,16 +542,16 @@ class MedicalResearchViewModel: ObservableObject {
             sequence: sequence,
             answerId: answerId,
             getAnswer: { @MainActor [weak self] id in
-                self?.answers.first(where: { $0.id == id })
+                self?.stateManager.getAnswer(for: id)
             },
             updateAnswer: { @MainActor [weak self] index, answer in
-                self?.answers[index] = answer
+                self?.stateManager.updateAnswer(at: index, with: answer)
             },
             setSearchState: { @MainActor [weak self] state in
                 self?.searchState = state
             },
             getAnswerIndex: { @MainActor [weak self] id in
-                self?.answerIndexLookup[id]
+                self?.stateManager.getAnswerIndex(for: id)
             }
         )
     }

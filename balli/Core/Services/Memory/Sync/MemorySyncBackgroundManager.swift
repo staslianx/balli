@@ -31,9 +31,11 @@ final class MemorySyncBackgroundManager {
 
     // MARK: - Initialization
 
-    init(backgroundSyncInterval: TimeInterval = 30 * 60) {
+    /// Initialize memory sync background manager
+    /// - Parameter backgroundSyncInterval: Sync interval in seconds (default: 4 hours to align with Dexcom)
+    init(backgroundSyncInterval: TimeInterval = 4 * 60 * 60) {
         self.backgroundSyncInterval = backgroundSyncInterval
-        logger.info("MemorySyncBackgroundManager initialized")
+        logger.info("MemorySyncBackgroundManager initialized (sync interval: \(backgroundSyncInterval/3600)h)")
     }
 
     // MARK: - Background Task Registration

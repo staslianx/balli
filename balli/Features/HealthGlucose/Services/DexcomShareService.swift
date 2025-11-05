@@ -15,11 +15,7 @@ import OSLog
 
 /// High-level service for Dexcom SHARE API integration
 @MainActor
-final class DexcomShareService: ObservableObject {
-
-    // MARK: - Singleton
-
-    static let shared = DexcomShareService()
+final class DexcomShareService: DexcomShareServiceProtocol {
 
     // MARK: - Published State
 
@@ -70,6 +66,9 @@ final class DexcomShareService: ObservableObject {
     private var lastConnectionCheck: Date?
     private let connectionCheckDebounceInterval: TimeInterval = 2.0 // 2 seconds
 
+    // RACE CONDITION FIX: Ensure only one connection check runs at a time
+    private var connectionCheckTask: Task<Void, Never>?
+
     // RETRY LOGIC: Exponential backoff for auto-recovery
     private var recoveryAttempts: Int = 0
     private var lastRecoveryAttempt: Date?
@@ -77,15 +76,21 @@ final class DexcomShareService: ObservableObject {
 
     // MARK: - Initialization
 
-    init(server: DexcomShareServer = .international, glucoseRepository: GlucoseReadingRepository = GlucoseReadingRepository()) {
+    /// Public initializer for dependency injection
+    /// - Parameters:
+    ///   - server: Dexcom Share server region (US or International)
+    ///   - glucoseRepository: Repository for saving glucose readings to CoreData
+    init(
+        server: DexcomShareServer = .international,
+        glucoseRepository: GlucoseReadingRepository = GlucoseReadingRepository()
+    ) {
         self.server = server
         self.authManager = DexcomShareAuthManager(server: server)
         self.apiClient = DexcomShareAPIClient(server: server, authManager: authManager)
         self.glucoseRepository = glucoseRepository
 
-        Task {
-            await checkConnectionStatus()
-        }
+        // PERFORMANCE FIX: Don't check connection on init - let views call it explicitly when needed
+        // This prevents 4+ simultaneous connection checks on app launch
     }
 
     // MARK: - Connection Management
@@ -135,131 +140,178 @@ final class DexcomShareService: ObservableObject {
     /// ENHANCED: Debounced to prevent excessive EXPENSIVE checks (max once per 2 seconds)
     /// BUT always returns current cached state immediately
     /// This ensures users stay connected without re-entering credentials
+    /// RACE CONDITION FIX: Cancels previous check and runs only one at a time
     func checkConnectionStatus() async {
-        logger.info("🔍 [DexcomShareService]: checkConnectionStatus() called - current cached state: \(self.isConnected)")
+        // Cancel any existing connection check task to prevent race conditions
+        connectionCheckTask?.cancel()
 
-        // ANTI-SPAM: Debounce EXPENSIVE checks (keychain, session validation, recovery)
-        // But still allow caller to read current cached state immediately
-        var shouldPerformExpensiveCheck = true
-        if let lastCheck = lastConnectionCheck {
-            let timeSinceLastCheck = Date().timeIntervalSince(lastCheck)
-            if timeSinceLastCheck < connectionCheckDebounceInterval {
-                logger.debug("⏭️ [DexcomShareService]: Within debounce window (\(String(format: "%.1f", timeSinceLastCheck))s) - returning cached state without expensive check")
-                shouldPerformExpensiveCheck = false
-                // Don't return early! Let caller observe current cached isConnected value
+        // Create new task for this connection check
+        connectionCheckTask = Task { @MainActor in
+            logger.info("🔍 [DexcomShareService]: checkConnectionStatus() called - current cached state: \(self.isConnected)")
+
+            // ANTI-SPAM: Debounce EXPENSIVE checks (keychain, session validation, recovery)
+            // But still allow caller to read current cached state immediately
+            var shouldPerformExpensiveCheck = true
+            if let lastCheck = lastConnectionCheck {
+                let timeSinceLastCheck = Date().timeIntervalSince(lastCheck)
+                if timeSinceLastCheck < connectionCheckDebounceInterval {
+                    logger.debug("⏭️ [DexcomShareService]: Within debounce window (\(String(format: "%.1f", timeSinceLastCheck))s) - returning cached state without expensive check")
+                    shouldPerformExpensiveCheck = false
+                    // Don't return early! Let caller observe current cached isConnected value
+                }
             }
-        }
 
-        if !shouldPerformExpensiveCheck {
-            // Debounced - but isConnected is already set to current state
-            // Caller can read it immediately
-            return
-        }
-
-        lastConnectionCheck = Date()
-
-        logger.info("🔍 [DexcomShareService]: checkConnectionStatus() called")
-
-        // Check if we have stored credentials
-        let hasCredentials = await authManager.hasCredentials()
-
-        if !hasCredentials {
-            // No credentials stored - truly disconnected
-            logger.info("ℹ️ No Share credentials stored - user needs to connect")
-            isConnected = false
-            connectionStatus = .disconnected
-            return
-        }
-
-        logger.info("✅ Share credentials found in keychain")
-
-        // Check if session is still valid
-        let authenticated = await authManager.isAuthenticated()
-
-        if authenticated {
-            // Session still valid - we're good
-            logger.info("✅ Share session is valid")
-            isConnected = true
-            connectionStatus = .connected
-            return
-        }
-
-        // Session expired but we have credentials - AUTO-RECOVER WITH RETRY
-        logger.info("⚠️ Share session expired, attempting automatic recovery...")
-
-        // Check if we should apply backoff
-        if let lastAttempt = lastRecoveryAttempt {
-            let timeSinceLastAttempt = Date().timeIntervalSince(lastAttempt)
-            let backoffInterval = calculateBackoffInterval(attempt: recoveryAttempts)
-
-            if timeSinceLastAttempt < backoffInterval {
-                logger.warning("⏱️ Recovery backoff active - wait \(String(format: "%.0f", backoffInterval - timeSinceLastAttempt))s more")
-                isConnected = false
-                connectionStatus = .error(.serverError)
+            if !shouldPerformExpensiveCheck {
+                // Debounced - but isConnected is already set to current state
+                // Caller can read it immediately
                 return
             }
+
+            // Check if task was cancelled
+            guard !Task.isCancelled else {
+                logger.debug("Connection check cancelled - newer check in progress")
+                return
+            }
+
+            lastConnectionCheck = Date()
+
+            logger.info("🔍 [DexcomShareService]: checkConnectionStatus() called")
+
+            // Check if we have stored credentials
+            let hasCredentials = await authManager.hasCredentials()
+
+            // Check cancellation after async work
+            guard !Task.isCancelled else {
+                logger.debug("Connection check cancelled after credentials check")
+                return
+            }
+
+            if !hasCredentials {
+                // No credentials stored - truly disconnected
+                logger.info("ℹ️ No Share credentials stored - user needs to connect")
+                isConnected = false
+                connectionStatus = .disconnected
+                return
+            }
+
+            logger.info("✅ Share credentials found in keychain")
+
+            // Check if session is still valid
+            let authenticated = await authManager.isAuthenticated()
+
+            // Check cancellation after async work
+            guard !Task.isCancelled else {
+                logger.debug("Connection check cancelled after auth check")
+                return
+            }
+
+            if authenticated {
+                // Session still valid - we're good
+                logger.info("✅ Share session is valid")
+                isConnected = true
+                connectionStatus = .connected
+                return
+            }
+
+            // Session expired but we have credentials - AUTO-RECOVER WITH RETRY
+            logger.info("⚠️ Share session expired, attempting automatic recovery...")
+
+            // Check if we should apply backoff
+            if let lastAttempt = lastRecoveryAttempt {
+                let timeSinceLastAttempt = Date().timeIntervalSince(lastAttempt)
+                let backoffInterval = calculateBackoffInterval(attempt: recoveryAttempts)
+
+                if timeSinceLastAttempt < backoffInterval {
+                    logger.warning("⏱️ Recovery backoff active - wait \(String(format: "%.0f", backoffInterval - timeSinceLastAttempt))s more")
+                    isConnected = false
+                    connectionStatus = .error(.serverError)
+                    return
+                }
+            }
+
+            // Check cancellation before recovery attempt
+            guard !Task.isCancelled else {
+                logger.debug("Connection check cancelled before recovery")
+                return
+            }
+
+            // Increment recovery attempt counter
+            recoveryAttempts += 1
+            lastRecoveryAttempt = Date()
+
+            if recoveryAttempts > maxRecoveryAttempts {
+                logger.error("❌ Max recovery attempts exceeded (\(self.maxRecoveryAttempts)) - giving up")
+                isConnected = false
+                connectionStatus = .error(.serverError)
+                await analytics.trackError(.dexcomShareAutoRecoveryFailed, error: DexcomShareError.serverError)
+                return
+            }
+
+            logger.info("🔄 Recovery attempt \(self.recoveryAttempts)/\(self.maxRecoveryAttempts)")
+            connectionStatus = .connecting
+
+            do {
+                // Clear expired session
+                await authManager.clearSession()
+
+                // Check cancellation after async work
+                guard !Task.isCancelled else {
+                    logger.debug("Connection check cancelled after session clear")
+                    return
+                }
+
+                logger.info("🔄 Cleared expired session, re-authenticating...")
+
+                // Trigger re-authentication using stored credentials
+                // This calls DexcomShareAuthManager.authenticate() internally
+                _ = try await authManager.getSessionId()
+
+                // Check cancellation after async work
+                guard !Task.isCancelled else {
+                    logger.debug("Connection check cancelled after session recovery")
+                    return
+                }
+
+                // Success - session recovered
+                isConnected = true
+                connectionStatus = .connected
+                recoveryAttempts = 0 // Reset counter on success
+                lastRecoveryAttempt = nil
+                logger.info("✅ Share session automatically recovered - user stays connected")
+
+                // Track successful auto-recovery
+                await analytics.track(.dexcomShareAutoRecovery)
+
+            } catch DexcomShareError.invalidCredentials {
+                // Credentials are no longer valid (password changed, account disabled)
+                logger.error("❌ Auto-recovery failed: Credentials invalid (password changed?)")
+                isConnected = false
+                connectionStatus = .error(.invalidCredentials)
+
+                // Track credential failure
+                await analytics.trackError(.dexcomShareCredentialsInvalid, error: DexcomShareError.invalidCredentials)
+
+            } catch DexcomShareError.serverError {
+                // Server error - keep credentials, try again later
+                logger.error("⚠️ Auto-recovery failed: Server error (will retry)")
+                isConnected = false
+                connectionStatus = .error(.serverError)
+
+                // Don't delete credentials - might be temporary server issue
+
+            } catch {
+                // Other error - log but keep credentials for retry
+                logger.error("❌ Auto-recovery failed: \(error.localizedDescription)")
+                isConnected = false
+                connectionStatus = .error(error as? DexcomShareError ?? .serverError)
+
+                // Track auto-recovery failure
+                await analytics.trackError(.dexcomShareAutoRecoveryFailed, error: error)
+            }
         }
 
-        // Increment recovery attempt counter
-        recoveryAttempts += 1
-        lastRecoveryAttempt = Date()
-
-        if recoveryAttempts > maxRecoveryAttempts {
-            logger.error("❌ Max recovery attempts exceeded (\(self.maxRecoveryAttempts)) - giving up")
-            isConnected = false
-            connectionStatus = .error(.serverError)
-            await analytics.trackError(.dexcomShareAutoRecoveryFailed, error: DexcomShareError.serverError)
-            return
-        }
-
-        logger.info("🔄 Recovery attempt \(self.recoveryAttempts)/\(self.maxRecoveryAttempts)")
-        connectionStatus = .connecting
-
-        do {
-            // Clear expired session
-            await authManager.clearSession()
-            logger.info("🔄 Cleared expired session, re-authenticating...")
-
-            // Trigger re-authentication using stored credentials
-            // This calls DexcomShareAuthManager.authenticate() internally
-            _ = try await authManager.getSessionId()
-
-            // Success - session recovered
-            isConnected = true
-            connectionStatus = .connected
-            recoveryAttempts = 0 // Reset counter on success
-            lastRecoveryAttempt = nil
-            logger.info("✅ Share session automatically recovered - user stays connected")
-
-            // Track successful auto-recovery
-            await analytics.track(.dexcomShareAutoRecovery)
-
-        } catch DexcomShareError.invalidCredentials {
-            // Credentials are no longer valid (password changed, account disabled)
-            logger.error("❌ Auto-recovery failed: Credentials invalid (password changed?)")
-            isConnected = false
-            connectionStatus = .error(.invalidCredentials)
-
-            // Track credential failure
-            await analytics.trackError(.dexcomShareCredentialsInvalid, error: DexcomShareError.invalidCredentials)
-
-        } catch DexcomShareError.serverError {
-            // Server error - keep credentials, try again later
-            logger.error("⚠️ Auto-recovery failed: Server error (will retry)")
-            isConnected = false
-            connectionStatus = .error(.serverError)
-
-            // Don't delete credentials - might be temporary server issue
-
-        } catch {
-            // Other error - log but keep credentials for retry
-            logger.error("❌ Auto-recovery failed: \(error.localizedDescription)")
-            isConnected = false
-            connectionStatus = .error(error as? DexcomShareError ?? .serverError)
-
-            // Track auto-recovery failure
-            await analytics.trackError(.dexcomShareAutoRecoveryFailed, error: error)
-        }
+        // Wait for the task to complete
+        await connectionCheckTask?.value
     }
 
     // MARK: - Data Fetching

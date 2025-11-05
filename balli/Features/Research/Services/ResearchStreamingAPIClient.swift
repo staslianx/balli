@@ -120,19 +120,23 @@ class ResearchStreamingAPIClient {
 
             streamingLogger.info("✅ Stream connection established - HTTP \(httpResponse.statusCode)")
 
-            // Stream processing
+            // Stream processing - Process immediately as events arrive
             var totalBytesRead = 0
             var currentChunk = Data()
-            currentChunk.reserveCapacity(4096)
+            currentChunk.reserveCapacity(512) // Smaller buffer for faster processing
 
             for try await byte in asyncBytes {
                 currentChunk.append(byte)
                 totalBytesRead += 1
 
-                // Process when we have a full chunk OR detect event boundary
-                if currentChunk.count >= 4096 ||
-                   (currentChunk.count > 1 && currentChunk.suffix(2) == Data([0x0A, 0x0A])) { // \n\n in bytes
+                // Process immediately when event boundary detected OR every 256 bytes as safety valve
+                // Primary trigger: \n\n (SSE event boundary)
+                // Secondary trigger: 256 bytes (prevents accumulation if boundary detection fails)
+                let hasEventBoundary = currentChunk.count > 1 && currentChunk.suffix(2) == Data([0x0A, 0x0A])
+                let shouldProcessChunk = hasEventBoundary || currentChunk.count >= 256
 
+                if shouldProcessChunk {
+                    streamingLogger.debug("🔵 [STREAM-BYTE] Processing chunk: \(currentChunk.count) bytes, boundary: \(hasEventBoundary)")
                     // Append chunk to parser
                     await streamParser.appendToDataBuffer(currentChunk)
                     currentChunk.removeAll(keepingCapacity: true)

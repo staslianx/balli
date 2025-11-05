@@ -18,6 +18,7 @@ struct RecipeStoryCard: View {
     let isLoading: Bool
     let loadingStep: String?
     let loadingProgress: Double
+    let isComplete: Bool
     let onTap: () -> Void
 
     @State private var isPressed = false
@@ -30,6 +31,7 @@ struct RecipeStoryCard: View {
         isLoading: Bool = false,
         loadingStep: String? = nil,
         loadingProgress: Double = 0,
+        isComplete: Bool = false,
         onTap: @escaping () -> Void
     ) {
         self.title = title
@@ -38,6 +40,7 @@ struct RecipeStoryCard: View {
         self.isLoading = isLoading
         self.loadingStep = loadingStep
         self.loadingProgress = loadingProgress
+        self.isComplete = isComplete
         self.onTap = onTap
     }
 
@@ -170,7 +173,7 @@ struct RecipeStoryCard: View {
             )
             .frame(width: 50, height: 50)
             .overlay(
-                Image(systemName: "long.text.page.and.pencil.fill")
+                Image(systemName: isComplete ? "vision.pro.badge.checkmark.fill" : "vision.pro")
                     .font(.system(size: 20))
                     .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.8))
             )

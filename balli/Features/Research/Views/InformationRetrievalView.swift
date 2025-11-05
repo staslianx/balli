@@ -34,8 +34,7 @@ struct InformationRetrievalView: View {
                         ScrollView {
                             VStack(alignment: .leading, spacing: 12) {
                                 // Answer cards in chronological order: oldest → newest
-                                // viewModel.answers is [newest, older, oldest], so reverse it
-                                ForEach(viewModel.answers.reversed()) { answer in
+                                ForEach(viewModel.answersInChronologicalOrder) { answer in
                                     AnswerCardView(
                                         answer: answer,
                                         enableStreaming: !displayedAnswerIds.contains(answer.id),
@@ -72,6 +71,7 @@ struct InformationRetrievalView: View {
                             // ✅ SMART PADDING: Large padding when showing new question, small when scrolling
                             .padding(.bottom, showScrollPadding ? geometry.size.height - 100 : 32)
                         }
+                        .scrollDismissesKeyboard(.interactively)
                         .onChange(of: viewModel.answers.count) { oldCount, newCount in
                             // ONLY scroll when a NEW question is added (count increases)
                             if newCount > oldCount, let latestAnswer = viewModel.answers.first {
@@ -104,11 +104,11 @@ struct InformationRetrievalView: View {
             // Logo with long-press gesture for settings
             ToolbarItem(placement: .principal) {
                 HStack(spacing: 8) {
-                    Image("balli-text-logo")
+                    Image(colorScheme == .dark ? "balli-text-logo-dark" : "balli-text-logo")
                         .resizable()
                         .renderingMode(.original)
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 28, height: 28)
+                        .frame(width: 35, height: 35)
                         .onLongPressGesture(minimumDuration: 0.5) {
                             showingSettings = true
                         }

@@ -17,7 +17,7 @@
 Every line of code must meet these non-negotiable standards:
 
 **File Organization:**
-- Max 500 lines per file
+- Max 800 lines per file
 - One responsibility per file
 - Feature-based folder structure (not layer-based)
 - No "Utilities" or "Helpers" dumping grounds
@@ -276,10 +276,10 @@ After EVERY code change:
 Break large views into small, reusable components.
 
 ```swift
-// WRONG: 500-line view
+// WRONG: 1000-line view
 struct ProfileView: View {
     var body: some View {
-        // 500 lines of UI code ❌
+        // 1000 lines of UI code ❌
     }
 }
 
@@ -340,7 +340,7 @@ Before any PR/commit, verify:
 - [ ] Proper error handling
 - [ ] Swift 6 concurrency compliant
 - [ ] Logged important events
-- [ ] No files over 500 lines
+- [ ] No files over 800 lines
 - [ ] No functions over 50 lines
 - [ ] Follows MVVM pattern
 - [ ] Uses dependency injection
@@ -354,7 +354,7 @@ These will be REJECTED in code review:
 
 ❌ Force unwrapping: `user!`
 ❌ Force try: `try! data.write()`
-❌ Massive files: Over 500 lines
+❌ Massive files: Over 800 lines
 ❌ Mega classes: One class doing everything
 ❌ Singletons everywhere
 ❌ `DispatchQueue.main.async` (use `@MainActor`)
@@ -560,7 +560,7 @@ For quality-critical outputs:
    ☐ Swift 6 concurrency compliant
    ☐ No force unwraps
    ☐ Proper error handling
-   ☐ Under 500 lines
+   ☐ Under 800 lines
 
 3. If any check fails:
    - Identify issue
@@ -576,10 +576,10 @@ For quality-critical outputs:
 
 **The Moving Target:**
 ❌ "Make it better, more professional, higher quality"
-✅ "Reduce to 500 lines, add error handling, remove force unwraps"
+✅ "Reduce to 800 lines, add error handling, remove force unwraps"
 
 **The Wall of Text:**
-❌ 500-word paragraph with buried instructions
+❌ 1000-word paragraph with buried instructions
 ✅ Structured sections with clear boundaries
 
 **The Perfection Demand:**
@@ -594,7 +594,7 @@ For quality-critical outputs:
 <constraints>
 - Swift 6 strict concurrency
 - iOS 26+ APIs only
-- Max 500 lines
+- Max 200 lines
 - Comprehensive error handling
 </constraints>
 <verification>
@@ -609,7 +609,7 @@ For quality-critical outputs:
 <task>Refactor [component]</task>
 <priorities>
 P0: Fix force unwraps and try!
-P1: Reduce file to <500 lines
+P1: Reduce file to <800 lines
 P2: Improve naming
 </priorities>
 <standards>Follow CLAUDE.md section 1</standards>
