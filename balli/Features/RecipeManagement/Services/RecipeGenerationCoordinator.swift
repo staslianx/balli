@@ -122,29 +122,9 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     self.streamingContent = fullContent
                     self.tokenCount = count
 
-                    // Try to parse JSON incrementally to extract recipeContent and recipeName if available
-                    if let jsonData = fullContent.data(using: .utf8),
-                       let parsedJSON = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
-
-                        // Extract recipe name early (usually appears in first few chunks)
-                        if let recipeName = (parsedJSON["recipeName"] as? String) ?? (parsedJSON["name"] as? String),
-                           !recipeName.isEmpty,
-                           recipeName != self.formState.recipeName {
-                            self.formState.recipeName = recipeName
-                        }
-
-                        // Extract streaming markdown content - ONLY update if it changed
-                        if let recipeContent = parsedJSON["recipeContent"] as? String,
-                           recipeContent != self.formState.recipeContent {
-                            self.formState.recipeContent = recipeContent
-                        }
-
-                        // Extract notes progressively as they stream - ONLY update if it changed
-                        if let notes = parsedJSON["notes"] as? String,
-                           notes != self.formState.notes {
-                            self.formState.notes = notes
-                        }
-                    }
+                    // FIX: Show raw content immediately during streaming for smooth UX
+                    // The user sees content build up token-by-token, then we parse JSON when complete
+                    self.formState.recipeContent = fullContent
 
                     self.logger.debug("📦 [STREAMING] Received chunk: \(count) tokens, \(fullContent.count) chars")
                 }
@@ -409,29 +389,9 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     self.streamingContent = fullContent
                     self.tokenCount = count
 
-                    // Try to parse JSON incrementally to extract recipeContent and recipeName if available
-                    if let jsonData = fullContent.data(using: .utf8),
-                       let parsedJSON = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
-
-                        // Extract recipe name early (usually appears in first few chunks)
-                        if let recipeName = (parsedJSON["recipeName"] as? String) ?? (parsedJSON["name"] as? String),
-                           !recipeName.isEmpty,
-                           recipeName != self.formState.recipeName {
-                            self.formState.recipeName = recipeName
-                        }
-
-                        // Extract streaming markdown content - ONLY update if it changed
-                        if let recipeContent = parsedJSON["recipeContent"] as? String,
-                           recipeContent != self.formState.recipeContent {
-                            self.formState.recipeContent = recipeContent
-                        }
-
-                        // Extract notes progressively as they stream - ONLY update if it changed
-                        if let notes = parsedJSON["notes"] as? String,
-                           notes != self.formState.notes {
-                            self.formState.notes = notes
-                        }
-                    }
+                    // FIX: Show raw content immediately during streaming for smooth UX
+                    // The user sees content build up token-by-token, then we parse JSON when complete
+                    self.formState.recipeContent = fullContent
 
                     self.logger.debug("📦 [STREAMING] Received chunk: \(count) tokens, \(fullContent.count) chars")
                 }
