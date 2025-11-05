@@ -128,7 +128,7 @@ struct ProductCardView: View {
                     // Product Brand - allow wrapping for wide cards (recipes)
                     Text(brand)
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(26), weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
+                        .foregroundColor(colorScheme == .light ? .white : .primary)
                         .lineLimit((width ?? 0) > ResponsiveDesign.width(250) ? nil : 1)
                         .minimumScaleFactor(0.8)
                         .fixedSize(horizontal: false, vertical: false)
@@ -136,7 +136,7 @@ struct ProductCardView: View {
                     // Product Name - allow wrapping for recipe cards
                     Text(name)
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .medium, design: .rounded))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(colorScheme == .light ? .white.opacity(0.9) : .secondary)
                         .lineLimit(3)  // Allow up to 3 lines for long recipe names
                         .multilineTextAlignment(.leading)
                         .minimumScaleFactor(0.85)  // Allow text to shrink slightly if needed
@@ -147,12 +147,12 @@ struct ProductCardView: View {
                 if let impactLevel = impactLevel {
                     Image(systemName: impactLevel.cardSymbolName)
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .semibold))
-                        .foregroundColor(AppTheme.primaryPurple)
+                        .foregroundColor(colorScheme == .light ? .white : AppTheme.primaryPurple)
                         .frame(width: ResponsiveDesign.Font.scaledSize(24), height: ResponsiveDesign.Font.scaledSize(24), alignment: .center)
                 } else {
                     Image(systemName: getCategoryIcon())
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(20)))
-                        .foregroundColor(AppTheme.primaryPurple)
+                        .foregroundColor(colorScheme == .light ? .white : AppTheme.primaryPurple)
                         .frame(width: ResponsiveDesign.Font.scaledSize(24), height: ResponsiveDesign.Font.scaledSize(24), alignment: .center)
                 }
             }
@@ -167,7 +167,7 @@ struct ProductCardView: View {
                 // Portion size
                 Text(portion)
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .regular, design: .rounded))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(colorScheme == .light ? .white.opacity(0.9) : .secondary)
 
                 // Carb value with favorite icon aligned
                 HStack(alignment: .center, spacing: ResponsiveDesign.Spacing.small) {
@@ -175,7 +175,7 @@ struct ProductCardView: View {
                     Text(carbs.replacingOccurrences(of: " gr Karb.", with: "gr"))
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(32), weight: .semibold, design: .rounded))
                         .monospacedDigit()
-                        .foregroundColor(.primary)
+                        .foregroundColor(colorScheme == .light ? .white : .primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
 

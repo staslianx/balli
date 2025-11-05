@@ -65,19 +65,19 @@ struct RecipeCardView: View {
                 Text(item.name)
                     .font(.system(size: 18, weight: .semibold, design: .rounded))
                     .fixedSize(horizontal: false, vertical: true)
-                    .foregroundColor(.primary)
+                    .foregroundColor(colorScheme == .light ? .white : .primary)
 
                 Spacer()
 
                 // Serving size
                 Text("\(Int(item.servingSize)) \(item.servingUnit)")
                     .font(.system(size: 14, weight: .regular, design: .rounded))
-                    .foregroundColor(.primary.opacity(0.7))
+                    .foregroundColor(colorScheme == .light ? .white.opacity(0.9) : .primary.opacity(0.7))
 
                 // Carb amount
                 Text(String(format: "%.1f gr Karb.", item.totalCarbs))
                     .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundColor(.primary)
+                    .foregroundColor(colorScheme == .light ? .white : .primary)
             }
             .padding(.vertical, 16)
             .padding(.leading, 16)
@@ -92,7 +92,7 @@ struct RecipeCardView: View {
                     if recipe.isFavorite {
                         Image(systemName: "star.fill")
                             .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .semibold))
-                            .foregroundColor(Color(red: 1, green: 0.85, blue: 0, opacity: 1))
+                            .foregroundColor(colorScheme == .light ? .white : Color(red: 1, green: 0.85, blue: 0, opacity: 1))
                             .padding(.bottom, 16)
                             .padding(.trailing, 16)
                     }
