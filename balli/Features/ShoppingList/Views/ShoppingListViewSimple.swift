@@ -25,11 +25,13 @@ struct ShoppingListViewSimple: View {
 
     @StateObject private var viewModel: ShoppingListViewModel
 
-    init(viewContext: NSManagedObjectContext? = nil) {
-        // Accept optional injected viewContext for preview support
-        // If nil, ViewModel will use environment context via updateContext() in onAppear
-        let context = viewContext ?? PersistenceController.preview.container.viewContext
-        _viewModel = StateObject(wrappedValue: ShoppingListViewModel(viewContext: context))
+    init() {
+        // CRITICAL FIX: Do NOT create preview context in production!
+        // ViewModel will use a temporary context that gets replaced with environment context in onAppear
+        // This prevents creating duplicate Core Data stacks that cause UI freezes
+        _viewModel = StateObject(wrappedValue: ShoppingListViewModel(
+            viewContext: NSManagedObjectContext(concurrencyType: .mainQueueConcurrencyType)
+        ))
     }
 
     // Computed properties using ViewModel

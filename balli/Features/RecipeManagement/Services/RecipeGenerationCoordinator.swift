@@ -54,6 +54,24 @@ public final class RecipeGenerationCoordinator: ObservableObject {
 
     // MARK: - Helper Functions
 
+    /// Extracts recipe name from the first line if it's a markdown heading
+    /// Returns nil if no heading is found or content is empty
+    private func extractRecipeName(from content: String) -> String? {
+        let lines = content.components(separatedBy: "\n")
+        guard let firstLine = lines.first else { return nil }
+
+        let trimmed = firstLine.trimmingCharacters(in: .whitespaces)
+
+        // Check if first line is a markdown heading (# or ##)
+        if trimmed.starts(with: "##") {
+            return trimmed.dropFirst(2).trimmingCharacters(in: .whitespaces)
+        } else if trimmed.starts(with: "#") {
+            return trimmed.dropFirst(1).trimmingCharacters(in: .whitespaces)
+        }
+
+        return nil
+    }
+
     /// Removes recipe name heading and portion information from recipe content
     /// - Removes first line if it's a heading (starts with # or ##)
     /// - Removes portion info from metadata line
@@ -164,6 +182,12 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             },
             onChunk: { chunkText, fullContent, count in
                 Task { @MainActor in
+                    // Extract recipe name from first heading if not already set
+                    if self.formState.recipeName.isEmpty, let recipeName = self.extractRecipeName(from: fullContent) {
+                        self.formState.recipeName = recipeName
+                        self.logger.info("🏷️ [STREAMING] Extracted recipe name early: '\(recipeName)'")
+                    }
+
                     // Remove portion info from displayed content
                     let cleanedContent = self.removePortionInfo(from: fullContent)
                     self.streamingContent = cleanedContent
@@ -433,6 +457,12 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             },
             onChunk: { chunkText, fullContent, count in
                 Task { @MainActor in
+                    // Extract recipe name from first heading if not already set
+                    if self.formState.recipeName.isEmpty, let recipeName = self.extractRecipeName(from: fullContent) {
+                        self.formState.recipeName = recipeName
+                        self.logger.info("🏷️ [STREAMING] Extracted recipe name early: '\(recipeName)'")
+                    }
+
                     // Remove portion info from displayed content
                     let cleanedContent = self.removePortionInfo(from: fullContent)
                     self.streamingContent = cleanedContent
