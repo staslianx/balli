@@ -31,6 +31,17 @@ final class ImageCacheManager: ObservableObject {
         )
     }
 
+    deinit {
+        // CLEANUP: Remove observer to prevent memory leaks
+        NotificationCenter.default.removeObserver(self)
+
+        // Cancel any pending decode operations
+        for (_, task) in pendingDecodes {
+            task.cancel()
+        }
+        pendingDecodes.removeAll()
+    }
+
     // Async image decoding from Data using modern Swift 6 concurrency
     func decodeImage(from data: Data, key: String) async -> UIImage? {
         // Check if already cached

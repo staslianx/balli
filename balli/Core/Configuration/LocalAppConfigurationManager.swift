@@ -162,17 +162,16 @@ public final class AppConfigurationManager: ObservableObject {
     // MARK: - Health Monitoring
     
     private func startHealthMonitoring() {
+        // PERFORMANCE FIX: Removed periodic health check loop - battery killer
+        // Health checks can be triggered manually via performHealthCheck() or forceHealthCheck()
+        // For a personal app with 2 users, continuous health monitoring is overkill
+
+        // Perform ONE initial health check
         healthCheckTask = Task { [weak self] in
-            while !Task.isCancelled {
-                // Perform health check every 5 minutes
-                try? await Task.sleep(nanoseconds: 300_000_000_000) // 5 minutes
-                
-                guard let self = self else { break }
-                
-                let healthReport = await self.performHealthCheck()
-                await MainActor.run {
-                    self.lastHealthCheck = healthReport
-                }
+            guard let self = self else { return }
+            let healthReport = await self.performHealthCheck()
+            await MainActor.run {
+                self.lastHealthCheck = healthReport
             }
         }
     }

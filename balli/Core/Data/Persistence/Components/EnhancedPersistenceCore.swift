@@ -366,21 +366,15 @@ public final class EnhancedPersistenceCore: ObservableObject {
     private func setupMonitoring() async {
         // Setup change notifications
         setupChangeNotifications()
-        
+
         // Start health monitoring
         await healthMonitor.startMonitoring(container: container)
-        
-        // Schedule periodic health checks
-        healthCheckTimer = Timer.scheduledTimer(
-            withTimeInterval: configuration.healthCheckInterval,
-            repeats: true
-        ) { [weak self] _ in
-            Task {
-                await self?.performHealthCheck()
-            }
-        }
-        
-        // Initial health check
+
+        // PERFORMANCE FIX: Removed periodic health check timer - this was a battery killer
+        // that ran every 5 minutes forever. For a personal app with 2 users, this is overkill.
+        // Health checks can be triggered manually if needed via performHealthCheck() or getDataHealth()
+
+        // Initial health check only (no repeating timer)
         await performHealthCheck()
     }
     
