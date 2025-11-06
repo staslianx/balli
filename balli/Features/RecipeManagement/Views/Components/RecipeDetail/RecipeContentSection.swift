@@ -36,7 +36,8 @@ struct RecipeContentSection: View {
                         sources: [],
                         headerFontSize: 20 * 2.0,
                         fontName: "Manrope",
-                        headerFontName: "PlayfairDisplay"
+                        headerFontName: "PlayfairDisplay",
+                        skipFirstHeading: true  // Recipe name shown in hero section
                     )
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
