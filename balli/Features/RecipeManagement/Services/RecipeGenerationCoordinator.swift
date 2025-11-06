@@ -43,6 +43,33 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         self.memoryService = memoryService ?? RecipeMemoryService()
     }
 
+    // MARK: - Helper Functions
+
+    /// Removes portion information from recipe content metadata line
+    /// Format: **Hazırlık:** 15 dakika | **Pişirme:** 20 dakika | **Porsiyon:** 1 kişi
+    /// Result: **Hazırlık:** 15 dakika | **Pişirme:** 20 dakika
+    private func removePortionInfo(from content: String) -> String {
+        let lines = content.components(separatedBy: "\n")
+        guard lines.count >= 2 else { return content }
+
+        // Check if second line contains metadata (Hazırlık, Pişirme, Porsiyon)
+        let secondLine = lines[1]
+        if secondLine.contains("**Hazırlık:**") && secondLine.contains("**Porsiyon:**") {
+            // Remove everything from | **Porsiyon:** onwards
+            let cleanedLine = secondLine.replacingOccurrences(
+                of: #"\s*\|\s*\*\*Porsiyon:\*\*[^\n]*"#,
+                with: "",
+                options: .regularExpression
+            )
+
+            var newLines = lines
+            newLines[1] = cleanedLine
+            return newLines.joined(separator: "\n")
+        }
+
+        return content
+    }
+
     // MARK: - Recipe Generation
 
     /// Smart router: Generate recipe with or without ingredients based on availability
@@ -120,9 +147,11 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                 Task { @MainActor in
                     // Update streaming content directly - no TokenBuffer needed
                     // Backend already accumulates content, we just display it
-                    self.streamingContent = fullContent
+                    // Remove portion info from displayed content
+                    let cleanedContent = self.removePortionInfo(from: fullContent)
+                    self.streamingContent = cleanedContent
                     self.tokenCount = count
-                    self.formState.recipeContent = fullContent
+                    self.formState.recipeContent = cleanedContent
 
                     // Detailed logging to debug streaming
                     self.logger.info("📦 [STREAMING] Chunk #\(count): chunkText='\(chunkText.prefix(50))...', fullContent length=\(fullContent.count), recipeContent length=\(self.formState.recipeContent.count)")
@@ -386,9 +415,11 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                 Task { @MainActor in
                     // Update streaming content directly - no TokenBuffer needed
                     // Backend already accumulates content, we just display it
-                    self.streamingContent = fullContent
+                    // Remove portion info from displayed content
+                    let cleanedContent = self.removePortionInfo(from: fullContent)
+                    self.streamingContent = cleanedContent
                     self.tokenCount = count
-                    self.formState.recipeContent = fullContent
+                    self.formState.recipeContent = cleanedContent
 
                     // Detailed logging to debug streaming
                     self.logger.info("📦 [STREAMING] Chunk #\(count): chunkText='\(chunkText.prefix(50))...', fullContent length=\(fullContent.count), recipeContent length=\(self.formState.recipeContent.count)")
