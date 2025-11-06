@@ -463,15 +463,20 @@ struct DexcomConnectionView: View {
     private func autoConnectShareAPI() async {
         logger.info("🔄 AUTO-CONNECT: Starting automatic SHARE API connection")
 
-        // Get hardcoded credentials from configuration
-        let credentials = DexcomConfiguration.shareCredentials
+        // Get credentials from configuration (loaded from Secrets.xcconfig)
+        guard let credentials = DexcomConfiguration.shareCredentials else {
+            logger.warning("⚠️ AUTO-CONNECT: No SHARE credentials configured in Secrets.xcconfig")
+            logger.info("ℹ️ SHARE API auto-connect skipped - only Official API will be used")
+            return
+        }
+
         // Use protocol type - connect() is part of DexcomShareServiceProtocol
         let shareService = DependencyContainer.shared.dexcomShareService
 
         logger.info("🔄 AUTO-CONNECT: Using \(credentials.server) server")
 
         do {
-            // Attempt to connect with hardcoded credentials
+            // Attempt to connect with credentials from Secrets.xcconfig
             try await shareService.connect(
                 username: credentials.username,
                 password: credentials.password
