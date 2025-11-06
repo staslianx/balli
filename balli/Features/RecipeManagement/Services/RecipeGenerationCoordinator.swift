@@ -124,7 +124,8 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     self.tokenCount = count
                     self.formState.recipeContent = fullContent
 
-                    self.logger.debug("📦 [STREAMING] Chunk received: \(count) tokens, \(fullContent.count) chars")
+                    // Detailed logging to debug streaming
+                    self.logger.info("📦 [STREAMING] Chunk #\(count): chunkText='\(chunkText.prefix(50))...', fullContent length=\(fullContent.count), recipeContent length=\(self.formState.recipeContent.count)")
                 }
             },
             onComplete: { response in
@@ -389,7 +390,8 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     self.tokenCount = count
                     self.formState.recipeContent = fullContent
 
-                    self.logger.debug("📦 [STREAMING] Chunk received: \(count) tokens, \(fullContent.count) chars")
+                    // Detailed logging to debug streaming
+                    self.logger.info("📦 [STREAMING] Chunk #\(count): chunkText='\(chunkText.prefix(50))...', fullContent length=\(fullContent.count), recipeContent length=\(self.formState.recipeContent.count)")
                 }
             },
             onComplete: { response in

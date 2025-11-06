@@ -93,10 +93,8 @@ struct MarkdownText: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onChange(of: content) { _, newContent in
-            // PERFORMANCE: Parse immediately for smooth streaming
-            // Parsing is already async on background thread, no need to throttle
-            parseTask?.cancel()
-
+            // STREAMING FIX: Parse immediately without canceling for smooth streaming
+            // Don't cancel previous parse - let it complete and queue new one
             parseTask = Task {
                 await parseContentAsync()
             }
@@ -113,10 +111,10 @@ struct MarkdownText: View {
     /// Uses Task.detached for true off-main-thread parsing
     @MainActor
     private func parseContentAsync() async {
-        // Skip if content hasn't changed
-        guard content != lastParsedContent else { return }
-
         let contentToParse = content
+
+        // STREAMING FIX: Always parse, don't skip based on lastParsedContent
+        // This ensures smooth incremental updates during streaming
 
         // Parse on background thread with high priority for responsive UI
         let blocks = await Task.detached(priority: .userInitiated) {
