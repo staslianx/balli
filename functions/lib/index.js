@@ -378,6 +378,10 @@ exports.generateRecipeFromIngredients = (0, https_1.onRequest)({
                                 timestamp: new Date().toISOString()
                             };
                             res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
+                            // CRITICAL: Flush immediately to send chunk to client without buffering
+                            if (typeof res.flush === 'function') {
+                                res.flush();
+                            }
                         }
                     }
                     // Parse metadata from markdown
@@ -562,6 +566,10 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                             timestamp: new Date().toISOString()
                         };
                         res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
+                        // CRITICAL: Flush immediately to send chunk to client without buffering
+                        if (typeof res.flush === 'function') {
+                            res.flush();
+                        }
                     }
                 }
                 // Parse metadata from markdown (same as ingredients-based generation)

@@ -426,6 +426,11 @@ export const generateRecipeFromIngredients = onRequest({
                 timestamp: new Date().toISOString()
               };
               res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
+
+              // CRITICAL: Flush immediately to send chunk to client without buffering
+              if (typeof (res as any).flush === 'function') {
+                (res as any).flush();
+              }
             }
           }
 
@@ -632,6 +637,11 @@ export const generateSpontaneousRecipe = onRequest({
               timestamp: new Date().toISOString()
             };
             res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
+
+            // CRITICAL: Flush immediately to send chunk to client without buffering
+            if (typeof (res as any).flush === 'function') {
+              (res as any).flush();
+            }
           }
         }
 
