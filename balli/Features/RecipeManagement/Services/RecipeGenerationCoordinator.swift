@@ -124,10 +124,11 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     self.tokenCount = count
 
                     // Use TokenBuffer for smooth token-by-token delivery (like research)
-                    await self.tokenBuffer.appendToken(chunkText, for: "recipe-generation") { deliveredContent in
+                    await self.tokenBuffer.appendToken(chunkText, for: "recipe-generation") { _ in
                         Task { @MainActor in
-                            self.formState.recipeContent = deliveredContent
-                            self.logger.debug("📦 [STREAMING] Delivered \(deliveredContent.count) chars")
+                            // Use fullContent (accumulated by backend), not deliveredContent
+                            self.formState.recipeContent = fullContent
+                            self.logger.debug("📦 [STREAMING] Delivered \(fullContent.count) chars")
                         }
                     }
                 }
@@ -393,10 +394,11 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     self.tokenCount = count
 
                     // Use TokenBuffer for smooth token-by-token delivery (like research)
-                    await self.tokenBuffer.appendToken(chunkText, for: "recipe-generation") { deliveredContent in
+                    await self.tokenBuffer.appendToken(chunkText, for: "recipe-generation") { _ in
                         Task { @MainActor in
-                            self.formState.recipeContent = deliveredContent
-                            self.logger.debug("📦 [STREAMING] Delivered \(deliveredContent.count) chars")
+                            // Use fullContent (accumulated by backend), not deliveredContent
+                            self.formState.recipeContent = fullContent
+                            self.logger.debug("📦 [STREAMING] Delivered \(fullContent.count) chars")
                         }
                     }
                 }

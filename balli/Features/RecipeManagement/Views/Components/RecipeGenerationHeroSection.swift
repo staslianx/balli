@@ -103,7 +103,8 @@ struct RecipeGenerationMetadata: View {
                     Image("balli-text-logo-dark")
                         .resizable()
                         .scaledToFit()
-                        .frame(height: 40)
+                        .frame(width: 60, height: 40, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 // Recipe title - editable for manual recipes, display-only for AI-generated
