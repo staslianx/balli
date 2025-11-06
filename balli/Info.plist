@@ -23,6 +23,16 @@
 	</array>
 	<key>PICOVOICE_ACCESS_KEY</key>
 	<string>$(PICOVOICE_ACCESS_KEY)</string>
+	<key>DexcomClientId</key>
+	<string>$(DEXCOM_CLIENT_ID)</string>
+	<key>DexcomClientSecret</key>
+	<string>$(DEXCOM_CLIENT_SECRET)</string>
+	<key>DexcomShareUsername</key>
+	<string>$(DEXCOM_SHARE_USERNAME)</string>
+	<key>DexcomSharePassword</key>
+	<string>$(DEXCOM_SHARE_PASSWORD)</string>
+	<key>DexcomShareServer</key>
+	<string>$(DEXCOM_SHARE_SERVER)</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>GalanoGrotesqueAltSemiBold.otf</string>

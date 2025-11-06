@@ -229,26 +229,40 @@ enum DexcomConfigurationError: LocalizedError {
     }
 }
 
-// MARK: - SHARE API Credentials (Hardcoded for Personal App)
+// MARK: - SHARE API Credentials (From Secrets.xcconfig via Info.plist)
 
 extension DexcomConfiguration {
-    /// Hardcoded SHARE API credentials
-    /// SECURITY NOTE: This is safe for a personal app with 2 users that is never distributed.
+    /// SHARE API credentials loaded from Info.plist (populated by Secrets.xcconfig)
+    /// SECURITY: Credentials are in .gitignored Secrets.xcconfig, not committed to repo
     /// These credentials enable automatic SHARE API connection without manual entry.
     struct ShareCredentials: Sendable {
         let username: String
         let password: String
         let server: String // "international" or "us"
 
-        static let personal = ShareCredentials(
-            username: "dilaraturann21@icloud.com", // TODO: Replace with actual Dexcom username
-            password: "FafaTuka2117", // TODO: Replace with actual Dexcom password
-            server: "international" // EU region uses international server
-        )
+        /// Load SHARE credentials from Info.plist (fed by Secrets.xcconfig)
+        /// Returns nil if credentials are not configured
+        static var personal: ShareCredentials? {
+            guard let username = Bundle.main.infoDictionary?["DexcomShareUsername"] as? String,
+                  !username.isEmpty,
+                  let password = Bundle.main.infoDictionary?["DexcomSharePassword"] as? String,
+                  !password.isEmpty,
+                  let server = Bundle.main.infoDictionary?["DexcomShareServer"] as? String,
+                  !server.isEmpty else {
+                return nil
+            }
+
+            return ShareCredentials(
+                username: username,
+                password: password,
+                server: server
+            )
+        }
     }
 
-    /// Get hardcoded SHARE credentials
-    static var shareCredentials: ShareCredentials {
+    /// Get SHARE credentials from Info.plist
+    /// Returns nil if not configured (user must enter credentials manually)
+    static var shareCredentials: ShareCredentials? {
         .personal
     }
 }
@@ -256,12 +270,25 @@ extension DexcomConfiguration {
 // MARK: - Default Configuration
 
 extension DexcomConfiguration {
-    /// Create configuration from environment or defaults
-    /// In production, credentials should come from secure storage or environment variables
+    /// Create configuration from Info.plist (populated by Secrets.xcconfig)
+    /// SECURITY: OAuth credentials are loaded from .gitignored Secrets.xcconfig at build time
     static func `default`() -> DexcomConfiguration {
-        // Using hardcoded credentials for development
-        let clientId = "vmWWRLyONNvdXQUDGd7PB9M5RclN9BeL"
-        let clientSecret = "G0dxbxOprGi13TGT"
+        // Read OAuth credentials from Info.plist (injected from Secrets.xcconfig)
+        guard let clientId = Bundle.main.infoDictionary?["DexcomClientId"] as? String,
+              !clientId.isEmpty,
+              let clientSecret = Bundle.main.infoDictionary?["DexcomClientSecret"] as? String,
+              !clientSecret.isEmpty else {
+            fatalError("""
+                Missing Dexcom OAuth credentials in Info.plist.
+
+                Please create balli/Configuration/Secrets.xcconfig with:
+                DEXCOM_CLIENT_ID = your_client_id
+                DEXCOM_CLIENT_SECRET = your_client_secret
+
+                See Secrets.xcconfig.example for template.
+                """)
+        }
+
         // This matches what was registered with Dexcom Developer Portal
         // CRITICAL: This MUST exactly match the registered redirect URI at https://developer.dexcom.com
         let redirectURI = "com.anaxoniclabs.balli://callback"
