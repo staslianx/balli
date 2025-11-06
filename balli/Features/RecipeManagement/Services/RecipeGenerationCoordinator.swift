@@ -29,7 +29,6 @@ public final class RecipeGenerationCoordinator: ObservableObject {
     private let generationService: RecipeGenerationServiceProtocol
     private let streamingService: RecipeStreamingService
     private let memoryService: RecipeMemoryService
-    private let tokenBuffer = TokenBuffer()  // Smooth streaming delivery
 
     init(
         animationController: RecipeAnimationController,
@@ -119,18 +118,13 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             },
             onChunk: { chunkText, fullContent, count in
                 Task { @MainActor in
-                    // Update streaming content incrementally
+                    // Update streaming content directly - no TokenBuffer needed
+                    // Backend already accumulates content, we just display it
                     self.streamingContent = fullContent
                     self.tokenCount = count
+                    self.formState.recipeContent = fullContent
 
-                    // Use TokenBuffer for smooth token-by-token delivery (like research)
-                    await self.tokenBuffer.appendToken(chunkText, for: "recipe-generation") { _ in
-                        Task { @MainActor in
-                            // Use fullContent (accumulated by backend), not deliveredContent
-                            self.formState.recipeContent = fullContent
-                            self.logger.debug("📦 [STREAMING] Delivered \(fullContent.count) chars")
-                        }
-                    }
+                    self.logger.debug("📦 [STREAMING] Chunk received: \(count) tokens, \(fullContent.count) chars")
                 }
             },
             onComplete: { response in
@@ -389,18 +383,13 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             },
             onChunk: { chunkText, fullContent, count in
                 Task { @MainActor in
-                    // Update streaming content incrementally
+                    // Update streaming content directly - no TokenBuffer needed
+                    // Backend already accumulates content, we just display it
                     self.streamingContent = fullContent
                     self.tokenCount = count
+                    self.formState.recipeContent = fullContent
 
-                    // Use TokenBuffer for smooth token-by-token delivery (like research)
-                    await self.tokenBuffer.appendToken(chunkText, for: "recipe-generation") { _ in
-                        Task { @MainActor in
-                            // Use fullContent (accumulated by backend), not deliveredContent
-                            self.formState.recipeContent = fullContent
-                            self.logger.debug("📦 [STREAMING] Delivered \(fullContent.count) chars")
-                        }
-                    }
+                    self.logger.debug("📦 [STREAMING] Chunk received: \(count) tokens, \(fullContent.count) chars")
                 }
             },
             onComplete: { response in
