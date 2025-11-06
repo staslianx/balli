@@ -412,36 +412,28 @@ export const generateRecipeFromIngredients = onRequest({
           for await (const chunk of streamingResponse.stream) {
             const chunkText = chunk.text;
             if (chunkText) {
-              // Split large chunks into smaller word-based pieces for smooth streaming
-              // This ensures character-by-character animation on the client
-              const words = chunkText.split(/(\s+)/); // Split by whitespace but keep the spaces
+              fullContent += chunkText;
+              tokenCount++;
 
-              for (const word of words) {
-                if (word) {
-                  fullContent += word;
-                  tokenCount++;
+              // Send raw Gemini chunk immediately (no splitting, no delays)
+              // Client-side TypewriterAnimator handles character-by-character display
+              const chunkEvent = {
+                type: "chunk",
+                data: {
+                  content: chunkText,
+                  fullContent: fullContent,
+                  tokenCount: tokenCount
+                },
+                timestamp: new Date().toISOString()
+              };
+              res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
 
-                  // Send small word-based chunk to client
-                  const chunkEvent = {
-                    type: "chunk",
-                    data: {
-                      content: word,
-                      fullContent: fullContent,
-                      tokenCount: tokenCount
-                    },
-                    timestamp: new Date().toISOString()
-                  };
-                  res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
-
-                  // CRITICAL: Flush immediately to send chunk to client without buffering
-                  if (typeof (res as any).flush === 'function') {
-                    (res as any).flush();
-                  }
-
-                  // Smaller delay for word-by-word streaming (smooth animation)
-                  await new Promise(resolve => setTimeout(resolve, 30));
-                }
+              // CRITICAL: Flush immediately to send chunk to client without buffering
+              if (typeof (res as any).flush === 'function') {
+                (res as any).flush();
               }
+
+              // NO DELAY - let client handle animation for efficiency
             }
           }
 
@@ -634,36 +626,28 @@ export const generateSpontaneousRecipe = onRequest({
         for await (const chunk of streamingResponse.stream) {
           const chunkText = chunk.text;
           if (chunkText) {
-            // Split large chunks into smaller word-based pieces for smooth streaming
-            // This ensures character-by-character animation on the client
-            const words = chunkText.split(/(\s+)/); // Split by whitespace but keep the spaces
+            fullContent += chunkText;
+            tokenCount++;
 
-            for (const word of words) {
-              if (word) {
-                fullContent += word;
-                tokenCount++;
+            // Send raw Gemini chunk immediately (no splitting, no delays)
+            // Client-side TypewriterAnimator handles character-by-character display
+            const chunkEvent = {
+              type: "chunk",
+              data: {
+                content: chunkText,
+                fullContent: fullContent,
+                tokenCount: tokenCount
+              },
+              timestamp: new Date().toISOString()
+            };
+            res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
 
-                // Send small word-based chunk to client
-                const chunkEvent = {
-                  type: "chunk",
-                  data: {
-                    content: word,
-                    fullContent: fullContent,
-                    tokenCount: tokenCount
-                  },
-                  timestamp: new Date().toISOString()
-                };
-                res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
-
-                // CRITICAL: Flush immediately to send chunk to client without buffering
-                if (typeof (res as any).flush === 'function') {
-                  (res as any).flush();
-                }
-
-                // Smaller delay for word-by-word streaming (smooth animation)
-                await new Promise(resolve => setTimeout(resolve, 30));
-              }
+            // CRITICAL: Flush immediately to send chunk to client without buffering
+            if (typeof (res as any).flush === 'function') {
+              (res as any).flush();
             }
+
+            // NO DELAY - let client handle animation for efficiency
           }
         }
 

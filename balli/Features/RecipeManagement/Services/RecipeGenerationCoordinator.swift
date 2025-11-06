@@ -9,6 +9,7 @@
 
 import Foundation
 import OSLog
+import Combine
 
 /// Coordinates the complete recipe generation flow
 @MainActor
@@ -29,6 +30,8 @@ public final class RecipeGenerationCoordinator: ObservableObject {
     private let generationService: RecipeGenerationServiceProtocol
     private let streamingService: RecipeStreamingService
     private let memoryService: RecipeMemoryService
+    private let typewriterAnimator = TypewriterAnimator()  // Client-side character animation
+    private var animatorCancellable: AnyCancellable?  // Bind animator → formState
 
     init(
         animationController: RecipeAnimationController,
@@ -41,6 +44,12 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         self.generationService = generationService ?? RecipeGenerationService.shared
         self.streamingService = RecipeStreamingService()
         self.memoryService = memoryService ?? RecipeMemoryService()
+
+        // Bind animator's displayedText to formState.recipeContent for character-by-character animation
+        self.animatorCancellable = typewriterAnimator.$displayedText
+            .sink { [weak formState] text in
+                formState?.recipeContent = text
+            }
     }
 
     // MARK: - Helper Functions
@@ -145,16 +154,17 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             },
             onChunk: { chunkText, fullContent, count in
                 Task { @MainActor in
-                    // Update streaming content directly - no TokenBuffer needed
-                    // Backend already accumulates content, we just display it
                     // Remove portion info from displayed content
                     let cleanedContent = self.removePortionInfo(from: fullContent)
                     self.streamingContent = cleanedContent
                     self.tokenCount = count
-                    self.formState.recipeContent = cleanedContent
+
+                    // Feed into TypewriterAnimator for smooth character-by-character animation
+                    // The animator will update displayedText, which flows to formState.recipeContent via Combine binding
+                    self.typewriterAnimator.animateText(cleanedContent)
 
                     // Detailed logging to debug streaming
-                    self.logger.info("📦 [STREAMING] Chunk #\(count): chunkText='\(chunkText.prefix(50))...', fullContent length=\(fullContent.count), recipeContent length=\(self.formState.recipeContent.count)")
+                    self.logger.info("📦 [STREAMING] Chunk #\(count): chunkText='\(chunkText.prefix(50))...', fullContent length=\(fullContent.count), animator target length=\(cleanedContent.count)")
                 }
             },
             onComplete: { response in
@@ -413,16 +423,17 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             },
             onChunk: { chunkText, fullContent, count in
                 Task { @MainActor in
-                    // Update streaming content directly - no TokenBuffer needed
-                    // Backend already accumulates content, we just display it
                     // Remove portion info from displayed content
                     let cleanedContent = self.removePortionInfo(from: fullContent)
                     self.streamingContent = cleanedContent
                     self.tokenCount = count
-                    self.formState.recipeContent = cleanedContent
+
+                    // Feed into TypewriterAnimator for smooth character-by-character animation
+                    // The animator will update displayedText, which flows to formState.recipeContent via Combine binding
+                    self.typewriterAnimator.animateText(cleanedContent)
 
                     // Detailed logging to debug streaming
-                    self.logger.info("📦 [STREAMING] Chunk #\(count): chunkText='\(chunkText.prefix(50))...', fullContent length=\(fullContent.count), recipeContent length=\(self.formState.recipeContent.count)")
+                    self.logger.info("📦 [STREAMING] Chunk #\(count): chunkText='\(chunkText.prefix(50))...', fullContent length=\(fullContent.count), animator target length=\(cleanedContent.count)")
                 }
             },
             onComplete: { response in
@@ -656,6 +667,9 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         animationController.stopGenerationAnimation()
         animationController.reset()
 
+        // Reset typewriter animator
+        typewriterAnimator.reset()
+
         // Handle error globally
         ErrorHandler.shared.handle(error)
     }
@@ -695,6 +709,7 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         showPhotoButton = false
         streamingContent = ""
         tokenCount = 0
+        typewriterAnimator.reset()  // Clear animator state
     }
 
     /// Reset everything including form state (called on generation failure)
@@ -704,6 +719,7 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         showPhotoButton = false
         streamingContent = ""
         tokenCount = 0
+        typewriterAnimator.reset()  // Clear animator state
         formState.clearAll()
     }
 }
