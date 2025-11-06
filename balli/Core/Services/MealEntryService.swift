@@ -97,10 +97,10 @@ final class MealEntryService {
             self.logger.info("✅ Saved meal entry: \(totalCarbs)g carbs, \(mealType)")
         }
 
-        // CRITICAL: Merge changes from private context into viewContext
-        // This ensures the glucose chart immediately receives the meal markers
+        // PERFORMANCE FIX: Use async perform instead of performAndWait to avoid blocking main thread
+        // This prevents UI freezes during meal save operations
         await MainActor.run {
-            viewContext.performAndWait {
+            viewContext.perform {
                 viewContext.mergeChanges(fromContextDidSave: Notification(
                     name: .NSManagedObjectContextDidSave,
                     object: context,
