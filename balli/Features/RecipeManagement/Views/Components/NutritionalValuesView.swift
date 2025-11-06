@@ -582,25 +582,31 @@ struct NutritionalValuesView: View {
                         .foregroundStyle(AppTheme.primaryPurple)
                 }
                 .padding(ResponsiveDesign.Spacing.medium)
-                .background(.clear)
-                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
-                .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
-                .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
             }
+            .buttonStyle(.plain)
 
             // Chart content (only when expanded)
             if isChartExpanded {
                 let macros = chartMacros
 
-                AbsorptionTimingChart(
-                    fat: macros.fat,
-                    protein: macros.protein,
-                    carbs: macros.carbs
-                )
-                .padding(.top, ResponsiveDesign.Spacing.small)
+                VStack(spacing: 0) {
+                    Divider()
+                        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+
+                    AbsorptionTimingChart(
+                        fat: macros.fat,
+                        protein: macros.protein,
+                        carbs: macros.carbs
+                    )
+                    .padding(.top, ResponsiveDesign.Spacing.small)
+                }
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }
+        .background(.clear)
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
     }
 
     /// Full portion card for unsaved recipes - includes slider and save button

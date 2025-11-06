@@ -365,26 +365,32 @@ exports.generateRecipeFromIngredients = (0, https_1.onRequest)({
                     for await (const chunk of streamingResponse.stream) {
                         const chunkText = chunk.text;
                         if (chunkText) {
-                            fullContent += chunkText;
-                            tokenCount++;
-                            // Send chunk to client
-                            const chunkEvent = {
-                                type: "chunk",
-                                data: {
-                                    content: chunkText,
-                                    fullContent: fullContent,
-                                    tokenCount: tokenCount
-                                },
-                                timestamp: new Date().toISOString()
-                            };
-                            res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
-                            // CRITICAL: Flush immediately to send chunk to client without buffering
-                            if (typeof res.flush === 'function') {
-                                res.flush();
+                            // Split large chunks into smaller word-based pieces for smooth streaming
+                            // This ensures character-by-character animation on the client
+                            const words = chunkText.split(/(\s+)/); // Split by whitespace but keep the spaces
+                            for (const word of words) {
+                                if (word) {
+                                    fullContent += word;
+                                    tokenCount++;
+                                    // Send small word-based chunk to client
+                                    const chunkEvent = {
+                                        type: "chunk",
+                                        data: {
+                                            content: word,
+                                            fullContent: fullContent,
+                                            tokenCount: tokenCount
+                                        },
+                                        timestamp: new Date().toISOString()
+                                    };
+                                    res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
+                                    // CRITICAL: Flush immediately to send chunk to client without buffering
+                                    if (typeof res.flush === 'function') {
+                                        res.flush();
+                                    }
+                                    // Smaller delay for word-by-word streaming (smooth animation)
+                                    await new Promise(resolve => setTimeout(resolve, 30));
+                                }
                             }
-                            // Add delay to allow UI to render between chunks (smooth streaming)
-                            // 150ms gives SwiftUI enough time to complete render cycle
-                            await new Promise(resolve => setTimeout(resolve, 150));
                         }
                     }
                     // Parse metadata from markdown
@@ -556,26 +562,32 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                 for await (const chunk of streamingResponse.stream) {
                     const chunkText = chunk.text;
                     if (chunkText) {
-                        fullContent += chunkText;
-                        tokenCount++;
-                        // Send chunk to client
-                        const chunkEvent = {
-                            type: "chunk",
-                            data: {
-                                content: chunkText,
-                                fullContent: fullContent,
-                                tokenCount: tokenCount
-                            },
-                            timestamp: new Date().toISOString()
-                        };
-                        res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
-                        // CRITICAL: Flush immediately to send chunk to client without buffering
-                        if (typeof res.flush === 'function') {
-                            res.flush();
+                        // Split large chunks into smaller word-based pieces for smooth streaming
+                        // This ensures character-by-character animation on the client
+                        const words = chunkText.split(/(\s+)/); // Split by whitespace but keep the spaces
+                        for (const word of words) {
+                            if (word) {
+                                fullContent += word;
+                                tokenCount++;
+                                // Send small word-based chunk to client
+                                const chunkEvent = {
+                                    type: "chunk",
+                                    data: {
+                                        content: word,
+                                        fullContent: fullContent,
+                                        tokenCount: tokenCount
+                                    },
+                                    timestamp: new Date().toISOString()
+                                };
+                                res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
+                                // CRITICAL: Flush immediately to send chunk to client without buffering
+                                if (typeof res.flush === 'function') {
+                                    res.flush();
+                                }
+                                // Smaller delay for word-by-word streaming (smooth animation)
+                                await new Promise(resolve => setTimeout(resolve, 30));
+                            }
                         }
-                        // Add delay to allow UI to render between chunks (smooth streaming)
-                        // 150ms gives SwiftUI enough time to complete render cycle
-                        await new Promise(resolve => setTimeout(resolve, 150));
                     }
                 }
                 // Parse metadata from markdown (same as ingredients-based generation)

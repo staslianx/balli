@@ -18,11 +18,6 @@ struct AbsorptionTimingChart: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.medium) {
-            // Title
-            Text("Emilim Zamanlaması")
-                .font(.headline)
-                .foregroundColor(.secondary)
-
             if let profile = absorptionProfile {
                 // Main chart
                 Chart {
