@@ -204,7 +204,8 @@ struct RecipeGenerationContentSection: View {
                     sourceCount: 0,
                     sources: [],
                     headerFontSize: 20 * 2.0,
-                    fontName: "Manrope"
+                    fontName: "Manrope",
+                    skipFirstHeading: true  // Recipe name shown in hero section
                 )
                 .foregroundStyle(.primary)
                 .frame(maxWidth: .infinity, alignment: .leading)

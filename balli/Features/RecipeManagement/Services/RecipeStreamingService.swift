@@ -230,6 +230,7 @@ class RecipeStreamingService {
                let fullContent = event.data["fullContent"] as? String,
                let tokenCount = event.data["tokenCount"] as? Int {
 
+                logger.info("🔵 [SSE-CHUNK] Received chunk #\(tokenCount): '\(chunkText.prefix(30))...', fullContent=\(fullContent.count) chars")
                 onChunk(chunkText, fullContent, tokenCount)
             }
 

@@ -38,6 +38,7 @@ struct MarkdownText: View {
     let headerBottomPadding: CGFloat
     let fontName: String
     let headerFontName: String
+    let skipFirstHeading: Bool
 
     // PERFORMANCE FIX: Cache parsed blocks to avoid re-parsing on every render
     @State private var parsedBlocks: [MarkdownBlock] = []
@@ -58,7 +59,8 @@ struct MarkdownText: View {
         headerTopPadding: CGFloat = 8,
         headerBottomPadding: CGFloat = 0,
         fontName: String = "Playfair Display",
-        headerFontName: String = "PlayfairDisplay"
+        headerFontName: String = "PlayfairDisplay",
+        skipFirstHeading: Bool = false
     ) {
         self.content = content
         self.fontSize = fontSize
@@ -72,6 +74,7 @@ struct MarkdownText: View {
         self.headerBottomPadding = headerBottomPadding
         self.fontName = fontName
         self.headerFontName = headerFontName
+        self.skipFirstHeading = skipFirstHeading
     }
 
     var body: some View {
@@ -87,8 +90,13 @@ struct MarkdownText: View {
         )
 
         VStack(alignment: .leading, spacing: blockSpacing) {
-            ForEach(parsedBlocks) { block in
-                renderer.renderBlock(block)
+            ForEach(Array(parsedBlocks.enumerated()), id: \.element.id) { index, block in
+                // Skip first heading if requested (for recipe generation where title is shown separately)
+                if skipFirstHeading && index == 0 && isHeading(block) {
+                    EmptyView()
+                } else {
+                    renderer.renderBlock(block)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -105,6 +113,14 @@ struct MarkdownText: View {
                 await parseContentAsync()
             }
         }
+    }
+
+    /// Check if a block is a heading
+    private func isHeading(_ block: MarkdownBlock) -> Bool {
+        if case .heading = block {
+            return true
+        }
+        return false
     }
 
     /// Parse content asynchronously on background thread

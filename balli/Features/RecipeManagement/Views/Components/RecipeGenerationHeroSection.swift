@@ -117,7 +117,8 @@ struct RecipeGenerationMetadata: View {
                         .submitLabel(.done)
                 } else if !recipeName.isEmpty {
                     Text(recipeName)
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .font(.custom("Playfair Display", size: 34))
+                        .fontWeight(.bold)
                         .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                         .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
                 } else {
