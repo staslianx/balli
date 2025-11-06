@@ -59,6 +59,13 @@ final class MealEntryService {
             (name: food.name, amount: food.amount, carbs: food.carbsInt)
         }
 
+        // PERFORMANCE FIX: Set up automatic merging BEFORE save
+        // This ensures immediate visibility on main context without blocking main thread
+        await MainActor.run {
+            // Configure viewContext to automatically merge changes from background saves
+            viewContext.automaticallyMergesChangesFromParent = true
+        }
+
         // Perform CoreData operations on background context
         try await context.perform {
             if isGeminiFormat {
@@ -93,25 +100,13 @@ final class MealEntryService {
             }
 
             // Save on background thread
+            // The save will automatically trigger a merge into viewContext
+            // because automaticallyMergesChangesFromParent = true
             try context.save()
             self.logger.info("✅ Saved meal entry: \(totalCarbs)g carbs, \(mealType)")
         }
 
-        // CRITICAL: Merge changes from private context into viewContext
-        // This ensures the glucose chart immediately receives the meal markers
-        await MainActor.run {
-            viewContext.performAndWait {
-                viewContext.mergeChanges(fromContextDidSave: Notification(
-                    name: .NSManagedObjectContextDidSave,
-                    object: context,
-                    userInfo: [
-                        NSInsertedObjectsKey: context.insertedObjects,
-                        NSUpdatedObjectsKey: context.updatedObjects,
-                        NSDeletedObjectsKey: context.deletedObjects
-                    ]
-                ))
-            }
-        }
+        // No manual merge needed - automatic merging handles it without blocking main thread
     }
 
     // MARK: - Private Helpers
