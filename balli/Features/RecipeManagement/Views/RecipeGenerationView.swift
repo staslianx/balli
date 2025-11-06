@@ -212,10 +212,17 @@ struct RecipeGenerationView: View {
                 Button {
                     dismiss()
                 } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(ThemeColors.primaryPurple)
+                    ZStack {
+                        Circle()
+                            .frame(width: 36, height: 36)
+                            .glassEffect(.regular.interactive(), in: Circle())
+
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(ThemeColors.primaryPurple)
+                    }
                 }
+                .buttonStyle(.plain)
             }
 
             // Save button (circular, independent button)
@@ -265,17 +272,23 @@ struct RecipeGenerationView: View {
                         }
                     }
                 } label: {
-                    Image("balli-logo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 28, height: 28)
-                        .rotationEffect(.degrees(viewModel.isRotatingLogo ? 360 : 0))
-                        .animation(
-                            viewModel.isRotatingLogo ?
-                                .linear(duration: 1.0).repeatForever(autoreverses: false) :
-                                .default,
-                            value: viewModel.isRotatingLogo
-                        )
+                    ZStack {
+                        Circle()
+                            .frame(width: 36, height: 36)
+                            .glassEffect(.regular.interactive(), in: Circle())
+
+                        Image("balli-logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
+                            .rotationEffect(.degrees(viewModel.isRotatingLogo ? 360 : 0))
+                            .animation(
+                                viewModel.isRotatingLogo ?
+                                    .linear(duration: 1.0).repeatForever(autoreverses: false) :
+                                    .default,
+                                value: viewModel.isRotatingLogo
+                            )
+                    }
                 }
                 .buttonStyle(.plain)
             }

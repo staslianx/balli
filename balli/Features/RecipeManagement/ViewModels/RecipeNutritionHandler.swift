@@ -255,6 +255,13 @@ public class RecipeNutritionHandler: ObservableObject {
                     if let insights = nutritionData.digestionTiming {
                         logger.info("   Digestion timing: \(insights.hasMismatch ? "mismatch detected" : "no mismatch"), peak at \(insights.glucosePeakTime)h")
                     }
+
+                    // Verify formState was actually updated
+                    logger.info("🔍 [NUTRITION] Verifying formState update:")
+                    logger.info("   - formState.calories = '\(self.formState.calories)'")
+                    logger.info("   - formState.carbohydrates = '\(self.formState.carbohydrates)'")
+                    logger.info("   - formState.protein = '\(self.formState.protein)'")
+                    logger.info("   - isEmpty check: \(self.formState.calories.isEmpty), \(self.formState.carbohydrates.isEmpty), \(self.formState.protein.isEmpty)")
                 }
 
             } catch {
