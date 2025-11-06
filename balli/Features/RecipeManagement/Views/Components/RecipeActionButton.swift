@@ -67,6 +67,11 @@ struct RecipeActionButton: View {
     @State private var isPressed = false
     @State private var pulseOpacity: Double = 1.0
 
+    // Button background with purple tint
+    private var buttonBackground: Color {
+        AppTheme.primaryPurple.opacity(0.2)
+    }
+
     init(
         action: RecipeAction,
         isActive: Bool = false,
@@ -108,7 +113,15 @@ struct RecipeActionButton: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .recipeGlass(tint: .warm, cornerRadius: 25)
+            .background(
+                RoundedRectangle(cornerRadius: 25, style: .continuous)
+                    .fill(buttonBackground)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
+            .glassEffect(
+                .regular.interactive(),
+                in: RoundedRectangle(cornerRadius: 25, style: .continuous)
+            )
             .scaleEffect(isPressed ? 0.95 : 1.0)
         }
         .buttonStyle(.plain)

@@ -31,6 +31,20 @@ struct RecipeCardView: View {
         )
     }
 
+    // Card background - dark mode keeps purple, light mode is colorless
+    private var cardBackground: some ShapeStyle {
+        if colorScheme == .dark {
+            return AnyShapeStyle(dissolvedPurpleDark)
+        } else {
+            return AnyShapeStyle(Color.clear)
+        }
+    }
+
+    // Glass effect style based on color scheme
+    private var glassEffectStyle: Glass {
+        colorScheme == .dark ? .regular.interactive() : .regular
+    }
+
     var body: some View {
         Group {
             if item.isRecipe, let recipe = item.recipe {
@@ -102,11 +116,11 @@ struct RecipeCardView: View {
         .frame(height: 140)
         .background(
             RoundedRectangle(cornerRadius: 32, style: .continuous)
-                .fill(dissolvedPurpleDark)
+                .fill(cardBackground)
         )
         .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
         .glassEffect(
-            colorScheme == .dark ? .regular.interactive() : .regular,
+            glassEffectStyle,
             in: RoundedRectangle(cornerRadius: 32, style: .continuous)
         )
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))

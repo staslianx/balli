@@ -24,6 +24,11 @@ struct RecipeStoryCard: View {
     @State private var isPressed = false
     @State private var pulseOpacity: Double = 1.0
 
+    // Card background with purple tint
+    private var cardBackground: Color {
+        AppTheme.primaryPurple.opacity(0.2)
+    }
+
     init(
         title: String,
         description: String? = nil,
@@ -134,7 +139,15 @@ struct RecipeStoryCard: View {
                     .foregroundColor(.secondary)
             }
             .padding(16)
-            .recipeGlass(tint: .warm, cornerRadius: 30)
+            .background(
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .fill(cardBackground)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+            .glassEffect(
+                .regular.interactive(),
+                in: RoundedRectangle(cornerRadius: 30, style: .continuous)
+            )
             .scaleEffect(isPressed ? 0.98 : 1.0)
             .shadow(
                 color: Color.black.opacity(0.08),
@@ -160,7 +173,7 @@ struct RecipeStoryCard: View {
     }
 
     private var placeholderThumbnail: some View {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
             .fill(
                 LinearGradient(
                     colors: [

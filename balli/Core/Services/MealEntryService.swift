@@ -59,12 +59,9 @@ final class MealEntryService {
             (name: food.name, amount: food.amount, carbs: food.carbsInt)
         }
 
-        // PERFORMANCE FIX: Set up automatic merging BEFORE save
-        // This ensures immediate visibility on main context without blocking main thread
-        await MainActor.run {
-            // Configure viewContext to automatically merge changes from background saves
-            viewContext.automaticallyMergesChangesFromParent = true
-        }
+        // Note: automaticallyMergesChangesFromParent is already set to true in CoreDataStack.configureContexts()
+        // Do NOT set it again here as it causes ALL active @FetchRequest to re-evaluate synchronously,
+        // which can freeze the UI when multiple views have fetch requests active (e.g., ArdiyeView).
 
         // Perform CoreData operations on background context
         try await context.perform {

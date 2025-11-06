@@ -38,13 +38,15 @@ struct RecipeMetadataSection: View {
             // Recipe title - conditionally editable
             if isEditing {
                 TextField("", text: $editedName, axis: .vertical)
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .font(.custom("Playfair Display", size: 34))
+                    .fontWeight(.bold)
                     .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                     .textFieldStyle(.plain)
                     .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
             } else {
                 Text(recipeName)
-                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .font(.custom("Playfair Display", size: 34))
+                    .fontWeight(.bold)
                     .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                     .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
             }

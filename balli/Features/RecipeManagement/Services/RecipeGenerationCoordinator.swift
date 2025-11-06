@@ -54,29 +54,39 @@ public final class RecipeGenerationCoordinator: ObservableObject {
 
     // MARK: - Helper Functions
 
-    /// Removes portion information from recipe content metadata line
+    /// Removes recipe name heading and portion information from recipe content
+    /// - Removes first line if it's a heading (starts with # or ##)
+    /// - Removes portion info from metadata line
     /// Format: **Hazırlık:** 15 dakika | **Pişirme:** 20 dakika | **Porsiyon:** 1 kişi
     /// Result: **Hazırlık:** 15 dakika | **Pişirme:** 20 dakika
     private func removePortionInfo(from content: String) -> String {
-        let lines = content.components(separatedBy: "\n")
-        guard lines.count >= 2 else { return content }
+        var lines = content.components(separatedBy: "\n")
+        guard !lines.isEmpty else { return content }
 
-        // Check if second line contains metadata (Hazırlık, Pişirme, Porsiyon)
-        let secondLine = lines[1]
-        if secondLine.contains("**Hazırlık:**") && secondLine.contains("**Porsiyon:**") {
+        // STEP 1: Remove recipe name heading (first line if it's a markdown heading)
+        if let firstLine = lines.first, firstLine.trimmingCharacters(in: .whitespaces).starts(with: "#") {
+            lines.removeFirst()
+            // Remove empty line after heading if present
+            if lines.first?.trimmingCharacters(in: .whitespaces).isEmpty == true {
+                lines.removeFirst()
+            }
+        }
+
+        // STEP 2: Remove portion info from metadata line
+        guard lines.count >= 1 else { return lines.joined(separator: "\n") }
+
+        // Find the metadata line (contains Hazırlık and Porsiyon)
+        if let metadataIndex = lines.firstIndex(where: { $0.contains("**Hazırlık:**") && $0.contains("**Porsiyon:**") }) {
             // Remove everything from | **Porsiyon:** onwards
-            let cleanedLine = secondLine.replacingOccurrences(
+            let cleanedLine = lines[metadataIndex].replacingOccurrences(
                 of: #"\s*\|\s*\*\*Porsiyon:\*\*[^\n]*"#,
                 with: "",
                 options: .regularExpression
             )
-
-            var newLines = lines
-            newLines[1] = cleanedLine
-            return newLines.joined(separator: "\n")
+            lines[metadataIndex] = cleanedLine
         }
 
-        return content
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - Recipe Generation

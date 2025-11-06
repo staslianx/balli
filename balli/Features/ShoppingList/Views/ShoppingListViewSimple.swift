@@ -12,12 +12,15 @@ import OSLog
 struct ShoppingListViewSimple: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.colorScheme) var colorScheme
+    // PERFORMANCE FIX: Remove animation from @FetchRequest to prevent UI freeze
+    // Animation on @FetchRequest causes synchronous re-evaluation on every change
+    // Instead, we animate individual UI changes in the ViewModel
     @FetchRequest(
         sortDescriptors: [
             NSSortDescriptor(keyPath: \ShoppingListItem.isCompleted, ascending: true),
             NSSortDescriptor(keyPath: \ShoppingListItem.sortOrder, ascending: false)
         ],
-        animation: .spring()
+        animation: .default
     ) private var items: FetchedResults<ShoppingListItem>
 
     @StateObject private var viewModel: ShoppingListViewModel
