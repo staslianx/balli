@@ -48,12 +48,8 @@ struct ArdiyeView: View {
     )
     private var foodItems: FetchedResults<FoodItem>
 
-    // Core Data fetch request for Shopping List items to show dynamic basket icon
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \ShoppingListItem.dateCreated, ascending: false)],
-        animation: .default
-    )
-    private var allShoppingItems: FetchedResults<ShoppingListItem>
+    // State for dynamic basket icon (replaces @FetchRequest to prevent freeze)
+    @State private var hasUncheckedItems = false
 
     // Core Data fetch request for Recipes with fetch limits for performance
     @FetchRequest(
@@ -122,8 +118,25 @@ struct ArdiyeView: View {
     }
 
     // Check if there are any unchecked items in shopping list (for dynamic basket icon)
-    private var hasUncheckedItems: Bool {
-        allShoppingItems.contains { !$0.isCompleted }
+    // PERFORMANCE FIX: Use async count query instead of @FetchRequest to prevent UI freeze
+    // when opening shopping list sheet (avoiding dual @FetchRequest conflict)
+    private func updateBasketIcon() {
+        let fetchRequest = ShoppingListItem.fetchRequest()
+        fetchRequest.predicate = NSPredicate(format: "isCompleted == NO")
+        fetchRequest.fetchLimit = 1 // We only need to know if ANY exist
+
+        Task {
+            do {
+                let count = try await viewContext.perform {
+                    try self.viewContext.count(for: fetchRequest)
+                }
+                await MainActor.run {
+                    hasUncheckedItems = count > 0
+                }
+            } catch {
+                logger.error("Failed to check unchecked items: \(error.localizedDescription)")
+            }
+        }
     }
 
     // Get filtered items based on selected filter and search text
@@ -256,6 +269,8 @@ struct ArdiyeView: View {
             addDemoProductsIfNeeded()
             // Initial load of cached items
             updateCachedItems()
+            // Check shopping list status for basket icon
+            updateBasketIcon()
         }
         .onChange(of: recipes.count) { _, _ in
             updateCachedItems()
@@ -268,6 +283,12 @@ struct ArdiyeView: View {
         }
         .sheet(isPresented: $showingShoppingList) {
             ShoppingListViewSimple()
+        }
+        .onChange(of: showingShoppingList) { _, isShowing in
+            // Update basket icon when shopping list is dismissed
+            if !isShowing {
+                updateBasketIcon()
+            }
         }
         .sheet(isPresented: $showingSettings) {
             AppSettingsView()
