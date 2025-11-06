@@ -30,8 +30,11 @@ public final class RecipeGenerationCoordinator: ObservableObject {
     private let generationService: RecipeGenerationServiceProtocol
     private let streamingService: RecipeStreamingService
     private let memoryService: RecipeMemoryService
-    private let typewriterAnimator = TypewriterAnimator()  // Client-side character animation
-    private var animatorCancellable: AnyCancellable?  // Bind animator → formState
+    private let typewriterAnimator = TypewriterAnimator()  // Client-side character animation for content
+    private let nameAnimator = TypewriterAnimator()  // Client-side character animation for recipe name
+    private var animatorCancellable: AnyCancellable?  // Bind content animator → formState
+    private var nameAnimatorCancellable: AnyCancellable?  // Bind name animator → formState
+    private var cancellables = Set<AnyCancellable>()
 
     init(
         animationController: RecipeAnimationController,
@@ -45,17 +48,23 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         self.streamingService = RecipeStreamingService()
         self.memoryService = memoryService ?? RecipeMemoryService()
 
-        // Bind animator's displayedText to formState.recipeContent for character-by-character animation
+        // Bind content animator's displayedText to formState.recipeContent for character-by-character animation
         self.animatorCancellable = typewriterAnimator.$displayedText
             .sink { [weak formState] text in
                 formState?.recipeContent = text
+            }
+
+        // Bind name animator's displayedText to formState.recipeName for character-by-character animation
+        self.nameAnimatorCancellable = nameAnimator.$displayedText
+            .sink { [weak formState] text in
+                formState?.recipeName = text
             }
     }
 
     // MARK: - Helper Functions
 
     /// Extracts recipe name from the first line if it's a markdown heading
-    /// Returns nil if no heading is found or content is empty
+    /// Returns the name as it streams in, character by character
     private func extractRecipeName(from content: String) -> String? {
         let lines = content.components(separatedBy: "\n")
         guard let firstLine = lines.first else { return nil }
@@ -64,9 +73,11 @@ public final class RecipeGenerationCoordinator: ObservableObject {
 
         // Check if first line is a markdown heading (# or ##)
         if trimmed.starts(with: "##") {
-            return trimmed.dropFirst(2).trimmingCharacters(in: .whitespaces)
+            let name = trimmed.dropFirst(2).trimmingCharacters(in: .whitespaces)
+            return name.isEmpty ? nil : String(name)
         } else if trimmed.starts(with: "#") {
-            return trimmed.dropFirst(1).trimmingCharacters(in: .whitespaces)
+            let name = trimmed.dropFirst(1).trimmingCharacters(in: .whitespaces)
+            return name.isEmpty ? nil : String(name)
         }
 
         return nil
@@ -182,10 +193,13 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             },
             onChunk: { chunkText, fullContent, count in
                 Task { @MainActor in
-                    // Extract recipe name from first heading if not already set
-                    if self.formState.recipeName.isEmpty, let recipeName = self.extractRecipeName(from: fullContent) {
-                        self.formState.recipeName = recipeName
-                        self.logger.info("🏷️ [STREAMING] Extracted recipe name early: '\(recipeName)'")
+                    // Extract recipe name from first heading and animate it character-by-character
+                    if let recipeName = self.extractRecipeName(from: fullContent) {
+                        // Only animate if the name has changed (longer than current displayed text)
+                        if recipeName.count > self.nameAnimator.displayedText.count {
+                            self.nameAnimator.animateText(recipeName)
+                            self.logger.info("🏷️ [STREAMING] Animating recipe name: '\(recipeName)'")
+                        }
                     }
 
                     // Remove portion info from displayed content
@@ -457,10 +471,13 @@ public final class RecipeGenerationCoordinator: ObservableObject {
             },
             onChunk: { chunkText, fullContent, count in
                 Task { @MainActor in
-                    // Extract recipe name from first heading if not already set
-                    if self.formState.recipeName.isEmpty, let recipeName = self.extractRecipeName(from: fullContent) {
-                        self.formState.recipeName = recipeName
-                        self.logger.info("🏷️ [STREAMING] Extracted recipe name early: '\(recipeName)'")
+                    // Extract recipe name from first heading and animate it character-by-character
+                    if let recipeName = self.extractRecipeName(from: fullContent) {
+                        // Only animate if the name has changed (longer than current displayed text)
+                        if recipeName.count > self.nameAnimator.displayedText.count {
+                            self.nameAnimator.animateText(recipeName)
+                            self.logger.info("🏷️ [STREAMING] Animating recipe name: '\(recipeName)'")
+                        }
                     }
 
                     // Remove portion info from displayed content
@@ -707,8 +724,9 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         animationController.stopGenerationAnimation()
         animationController.reset()
 
-        // Reset typewriter animator
+        // Reset typewriter animators
         typewriterAnimator.reset()
+        nameAnimator.reset()
 
         // Handle error globally
         ErrorHandler.shared.handle(error)
@@ -749,7 +767,8 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         showPhotoButton = false
         streamingContent = ""
         tokenCount = 0
-        typewriterAnimator.reset()  // Clear animator state
+        typewriterAnimator.reset()  // Clear content animator state
+        nameAnimator.reset()  // Clear name animator state
     }
 
     /// Reset everything including form state (called on generation failure)
@@ -759,7 +778,8 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         showPhotoButton = false
         streamingContent = ""
         tokenCount = 0
-        typewriterAnimator.reset()  // Clear animator state
+        typewriterAnimator.reset()  // Clear content animator state
+        nameAnimator.reset()  // Clear name animator state
         formState.clearAll()
     }
 }

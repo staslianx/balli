@@ -220,60 +220,53 @@ struct RecipeGenerationView: View {
                 }
             }
 
-            // Save button (circular, independent button)
-            if generationViewModel.shouldShowSaveButton {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        Task {
-                            // For manual recipes, use the editable name
-                            if generationViewModel.isManualRecipe {
-                                viewModel.recipeName = editableRecipeName.trimmingCharacters(in: .whitespacesAndNewlines)
-                            }
+            // Trailing buttons (save + generate)
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 12) {
+                    // Save button (checkmark) - conditionally shown
+                    if generationViewModel.shouldShowSaveButton {
+                        Button {
+                            Task {
+                                // For manual recipes, use the editable name
+                                if generationViewModel.isManualRecipe {
+                                    viewModel.recipeName = editableRecipeName.trimmingCharacters(in: .whitespacesAndNewlines)
+                                }
 
-                            await generationViewModel.saveRecipe()
-                            if generationViewModel.isSaved {
-                                toastMessage = .success("Tarif kaydedildi!")
-                            } else if generationViewModel.isManualRecipe && editableRecipeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                toastMessage = .error("Lütfen tarif ismi girin")
+                                await generationViewModel.saveRecipe()
+                                if generationViewModel.isSaved {
+                                    toastMessage = .success("Tarif kaydedildi!")
+                                } else if generationViewModel.isManualRecipe && editableRecipeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                    toastMessage = .error("Lütfen tarif ismi girin")
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "app.badge.checkmark.fill")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundStyle(canSaveRecipe ? ThemeColors.primaryPurple : ThemeColors.primaryPurple.opacity(0.3))
+                                .frame(width: 44, height: 44)
+                                .background(
+                                    Circle()
+                                        .fill(.clear)
+                                        .glassEffect(.regular.interactive(), in: Circle())
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!canSaveRecipe)
+                    }
+
+                    // Generate menu button (balli logo)
+                    Button {
+                        let (shouldShowMenu, reason) = generationViewModel.determineGenerationFlow()
+                        logger.info("\(reason)")
+
+                        if shouldShowMenu {
+                            showingMealSelection = true
+                        } else {
+                            Task {
+                                await generationViewModel.startGenerationWithDefaults()
                             }
                         }
                     } label: {
-                        ZStack {
-                            Circle()
-                                .fill(canSaveRecipe ? ThemeColors.primaryPurple : ThemeColors.primaryPurple.opacity(0.2))
-                                .frame(width: 44, height: 44)
-
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 18, weight: .semibold))
-                                .foregroundStyle(.white)
-                        }
-                        .background(
-                            Circle()
-                                .fill(.clear)
-                                .glassEffect(.regular.interactive(), in: Circle())
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!canSaveRecipe)
-                }
-                .sharedBackgroundVisibility(.hidden)
-            }
-
-            // Generate menu button (balli logo - separate toolbar item)
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    let (shouldShowMenu, reason) = generationViewModel.determineGenerationFlow()
-                    logger.info("\(reason)")
-
-                    if shouldShowMenu {
-                        showingMealSelection = true
-                    } else {
-                        Task {
-                            await generationViewModel.startGenerationWithDefaults()
-                        }
-                    }
-                } label: {
-                    ZStack {
                         Image("balli-logo")
                             .resizable()
                             .scaledToFit()
@@ -285,16 +278,16 @@ struct RecipeGenerationView: View {
                                     .default,
                                 value: viewModel.isRotatingLogo
                             )
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(.clear)
+                                    .glassEffect(.regular.interactive(), in: Circle())
+                            )
                     }
-                    .frame(width: 44, height: 44)
-                    .background(
-                        Circle()
-                            .fill(.clear)
-                            .glassEffect(.regular.interactive(), in: Circle())
-                    )
+                    .buttonStyle(.plain)
                 }
             }
-            .sharedBackgroundVisibility(.hidden)
         }
         .toolbarBackground(.automatic, for: .navigationBar)
         .toolbarTitleDisplayMode(.inline)
