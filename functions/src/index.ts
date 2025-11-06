@@ -432,8 +432,9 @@ export const generateRecipeFromIngredients = onRequest({
                 (res as any).flush();
               }
 
-              // Add tiny delay to allow UI to render between chunks (smooth streaming)
-              await new Promise(resolve => setTimeout(resolve, 50));
+              // Add delay to allow UI to render between chunks (smooth streaming)
+              // 150ms gives SwiftUI enough time to complete render cycle
+              await new Promise(resolve => setTimeout(resolve, 150));
             }
           }
 
@@ -646,8 +647,9 @@ export const generateSpontaneousRecipe = onRequest({
               (res as any).flush();
             }
 
-            // Add tiny delay to allow UI to render between chunks (smooth streaming)
-            await new Promise(resolve => setTimeout(resolve, 50));
+            // Add delay to allow UI to render between chunks (smooth streaming)
+            // 150ms gives SwiftUI enough time to complete render cycle
+            await new Promise(resolve => setTimeout(resolve, 150));
           }
         }
 

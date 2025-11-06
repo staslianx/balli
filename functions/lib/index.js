@@ -382,8 +382,9 @@ exports.generateRecipeFromIngredients = (0, https_1.onRequest)({
                             if (typeof res.flush === 'function') {
                                 res.flush();
                             }
-                            // Add tiny delay to allow UI to render between chunks (smooth streaming)
-                            await new Promise(resolve => setTimeout(resolve, 50));
+                            // Add delay to allow UI to render between chunks (smooth streaming)
+                            // 150ms gives SwiftUI enough time to complete render cycle
+                            await new Promise(resolve => setTimeout(resolve, 150));
                         }
                     }
                     // Parse metadata from markdown
@@ -572,8 +573,9 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                         if (typeof res.flush === 'function') {
                             res.flush();
                         }
-                        // Add tiny delay to allow UI to render between chunks (smooth streaming)
-                        await new Promise(resolve => setTimeout(resolve, 50));
+                        // Add delay to allow UI to render between chunks (smooth streaming)
+                        // 150ms gives SwiftUI enough time to complete render cycle
+                        await new Promise(resolve => setTimeout(resolve, 150));
                     }
                 }
                 // Parse metadata from markdown (same as ingredients-based generation)
