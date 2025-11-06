@@ -46,6 +46,7 @@ struct MarkdownText: View {
     @State private var lastContentLength: Int = 0
     @State private var isInitialParse = true
     @State private var parseTask: Task<Void, Never>?
+    @State private var debounceTask: Task<Void, Never>?
 
     init(
         content: String,
@@ -91,8 +92,9 @@ struct MarkdownText: View {
 
         VStack(alignment: .leading, spacing: blockSpacing) {
             ForEach(Array(parsedBlocks.enumerated()), id: \.element.id) { index, block in
-                // Skip first heading if requested (for recipe generation where title is shown separately)
-                if skipFirstHeading && index == 0 && isHeading(block) {
+                // Skip first level-1 heading if requested (for recipe generation where title is shown separately)
+                // Only skip if it's the first block AND it's a level-1 heading
+                if skipFirstHeading && index == 0 && isLevel1Heading(block) {
                     EmptyView()
                 } else {
                     renderer.renderBlock(block)
@@ -101,23 +103,32 @@ struct MarkdownText: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onChange(of: content) { _, newContent in
-            // STREAMING FIX: Parse immediately without canceling for smooth streaming
-            // Don't cancel previous parse - let it complete and queue new one
-            parseTask = Task {
-                await parseContentAsync()
+            // SSE STREAMING OPTIMIZATION: Debounce rapid token arrivals to batch parse operations
+            // Cancel previous debounce to reset the timer
+            debounceTask?.cancel()
+
+            // Wait 50ms before parsing - batches rapid SSE tokens while staying responsive
+            debounceTask = Task {
+                try? await Task.sleep(for: .milliseconds(50))
+
+                // If not cancelled during debounce, trigger parse
+                guard !Task.isCancelled else { return }
+                parseTask = Task {
+                    await parseContentAsync()
+                }
             }
         }
         .onAppear {
-            // Handle initial render
+            // Handle initial render - parse immediately without debounce
             Task {
                 await parseContentAsync()
             }
         }
     }
 
-    /// Check if a block is a heading
-    private func isHeading(_ block: MarkdownBlock) -> Bool {
-        if case .heading = block {
+    /// Check if a block is a level-1 heading (# Heading)
+    private func isLevel1Heading(_ block: MarkdownBlock) -> Bool {
+        if case .heading(level: let level, text: _) = block, level == 1 {
             return true
         }
         return false

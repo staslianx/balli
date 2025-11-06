@@ -223,34 +223,26 @@ class MedicalResearchViewModel: ObservableObject {
         // Reset inactivity timer
         sessionManager.resetInactivityTimer()
 
-        // Session management
         if sessionManager.shouldEndSession(query) {
-            logger.info("Detected session end signal in query: \(query)")
             await endCurrentSession()
         }
 
-        // Create image attachment if image provided
         var imageAttachment: ImageAttachment? = nil
         if let image = image {
             imageAttachment = ImageAttachment.create(from: image)
-            logger.debug("Created image attachment: \(imageAttachment?.fileSizeDescription ?? "unknown size")")
         }
 
-        // Append user message to session (with optional image)
         do {
             if let imageAttachment = imageAttachment {
                 try await sessionManager.appendUserMessage(query, imageAttachment: imageAttachment)
             } else {
                 try await sessionManager.appendUserMessage(query)
             }
-            logger.debug("Appended user message to session")
         } catch {
             logger.error("Failed to append user message to session: \(error.localizedDescription)")
         }
 
-        // Check token limit
         if sessionManager.shouldEndDueToTokenLimit() {
-            logger.warning("Token limit approaching - ending session gracefully")
             await endCurrentSession()
             sessionManager.startNewSession()
             do {
@@ -274,24 +266,17 @@ class MedicalResearchViewModel: ObservableObject {
             imageAttachment: imageAttachment
         )
 
-        logger.info("Starting search - Query: \(query, privacy: .private)")
-
         stateManager.insertAnswer(placeholderAnswer, at: 0)
         searchState = .loading
         currentSearchTier = predictedTier
 
         let answerId = placeholderAnswer.id
-
-        // Ensure flag is cleared for this new answer (should already be clear, but be explicit)
         stateManager.clearFirstTokenTracking(for: answerId)
 
-        // Initialize stream processor
         _ = streamProcessor.initializeCancellationToken(for: answerId)
         await streamProcessor.resetEventTracker()
 
-        // Get conversation history (already in correct format from sessionManager)
         let conversationHistory = sessionManager.getFormattedHistory()
-        logger.info("🧠 [MEMORY-DEBUG] Passing \(conversationHistory.count) messages as context to LLM")
 
         // Start streaming search
         await performStreamingSearch(
@@ -314,33 +299,20 @@ class MedicalResearchViewModel: ObservableObject {
 
     /// Start a new conversation - saves current answers to library and clears the view
     func startNewConversation() async {
-        logger.info("💬 Starting new conversation - saving current conversation to library")
-        logger.info("Current answers count: \(self.answers.count)")
-
-        // CRITICAL: Clear UI state IMMEDIATELY (synchronously) for instant visual feedback
-        // This ensures the empty state appears on first tap without delay
         stateManager.removeAllAnswers()
         searchState = .idle
         currentSearchTier = nil
 
-        // Then perform async cleanup work (persistence, session management)
         await syncAnswersToPersistence()
         await endCurrentSession()
-
-        // Clear stage coordinator state (includes observer cleanup)
         await stageCoordinator.clearAllState()
 
-        // Start fresh session
         sessionManager.startNewSession()
-
-        logger.info("✅ New conversation started - previous conversation saved to library")
-        logger.info("New answers count: \(self.answers.count)")
     }
 
     /// Cancel streaming response for the currently active search
     func cancelCurrentSearch() {
         guard let currentAnswer = answers.first, currentAnswer.content.isEmpty || isSearching else {
-            logger.debug("No active search to cancel")
             return
         }
 
@@ -349,17 +321,13 @@ class MedicalResearchViewModel: ObservableObject {
         streamProcessor.cancelSearch(for: answerId)
         stageCoordinator.cleanupSearchState(for: answerId)
 
-        logger.info("📝 Preserved content: \(currentAnswer.content.count, privacy: .public) chars")
-
         searchState = .idle
         currentSearchTier = nil
 
-        // Save partial answer
         Task {
             if !currentAnswer.content.isEmpty {
                 do {
                     try await persistenceManager.saveAnswer(currentAnswer)
-                    logger.info("✅ Persisted cancelled answer: \(answerId, privacy: .public)")
                 } catch {
                     logger.error("Failed to persist cancelled answer: \(error.localizedDescription)")
                 }
@@ -414,35 +382,24 @@ class MedicalResearchViewModel: ObservableObject {
     // MARK: - Event Handlers (Internal for ResearchStreamCallbacksBuilder)
 
     func handleToken(_ token: String, answerId: String) async {
-        // STREAMING FIX: Update UI immediately with each token - no batching
-        // The irregular chunking pattern was caused by race conditions between batching layers
-        let vmStart = Date()
-        logger.debug("🔵 [VM-HANDLE-TOKEN] START at \(vmStart.timeIntervalSince1970), token length=\(token.count), content='\(token.prefix(20))...'")
-
-        // Update answer immediately - no accumulation, no delay
         await eventHandler.handleToken(
             token,
             answerId: answerId,
             getAnswers: { @MainActor [weak self] in self?.stateManager.answers ?? [] },
             getAnswerIndex: { @MainActor [weak self] id in self?.stateManager.getAnswerIndex(for: id) },
             getFirstTokenProcessed: { @MainActor [weak self] in
-                // Return as Set for compatibility
                 guard let self = self else { return [] }
                 let allIds = self.stateManager.answers.map { $0.id }
                 return Set(allIds.filter { self.stateManager.isFirstTokenProcessed(for: $0) })
             },
             updateAnswer: { @MainActor [weak self] index, answer, shouldAnimate in
                 guard let self = self else { return }
-                // Direct update - no animation
                 self.stateManager.updateAnswer(at: index, with: answer)
             },
             markFirstTokenProcessed: { @MainActor [weak self] id in
                 self?.stateManager.markFirstTokenProcessed(for: id)
             }
         )
-
-        let vmEnd = Date()
-        logger.debug("🟢 [VM-HANDLE-TOKEN] END - took \((vmEnd.timeIntervalSince(vmStart)*1000))ms")
     }
 
     func handleTierSelected(_ tier: String, answerId: String) async {

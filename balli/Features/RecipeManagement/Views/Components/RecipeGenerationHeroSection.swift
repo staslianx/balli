@@ -77,6 +77,26 @@ struct RecipeGenerationHeroImage: View {
     }
 }
 
+// MARK: - Time Pill Component
+
+struct RecipeTimePill: View {
+    let icon: String
+    let time: Int
+    let label: String
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+            Text("\(time) dk")
+                .font(.system(size: 16, weight: .semibold))
+                .fixedSize()
+        }
+        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
+    }
+}
+
 // MARK: - Recipe Metadata Section
 
 struct RecipeGenerationMetadata: View {
@@ -85,6 +105,8 @@ struct RecipeGenerationMetadata: View {
     let geometry: GeometryProxy
     @Binding var editableRecipeName: String
     let isManualRecipe: Bool
+    let prepTime: Int?
+    let cookTime: Int?
     @Environment(\.colorScheme) private var colorScheme
     @FocusState.Binding var isNameFieldFocused: Bool
 
@@ -97,7 +119,7 @@ struct RecipeGenerationMetadata: View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 8) {
                 // Logo - Shows balli logo if AI-generated recipe (same size in both light and dark mode)
                 if !recipeContent.isEmpty {
                     Image("balli-text-logo-dark")
@@ -193,6 +215,8 @@ struct RecipeGenerationCompleteHero: View {
     let geometry: GeometryProxy
     @Binding var editableRecipeName: String
     let isManualRecipe: Bool
+    let prepTime: Int?
+    let cookTime: Int?
     @FocusState.Binding var isNameFieldFocused: Bool
     let onGeneratePhoto: () -> Void
     let onStoryCardTap: () -> Void
@@ -228,6 +252,8 @@ struct RecipeGenerationCompleteHero: View {
                 geometry: geometry,
                 editableRecipeName: $editableRecipeName,
                 isManualRecipe: isManualRecipe,
+                prepTime: prepTime,
+                cookTime: cookTime,
                 isNameFieldFocused: $isNameFieldFocused
             )
 

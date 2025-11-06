@@ -244,15 +244,12 @@ struct RecipeActionRow: View {
 
                 HStack(spacing: 12) {
                     RecipeActionButton(action: .save, isActive: true) {
-                        print("Save tapped")
                     }
 
                     RecipeActionButton(action: .values, isActive: false) {
-                        print("Values tapped")
                     }
 
                     RecipeActionButton(action: .shopping, isActive: false) {
-                        print("Shopping tapped")
                     }
                 }
             }
@@ -269,7 +266,6 @@ struct RecipeActionRow: View {
                     actions: [.save, .values, .shopping],
                     activeStates: [true, false, false]
                 ) { action in
-                    print("\(action.label) tapped")
                 }
             }
             .padding()
@@ -288,12 +284,10 @@ struct RecipeActionRow: View {
             ForEach([RecipeAction.save, .values, .shopping, .timer, .edit], id: \.label) { action in
                 HStack {
                     RecipeActionButton(action: action, isActive: false) {
-                        print("\(action.label) tapped")
                     }
                     .frame(width: 100)
 
                     RecipeActionButton(action: action, isActive: true) {
-                        print("\(action.label) active tapped")
                     }
                     .frame(width: 100)
                 }

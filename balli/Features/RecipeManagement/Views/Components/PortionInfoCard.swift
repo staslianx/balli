@@ -140,7 +140,6 @@ struct PortionInfoCard: View {
     recipe.portionSize = 342  // Full recipe = 1 portion
 
     return PortionInfoCard(recipe: recipe) {
-        print("Adjust tapped")
     }
     .padding()
 }
@@ -153,7 +152,6 @@ struct PortionInfoCard: View {
     recipe.portionSize = 252  // 3 portions
 
     return PortionInfoCard(recipe: recipe) {
-        print("Adjust tapped")
     }
     .padding()
 }
@@ -166,7 +164,6 @@ struct PortionInfoCard: View {
     recipe.portionSize = 150  // 8 portions
 
     return PortionInfoCard(recipe: recipe) {
-        print("Adjust tapped")
     }
     .padding()
 }

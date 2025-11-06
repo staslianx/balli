@@ -250,3 +250,28 @@ struct SelectableMarkdownText: View {
     }
     .preferredColorScheme(.dark)
 }
+
+#Preview("Bold Text Spacing") {
+    ScrollView {
+        SelectableMarkdownText(
+            content: """
+            # Bold Text Spacing Test
+
+            Testing bold text spacing with the pattern: regular **bold** regular **bold** regular.
+
+            Here is some normal text with **bold words** mixed in to verify proper spacing between bold and regular text.
+
+            Multiple **bold** sections **should** have **proper** spacing **throughout** the paragraph.
+
+            ## Comparison
+
+            All bold: **This entire sentence is bold for comparison.**
+
+            Mixed: This sentence **mixes bold** and regular **text frequently** to test spacing.
+            """,
+            fontSize: 19,
+            headerFontSize: 35.72
+        )
+        .padding()
+    }
+}

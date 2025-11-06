@@ -278,6 +278,12 @@ public class RecipeViewModel: ObservableObject {
         animationController.isFadingOutContent
     }
 
+    /// SSE STREAMING: Content appears immediately, no animation completion tracking needed
+    /// Always return true since there's no animation delay
+    public var isAnimationComplete: Bool {
+        !generationCoordinator.isGenerating
+    }
+
     public var textVisible: Bool {
         animationController.textVisible
     }

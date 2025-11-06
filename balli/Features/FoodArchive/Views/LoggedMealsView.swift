@@ -275,52 +275,6 @@ struct LoggedMealsView: View {
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
 
-                // Show ingredient names (up to 3, then "...")
-                Group {
-                    let ingredientNames = mealGroup.meals.compactMap { $0.foodItem?.name }.filter { !$0.isEmpty }
-                    if !ingredientNames.isEmpty {
-                        let displayText: String = {
-                            if ingredientNames.count <= 3 {
-                                return ingredientNames.joined(separator: ", ")
-                            } else {
-                                return ingredientNames.prefix(3).joined(separator: ", ") + "..."
-                            }
-                        }()
-
-                        Text(displayText)
-                            .font(.system(size: ResponsiveDesign.Font.scaledSize(12), weight: .regular, design: .rounded))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-                }
-
-                // Insulin badge if present
-                if hasInsulin {
-                    HStack(spacing: 4) {
-                        Image(systemName: "syringe.fill")
-                            .font(.system(size: ResponsiveDesign.Font.scaledSize(10), weight: .medium))
-                            .foregroundStyle(.white)
-
-                        if let firstMedication = medications.first {
-                            Text("\(firstMedication.dosage, specifier: "%.1f") ü")
-                                .font(.system(size: ResponsiveDesign.Font.scaledSize(11), weight: .semibold, design: .rounded))
-                                .foregroundStyle(.white)
-
-                            // Show medication name if available
-                            if !firstMedication.medicationName.isEmpty,
-                               !firstMedication.medicationName.contains("İnsülin") {
-                                Text(firstMedication.medicationName)
-                                    .font(.system(size: ResponsiveDesign.Font.scaledSize(10), weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white.opacity(0.9))
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(AppTheme.primaryPurple)
-                    .cornerRadius(6)
-                }
-
                 // Time only (date is shown in card header)
                 Text(mealGroup.timestamp, format: .dateTime.hour().minute())
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(13), weight: .regular, design: .rounded))
@@ -329,12 +283,29 @@ struct LoggedMealsView: View {
 
             Spacer()
 
-            // Right-aligned carbohydrate badge
-            if mealGroup.totalCarbs > 0 {
-                Text("\(Int(mealGroup.totalCarbs))gr")
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(AppTheme.primaryPurple)
+            // Right-aligned metrics (insulin + carbs)
+            HStack(spacing: ResponsiveDesign.Spacing.small) {
+                // Insulin info inline with carbs
+                if hasInsulin, let firstMedication = medications.first {
+                    HStack(spacing: 4) {
+                        Image(systemName: "syringe.fill")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .medium))
+                            .foregroundStyle(AppTheme.primaryPurple)
+
+                        Text("\(firstMedication.dosage, specifier: "%.1f")ü")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                            .foregroundStyle(AppTheme.primaryPurple)
+                    }
+                }
+
+                // Carbohydrate amount
+                if mealGroup.totalCarbs > 0 {
+                    Text("\(Int(mealGroup.totalCarbs))gr")
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(AppTheme.primaryPurple)
+                }
             }
         }
         .padding(.vertical, ResponsiveDesign.Spacing.small)

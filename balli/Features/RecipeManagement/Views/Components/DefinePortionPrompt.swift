@@ -74,12 +74,10 @@ struct DefinePortionPrompt: View {
 #Preview {
     VStack(spacing: 20) {
         DefinePortionPrompt {
-            print("Define portion tapped")
         }
 
         // Show in different contexts
         DefinePortionPrompt {
-            print("Define portion tapped")
         }
         .padding()
         .background(Color.gray.opacity(0.1))

@@ -75,11 +75,11 @@ struct AnswerCardView: View {
             renderStageCard()
 
 
-            // Answer content - markdown rendered with smooth character-by-character animation
-            // Uses AnimatedStreamingTextView to convert chunky tokens into smooth display
+            // Answer content - markdown rendered directly from SSE streaming
+            // Raw streaming without character-by-character animation
             if !answer.content.isEmpty {
-                AnimatedStreamingTextView(
-                    sourceContent: answer.content,
+                StreamingAnswerView(
+                    content: answer.content,
                     isStreaming: !isStreamingComplete,
                     sourceCount: answer.sources.count,
                     sources: answer.sources,

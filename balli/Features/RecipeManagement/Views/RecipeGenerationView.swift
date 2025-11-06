@@ -29,6 +29,7 @@ struct RecipeGenerationView: View {
     @State private var newStepText = ""
     @State private var toastMessage: ToastType? = nil
     @State private var editableRecipeName = ""
+    @State private var showSaveButton = false
     @FocusState private var focusedField: FocusField?
     @FocusState private var isNameFieldFocused: Bool
 
@@ -64,10 +65,9 @@ struct RecipeGenerationView: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // MARK: - Error Banner
-                if let errorMessage = viewModel.generationError {
+        ZStack {
+            // MARK: - Error Banner
+            if let errorMessage = viewModel.generationError {
                     VStack {
                         HStack(spacing: 12) {
                             Image(systemName: "exclamationmark.triangle.fill")
@@ -120,23 +120,24 @@ struct RecipeGenerationView: View {
                 }
 
                 // MARK: - Scrollable Content
-                ScrollView {
-                    ZStack(alignment: .top) {
-                        VStack(spacing: 0) {
-                            // Hero image
-                            RecipeGenerationHeroImage(
-                                recipeName: viewModel.recipeName,
-                                preparedImage: viewModel.preparedImage,
-                                isGeneratingPhoto: viewModel.isGeneratingPhoto,
-                                recipeContent: viewModel.formState.recipeContent,
-                                geometry: geometry,
-                                onGeneratePhoto: {
-                                    Task {
-                                        await generationViewModel.generatePhoto()
+                GeometryReader { geometry in
+                    ScrollView {
+                        ZStack(alignment: .top) {
+                            VStack(spacing: 0) {
+                                // Hero image
+                                RecipeGenerationHeroImage(
+                                    recipeName: viewModel.recipeName,
+                                    preparedImage: viewModel.preparedImage,
+                                    isGeneratingPhoto: viewModel.isGeneratingPhoto,
+                                    recipeContent: viewModel.formState.recipeContent,
+                                    geometry: geometry,
+                                    onGeneratePhoto: {
+                                        Task {
+                                            await generationViewModel.generatePhoto()
+                                        }
                                     }
-                                }
-                            )
-                            .ignoresSafeArea(edges: .top)
+                                )
+                                .ignoresSafeArea(edges: .top)
 
                             // Spacer to accommodate story card overlap
                             Spacer()
@@ -180,6 +181,8 @@ struct RecipeGenerationView: View {
                             geometry: geometry,
                             editableRecipeName: $editableRecipeName,
                             isManualRecipe: generationViewModel.isManualRecipe,
+                            prepTime: viewModel.generationCoordinator.prepTime,
+                            cookTime: viewModel.generationCoordinator.cookTime,
                             isNameFieldFocused: $isNameFieldFocused
                         )
 
@@ -207,24 +210,39 @@ struct RecipeGenerationView: View {
             }
         }
         .toast($toastMessage)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button {
                     dismiss()
                 } label: {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(ThemeColors.primaryPurple)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(ThemeColors.primaryPurple)
+                }
+            }
+
+            // Center item - time pills
+            ToolbarItem(placement: .principal) {
+                if viewModel.generationCoordinator.prepTime != nil || viewModel.generationCoordinator.cookTime != nil {
+                    HStack(spacing: 8) {
+                        if let prep = viewModel.generationCoordinator.prepTime {
+                            RecipeTimePill(icon: "timer", time: prep, label: "Hazırlık")
+                        }
+                        if let cook = viewModel.generationCoordinator.cookTime {
+                            RecipeTimePill(icon: "flame", time: cook, label: "Pişirme")
+                        }
+                    }
+                    .fixedSize()
                 }
             }
 
             // Trailing buttons (save + generate)
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
-                    // Save button (checkmark) - conditionally shown
-                    if generationViewModel.shouldShowSaveButton {
+                    // Save button (checkmark) - shown after generation completes
+                    if showSaveButton {
                         Button {
                             Task {
                                 // For manual recipes, use the editable name
@@ -240,15 +258,9 @@ struct RecipeGenerationView: View {
                                 }
                             }
                         } label: {
-                            Image(systemName: "app.badge.checkmark.fill")
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundStyle(canSaveRecipe ? ThemeColors.primaryPurple : ThemeColors.primaryPurple.opacity(0.3))
-                                .frame(width: 44, height: 44)
-                                .background(
-                                    Circle()
-                                        .fill(.clear)
-                                        .glassEffect(.regular.interactive(), in: Circle())
-                                )
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(canSaveRecipe ? ThemeColors.primaryPurple : ThemeColors.primaryPurple.opacity(0.3))
                         }
                         .buttonStyle(.plain)
                         .disabled(!canSaveRecipe)
@@ -270,28 +282,19 @@ struct RecipeGenerationView: View {
                         Image("balli-logo")
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 24, height: 24)
-                            .rotationEffect(.degrees(viewModel.isRotatingLogo ? 360 : 0))
+                            .frame(width: 20, height: 20)
+                            .rotationEffect(.degrees(viewModel.isGeneratingRecipe ? 360 : 0))
                             .animation(
-                                viewModel.isRotatingLogo ?
+                                viewModel.isGeneratingRecipe ?
                                     .linear(duration: 1.0).repeatForever(autoreverses: false) :
                                     .default,
-                                value: viewModel.isRotatingLogo
-                            )
-                            .frame(width: 44, height: 44)
-                            .background(
-                                Circle()
-                                    .fill(.clear)
-                                    .glassEffect(.regular.interactive(), in: Circle())
+                                value: viewModel.isGeneratingRecipe
                             )
                     }
                     .buttonStyle(.plain)
                 }
             }
         }
-        .toolbarBackground(.automatic, for: .navigationBar)
-        .toolbarTitleDisplayMode(.inline)
-        .toolbar(.visible, for: .navigationBar)
         .sheet(isPresented: $showingMealSelection) {
             RecipeMealSelectionView(
                 selectedMealType: $generationViewModel.selectedMealType,
@@ -356,6 +359,18 @@ struct RecipeGenerationView: View {
                 await generationViewModel.checkShoppingListStatus()
             }
         }
+        .onChange(of: viewModel.isAnimationComplete) { oldValue, newValue in
+            // When streaming animation completes, show save button if recipe exists
+            if !oldValue && newValue && !generationViewModel.isSaved {
+                showSaveButton = generationViewModel.shouldShowSaveButton
+            }
+        }
+        .onChange(of: generationViewModel.isSaved) { _, newValue in
+            // Hide save button after recipe is saved
+            if newValue {
+                showSaveButton = false
+            }
+        }
         .onChange(of: viewModel.isCalculatingNutrition) { oldValue, newValue in
             if oldValue && !newValue {
                 // Calculation completed
@@ -376,7 +391,6 @@ struct RecipeGenerationView: View {
             }
         }
     }
-
 }
 
 // MARK: - Custom Button Style

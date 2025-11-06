@@ -61,10 +61,8 @@ final class ResearchEventHandler {
             guard let self = self else { return }
 
             let deliverStart = Date()
-            print("🟣 [DELIVER-CALLBACK] Received batchedContent length=\(batchedContent.count), creating MainActor Task")
             Task { @MainActor in
                 let mainActorStart = Date()
-                print("🟡 [MAINACTOR-START] Task executing \((mainActorStart.timeIntervalSince(deliverStart)*1000))ms after deliver callback")
                 guard let index = capturedGetAnswerIndex(answerId) else { return }
 
                 let currentAnswer = capturedGetAnswers()[index]
@@ -95,7 +93,6 @@ final class ResearchEventHandler {
                 capturedUpdateAnswer(index, updatedAnswer, currentAnswer.content.isEmpty)
 
                 let mainActorEnd = Date()
-                print("✅ [MAINACTOR-END] Answer updated, took \((mainActorEnd.timeIntervalSince(mainActorStart)*1000))ms, new content length: \(updatedAnswer.content.count)")
             }
         }
     }

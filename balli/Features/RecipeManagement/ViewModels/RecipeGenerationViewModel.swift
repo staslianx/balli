@@ -65,8 +65,14 @@ final class RecipeGenerationViewModel: ObservableObject {
 
     /// Determines if save button should be visible
     /// Shows for AI-generated recipes OR manual recipes with content
+    /// Only shows after character-by-character animation completes
     var shouldShowSaveButton: Bool {
         if isSaved { return false }
+
+        // Wait for animation to complete before showing save button
+        if !recipeViewModel.isAnimationComplete {
+            return false
+        }
 
         // AI-generated recipe
         if !recipeViewModel.recipeName.isEmpty {
@@ -187,86 +193,45 @@ final class RecipeGenerationViewModel: ObservableObject {
     // MARK: - Save Recipe
 
     func saveRecipe() async {
-        logger.info("💾 [VM] saveRecipe() called")
-
-        // Validate manual recipe has a name
         if isManualRecipe && recipeViewModel.recipeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            logger.warning("⚠️ [VM] Cannot save manual recipe without a name")
+            logger.warning("Cannot save manual recipe without a name")
             return
         }
 
-        // Wait for nutrition calculation to finish if it's running
         if recipeViewModel.isCalculatingNutrition {
-            logger.info("⏳ [VM] Nutrition calculation in progress - waiting for completion...")
             while recipeViewModel.isCalculatingNutrition {
                 try? await Task.sleep(for: .milliseconds(100))
             }
-            logger.info("✅ [VM] Nutrition calculation completed - proceeding with save")
         }
 
-        // Build manual recipe content ONLY if this is truly a manual recipe (no AI generation happened)
-        // If user provided ingredients but AI generated a recipe, DON'T overwrite the AI content
         let hasAIGeneratedContent = !recipeViewModel.recipeName.isEmpty || !recipeViewModel.recipeContent.isEmpty
         if (!manualIngredients.isEmpty || !manualSteps.isEmpty) && !hasAIGeneratedContent {
-            logger.info("🔨 [VM] Building manual recipe content (no AI generation)")
             buildManualRecipeContent()
-        } else if hasAIGeneratedContent {
-            logger.info("🤖 [VM] Skipping manual content build - AI already generated recipe")
         }
 
-        // Load image data if present
         if recipeViewModel.generatedPhotoURL != nil {
-            logger.info("🖼️ [VM] Photo URL present - loading image data before save...")
             await recipeViewModel.loadImageFromGeneratedURL()
-            logger.info("✅ [VM] Image data loaded - proceeding with save")
         }
 
-        // Save recipe
-        logger.info("💾 [VM] Calling recipeViewModel.saveRecipe()...")
         recipeViewModel.saveRecipe()
-
-        // Wait for save to complete
         try? await Task.sleep(for: .milliseconds(100))
 
-        // Show confirmation if successful
         if recipeViewModel.persistenceCoordinator.showingSaveConfirmation {
-            logger.info("✅ [VM] Save confirmed - showing success state")
             isSaved = true
-
-            // Keep recipe visible after save - don't reset state
-            // User can continue viewing/interacting with their saved recipe
-            logger.info("📌 [VM] Recipe saved - keeping view state intact")
-        } else {
-            logger.warning("⚠️ [VM] Save confirmation not shown")
         }
     }
 
     /// Reset generation state after successful save
     /// Prevents ghost data from appearing in next recipe generation
     private func resetStateAfterSave() {
-        logger.info("🧹 [VM] Resetting state after successful save")
-
-        // Reset manual entry state
         manualIngredients = []
         manualSteps = []
-
-        // Reset user context
         userNotes = ""
-
-        // Reset meal selection to defaults
         selectedMealType = "Kahvaltı"
         selectedStyleType = ""
-
-        // Reset shopping list state
         hasUncheckedIngredients = false
-
-        // Reset story card
         storyCardTitle = "balli'nin tarif analizi"
-
-        // Clear recipe view model state
         recipeViewModel.clearAllFields()
-
-        logger.info("✅ [VM] State reset complete - ready for next recipe")
     }
 
     private func buildManualRecipeContent() {
@@ -291,22 +256,17 @@ final class RecipeGenerationViewModel: ObservableObject {
     // MARK: - Photo Generation
 
     func generatePhoto() async {
-        logger.info("🎬 [VM] Photo generation button tapped")
         await recipeViewModel.generateRecipePhoto()
 
         if recipeViewModel.generatedPhotoURL != nil {
-            logger.info("🖼️ [VM] Loading image from generated URL")
             await recipeViewModel.loadImageFromGeneratedURL()
         }
-        logger.info("🏁 [VM] Photo generation completed")
     }
 
     // MARK: - Story Card Handler
 
     /// Handle story card tap - returns true if should show modal immediately, false if calculation started
     func handleStoryCardTap() -> Bool {
-        logger.info("🔍 [STORY] Story card tapped")
-
         let hasNutrition = helper.hasNutritionData(
             calories: recipeViewModel.calories,
             carbohydrates: recipeViewModel.carbohydrates,
@@ -314,23 +274,18 @@ final class RecipeGenerationViewModel: ObservableObject {
         )
 
         if hasNutrition {
-            logger.info("✅ [STORY] Nutrition data exists - showing modal")
-            return true // Signal to show modal
+            return true
         } else {
-            logger.info("🔄 [STORY] Starting nutrition calculation")
-
-            // Build manual recipe content if needed before calculating nutrition
             if isManualRecipe {
-                // Validate manual recipe has a name before calculating nutrition
                 if recipeViewModel.recipeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    logger.warning("⚠️ [STORY] Cannot calculate nutrition without recipe name")
+                    logger.warning("Cannot calculate nutrition without recipe name")
                     return false
                 }
                 buildManualRecipeContent()
             }
 
             recipeViewModel.calculateNutrition(isManualRecipe: isManualRecipe)
-            return false // Modal will open via onChange when calculation completes
+            return false
         }
     }
 }

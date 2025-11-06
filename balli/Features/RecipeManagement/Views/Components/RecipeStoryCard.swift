@@ -23,6 +23,7 @@ struct RecipeStoryCard: View {
 
     @State private var isPressed = false
     @State private var pulseOpacity: Double = 1.0
+    @State private var showSuccessIcon = false
 
     // Card background with purple tint
     private var cardBackground: Color {
@@ -186,10 +187,35 @@ struct RecipeStoryCard: View {
             )
             .frame(width: 50, height: 50)
             .overlay(
-                Image(systemName: isComplete ? "vision.pro.badge.checkmark.fill" : "vision.pro")
-                    .font(.system(size: 20))
-                    .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.8))
+                Group {
+                    if showSuccessIcon {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
+                            .transition(.scale.combined(with: .opacity))
+                    } else {
+                        Image(systemName: "testtube.2")
+                            .font(.system(size: 20))
+                            .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.8))
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: showSuccessIcon)
             )
+            .onChange(of: isComplete) { oldValue, newValue in
+                // When calculation completes, show success icon temporarily
+                if !oldValue && newValue {
+                    showSuccessIcon = true
+
+                    // Return to default icon after 2 seconds
+                    Task {
+                        try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+                        withAnimation {
+                            showSuccessIcon = false
+                        }
+                    }
+                }
+            }
     }
 }
 
@@ -214,7 +240,6 @@ struct RecipeStoryCard: View {
                 title: "Pucker Up! Here's Seven Tantalizing Reasons to Embrace Tamarind",
                 thumbnailURL: nil
             ) {
-                print("Story tapped")
             }
             .padding(.horizontal)
 
@@ -223,7 +248,6 @@ struct RecipeStoryCard: View {
                 title: "The Ultimate Guide to Making Perfect Lassi Every Single Time: Expert Tips from Professional Chefs",
                 thumbnailURL: nil
             ) {
-                print("Story tapped")
             }
             .padding(.horizontal)
 
@@ -232,7 +256,6 @@ struct RecipeStoryCard: View {
                 title: "Summer Drink Ideas",
                 thumbnailURL: nil
             ) {
-                print("Story tapped")
             }
             .padding(.horizontal)
 
@@ -253,7 +276,6 @@ struct RecipeStoryCard: View {
                     title: "Amazing Recipe Story with Placeholder",
                     thumbnailURL: nil
                 ) {
-                    print("Tapped")
                 }
 
                 Text("Long Title Example")
@@ -264,7 +286,6 @@ struct RecipeStoryCard: View {
                     title: "This is a Very Long Title That Will Definitely Span Multiple Lines and Test Our Line Limiting",
                     thumbnailURL: nil
                 ) {
-                    print("Tapped")
                 }
 
                 Text("Short Title Example")
@@ -275,7 +296,6 @@ struct RecipeStoryCard: View {
                     title: "Quick Tips",
                     thumbnailURL: nil
                 ) {
-                    print("Tapped")
                 }
             }
             .padding(.horizontal)

@@ -127,9 +127,18 @@ final class GlucoseChartViewModel: ObservableObject {
                     if hasMealChanges {
                         Task { @MainActor in
                             self.logger.info("Meal entry changed (inserted/updated/deleted) - refreshing meal logs")
-                            if let timeRange = self.calculateTimeRange() {
-                                self.loadMealLogs(timeRange: timeRange)
+                            // CRITICAL FIX: Always reload meal logs immediately when changes occur
+                            // Don't wait for time range calculation - use cached or recalculate
+                            guard let timeRange = self.calculateTimeRange() else {
+                                self.logger.error("Failed to calculate time range for meal log refresh")
+                                return
                             }
+
+                            // Force immediate reload of meal logs
+                            self.loadMealLogs(timeRange: timeRange)
+
+                            // FORCE REFRESH: Trigger view update by resetting objectWillChange
+                            self.objectWillChange.send()
                         }
                     }
                 }
@@ -155,7 +164,6 @@ final class GlucoseChartViewModel: ObservableObject {
     /// Refresh data immediately, bypassing debounce
     /// Used when app comes to foreground or data is explicitly updated
     func refreshData() async {
-        logger.info("🔄 Explicit refresh requested - bypassing debounce")
         lastLoadTime = nil // Reset debounce timer
         loadGlucoseData()
 
@@ -174,7 +182,6 @@ final class GlucoseChartViewModel: ObservableObject {
         if let lastLoad = lastLoadTime,
            Date().timeIntervalSince(lastLoad) < minimumLoadInterval,
            !glucoseData.isEmpty {
-            logger.debug("⚡️ Skipping reload - data was loaded \(Int(Date().timeIntervalSince(lastLoad)))s ago")
             return
         }
 
@@ -184,8 +191,12 @@ final class GlucoseChartViewModel: ObservableObject {
             if glucoseData.isEmpty {
                 isLoading = true
             }
-            errorMessage = nil
-            dataSource = nil
+            // CRITICAL FIX: Don't clear errorMessage if we have existing data
+            // This prevents the empty state from flashing during background refreshes
+            if glucoseData.isEmpty {
+                errorMessage = nil
+            }
+            // Don't clear dataSource - let it update after new data loads
             lastLoadTime = Date()
 
             // Calculate last 6 hours time range
@@ -199,7 +210,6 @@ final class GlucoseChartViewModel: ObservableObject {
             logger.debug("Current time: \(Date())")
 
             // Debug: Log data source decision
-            logger.info("🔍 Data source decision:")
             logger.info("  - Real-Time Mode enabled: \(self.isRealTimeModeEnabled)")
             logger.info("  - Hybrid source available: \(self.hybridDataSource != nil)")
             logger.info("  - Dexcom Official connected: \(self.dexcomService.isConnected)")
@@ -222,17 +232,12 @@ final class GlucoseChartViewModel: ObservableObject {
             // CRITICAL FIX: Always use Hybrid mode when BOTH services are connected,
             // regardless of Real-Time Mode setting, because they cover different time ranges!
             if hybridDataSource != nil && dexcomService.isConnected && dexcomShareService.isConnected {
-                logger.info("✅ Refreshing with Hybrid mode (both services connected)")
                 logger.info("  - SHARE API: Recent data (0-3h)")
                 logger.info("  - Official API: Historical data (3h+)")
                 await loadFromHybridSource(timeRange: timeRange, mergeWithExisting: true)
             } else if dexcomShareService.isConnected {
-                logger.info("✅ Refreshing with SHARE API only (recent data 0-3h)")
-                logger.info("  ⚠️ Historical data beyond 3h will not be fetched")
                 await loadFromDexcomShare(timeRange: timeRange, mergeWithExisting: true)
             } else if dexcomService.isConnected {
-                logger.info("✅ Refreshing with Official Dexcom API only (historical data 3h+)")
-                logger.info("  ⚠️ Recent data (0-3h) will not be available due to EU 3h delay")
                 await loadFromDexcom(timeRange: timeRange)
             } else {
                 logger.info("No Dexcom sources available, trying HealthKit")
@@ -258,8 +263,21 @@ final class GlucoseChartViewModel: ObservableObject {
             let fetchRequest = MealEntry.mealsInRange(from: timeRange.start, to: timeRange.end)
             let meals = try context.fetch(fetchRequest)
 
-            self.mealLogs = meals
-            logger.info("Loaded \(meals.count) meal logs for time range")
+            // Filter out invalid/deleted entries upfront
+            let validMeals = meals.filter { meal in
+                !meal.isFault && !meal.isDeleted && meal.managedObjectContext != nil
+            }
+
+            self.mealLogs = validMeals
+
+            // Debug: Log each meal timestamp to verify they're in range
+            if !validMeals.isEmpty {
+                for meal in validMeals {
+                    logger.debug("  📍 Meal at \(meal.timestamp): \(meal.consumedCarbs)g carbs (\(meal.mealType))")
+                }
+            } else {
+                logger.notice("⚠️ No meals found in time range")
+            }
         } catch {
             logger.error("Failed to fetch meal logs: \(error.localizedDescription)")
             self.mealLogs = []
@@ -337,7 +355,6 @@ final class GlucoseChartViewModel: ObservableObject {
                 endDate: timeRange.end
             )
 
-            logger.info("📦 Fetched \(readings.count) readings from CoreData")
 
             // Convert readings to chart data points
             // Note: readings are now HealthGlucoseReading value types (safe across threads)
@@ -414,7 +431,6 @@ final class GlucoseChartViewModel: ObservableObject {
     }
 
     private func loadFromHybridSource(timeRange: (start: Date, end: Date), mergeWithExisting: Bool = false) async {
-        logger.info("🔄 Using Hybrid mode (Official + SHARE)")
 
         guard let hybrid = hybridDataSource else {
             logger.error("Hybrid data source not initialized")

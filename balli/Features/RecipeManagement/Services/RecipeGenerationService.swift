@@ -132,11 +132,6 @@ public actor RecipeGenerationService: RecipeGenerationServiceProtocol {
         userContext: String? = nil
     ) async throws -> RecipeGenerationResponse {
 
-        print("🌐 [SERVICE] ========== GENERATE SPONTANEOUS RECIPE ==========")
-        print("🌐 [SERVICE] MealType: \(mealType), StyleType: \(styleType)")
-        print("🌐 [SERVICE] UserId: \(userId ?? "nil")")
-        print("🌐 [SERVICE] RecentRecipes count: \(recentRecipes.count)")
-        print("🌐 [SERVICE] UserContext: \(userContext ?? "nil")")
 
         let request = SpontaneousRecipeRequest(
             mealType: mealType,
@@ -149,7 +144,6 @@ public actor RecipeGenerationService: RecipeGenerationServiceProtocol {
         )
 
         let url = try buildGenerateURL()
-        print("🌐 [SERVICE] URL: \(url.absoluteString)")
 
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
@@ -159,29 +153,22 @@ public actor RecipeGenerationService: RecipeGenerationServiceProtocol {
         // Encode request body
         let requestData = try JSONEncoder().encode(request)
         urlRequest.httpBody = requestData
-        print("🌐 [SERVICE] Request body size: \(requestData.count) bytes")
 
-        print("🌐 [SERVICE] Sending request...")
 
         // Execute request
         let (data, response) = try await session.data(for: urlRequest)
 
-        print("🌐 [SERVICE] Response received - data size: \(data.count) bytes")
 
         // Validate response
         guard let httpResponse = response as? HTTPURLResponse else {
-            print("❌ [SERVICE] Invalid HTTP response")
             throw NetworkError.invalidResponseData
         }
 
-        print("🌐 [SERVICE] HTTP Status: \(httpResponse.statusCode)")
 
         guard httpResponse.statusCode == 200 else {
             // Try to extract error message from response body
             if let errorString = String(data: data, encoding: .utf8) {
-                print("❌ [SERVICE] Server error response: \(errorString)")
             }
-            print("❌ [SERVICE] Recipe generation failed with status \(httpResponse.statusCode)")
             throw NetworkError.serverError(
                 statusCode: httpResponse.statusCode,
                 message: "Recipe generation failed with status \(httpResponse.statusCode)"
@@ -192,16 +179,12 @@ public actor RecipeGenerationService: RecipeGenerationServiceProtocol {
         do {
             // Log raw response for debugging
             if let responseString = String(data: data, encoding: .utf8) {
-                print("🌐 [SERVICE] Raw response: \(responseString.prefix(200))...")
             }
 
             let responseContainer = try JSONDecoder().decode(ResponseContainer.self, from: data)
-            print("✅ [SERVICE] Successfully decoded response - recipe: \(responseContainer.data.recipeName)")
             return responseContainer.data
         } catch {
-            print("❌ [SERVICE] Decoding error: \(error.localizedDescription)")
             if let decodingError = error as? DecodingError {
-                print("❌ [SERVICE] Decoding error details: \(decodingError)")
             }
             throw NetworkError.decodingError(underlying: error)
         }

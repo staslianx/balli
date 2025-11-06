@@ -91,12 +91,10 @@ struct UserNotesModalView: View {
 
 #Preview("Empty Notes") {
     UserNotesModalView(notes: .constant("")) { newNotes in
-        print("Saved notes: \(newNotes)")
     }
 }
 
 #Preview("Existing Notes") {
     UserNotesModalView(notes: .constant("Bu tarifi daha önce denedim, çok güzel oldu. Bir sonraki sefere biraz daha az şeker koyacağım.")) { newNotes in
-        print("Saved notes: \(newNotes)")
     }
 }

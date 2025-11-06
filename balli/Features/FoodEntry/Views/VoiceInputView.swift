@@ -286,16 +286,18 @@ struct VoiceInputView: View {
 
                     // Determine if this is simple format (no per-item carbs intended)
                     // Simple format = either all items have nil carbs, OR only one item has carbs that matches the total
-                    let foodsWithCarbs = mealData.foods.filter { $0.carbs != nil }
+                    let foodsWithCarbs = mealData.foods.filter { $0.carbs != nil && $0.carbs! > 0 }
                     let isSimpleFormat: Bool
+
                     if foodsWithCarbs.isEmpty {
-                        // No items have carbs - definitely simple format
+                        // No items have carbs - definitely simple format (Case 1)
                         isSimpleFormat = true
                     } else if foodsWithCarbs.count == 1 && foodsWithCarbs[0].carbs == mealData.totalCarbs {
-                        // Only one item has carbs and it equals total - likely Gemini incorrectly assigned total to one item
+                        // Only one item has carbs and it equals total - likely Gemini incorrectly assigned
+                        // total to one item in Case 1 scenario (ERROR to fix)
                         isSimpleFormat = true
                     } else {
-                        // Multiple items have carbs - detailed format
+                        // Multiple items have different carbs, or sum of individual carbs - detailed format (Case 2 & 3)
                         isSimpleFormat = false
                     }
 
@@ -306,7 +308,9 @@ struct VoiceInputView: View {
                         return EditableFoodItem(
                             name: capitalizedName,
                             amount: food.amount,
-                            carbs: isSimpleFormat ? nil : food.carbs  // Clear carbs in simple format
+                            // CRITICAL: In simple format (Case 1), show NO per-item carbs
+                            // Only show total at top, never next to individual ingredients
+                            carbs: isSimpleFormat ? nil : food.carbs
                         )
                     }
                     editableTotalCarbs = "\(mealData.totalCarbs)"

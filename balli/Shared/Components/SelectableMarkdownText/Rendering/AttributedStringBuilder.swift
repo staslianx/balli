@@ -138,8 +138,10 @@ enum AttributedStringBuilder {
             .foregroundColor: UIColor.label
         ]
 
+        // Match streaming view: headerTopPadding=8, headerBottomPadding=0
         let paragraphStyle = NSMutableParagraphStyle()
-        paragraphStyle.paragraphSpacing = 4
+        paragraphStyle.paragraphSpacingBefore = 8
+        paragraphStyle.paragraphSpacing = 0
 
         let result = NSMutableAttributedString(string: text, attributes: attributes)
         result.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: result.length))
@@ -199,24 +201,34 @@ enum AttributedStringBuilder {
         isBold: Bool,
         isItalic: Bool
     ) -> NSAttributedString {
-        let baseFont = UIFont(name: fontName, size: fontSize)
+        // Match live streaming view: use Manrope-Medium for body text (NOT Regular)
+        let fontVariant = if isBold {
+            "\(fontName)-Bold"
+        } else {
+            "\(fontName)-Medium"
+        }
+
+        let baseFont = UIFont(name: fontVariant, size: fontSize)
+            ?? UIFont(name: fontName, size: fontSize)
             ?? UIFont.systemFont(ofSize: fontSize)
 
         var font = baseFont
 
-        if isBold || isItalic {
-            var traits: UIFontDescriptor.SymbolicTraits = []
-            if isBold { traits.insert(.traitBold) }
-            if isItalic { traits.insert(.traitItalic) }
-
-            if let descriptor = baseFont.fontDescriptor.withSymbolicTraits(traits) {
+        // Apply italic trait if needed
+        if isItalic {
+            if let descriptor = baseFont.fontDescriptor.withSymbolicTraits(.traitItalic) {
                 font = UIFont(descriptor: descriptor, size: fontSize)
             }
         }
 
+        // Add line height to match streaming view (4pt line spacing)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.lineSpacing = 4
+
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: UIColor.label
+            .foregroundColor: UIColor.label,
+            .paragraphStyle: paragraphStyle
         ]
 
         return NSAttributedString(string: text, attributes: attributes)
@@ -333,25 +345,46 @@ enum AttributedStringBuilder {
         let result = NSMutableAttributedString()
 
         for (index, item) in items.enumerated() {
-            // Bullet with purple color - use Heavy weight since ExtraBold doesn't exist in UIFont
+            // Bullet with purple color - match streaming view (Manrope Heavy weight)
             let bulletFont = UIFont(name: "Manrope-ExtraBold", size: fontSize)
                 ?? UIFont.systemFont(ofSize: fontSize, weight: .heavy)
 
+            // Create paragraph style with hanging indent for proper list formatting
+            // This makes wrapped lines align under the text, not under the bullet
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineSpacing = 4 // Match streaming view line spacing
+            paragraphStyle.firstLineHeadIndent = 0 // Bullet starts at margin
+            paragraphStyle.headIndent = 20 // Wrapped lines indent 20pt (matches streaming view padding)
+
             let bulletAttributes: [NSAttributedString.Key: Any] = [
                 .font: bulletFont,
-                .foregroundColor: primaryPurple
+                .foregroundColor: primaryPurple,
+                .paragraphStyle: paragraphStyle
             ]
 
-            result.append(NSAttributedString(string: "•  ", attributes: bulletAttributes))
+            // Create the list item with bullet and content
+            let listItemText = NSMutableAttributedString()
+            listItemText.append(NSAttributedString(string: "•  ", attributes: bulletAttributes))
 
-            // Item content
+            // Item content with matching indentation
             let elements = MarkdownParser.parseInlineElements(item)
             let itemContent = buildParagraph(elements, fontSize: fontSize, fontName: fontName, sources: sources)
-            result.append(itemContent)
+            listItemText.append(itemContent)
 
-            // Add newline between items (except after last)
+            // Apply paragraph style to the entire list item
+            listItemText.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: listItemText.length))
+
+            result.append(listItemText)
+
+            // Match streaming view spacing: 12pt between items
             if index < items.count - 1 {
-                result.append(NSAttributedString(string: "\n\n"))
+                result.append(NSAttributedString(string: "\n"))
+                // Add extra spacing to match 12pt blockSpacing
+                let spacerAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 6), // Half-line creates ~12pt visual spacing
+                    .paragraphStyle: paragraphStyle
+                ]
+                result.append(NSAttributedString(string: "\n", attributes: spacerAttributes))
             }
         }
 
@@ -369,25 +402,46 @@ enum AttributedStringBuilder {
         let result = NSMutableAttributedString()
 
         for (index, item) in items.enumerated() {
-            // Number with purple color
+            // Number with purple color - match streaming view (Manrope Bold)
             let numberFont = UIFont(name: "Manrope-Bold", size: fontSize)
                 ?? UIFont.boldSystemFont(ofSize: fontSize)
 
+            // Create paragraph style with hanging indent for proper list formatting
+            // This makes wrapped lines align under the text, not under the number
+            let paragraphStyle = NSMutableParagraphStyle()
+            paragraphStyle.lineSpacing = 4 // Match streaming view line spacing
+            paragraphStyle.firstLineHeadIndent = 0 // Number starts at margin
+            paragraphStyle.headIndent = 30 // Wrapped lines indent 30pt (matches streaming view padding)
+
             let numberAttributes: [NSAttributedString.Key: Any] = [
                 .font: numberFont,
-                .foregroundColor: primaryPurple
+                .foregroundColor: primaryPurple,
+                .paragraphStyle: paragraphStyle
             ]
 
-            result.append(NSAttributedString(string: "\(index + 1).  ", attributes: numberAttributes))
+            // Create the list item with number and content
+            let listItemText = NSMutableAttributedString()
+            listItemText.append(NSAttributedString(string: "\(index + 1).  ", attributes: numberAttributes))
 
-            // Item content
+            // Item content with matching indentation
             let elements = MarkdownParser.parseInlineElements(item)
             let itemContent = buildParagraph(elements, fontSize: fontSize, fontName: fontName, sources: sources)
-            result.append(itemContent)
+            listItemText.append(itemContent)
 
-            // Add newline between items (except after last)
+            // Apply paragraph style to the entire list item
+            listItemText.addAttribute(.paragraphStyle, value: paragraphStyle, range: NSRange(location: 0, length: listItemText.length))
+
+            result.append(listItemText)
+
+            // Match streaming view spacing: 12pt between items
             if index < items.count - 1 {
-                result.append(NSAttributedString(string: "\n\n"))
+                result.append(NSAttributedString(string: "\n"))
+                // Add extra spacing to match 12pt blockSpacing
+                let spacerAttributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 6), // Half-line creates ~12pt visual spacing
+                    .paragraphStyle: paragraphStyle
+                ]
+                result.append(NSAttributedString(string: "\n", attributes: spacerAttributes))
             }
         }
 

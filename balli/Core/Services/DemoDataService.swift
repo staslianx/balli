@@ -106,7 +106,6 @@ struct DemoDataService {
         do {
             try context.save()
         } catch {
-            print("Failed to save demo products: \(error.localizedDescription)")
         }
     }
 }

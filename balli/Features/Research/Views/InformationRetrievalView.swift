@@ -18,6 +18,11 @@ struct InformationRetrievalView: View {
     @State private var displayedAnswerIds: Set<String> = []
     @State private var showScrollPadding = false // Smart padding for scroll-to-top
 
+    private var isEffectivelySearching: Bool {
+        // Still searching if backend is searching
+        viewModel.isSearching
+    }
+
     var body: some View {
         ZStack {
             // Background
@@ -145,7 +150,7 @@ struct InformationRetrievalView: View {
                 onCancel: {
                     viewModel.cancelCurrentSearch()
                 },
-                isSearching: viewModel.isSearching
+                isSearching: isEffectivelySearching
             )
             .padding(.horizontal, 16)
             .padding(.vertical, 8)

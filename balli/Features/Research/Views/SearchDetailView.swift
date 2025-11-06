@@ -161,7 +161,6 @@ struct SearchDetailView: View {
             }
         }
         .task {
-            print("📂 [SearchDetailView] Task started for answer: \(answer.id)")
 
             // Initialize session manager using storage configuration
             let storageState = ResearchStorageConfiguration.configureStorage()
@@ -176,17 +175,14 @@ struct SearchDetailView: View {
                     metadataGenerator: metadataGenerator
                 )
                 highlightManager.setSessionManager(sessionManager)
-                print("📂 [SearchDetailView] Session manager set")
 
                 // Load existing highlights
                 await highlightManager.loadHighlights(for: answer.id)
-                print("📂 [SearchDetailView] Highlights loaded: \(highlightManager.highlights[answer.id]?.count ?? 0)")
 
             case .unavailable(let error):
                 // Storage unavailable - continue without persistence
                 logger.error("Storage unavailable in SearchDetailView: \(error.localizedDescription)")
                 toastMessage = .error(ResearchStorageConfiguration.degradedModeMessage())
-                print("📂 [SearchDetailView] Running in degraded mode - no highlight persistence")
             }
         }
         .onAppear {
@@ -211,29 +207,23 @@ struct SearchDetailView: View {
     /// Check if current selection overlaps with any existing highlight
     private func getOverlappingHighlight() -> TextHighlight? {
         guard let selection = TextSelectionStorage.shared.getSelection() else {
-            print("⚠️ [SearchDetailView] No selection available")
             return nil
         }
 
         let selectionRange = selection.range
         let highlights = highlightManager.highlights[answer.id] ?? []
 
-        print("🔍 [SearchDetailView] Checking overlap - Selection: \(selectionRange.location)+\(selectionRange.length)")
-        print("🔍 [SearchDetailView] Available highlights: \(highlights.count)")
 
         // Find any highlight that overlaps with the selection
         let overlapping = highlights.first { highlight in
             let highlightRange = NSRange(location: highlight.startOffset, length: highlight.length)
             let intersection = NSIntersectionRange(selectionRange, highlightRange)
             let overlaps = intersection.length > 0
-            print("🔍 [SearchDetailView] Highlight at \(highlightRange.location)+\(highlightRange.length), intersection: \(intersection.length), overlaps: \(overlaps)")
             return overlaps
         }
 
         if let overlapping = overlapping {
-            print("✅ [SearchDetailView] Found overlapping highlight: \(overlapping.id)")
         } else {
-            print("❌ [SearchDetailView] No overlapping highlight found")
         }
 
         return overlapping
@@ -253,8 +243,6 @@ struct SearchDetailView: View {
             text: selection.text
         )
 
-        print("🎨 [SearchDetailView] Adding highlight to answer: \(answer.id)")
-        print("🎨 [SearchDetailView] Highlight: \(color.displayName) at \(selection.range.location)+\(selection.range.length)")
 
         Task {
             do {
@@ -263,12 +251,10 @@ struct SearchDetailView: View {
                     to: answer.id
                 )
                 toastMessage = .success("Vurgu eklendi")
-                print("✅ [SearchDetailView] Highlight added successfully")
 
                 // Clear selection after adding highlight
                 TextSelectionStorage.shared.clearSelection()
             } catch {
-                print("❌ [SearchDetailView] Failed to add highlight: \(error)")
                 toastMessage = .error("Vurgu eklenemedi: \(error.localizedDescription)")
             }
         }
@@ -281,7 +267,6 @@ struct SearchDetailView: View {
             return
         }
 
-        print("🗑️ [SearchDetailView] Removing highlight: \(overlappingHighlight.id)")
 
         Task {
             do {
@@ -290,12 +275,10 @@ struct SearchDetailView: View {
                     from: answer.id
                 )
                 toastMessage = .success("Vurgu kaldırıldı")
-                print("✅ [SearchDetailView] Highlight removed successfully")
 
                 // Clear selection after removing highlight
                 TextSelectionStorage.shared.clearSelection()
             } catch {
-                print("❌ [SearchDetailView] Failed to remove highlight: \(error)")
                 toastMessage = .error("Vurgu kaldırılamadı: \(error.localizedDescription)")
             }
         }

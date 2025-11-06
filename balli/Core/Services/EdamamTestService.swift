@@ -63,7 +63,6 @@ final class EdamamTestService: ObservableObject {
             geminiNutrition: geminiNutrition
         )
 
-        logger.info("📊 [EDAMAM-TEST] Gemini Nutrition Input:")
         logger.info("   Calories: \(geminiNutrition.calories)")
         logger.info("   Carbs: \(geminiNutrition.carbohydrates)g")
         logger.info("   Protein: \(geminiNutrition.protein)g")
@@ -91,7 +90,6 @@ final class EdamamTestService: ObservableObject {
             // Log first 500 characters of recipe content for debugging
             let previewLength = min(recipeContent.count, 500)
             let preview = String(recipeContent.prefix(previewLength))
-            logger.debug("📝 [EDAMAM-TEST] Recipe content preview: \(preview)...")
         } catch {
             logger.error("❌ [EDAMAM-TEST] Failed to encode request: \(error.localizedDescription)")
             throw EdamamTestError.decodingError("Failed to encode request: \(error.localizedDescription)")
@@ -144,13 +142,11 @@ final class EdamamTestService: ObservableObject {
         }
 
         // Decode response
-        logger.info("🔍 [EDAMAM-TEST] Decoding response...")
         let decoder = JSONDecoder()
         let testResponse: EdamamTestResponse
 
         do {
             testResponse = try decoder.decode(EdamamTestResponse.self, from: data)
-            logger.info("✅ [EDAMAM-TEST] Response decoded successfully")
         } catch {
             logger.error("❌ [EDAMAM-TEST] Decoding error: \(error.localizedDescription)")
             if let decodingError = error as? DecodingError {
@@ -171,37 +167,22 @@ final class EdamamTestService: ObservableObject {
             throw EdamamTestError.testFailed(errorMsg)
         }
 
-        logger.info("✅ [EDAMAM-TEST] Test completed successfully!")
-        logger.info("📊 [EDAMAM-TEST] ═══════════════════════════════════════")
-        logger.info("📊 [EDAMAM-TEST] RESULTS:")
-        logger.info("📊 [EDAMAM-TEST] Overall Accuracy: \(result.overallAccuracy)% (Grade: \(result.accuracyGrade))")
-        logger.info("📊 [EDAMAM-TEST] Recognition Rate: \(result.recognitionRate)% (\(result.recognitionStatus))")
-        logger.info("📊 [EDAMAM-TEST] Processing Time: \(result.processingTime)")
-        logger.info("📊 [EDAMAM-TEST] ───────────────────────────────────────")
-        logger.info("📊 [EDAMAM-TEST] Gemini Nutrition:")
         logger.info("   Calories: \(result.geminiNutrition.formattedCalories) kcal")
         logger.info("   Carbs: \(result.geminiNutrition.formattedCarbs)g")
         logger.info("   Protein: \(result.geminiNutrition.formattedProtein)g")
         logger.info("   Fat: \(result.geminiNutrition.formattedFat)g")
-        logger.info("📊 [EDAMAM-TEST] ───────────────────────────────────────")
-        logger.info("📊 [EDAMAM-TEST] EDAMAM Nutrition:")
         logger.info("   Calories: \(result.edamamNutrition.formattedCalories) kcal")
         logger.info("   Carbs: \(result.edamamNutrition.formattedCarbs)g")
         logger.info("   Protein: \(result.edamamNutrition.formattedProtein)g")
         logger.info("   Fat: \(result.edamamNutrition.formattedFat)g")
-        logger.info("📊 [EDAMAM-TEST] ───────────────────────────────────────")
-        logger.info("📊 [EDAMAM-TEST] Accuracy Scores:")
         logger.info("   Calories: \(String(format: "%.1f", result.accuracyScores.calories))%")
         logger.info("   Carbs: \(String(format: "%.1f", result.accuracyScores.carbs))%")
         logger.info("   Protein: \(String(format: "%.1f", result.accuracyScores.protein))%")
         logger.info("   Fat: \(String(format: "%.1f", result.accuracyScores.fat))%")
-        logger.info("📊 [EDAMAM-TEST] ───────────────────────────────────────")
-        logger.info("📊 [EDAMAM-TEST] Ingredients: \(result.ingredients.count) total")
         logger.info("   Recognized: \(result.ingredients.filter { $0.recognized }.count)")
         logger.info("   Turkish characters: \(result.compatibility.turkishIngredientsCount)")
         logger.info("   Fractional measurements: \(result.compatibility.fractionalMeasurementsCount)")
         logger.info("   Turkish measurements: \(result.compatibility.turkishMeasurementsCount)")
-        logger.info("📊 [EDAMAM-TEST] ═══════════════════════════════════════")
 
         // Store result
         lastResult = result

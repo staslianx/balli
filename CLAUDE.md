@@ -74,11 +74,70 @@ All UI MUST use native SwiftUI with Liquid Glass design language.
 - Use UIKit unless explicitly approved
 - Import custom glass effect libraries
 - Implement glass effects manually
+- Create custom toolbar button containers with frames and backgrounds
 
 **ALWAYS:**
 - Use `.glassEffect(.regular.interactive(), in: Shape())` for custom glass
 - Use `GlassEffectContainer` for multiple glass elements
 - Trust native `.toolbar` for authentic Liquid Glass navigation
+- Use simple icon-based toolbar buttons (iOS handles hit targets natively)
+
+#### Native Navigation Bar with Edge-to-Edge Content
+
+For views with hero images or full-width content that should extend behind the navigation bar:
+
+```swift
+struct ContentView: View {
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                // Hero image that extends to top
+                Image("hero")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(height: 400)
+                    .ignoresSafeArea(edges: .top)
+
+                // Rest of content
+                ContentSection()
+            }
+        }
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    // Action
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.purple)
+                }
+            }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    // Action
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(.purple)
+                }
+            }
+        }
+    }
+}
+```
+
+**Key Points:**
+- ✅ Use `.toolbarBackground(.hidden, for: .navigationBar)` for native transparent blur
+- ✅ Use `.ignoresSafeArea(edges: .top)` on content to extend edge-to-edge
+- ✅ Keep toolbar buttons simple - just icons, no custom containers
+- ✅ iOS automatically provides native blur/vibrancy and proper hit targets
+- ✅ Standard icon size: `17pt` for toolbar items
+- ✅ Use `.foregroundColor()` for better compatibility
+- ❌ Don't add `.frame()`, `.background()`, or `.overlay()` to toolbar buttons
+- ❌ Don't try to create circular button containers manually
 
 ### 4. **Error Handling (Zero Tolerance)**
 **FORBIDDEN:**

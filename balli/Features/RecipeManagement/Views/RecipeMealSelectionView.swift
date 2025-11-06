@@ -235,7 +235,6 @@ struct CategoryButtonStyle: ButtonStyle {
         selectedMealType: .constant("Kahvaltı"),
         selectedStyleType: .constant(""),
         onGenerate: {
-            print("Generate tapped")
         }
     )
 }
@@ -245,7 +244,6 @@ struct CategoryButtonStyle: ButtonStyle {
         selectedMealType: .constant("Tatlılar"),
         selectedStyleType: .constant("Sana Özel Tatlılar"),
         onGenerate: {
-            print("Generate tapped")
         }
     )
 }

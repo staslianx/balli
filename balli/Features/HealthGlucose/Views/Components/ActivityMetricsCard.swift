@@ -92,7 +92,7 @@ struct ActivityMetricsCard: View {
                 Spacer(minLength: 12)
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text("Düne göre değişim")
+                    Text("Düne kıyasla")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(AppTheme.primaryPurple)
                         .lineLimit(1)
@@ -137,7 +137,7 @@ struct ActivityMetricsCard: View {
                 Spacer(minLength: 12)
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text("Düne göre değişim")
+                    Text("Düne kıyasla")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(AppTheme.primaryPurple)
                         .lineLimit(1)

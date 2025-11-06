@@ -138,23 +138,38 @@ struct RecipeDetailView: View {
             .ignoresSafeArea(edges: .top)
         }
         .toast($viewModel.toastMessage)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
                 if viewModel.isEditing {
                     Button("İptal") {
                         viewModel.cancelEditing()
                     }
-                    .foregroundStyle(ThemeColors.primaryPurple)
+                    .foregroundColor(ThemeColors.primaryPurple)
                 } else {
                     Button {
                         dismiss()
                     } label: {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(ThemeColors.primaryPurple)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(ThemeColors.primaryPurple)
                     }
+                }
+            }
+
+            // Center item - time pills
+            ToolbarItem(placement: .principal) {
+                if recipeData.recipe.prepTime > 0 || recipeData.recipe.cookTime > 0 {
+                    HStack(spacing: 8) {
+                        if recipeData.recipe.prepTime > 0 {
+                            RecipeTimePill(icon: "timer", time: Int(recipeData.recipe.prepTime), label: "Hazırlık")
+                        }
+                        if recipeData.recipe.cookTime > 0 {
+                            RecipeTimePill(icon: "flame", time: Int(recipeData.recipe.cookTime), label: "Pişirme")
+                        }
+                    }
+                    .fixedSize()
                 }
             }
 
@@ -163,7 +178,7 @@ struct RecipeDetailView: View {
                     Button("Kaydet") {
                         viewModel.saveChanges()
                     }
-                    .foregroundStyle(ThemeColors.primaryPurple)
+                    .foregroundColor(ThemeColors.primaryPurple)
                 } else {
                     Menu {
                         Button {
@@ -188,13 +203,12 @@ struct RecipeDetailView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(ThemeColors.primaryPurple)
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(ThemeColors.primaryPurple)
                     }
                 }
             }
         }
-        .toolbarBackground(.automatic, for: .navigationBar)
         .sheet(isPresented: $viewModel.showingNutritionalValues) {
             NutritionalValuesView(
                 recipe: ObservableRecipeWrapper(recipe: recipeData.recipe),

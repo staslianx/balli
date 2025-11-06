@@ -475,7 +475,6 @@ struct PortionDefinerModal: View {
 
         } catch {
             // Handle error (could add alert here)
-            print("❌ Failed to save portion size: \(error.localizedDescription)")
         }
     }
 }
