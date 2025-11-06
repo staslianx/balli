@@ -382,6 +382,8 @@ exports.generateRecipeFromIngredients = (0, https_1.onRequest)({
                             if (typeof res.flush === 'function') {
                                 res.flush();
                             }
+                            // Add tiny delay to allow UI to render between chunks (smooth streaming)
+                            await new Promise(resolve => setTimeout(resolve, 50));
                         }
                     }
                     // Parse metadata from markdown
@@ -570,6 +572,8 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                         if (typeof res.flush === 'function') {
                             res.flush();
                         }
+                        // Add tiny delay to allow UI to render between chunks (smooth streaming)
+                        await new Promise(resolve => setTimeout(resolve, 50));
                     }
                 }
                 // Parse metadata from markdown (same as ingredients-based generation)

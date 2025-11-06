@@ -431,6 +431,9 @@ export const generateRecipeFromIngredients = onRequest({
               if (typeof (res as any).flush === 'function') {
                 (res as any).flush();
               }
+
+              // Add tiny delay to allow UI to render between chunks (smooth streaming)
+              await new Promise(resolve => setTimeout(resolve, 50));
             }
           }
 
@@ -642,6 +645,9 @@ export const generateSpontaneousRecipe = onRequest({
             if (typeof (res as any).flush === 'function') {
               (res as any).flush();
             }
+
+            // Add tiny delay to allow UI to render between chunks (smooth streaming)
+            await new Promise(resolve => setTimeout(resolve, 50));
           }
         }
 
