@@ -239,12 +239,17 @@ struct RecipeGenerationView: View {
                         ZStack {
                             Circle()
                                 .fill(canSaveRecipe ? ThemeColors.primaryPurple : ThemeColors.primaryPurple.opacity(0.2))
-                                .frame(width: 36, height: 36)
+                                .frame(width: 44, height: 44)
 
                             Image(systemName: "checkmark")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.system(size: 18, weight: .semibold))
                                 .foregroundStyle(.white)
                         }
+                        .background(
+                            Circle()
+                                .fill(.clear)
+                                .glassEffect(.regular.interactive(), in: Circle())
+                        )
                     }
                     .buttonStyle(.plain)
                     .disabled(!canSaveRecipe)
@@ -266,17 +271,25 @@ struct RecipeGenerationView: View {
                         }
                     }
                 } label: {
-                    Image("balli-logo")
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 24, height: 24)
-                        .rotationEffect(.degrees(viewModel.isRotatingLogo ? 360 : 0))
-                        .animation(
-                            viewModel.isRotatingLogo ?
-                                .linear(duration: 1.0).repeatForever(autoreverses: false) :
-                                .default,
-                            value: viewModel.isRotatingLogo
-                        )
+                    ZStack {
+                        Image("balli-logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 24, height: 24)
+                            .rotationEffect(.degrees(viewModel.isRotatingLogo ? 360 : 0))
+                            .animation(
+                                viewModel.isRotatingLogo ?
+                                    .linear(duration: 1.0).repeatForever(autoreverses: false) :
+                                    .default,
+                                value: viewModel.isRotatingLogo
+                            )
+                    }
+                    .frame(width: 44, height: 44)
+                    .background(
+                        Circle()
+                            .fill(.clear)
+                            .glassEffect(.regular.interactive(), in: Circle())
+                    )
                 }
             }
             .sharedBackgroundVisibility(.hidden)
