@@ -48,8 +48,8 @@ struct ArdiyeView: View {
     )
     private var foodItems: FetchedResults<FoodItem>
 
-    // State for dynamic basket icon (replaces @FetchRequest to prevent freeze)
-    @State private var hasUncheckedItems = false
+    // Removed dynamic basket icon logic to prevent UI freeze
+    // Now using static basket icon always
 
     // Core Data fetch request for Recipes with fetch limits for performance
     @FetchRequest(
@@ -117,27 +117,7 @@ struct ArdiyeView: View {
         lastRefreshDate = Date()
     }
 
-    // Check if there are any unchecked items in shopping list (for dynamic basket icon)
-    // PERFORMANCE FIX: Use async count query instead of @FetchRequest to prevent UI freeze
-    // when opening shopping list sheet (avoiding dual @FetchRequest conflict)
-    private func updateBasketIcon() {
-        let fetchRequest = ShoppingListItem.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "isCompleted == NO")
-        fetchRequest.fetchLimit = 1 // We only need to know if ANY exist
-
-        Task {
-            do {
-                let count = try await viewContext.perform {
-                    try self.viewContext.count(for: fetchRequest)
-                }
-                await MainActor.run {
-                    hasUncheckedItems = count > 0
-                }
-            } catch {
-                logger.error("Failed to check unchecked items: \(error.localizedDescription)")
-            }
-        }
-    }
+    // Removed updateBasketIcon() function - no longer needed with static icon
 
     // Get filtered items based on selected filter and search text
     private var displayedItems: [ArdiyeItem] {
@@ -240,12 +220,12 @@ struct ArdiyeView: View {
                 }
             }
 
-            // Shopping basket — top-left (dynamic: filled when unchecked items exist)
+            // Shopping basket — top-left (static icon)
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: {
                     showingShoppingList = true
                 }) {
-                    Image(systemName: hasUncheckedItems ? "basket.fill" : "basket")
+                    Image(systemName: "basket")
                         .font(.system(size: 18, weight: .medium, design: .rounded))
                         .foregroundColor(AppTheme.primaryPurple)
                 }
@@ -269,8 +249,6 @@ struct ArdiyeView: View {
             addDemoProductsIfNeeded()
             // Initial load of cached items
             updateCachedItems()
-            // Check shopping list status for basket icon
-            updateBasketIcon()
         }
         .onChange(of: recipes.count) { _, _ in
             updateCachedItems()
@@ -283,12 +261,6 @@ struct ArdiyeView: View {
         }
         .sheet(isPresented: $showingShoppingList) {
             ShoppingListViewSimple()
-        }
-        .onChange(of: showingShoppingList) { _, isShowing in
-            // Update basket icon when shopping list is dismissed
-            if !isShowing {
-                updateBasketIcon()
-            }
         }
         .sheet(isPresented: $showingSettings) {
             AppSettingsView()
