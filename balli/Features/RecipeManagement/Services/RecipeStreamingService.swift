@@ -30,8 +30,8 @@ class RecipeStreamingService {
         userContext: String? = nil,
         onConnected: @escaping @Sendable () -> Void,
         onChunk: @escaping @Sendable (String, String, Int) -> Void,  // (chunkText, fullContent, tokenCount)
-        onComplete: @escaping @Sendable (RecipeGenerationResponse) -> Void,
-        onError: @escaping @Sendable (Error) -> Void
+        onComplete: @escaping @MainActor @Sendable (RecipeGenerationResponse) -> Void,
+        onError: @escaping @MainActor @Sendable (Error) -> Void
     ) async {
         var requestBody: [String: Any] = [
             "ingredients": ingredients,
@@ -66,8 +66,8 @@ class RecipeStreamingService {
         userContext: String? = nil,
         onConnected: @escaping @Sendable () -> Void,
         onChunk: @escaping @Sendable (String, String, Int) -> Void,  // (chunkText, fullContent, tokenCount)
-        onComplete: @escaping @Sendable (RecipeGenerationResponse) -> Void,
-        onError: @escaping @Sendable (Error) -> Void
+        onComplete: @escaping @MainActor @Sendable (RecipeGenerationResponse) -> Void,
+        onError: @escaping @MainActor @Sendable (Error) -> Void
     ) async {
         // Convert recent recipes to dictionary format
         let recentRecipesData = recentRecipes.map { recipe in
@@ -131,12 +131,12 @@ class RecipeStreamingService {
         requestBody: [String: Any],
         onConnected: @escaping @Sendable () -> Void,
         onChunk: @escaping @Sendable (String, String, Int) -> Void,
-        onComplete: @escaping @Sendable (RecipeGenerationResponse) -> Void,
-        onError: @escaping @Sendable (Error) -> Void
+        onComplete: @escaping @MainActor @Sendable (RecipeGenerationResponse) -> Void,
+        onError: @escaping @MainActor @Sendable (Error) -> Void
     ) async {
         guard let requestURL = URL(string: url) else {
             logger.error("Invalid function URL: \(url, privacy: .public)")
-            onError(RecipeStreamingError.invalidURL)
+            await MainActor.run { onError(RecipeStreamingError.invalidURL) }
             return
         }
 
@@ -149,7 +149,7 @@ class RecipeStreamingService {
         // Convert body to JSON
         guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody) else {
             logger.error("Failed to serialize request body")
-            onError(RecipeStreamingError.invalidRequest)
+            await MainActor.run { onError(RecipeStreamingError.invalidRequest) }
             return
         }
         request.httpBody = jsonData
@@ -164,13 +164,13 @@ class RecipeStreamingService {
             // Check HTTP status
             guard let httpResponse = response as? HTTPURLResponse else {
                 logger.error("Invalid HTTP response")
-                onError(RecipeStreamingError.invalidResponse)
+                await MainActor.run { onError(RecipeStreamingError.invalidResponse) }
                 return
             }
 
             guard (200...299).contains(httpResponse.statusCode) else {
                 logger.error("HTTP error: \(httpResponse.statusCode)")
-                onError(RecipeStreamingError.httpError(statusCode: httpResponse.statusCode))
+                await MainActor.run { onError(RecipeStreamingError.httpError(statusCode: httpResponse.statusCode)) }
                 return
             }
 
@@ -179,16 +179,35 @@ class RecipeStreamingService {
             // Process SSE events
             var eventType = ""
             var eventData = ""
+            var chunkCount = 0
+            var completedEventReceived = false
+            var lastChunkData: RecipeSSEEvent?
 
             for try await line in asyncBytes.lines {
                 if line.hasPrefix("event:") {
                     eventType = String(line.dropFirst(6).trimmingCharacters(in: .whitespaces))
+                    logger.debug("📨 [SSE-LINE] Event type: \(eventType)")
                 } else if line.hasPrefix("data:") {
                     eventData = String(line.dropFirst(5).trimmingCharacters(in: .whitespaces))
+                    logger.debug("📨 [SSE-DATA] Data length: \(eventData.count) chars, first 50: '\(eventData.prefix(50))'")
 
                     // Parse event data
                     if let jsonData = eventData.data(using: .utf8),
                        let event = try? JSONDecoder().decode(RecipeSSEEvent.self, from: jsonData) {
+
+                        chunkCount += 1
+                        logger.debug("📦 [SSE-EVENT] Event #\(chunkCount) type: \(event.type)")
+
+                        // Track if we received a completed event
+                        if event.type == "completed" {
+                            completedEventReceived = true
+                            logger.info("✅ [SSE-TRACKING] Received 'completed' event with data keys: \(event.data.keys.joined(separator: ", "))")
+                        }
+
+                        // Store last chunk for fallback completion
+                        if event.type == "chunk" {
+                            lastChunkData = event
+                        }
 
                         await handleSSEEvent(
                             event: event,
@@ -198,6 +217,8 @@ class RecipeStreamingService {
                             onComplete: onComplete,
                             onError: onError
                         )
+                    } else {
+                        logger.error("❌ [SSE-PARSE] Failed to decode event data: '\(eventData.prefix(100))'")
                     }
 
                     // Reset for next event
@@ -206,9 +227,50 @@ class RecipeStreamingService {
                 }
             }
 
+            logger.info("🔚 [STREAMING] SSE stream ended after \(chunkCount) events")
+
+            // CRITICAL FIX: If stream ended without completed event, synthesize completion from last chunk
+            if !completedEventReceived {
+                logger.warning("⚠️ [STREAMING] Stream closed without 'completed' event - synthesizing completion")
+
+                if let lastChunk = lastChunkData,
+                   let fullContent = lastChunk.data["fullContent"] as? String {
+
+                    logger.info("🔧 [STREAMING] Synthesizing completion from last chunk with \(fullContent.count) chars")
+
+                    // Build minimal response from streaming content
+                    // The recipe name and content have already been streamed to the UI
+                    // We just need to trigger the completion state transition
+                    let response = RecipeGenerationResponse(
+                        recipeName: "",  // Already extracted during streaming
+                        prepTime: "",
+                        cookTime: "",
+                        waitingTime: "",
+                        ingredients: [],
+                        directions: [],
+                        notes: "",
+                        recipeContent: fullContent,
+                        calories: "",
+                        carbohydrates: "",
+                        fiber: "",
+                        protein: "",
+                        fat: "",
+                        sugar: "",
+                        glycemicLoad: "",
+                        extractedIngredients: []
+                    )
+
+                    logger.info("✅ [STREAMING] Calling onComplete with synthesized response")
+                    await MainActor.run { onComplete(response) }
+                } else {
+                    logger.error("❌ [STREAMING] Cannot synthesize completion - no chunk data available")
+                    await MainActor.run { onError(RecipeStreamingError.serverError(message: "Stream ended without completion")) }
+                }
+            }
+
         } catch {
             logger.error("❌ [STREAMING] Connection error: \(error.localizedDescription)")
-            onError(error)
+            await MainActor.run { onError(error) }
         }
     }
 
@@ -217,8 +279,8 @@ class RecipeStreamingService {
         eventType: String,
         onConnected: @Sendable () -> Void,
         onChunk: @Sendable (String, String, Int) -> Void,
-        onComplete: @Sendable (RecipeGenerationResponse) -> Void,
-        onError: @Sendable (Error) -> Void
+        onComplete: @MainActor @Sendable (RecipeGenerationResponse) -> Void,
+        onError: @MainActor @Sendable (Error) -> Void
     ) async {
         switch event.type {
         case "connected":
@@ -268,6 +330,7 @@ class RecipeStreamingService {
                     recipeName: recipeName,
                     prepTime: getString("prepTime"),
                     cookTime: getString("cookTime"),
+                    waitingTime: getString("waitingTime"),
                     ingredients: getStringArray("ingredients"),
                     directions: getStringArray("directions"),
                     notes: getString("notes"),
@@ -284,19 +347,19 @@ class RecipeStreamingService {
 
                 logger.info("✅ [STREAMING] Successfully parsed recipe: \(response.recipeName)")
                 logger.debug("✅ [STREAMING] Nutrition values - Calories: \(response.calories), Carbs: \(response.carbohydrates), Protein: \(response.protein), Fat: \(response.fat)")
-                onComplete(response)
+                await MainActor.run { onComplete(response) }
             } catch {
                 logger.error("❌ [STREAMING] Failed to parse recipe response: \(error.localizedDescription)")
                 logger.error("❌ [STREAMING] Event data keys: \(event.data.keys.joined(separator: ", "))")
-                onError(RecipeStreamingError.decodingError(error))
+                await MainActor.run { onError(RecipeStreamingError.decodingError(error)) }
             }
 
         case "error":
             logger.error("❌ [STREAMING] Recipe generation error")
             if let errorMessage = event.data["message"] as? String {
-                onError(RecipeStreamingError.serverError(message: errorMessage))
+                await MainActor.run { onError(RecipeStreamingError.serverError(message: errorMessage)) }
             } else {
-                onError(RecipeStreamingError.unknownError)
+                await MainActor.run { onError(RecipeStreamingError.unknownError) }
             }
 
         default:

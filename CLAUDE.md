@@ -704,5 +704,89 @@ Before deploying any agent with a prompt, verify:
 
 ---
 
-**Last Updated:** 2025-11-01
+## 🔧 Known Solutions & Debugging Patterns
+
+### SSE Streaming Completion Handling
+
+**Problem:** Server-Sent Events (SSE) streams may close without sending proper `completed` events, causing state to remain "in progress" indefinitely (e.g., loading spinners, button animations that never stop).
+
+**Root Cause:** Firebase Cloud Functions or other SSE endpoints may terminate connections prematurely or fail to send the final `completed` event due to timeouts, errors, or malformed event structures.
+
+**Solution Pattern:**
+
+```swift
+// In SSE streaming handler
+var completedEventReceived = false
+var lastChunkData: EventType?
+
+for try await line in asyncBytes.lines {
+    // Process events
+    if event.type == "completed" {
+        completedEventReceived = true
+    }
+    if event.type == "chunk" {
+        lastChunkData = event
+    }
+
+    await handleEvent(event)
+}
+
+// CRITICAL: Fallback completion when stream ends
+if !completedEventReceived {
+    logger.warning("Stream closed without 'completed' event - synthesizing completion")
+
+    if let lastChunk = lastChunkData {
+        // Synthesize minimal completion response
+        let fallbackResponse = ResponseType(
+            // Use empty/minimal values - don't overwrite already-streamed content
+            recipeName: "",
+            content: lastChunk.fullContent
+        )
+
+        await onComplete(fallbackResponse)
+    }
+}
+```
+
+**Key Implementation Details:**
+
+1. **Track Completion State**: Monitor if `completed` event was received during stream
+2. **Store Last Chunk**: Keep reference to most recent chunk for fallback
+3. **Synthesize Minimal Response**: Create response with empty metadata to avoid overwriting streamed content
+4. **Conditional Data Loading**: Only load response if it contains real data (non-empty recipeName)
+
+```swift
+// In completion handler
+onComplete: { response in
+    // Guard against overwriting already-streamed content
+    if !response.recipeName.isEmpty {
+        // Real completed event from server - load full response
+        self.formState.loadFromGenerationResponse(response)
+    } else {
+        // Synthesized fallback - preserve already-streamed content
+        logger.info("Skipping loadFromGenerationResponse - using already-streamed content")
+    }
+
+    // Always trigger state transitions
+    self.stopAnimation()
+    self.isGenerating = false
+}
+```
+
+**Benefits:**
+- ✅ Gracefully handles both normal and abnormal stream termination
+- ✅ Preserves real-time streamed content (recipe names, markdown, metadata)
+- ✅ Ensures UI state transitions complete (animations stop, buttons enable)
+- ✅ Backward compatible if server is fixed to send proper `completed` events
+- ✅ Comprehensive logging for debugging
+
+**Files Modified:**
+- `RecipeStreamingService.swift`: Added fallback completion synthesis
+- `RecipeGenerationCoordinator.swift`: Added conditional response loading guard
+
+**Related:** Server-Sent Events, Streaming Responses, State Management, Animation Lifecycle
+
+---
+
+**Last Updated:** 2025-11-07
 **Enforced By:** Claude Code + Code Review

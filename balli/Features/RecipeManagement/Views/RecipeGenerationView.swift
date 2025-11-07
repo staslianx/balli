@@ -290,6 +290,9 @@ struct RecipeGenerationView: View {
                                     .default,
                                 value: viewModel.isGeneratingRecipe
                             )
+                            .onChange(of: viewModel.isGeneratingRecipe) { oldValue, newValue in
+                                logger.info("🔄 [VIEW] isGeneratingRecipe changed: \(oldValue) → \(newValue)")
+                            }
                     }
                     .buttonStyle(.plain)
                 }

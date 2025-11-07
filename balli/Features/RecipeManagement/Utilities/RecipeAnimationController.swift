@@ -34,8 +34,10 @@ public final class RecipeAnimationController: ObservableObject {
 
     /// Stop generation animations
     public func stopGenerationAnimation() {
-        logger.debug("Stopping generation animation")
+        logger.debug("🛑 [ANIMATION] stopGenerationAnimation() called")
+        logger.debug("📊 [ANIMATION] isRotatingLogo before: \(self.isRotatingLogo)")
         isRotatingLogo = false
+        logger.debug("✅ [ANIMATION] isRotatingLogo after: \(self.isRotatingLogo)")
     }
 
     /// Called when logo animation completes

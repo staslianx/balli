@@ -179,7 +179,9 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         ingredients: [String],
         userContext: String?
     ) async {
+        logger.info("🚀 [GENERATION] Starting ingredients-based generation")
         isGenerating = true
+        logger.info("▶️ [STATE] isGenerating set to true")
         animationController.startGenerationAnimation()
         generationError = nil
         streamingContent = ""
@@ -219,26 +221,57 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     self.formState.recipeContent = cleanedContent
                 }
             },
-            onComplete: { response in
-                Task { @MainActor in
+            onComplete: { [weak self] response in
+                guard let self else { return }
+
+                // CRITICAL: This closure is @MainActor so executes synchronously on MainActor
+                // This ensures isGenerating is set to false BEFORE the streaming function returns
+                self.logger.info("🏁 [GENERATION] onComplete called for ingredients-based generation")
+                self.logger.info("📊 [STATE] isGenerating before stop: \(self.isGenerating)")
+
+                // Only load response if it contains actual data (real completed event from server)
+                // If response is synthesized fallback (empty recipeName), skip loading to preserve streamed content
+                if !response.recipeName.isEmpty {
+                    self.logger.info("📥 [RESPONSE] Loading response with recipe name: '\(response.recipeName)'")
                     self.formState.loadFromGenerationResponse(response)
+                } else {
+                    self.logger.info("⏭️ [RESPONSE] Skipping loadFromGenerationResponse - using already-streamed content")
+                }
 
-                    await self.recordRecipeInMemory(
-                        mealType: mealType,
-                        styleType: styleType,
-                        extractedIngredients: response.extractedIngredients,
-                        recipeName: response.recipeName
-                    )
+                self.logger.info("🎬 [ANIMATION] Calling stopGenerationAnimation()")
+                self.animationController.stopGenerationAnimation()
 
-                    self.animationController.stopGenerationAnimation()
-                    self.showPhotoButton = true
-                    self.isGenerating = false
+                self.showPhotoButton = true
+
+                self.logger.info("🛑 [STATE] Setting isGenerating = false")
+                self.isGenerating = false
+                self.logger.info("✅ [STATE] isGenerating after stop: \(self.isGenerating)")
+
+                // Record in memory asynchronously (non-blocking)
+                // Only if we have actual extracted ingredients from server response
+                if let extractedIngredients = response.extractedIngredients, !extractedIngredients.isEmpty {
+                    Task {
+                        await self.recordRecipeInMemory(
+                            mealType: mealType,
+                            styleType: styleType,
+                            extractedIngredients: extractedIngredients,
+                            recipeName: response.recipeName
+                        )
+                    }
                 }
             },
-            onError: { error in
-                Task { @MainActor in
+            onError: { [weak self] error in
+                guard let self else { return }
+
+                // CRITICAL: This closure is @MainActor so executes synchronously on MainActor
+                self.logger.error("❌ [GENERATION] onError called (ingredients): \(error.localizedDescription)")
+                self.logger.info("🛑 [STATE] Setting isGenerating = false in error handler")
+                self.isGenerating = false
+                self.logger.info("✅ [STATE] isGenerating after error: \(self.isGenerating)")
+
+                // Handle error asynchronously (non-blocking)
+                Task {
                     await self.handleGenerationError(error)
-                    self.isGenerating = false
                 }
             }
         )
@@ -342,7 +375,9 @@ public final class RecipeGenerationCoordinator: ObservableObject {
 
     /// Generate recipe with streaming support
     public func generateRecipeWithStreaming(mealType: String, styleType: String, userContext: String? = nil) async {
+        logger.info("🚀 [GENERATION] Starting spontaneous generation with streaming")
         isGenerating = true
+        logger.info("▶️ [STATE] isGenerating set to true")
         animationController.startGenerationAnimation()
         generationError = nil
         streamingContent = ""
@@ -407,26 +442,57 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     self.formState.recipeContent = cleanedContent
                 }
             },
-            onComplete: { response in
-                Task { @MainActor in
+            onComplete: { [weak self] response in
+                guard let self else { return }
+
+                // CRITICAL: This closure is @MainActor so executes synchronously on MainActor
+                // This ensures isGenerating is set to false BEFORE the streaming function returns
+                self.logger.info("🏁 [GENERATION] onComplete called for spontaneous generation")
+                self.logger.info("📊 [STATE] isGenerating before stop: \(self.isGenerating)")
+
+                // Only load response if it contains actual data (real completed event from server)
+                // If response is synthesized fallback (empty recipeName), skip loading to preserve streamed content
+                if !response.recipeName.isEmpty {
+                    self.logger.info("📥 [RESPONSE] Loading response with recipe name: '\(response.recipeName)'")
                     self.formState.loadFromGenerationResponse(response)
+                } else {
+                    self.logger.info("⏭️ [RESPONSE] Skipping loadFromGenerationResponse - using already-streamed content")
+                }
 
-                    await self.recordRecipeInMemory(
-                        mealType: mealType,
-                        styleType: styleType,
-                        extractedIngredients: response.extractedIngredients,
-                        recipeName: response.recipeName
-                    )
+                self.logger.info("🎬 [ANIMATION] Calling stopGenerationAnimation()")
+                self.animationController.stopGenerationAnimation()
 
-                    self.animationController.stopGenerationAnimation()
-                    self.showPhotoButton = true
-                    self.isGenerating = false
+                self.showPhotoButton = true
+
+                self.logger.info("🛑 [STATE] Setting isGenerating = false")
+                self.isGenerating = false
+                self.logger.info("✅ [STATE] isGenerating after stop: \(self.isGenerating)")
+
+                // Record in memory asynchronously (non-blocking)
+                // Only if we have actual extracted ingredients from server response
+                if let extractedIngredients = response.extractedIngredients, !extractedIngredients.isEmpty {
+                    Task {
+                        await self.recordRecipeInMemory(
+                            mealType: mealType,
+                            styleType: styleType,
+                            extractedIngredients: extractedIngredients,
+                            recipeName: response.recipeName
+                        )
+                    }
                 }
             },
-            onError: { error in
-                Task { @MainActor in
+            onError: { [weak self] error in
+                guard let self else { return }
+
+                // CRITICAL: This closure is @MainActor so executes synchronously on MainActor
+                self.logger.error("❌ [GENERATION] onError called (spontaneous): \(error.localizedDescription)")
+                self.logger.info("🛑 [STATE] Setting isGenerating = false in error handler")
+                self.isGenerating = false
+                self.logger.info("✅ [STATE] isGenerating after error: \(self.isGenerating)")
+
+                // Handle error asynchronously (non-blocking)
+                Task {
                     await self.handleGenerationError(error)
-                    self.isGenerating = false
                 }
             }
         )
