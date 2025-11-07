@@ -237,15 +237,7 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                 self.logger.info("🏁 [GENERATION] onComplete called for ingredients-based generation")
                 self.logger.info("📊 [STATE] isGenerating before stop: \(self.isGenerating)")
 
-                // Only load response if it contains actual data (real completed event from server)
-                // If response is synthesized fallback (empty recipeName), skip loading to preserve streamed content
-                if !response.recipeName.isEmpty {
-                    self.logger.info("📥 [RESPONSE] Loading response with recipe name: '\(response.recipeName)'")
-                    self.formState.loadFromGenerationResponse(response)
-                } else {
-                    self.logger.info("⏭️ [RESPONSE] Skipping loadFromGenerationResponse - using already-streamed content")
-                }
-
+                // Stop animation and update state immediately (non-blocking)
                 self.logger.info("🎬 [ANIMATION] Calling stopGenerationAnimation()")
                 self.animationController.stopGenerationAnimation()
 
@@ -254,6 +246,19 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                 self.logger.info("🛑 [STATE] Setting isGenerating = false")
                 self.isGenerating = false
                 self.logger.info("✅ [STATE] isGenerating after stop: \(self.isGenerating)")
+
+                // Load response asynchronously to avoid blocking main thread during typewriter animation
+                // Only load response if it contains actual data (real completed event from server)
+                if !response.recipeName.isEmpty {
+                    self.logger.info("📥 [RESPONSE] Loading response asynchronously with recipe name: '\(response.recipeName)'")
+                    Task {
+                        await MainActor.run {
+                            self.formState.loadFromGenerationResponse(response)
+                        }
+                    }
+                } else {
+                    self.logger.info("⏭️ [RESPONSE] Skipping loadFromGenerationResponse - using already-streamed content")
+                }
 
                 // Record in memory asynchronously (non-blocking)
                 // Only if we have actual extracted ingredients from server response
@@ -458,15 +463,7 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                 self.logger.info("🏁 [GENERATION] onComplete called for spontaneous generation")
                 self.logger.info("📊 [STATE] isGenerating before stop: \(self.isGenerating)")
 
-                // Only load response if it contains actual data (real completed event from server)
-                // If response is synthesized fallback (empty recipeName), skip loading to preserve streamed content
-                if !response.recipeName.isEmpty {
-                    self.logger.info("📥 [RESPONSE] Loading response with recipe name: '\(response.recipeName)'")
-                    self.formState.loadFromGenerationResponse(response)
-                } else {
-                    self.logger.info("⏭️ [RESPONSE] Skipping loadFromGenerationResponse - using already-streamed content")
-                }
-
+                // Stop animation and update state immediately (non-blocking)
                 self.logger.info("🎬 [ANIMATION] Calling stopGenerationAnimation()")
                 self.animationController.stopGenerationAnimation()
 
@@ -475,6 +472,19 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                 self.logger.info("🛑 [STATE] Setting isGenerating = false")
                 self.isGenerating = false
                 self.logger.info("✅ [STATE] isGenerating after stop: \(self.isGenerating)")
+
+                // Load response asynchronously to avoid blocking main thread during typewriter animation
+                // Only load response if it contains actual data (real completed event from server)
+                if !response.recipeName.isEmpty {
+                    self.logger.info("📥 [RESPONSE] Loading response asynchronously with recipe name: '\(response.recipeName)'")
+                    Task {
+                        await MainActor.run {
+                            self.formState.loadFromGenerationResponse(response)
+                        }
+                    }
+                } else {
+                    self.logger.info("⏭️ [RESPONSE] Skipping loadFromGenerationResponse - using already-streamed content")
+                }
 
                 // Record in memory asynchronously (non-blocking)
                 // Only if we have actual extracted ingredients from server response

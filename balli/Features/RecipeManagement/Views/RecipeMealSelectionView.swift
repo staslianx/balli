@@ -33,11 +33,11 @@ struct RecipeMealSelectionView: View {
 
         var icon: String {
             switch self {
-            case .kahvalti: return "☀️"
-            case .salatalar: return "🥗"
-            case .aksamYemegi: return "🍽️"
-            case .tatlilar: return "🍰"
-            case .atistirmalik: return "🥜"
+            case .kahvalti: return "sun.max.fill"
+            case .salatalar: return "leaf.fill"
+            case .aksamYemegi: return "fork.knife"
+            case .tatlilar: return "sparkles"
+            case .atistirmalik: return "circle.hexagongrid.fill"
             }
         }
 
@@ -74,6 +74,7 @@ struct RecipeMealSelectionView: View {
             }
             .navigationTitle(selectedCategory == nil ? "Kategori Seç" : selectedCategory?.displayName ?? "")
             .navigationBarTitleDisplayMode(.inline)
+            .background(Color.appBackground(for: colorScheme))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     if selectedCategory != nil {
@@ -113,7 +114,7 @@ struct RecipeMealSelectionView: View {
             .padding(.top, ResponsiveDesign.Spacing.large)
             .padding(.bottom, ResponsiveDesign.Spacing.xLarge)
         }
-        .background(Color(.systemBackground))
+        .background(Color.appBackground(for: colorScheme))
     }
 
     private func categoryCard(_ category: RecipeCategory) -> some View {
@@ -132,15 +133,11 @@ struct RecipeMealSelectionView: View {
             }
         }) {
             HStack(spacing: ResponsiveDesign.Spacing.medium) {
-                // Icon with background
-                ZStack {
-                    Circle()
-                        .fill(AppTheme.primaryPurple.opacity(0.1))
-                        .frame(width: 56, height: 56)
-
-                    Text(category.icon)
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(32)))
-                }
+                // Icon (SF Symbol matching LoggedMealsView style)
+                Image(systemName: category.icon)
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(24), weight: .semibold))
+                    .foregroundStyle(AppTheme.primaryPurple)
+                    .frame(width: ResponsiveDesign.Font.scaledSize(40), alignment: .center)
 
                 // Category name
                 Text(category.displayName)
@@ -155,15 +152,9 @@ struct RecipeMealSelectionView: View {
                         .foregroundStyle(AppTheme.primaryPurple)
                 }
             }
-            .padding(.vertical, ResponsiveDesign.Spacing.medium)
-            .padding(.horizontal, ResponsiveDesign.Spacing.large)
             .contentShape(Rectangle())
-            .background(.clear)
-            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
         }
-        .buttonStyle(CategoryButtonStyle())
+        .buttonStyle(.plain)
     }
 
     // MARK: - Subcategory List View
@@ -179,7 +170,7 @@ struct RecipeMealSelectionView: View {
             .padding(.top, ResponsiveDesign.Spacing.large)
             .padding(.bottom, ResponsiveDesign.Spacing.xLarge)
         }
-        .background(Color(.systemBackground))
+        .background(Color.appBackground(for: colorScheme))
     }
 
     private func subcategoryCard(_ subcategory: String) -> some View {
@@ -207,15 +198,9 @@ struct RecipeMealSelectionView: View {
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold))
                     .foregroundStyle(AppTheme.primaryPurple)
             }
-            .padding(.vertical, ResponsiveDesign.Spacing.medium)
-            .padding(.horizontal, ResponsiveDesign.Spacing.large)
             .contentShape(Rectangle())
-            .background(.clear)
-            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
         }
-        .buttonStyle(CategoryButtonStyle())
+        .buttonStyle(.plain)
     }
 }
 

@@ -44,27 +44,10 @@ struct AbsorptionTimingChart: View {
                         .lineStyle(StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round))
                         .interpolationMethod(.catmullRom)
                     }
-
-                    // Peak difference line (only show if meaningful difference)
-                    if profile.peakDifferenceHours > 0.5 {
-                        RuleMark(x: .value("Fark", profile.mealPeakTime))
-                            .lineStyle(StrokeStyle(lineWidth: 2, dash: [5, 5]))
-                            .foregroundStyle(Color.gray.opacity(0.5))
-                            .annotation(position: .top, alignment: .center, spacing: 4) {
-                                Text(String(format: "%.1f saat fark", profile.peakDifferenceHours))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color(uiColor: .systemBackground).opacity(0.9))
-                                    .cornerRadius(6)
-                                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
-                            }
-                    }
                 }
                 .chartLegend(.hidden)
                 .chartXAxis {
-                    AxisMarks(values: [0, 1, 2, 3, 4, 5, 6]) { value in
+                    AxisMarks(values: [0, 1, 2, 3, 4, 5, 6, 7, 8]) { value in
                         AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
                             .foregroundStyle(Color.gray.opacity(0.2))
                         AxisTick()
@@ -91,7 +74,7 @@ struct AbsorptionTimingChart: View {
                     }
                 }
                 .chartYScale(domain: -0.05...1.1)
-                .chartXScale(domain: 0...6)
+                .chartXScale(domain: 0...8)
                 .frame(height: 220)
 
                 // Legend
@@ -283,7 +266,7 @@ struct AbsorptionTimingChart: View {
         )
         .padding()
 
-        Text("Expected: ~0.3h difference, curves mostly aligned")
+        Text("Expected: ~0.3h difference, curves mostly aligned, 85% insulin effectiveness")
             .font(.caption)
             .foregroundColor(.secondary)
             .padding()
@@ -303,7 +286,7 @@ struct AbsorptionTimingChart: View {
         )
         .padding()
 
-        Text("Expected: ~1.2h difference, dashed line shown")
+        Text("Expected: ~1.2h difference, 70% insulin effectiveness for 6h")
             .font(.caption)
             .foregroundColor(.secondary)
             .padding()
@@ -323,7 +306,27 @@ struct AbsorptionTimingChart: View {
         )
         .padding()
 
-        Text("Expected: ~2.0h difference, significant timing mismatch")
+        Text("Expected: ~2.0h difference, 60% insulin effectiveness for 8h")
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .padding()
+    }
+}
+
+#Preview("Very Low-Fat (No Resistance)") {
+    VStack {
+        Text("Very Low-Fat Meal - No Insulin Resistance")
+            .font(.title2)
+            .padding()
+
+        AbsorptionTimingChart(
+            fat: 5,
+            protein: 20,
+            carbs: 50
+        )
+        .padding()
+
+        Text("Expected: 100% insulin effectiveness (no red curve shown)")
             .font(.caption)
             .foregroundColor(.secondary)
             .padding()
@@ -334,25 +337,45 @@ struct AbsorptionTimingChart: View {
     ScrollView {
         VStack(spacing: 20) {
             Group {
-                Text("Low-Fat (Aligned)")
+                Text("Very Low-Fat (<10g)")
                     .font(.headline)
-                AbsorptionTimingChart(fat: 10, protein: 20, carbs: 50)
+                AbsorptionTimingChart(fat: 5, protein: 20, carbs: 50)
+                Text("100% effectiveness - no resistance")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
 
             Divider()
 
             Group {
-                Text("Moderate-Fat")
+                Text("Low-Fat (10-20g)")
                     .font(.headline)
-                AbsorptionTimingChart(fat: 30, protein: 25, carbs: 45)
+                AbsorptionTimingChart(fat: 15, protein: 20, carbs: 50)
+                Text("85% effectiveness for 4 hours")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
 
             Divider()
 
             Group {
-                Text("High-Fat")
+                Text("Moderate-Fat (20-30g)")
                     .font(.headline)
-                AbsorptionTimingChart(fat: 50, protein: 40, carbs: 40)
+                AbsorptionTimingChart(fat: 25, protein: 25, carbs: 45)
+                Text("70% effectiveness for 6 hours")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Divider()
+
+            Group {
+                Text("High-Fat (≥30g)")
+                    .font(.headline)
+                AbsorptionTimingChart(fat: 42, protein: 40, carbs: 40)
+                Text("60% effectiveness for 8 hours")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
         }
         .padding()

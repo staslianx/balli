@@ -45,7 +45,6 @@ struct NutritionalValuesView: View {
     @Binding var portionMultiplier: Double
 
     @State private var selectedTab = 0  // 0 = Porsiyon, 1 = 100g
-    @State private var isChartExpanded = false  // For collapsible chart section
     @State private var isPortionAdjustmentExpanded = false  // For portion adjustment section
     @State private var adjustingPortionWeight: Double = 0
     @State private var showSuccessBanner = false
@@ -193,11 +192,6 @@ struct NutritionalValuesView: View {
                     .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
                     .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
                     .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
-
-                    // Absorption Timing Chart (Porsiyon tab only)
-                    if selectedTab == 0 && shouldShowChart {
-                        absorptionTimingSection
-                    }
                 }
                 .padding(ResponsiveDesign.Spacing.medium)
             }
@@ -379,28 +373,6 @@ struct NutritionalValuesView: View {
         recipe.recipe?.isPortionDefined ?? false
     }
 
-    /// Determines whether the absorption timing chart should be displayed
-    /// Chart is hidden if any macronutrient value is zero, negative, or invalid
-    private var shouldShowChart: Bool {
-        guard let fat = Double(fatPerServing),
-              let protein = Double(proteinPerServing),
-              let carbs = Double(carbohydratesPerServing) else {
-            return false
-        }
-
-        // Hide if any value is zero or negative
-        return fat > 0 && protein > 0 && carbs > 0
-    }
-
-    /// Calculates portion-adjusted macronutrient values for the chart
-    private var chartMacros: (fat: Double, protein: Double, carbs: Double) {
-        let fat = (Double(fatPerServing) ?? 0) * portionMultiplier
-        let protein = (Double(proteinPerServing) ?? 0) * portionMultiplier
-        let carbs = (Double(carbohydratesPerServing) ?? 0) * portionMultiplier
-
-        return (fat: fat, protein: protein, carbs: carbs)
-    }
-
     private var infoText: Text {
         if selectedTab == 0 {
             // Porsiyon tab - no longer showing portion weight since it's in the card above
@@ -560,54 +532,6 @@ struct NutritionalValuesView: View {
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
     }
 
-
-    /// Collapsible section containing the absorption timing chart
-    private var absorptionTimingSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header (tap to expand/collapse)
-            Button {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isChartExpanded.toggle()
-                }
-            } label: {
-                HStack {
-                    Text("Emilim Zamanlaması")
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
-
-                    Spacer()
-
-                    Image(systemName: isChartExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(AppTheme.primaryPurple)
-                }
-                .padding(ResponsiveDesign.Spacing.medium)
-            }
-            .buttonStyle(.plain)
-
-            // Chart content (only when expanded)
-            if isChartExpanded {
-                let macros = chartMacros
-
-                VStack(spacing: 0) {
-                    Divider()
-                        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
-
-                    AbsorptionTimingChart(
-                        fat: macros.fat,
-                        protein: macros.protein,
-                        carbs: macros.carbs
-                    )
-                    .padding(.top, ResponsiveDesign.Spacing.small)
-                }
-                .transition(.opacity.combined(with: .scale(scale: 0.95)))
-            }
-        }
-        .background(.clear)
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
-        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
-    }
 
     /// Full portion card for unsaved recipes - includes slider and save button
     private var multiplierOnlyCard: some View {

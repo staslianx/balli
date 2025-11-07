@@ -69,13 +69,18 @@ struct TypewriterRecipeContentView: View {
 
                 Task {
                     await animator.enqueueText(newChars, for: recipeId) { displayedText in
-                        await MainActor.run {
-                            self.displayedContent = displayedText
-                            logger.debug("✍️ [RECIPE-TYPEWRITER] Updated displayedContent: \(displayedText.count) chars")
+                        // PERFORMANCE: Only update UI every 3 characters to reduce rendering overhead
+                        // This prevents stutter when markdown re-renders become expensive
+                        if displayedText.count % 3 == 0 || displayedText.count == self.fullContentReceived.count {
+                            await MainActor.run {
+                                self.displayedContent = displayedText
+                                logger.debug("✍️ [RECIPE-TYPEWRITER] Updated displayedContent: \(displayedText.count) chars")
+                            }
                         }
                     } onComplete: {
-                        // Animation completed naturally - mark as complete
+                        // Animation completed naturally - mark as complete and show final content
                         await MainActor.run {
+                            self.displayedContent = self.fullContentReceived  // Ensure all content is shown
                             self.isAnimationComplete = true
                             self.onAnimationStateChange?(false)
                             logger.debug("✅ [RECIPE-TYPEWRITER] Animation naturally completed")

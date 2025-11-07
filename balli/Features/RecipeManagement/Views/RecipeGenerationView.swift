@@ -21,7 +21,6 @@ struct RecipeGenerationView: View {
     @StateObject private var loadingHandler = LoadingAnimationHandler()
 
     // Pure UI state (stays in View)
-    @State private var showingMealSelection = false
     @State private var showingNutritionModal = false
     @State private var isAddingIngredient = false
     @State private var isAddingStep = false
@@ -93,13 +92,8 @@ struct RecipeGenerationView: View {
                     Spacer()
 
                     Button {
-                        let (shouldShowMenu, _) = generationViewModel.determineGenerationFlow()
-                        if shouldShowMenu {
-                            showingMealSelection = true
-                        } else {
-                            Task {
-                                await generationViewModel.startGenerationWithDefaults()
-                            }
+                        Task {
+                            await generationViewModel.startGenerationWithDefaults()
                         }
                     } label: {
                         Text("Tekrar Dene")
@@ -253,16 +247,12 @@ struct RecipeGenerationView: View {
                 await generationViewModel.checkShoppingListStatus()
             }
         }
-        .onChange(of: viewModel.isAnimationComplete) { oldValue, newValue in
-            // When streaming animation completes, show save button if recipe exists
-            if !oldValue && newValue && !generationViewModel.isSaved {
+        .onChange(of: isEffectivelyGenerating) { oldValue, newValue in
+            // Show save button ONLY when generation fully completes (backend + animation)
+            // This ensures button appears in sync with logo rotation stopping
+            if oldValue && !newValue && !generationViewModel.isSaved {
                 showSaveButton = generationViewModel.shouldShowSaveButton
-            }
-        }
-        .onChange(of: isContentAnimating) { _, newValue in
-            // When typewriter animation stops, show save button if conditions met
-            if !newValue && !viewModel.isGeneratingRecipe && !generationViewModel.isSaved {
-                showSaveButton = generationViewModel.shouldShowSaveButton
+                logger.info("💾 [SAVE-BUTTON] Showing save button - generation fully complete")
             }
         }
         .onChange(of: generationViewModel.isSaved) { _, newValue in
@@ -371,21 +361,98 @@ struct RecipeGenerationView: View {
 
     @ViewBuilder
     private var generateButton: some View {
-        Button {
-            let (shouldShowMenu, reason) = generationViewModel.determineGenerationFlow()
-            logger.info("\(reason)")
-
-            if shouldShowMenu {
-                showingMealSelection = true
-            } else {
+        Menu {
+            // Kahvaltı (no subcategories)
+            Button {
                 Task {
-                    await generationViewModel.startGenerationWithDefaults()
+                    generationViewModel.selectedMealType = "Kahvaltı"
+                    generationViewModel.selectedStyleType = ""
+                    await generationViewModel.startGeneration()
                 }
+            } label: {
+                Label("Kahvaltı", systemImage: "sun.max.fill")
+            }
+
+            // Salatalar with submenu
+            Menu {
+                Button("Doyurucu Salata") {
+                    Task {
+                        generationViewModel.selectedMealType = "Salatalar"
+                        generationViewModel.selectedStyleType = "Doyurucu Salata"
+                        await generationViewModel.startGeneration()
+                    }
+                }
+                Button("Hafif Salata") {
+                    Task {
+                        generationViewModel.selectedMealType = "Salatalar"
+                        generationViewModel.selectedStyleType = "Hafif Salata"
+                        await generationViewModel.startGeneration()
+                    }
+                }
+            } label: {
+                Label("Salatalar", systemImage: "leaf.fill")
+            }
+
+            // Akşam yemeği with submenu
+            Menu {
+                Button("Karbonhidrat ve Protein Uyumu") {
+                    Task {
+                        generationViewModel.selectedMealType = "Akşam yemeği"
+                        generationViewModel.selectedStyleType = "Karbonhidrat ve Protein Uyumu"
+                        await generationViewModel.startGeneration()
+                    }
+                }
+                Button("Tam Buğday Makarna") {
+                    Task {
+                        generationViewModel.selectedMealType = "Akşam yemeği"
+                        generationViewModel.selectedStyleType = "Tam Buğday Makarna"
+                        await generationViewModel.startGeneration()
+                    }
+                }
+            } label: {
+                Label("Akşam yemeği", systemImage: "fork.knife")
+            }
+
+            // Tatlılar with submenu
+            Menu {
+                Button("Sana Özel Tatlılar") {
+                    Task {
+                        generationViewModel.selectedMealType = "Tatlılar"
+                        generationViewModel.selectedStyleType = "Sana Özel Tatlılar"
+                        await generationViewModel.startGeneration()
+                    }
+                }
+                Button("Dondurma") {
+                    Task {
+                        generationViewModel.selectedMealType = "Tatlılar"
+                        generationViewModel.selectedStyleType = "Dondurma"
+                        await generationViewModel.startGeneration()
+                    }
+                }
+                Button("Meyve Salatası") {
+                    Task {
+                        generationViewModel.selectedMealType = "Tatlılar"
+                        generationViewModel.selectedStyleType = "Meyve Salatası"
+                        await generationViewModel.startGeneration()
+                    }
+                }
+            } label: {
+                Label("Tatlılar", systemImage: "sparkles")
+            }
+
+            // Atıştırmalık (no subcategories)
+            Button {
+                Task {
+                    generationViewModel.selectedMealType = "Atıştırmalık"
+                    generationViewModel.selectedStyleType = ""
+                    await generationViewModel.startGeneration()
+                }
+            } label: {
+                Label("Atıştırmalık", systemImage: "circle.hexagongrid.fill")
             }
         } label: {
             generateButtonContent
         }
-        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -413,29 +480,12 @@ extension RecipeGenerationView {
     @ViewBuilder
     var sheetConfigurations: some View {
         EmptyView()
-            .sheet(isPresented: $showingMealSelection) {
-                mealSelectionSheet
-            }
             .sheet(isPresented: $showingNutritionModal) {
                 nutritionModalSheet
             }
             .sheet(isPresented: $actionsHandler.showingNotesModal) {
                 notesModalSheet
             }
-    }
-
-    @ViewBuilder
-    private var mealSelectionSheet: some View {
-        RecipeMealSelectionView(
-            selectedMealType: $generationViewModel.selectedMealType,
-            selectedStyleType: $generationViewModel.selectedStyleType,
-            onGenerate: {
-                Task {
-                    await generationViewModel.startGeneration()
-                }
-            }
-        )
-        .presentationDetents([.fraction(0.4)])
     }
 
     @ViewBuilder
