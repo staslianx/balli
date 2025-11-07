@@ -14,6 +14,7 @@ public struct RecipeGenerationResponse: Codable, Sendable {
     public let recipeName: String
     public let prepTime: String
     public let cookTime: String
+    public let waitingTime: String?  // Optional waiting time (e.g., marinating, rising, resting)
     public let ingredients: [String]  // Legacy: kept for backward compatibility
     public let directions: [String]  // Legacy: kept for backward compatibility
     public let notes: String?  // DEPRECATED: AI notes no longer generated, field kept for backward compatibility

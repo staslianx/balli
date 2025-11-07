@@ -185,7 +185,7 @@ struct MealPreviewEditor: View {
 
                                 // Decrease button
                                 Button {
-                                    editableInsulinDosage = max(0, editableInsulinDosage - 0.5)
+                                    editableInsulinDosage = max(0, editableInsulinDosage - 1)
                                 } label: {
                                     Image(systemName: "minus.circle.fill")
                                         .font(.system(size: 28))
@@ -194,7 +194,7 @@ struct MealPreviewEditor: View {
                                 .buttonStyle(.plain)
 
                                 // Dosage value
-                                Text("\(editableInsulinDosage, specifier: "%.1f")")
+                                Text("\(Int(editableInsulinDosage))")
                                     .font(.system(size: 24, weight: .bold, design: .rounded).monospacedDigit())
                                     .frame(width: 70)
 
@@ -204,7 +204,7 @@ struct MealPreviewEditor: View {
 
                                 // Increase button
                                 Button {
-                                    editableInsulinDosage += 0.5
+                                    editableInsulinDosage += 1
                                 } label: {
                                     Image(systemName: "plus.circle.fill")
                                         .font(.system(size: 28))
@@ -248,7 +248,7 @@ struct MealPreviewEditor: View {
                     // Button to add insulin manually
                     Button {
                         hasInsulin = true
-                        editableInsulinDosage = 5.0 // Default starting value
+                        editableInsulinDosage = 5 // Default starting value
                     } label: {
                         Label("İnsülin Ekle", systemImage: "plus.circle")
                             .font(.system(size: 16, weight: .medium, design: .rounded))

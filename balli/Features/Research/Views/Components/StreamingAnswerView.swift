@@ -9,9 +9,8 @@
 
 import SwiftUI
 
-/// View that displays streaming answer content with smooth updates and markdown rendering
-/// ARCHITECTURE FIX: Renders content prop DIRECTLY - no intermediate state variable
-/// SwiftUI's built-in diffing + animation handles smooth updates automatically
+/// View that displays streaming answer content with direct rendering
+/// No animation - tokens appear instantly for maximum performance
 struct StreamingAnswerView: View {
     let content: String
     let isStreaming: Bool
@@ -21,13 +20,13 @@ struct StreamingAnswerView: View {
 
     var body: some View {
         MarkdownText(
-            content: content,  // ✅ DIRECT BINDING - No intermediate state!
+            content: content,
             fontSize: fontSize,
             enableSelection: true,
             sourceCount: sourceCount,
             sources: sources,
-            headerFontSize: fontSize * 1.88,  // Proportional header scaling
-            fontName: "Manrope"  // Body text uses Manrope
+            headerFontSize: fontSize * 1.88,
+            fontName: "Manrope"
         )
         .foregroundStyle(.primary)
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -186,6 +186,7 @@ struct ManualStepsSection: View {
 /// Displays either generated markdown content or manual input placeholders
 struct RecipeGenerationContentSection: View {
     let recipeContent: String
+    let isStreaming: Bool  // Actual streaming state from viewModel
     @Binding var manualIngredients: [RecipeItem]
     @Binding var manualSteps: [RecipeItem]
     @Binding var isAddingIngredient: Bool
@@ -196,21 +197,20 @@ struct RecipeGenerationContentSection: View {
 
     var body: some View {
         Group {
-            if !recipeContent.isEmpty {
-                MarkdownText(
+            // CRITICAL: Always show TypewriterRecipeContentView, even with empty content
+            // The view MUST exist before streaming starts to set up onChange handlers
+            // Otherwise it misses all the streaming updates!
+            if isStreaming || !recipeContent.isEmpty {
+                // Use TypewriterRecipeContentView for smooth streaming animation
+                TypewriterRecipeContentView(
                     content: recipeContent,
-                    fontSize: 20,
-                    enableSelection: true,
-                    sourceCount: 0,
-                    sources: [],
-                    headerFontSize: 20 * 2.0,
-                    fontName: "Manrope",
-                    skipFirstHeading: true  // Recipe name shown in hero section
+                    isStreaming: isStreaming,  // Use actual state from parent
+                    recipeId: "recipe-generation",
+                    onAnimationStateChange: nil  // No callback needed in simple implementation
                 )
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
+            } else if recipeContent.isEmpty {
                 // Interactive placeholder - let user add their own recipe
+                // Only show when NOT streaming and content is empty
                 VStack(alignment: .leading, spacing: 32) {
                     ManualIngredientsSection(
                         ingredients: $manualIngredients,

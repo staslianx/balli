@@ -365,53 +365,58 @@ exports.generateRecipeFromIngredients = (0, https_1.onRequest)({
                     for await (const chunk of streamingResponse.stream) {
                         const chunkText = chunk.text;
                         if (chunkText) {
-                            // Split large chunks into smaller word-based pieces for smooth streaming
-                            // This ensures character-by-character animation on the client
-                            const words = chunkText.split(/(\s+)/); // Split by whitespace but keep the spaces
-                            for (const word of words) {
-                                if (word) {
-                                    fullContent += word;
-                                    tokenCount++;
-                                    // Send small word-based chunk to client
-                                    const chunkEvent = {
-                                        type: "chunk",
-                                        data: {
-                                            content: word,
-                                            fullContent: fullContent,
-                                            tokenCount: tokenCount
-                                        },
-                                        timestamp: new Date().toISOString()
-                                    };
-                                    res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
-                                    // CRITICAL: Flush immediately to send chunk to client without buffering
-                                    if (typeof res.flush === 'function') {
-                                        res.flush();
-                                    }
-                                    // Smaller delay for word-by-word streaming (smooth animation)
-                                    await new Promise(resolve => setTimeout(resolve, 30));
-                                }
+                            fullContent += chunkText;
+                            tokenCount++;
+                            // Send raw Gemini chunk immediately (no splitting, no delays)
+                            // Client-side TypewriterAnimator handles character-by-character display
+                            const chunkEvent = {
+                                type: "chunk",
+                                data: {
+                                    content: chunkText,
+                                    fullContent: fullContent,
+                                    tokenCount: tokenCount
+                                },
+                                timestamp: new Date().toISOString()
+                            };
+                            res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
+                            // CRITICAL: Flush immediately to send chunk to client without buffering
+                            if (typeof res.flush === 'function') {
+                                res.flush();
                             }
+                            // NO DELAY - let client handle animation for efficiency
                         }
                     }
                     // Parse metadata from markdown
-                    // Format: # Recipe Name\n**Hazırlık:** X dakika | **Pişirme:** X dakika | **Porsiyon:** 1 kişi
+                    // Format: # Recipe Name\n**Hazırlık:** X dakika | **Pişirme:** X dakika | [**Bekleme:** X dakika |] **Porsiyon:** 1 kişi
                     const lines = fullContent.split('\n');
                     let recipeName = 'Tarif';
                     let prepTime = 15;
                     let cookTime = 20;
+                    let waitingTime = null;
                     // Extract recipe name from first line (# Recipe Name)
-                    if (lines[0]?.startsWith('# ')) {
-                        recipeName = lines[0].substring(2).trim();
+                    // Skip any preliminary text before the first # heading
+                    let nameLineIndex = lines.findIndex(line => line.trim().startsWith('# '));
+                    if (nameLineIndex >= 0) {
+                        recipeName = lines[nameLineIndex].substring(2).trim();
+                        console.log(`📝 [MARKDOWN-PARSE] Found recipe name at line ${nameLineIndex}: "${recipeName}"`);
                     }
-                    // Extract times from second line
-                    const timeLine = lines[1] || '';
+                    // Extract times from the line after recipe name
+                    const timeLine = lines[nameLineIndex + 1] || '';
                     const prepMatch = timeLine.match(/\*\*Hazırlık:\*\*\s*(\d+)\s*dakika/i);
                     const cookMatch = timeLine.match(/\*\*Pişirme:\*\*\s*(\d+)\s*dakika/i);
+                    const waitMatch = timeLine.match(/\*\*Bekleme:\*\*\s*(\d+)\s*dakika/i);
                     if (prepMatch)
                         prepTime = parseInt(prepMatch[1]);
                     if (cookMatch)
                         cookTime = parseInt(cookMatch[1]);
-                    console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min`);
+                    if (waitMatch)
+                        waitingTime = parseInt(waitMatch[1]);
+                    if (waitingTime) {
+                        console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min, waiting=${waitingTime}min`);
+                    }
+                    else {
+                        console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min (no waiting time)`);
+                    }
                     // Send completion event with markdown content
                     const recipeData = {
                         recipeName: recipeName,
@@ -419,6 +424,7 @@ exports.generateRecipeFromIngredients = (0, https_1.onRequest)({
                         recipeContent: fullContent, // The full markdown content
                         prepTime: prepTime,
                         cookTime: cookTime,
+                        waitingTime: waitingTime, // Optional waiting time (null if not present)
                         servings: 1,
                         tokenCount: tokenCount,
                         // Extract ingredients for memory system (parse from markdown)
@@ -562,32 +568,25 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                 for await (const chunk of streamingResponse.stream) {
                     const chunkText = chunk.text;
                     if (chunkText) {
-                        // Split large chunks into smaller word-based pieces for smooth streaming
-                        // This ensures character-by-character animation on the client
-                        const words = chunkText.split(/(\s+)/); // Split by whitespace but keep the spaces
-                        for (const word of words) {
-                            if (word) {
-                                fullContent += word;
-                                tokenCount++;
-                                // Send small word-based chunk to client
-                                const chunkEvent = {
-                                    type: "chunk",
-                                    data: {
-                                        content: word,
-                                        fullContent: fullContent,
-                                        tokenCount: tokenCount
-                                    },
-                                    timestamp: new Date().toISOString()
-                                };
-                                res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
-                                // CRITICAL: Flush immediately to send chunk to client without buffering
-                                if (typeof res.flush === 'function') {
-                                    res.flush();
-                                }
-                                // Smaller delay for word-by-word streaming (smooth animation)
-                                await new Promise(resolve => setTimeout(resolve, 30));
-                            }
+                        fullContent += chunkText;
+                        tokenCount++;
+                        // Send raw Gemini chunk immediately (no splitting, no delays)
+                        // Client-side TypewriterAnimator handles character-by-character display
+                        const chunkEvent = {
+                            type: "chunk",
+                            data: {
+                                content: chunkText,
+                                fullContent: fullContent,
+                                tokenCount: tokenCount
+                            },
+                            timestamp: new Date().toISOString()
+                        };
+                        res.write(`event: chunk\ndata: ${JSON.stringify(chunkEvent)}\n\n`);
+                        // CRITICAL: Flush immediately to send chunk to client without buffering
+                        if (typeof res.flush === 'function') {
+                            res.flush();
                         }
+                        // NO DELAY - let client handle animation for efficiency
                     }
                 }
                 // Parse metadata from markdown (same as ingredients-based generation)
@@ -595,19 +594,31 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                 let recipeName = 'Tarif';
                 let prepTime = 15;
                 let cookTime = 20;
+                let waitingTime = null;
                 // Extract recipe name from first line (# Recipe Name)
-                if (lines[0]?.startsWith('# ')) {
-                    recipeName = lines[0].substring(2).trim();
+                // Skip any preliminary text before the first # heading
+                let nameLineIndex = lines.findIndex(line => line.trim().startsWith('# '));
+                if (nameLineIndex >= 0) {
+                    recipeName = lines[nameLineIndex].substring(2).trim();
+                    console.log(`📝 [MARKDOWN-PARSE] Found recipe name at line ${nameLineIndex}: "${recipeName}"`);
                 }
-                // Extract times from second line
-                const timeLine = lines[1] || '';
+                // Extract times from the line after recipe name
+                const timeLine = lines[nameLineIndex + 1] || '';
                 const prepMatch = timeLine.match(/\*\*Hazırlık:\*\*\s*(\d+)\s*dakika/i);
                 const cookMatch = timeLine.match(/\*\*Pişirme:\*\*\s*(\d+)\s*dakika/i);
+                const waitMatch = timeLine.match(/\*\*Bekleme:\*\*\s*(\d+)\s*dakika/i);
                 if (prepMatch)
                     prepTime = parseInt(prepMatch[1]);
                 if (cookMatch)
                     cookTime = parseInt(cookMatch[1]);
-                console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min`);
+                if (waitMatch)
+                    waitingTime = parseInt(waitMatch[1]);
+                if (waitingTime) {
+                    console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min, waiting=${waitingTime}min`);
+                }
+                else {
+                    console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min (no waiting time)`);
+                }
                 // Extract ingredients from markdown
                 const extractedIngredients = extractIngredientsFromMarkdown(fullContent);
                 // Send completion event with markdown content
@@ -617,6 +628,7 @@ exports.generateSpontaneousRecipe = (0, https_1.onRequest)({
                     recipeContent: fullContent, // The full markdown content
                     prepTime: prepTime,
                     cookTime: cookTime,
+                    waitingTime: waitingTime, // Optional waiting time (null if not present)
                     servings: 1,
                     tokenCount: tokenCount,
                     extractedIngredients, // For iOS memory system
@@ -985,14 +997,14 @@ exports.calculateRecipeNutrition = (0, https_1.onRequest)({
         console.log(`🍽️ [NUTRITION-CALC] Servings: ${input.servings ?? 'null (manual recipe)'}`);
         // Load nutrition calculator prompt
         const nutritionPrompt = genkit_instance_1.ai.prompt('recipe_nutrition_calculator');
-        // Call Gemini 2.5 Pro for nutrition analysis
+        // Call Gemini 2.5 Pro for nutrition analysis (requires Pro for accuracy)
         const result = await nutritionPrompt({
             recipeName: input.recipeName,
             recipeContent: input.recipeContent,
             servings: input.servings ?? 1, // Default to 1 if null (manual recipes)
             recipeType: isManualRecipe ? "manual" : "aiGenerated"
         }, {
-            model: (0, providers_1.getTier3Model)() // Explicitly use Gemini 2.5 Pro
+            model: (0, providers_1.getNutritionCalculatorModel)() // Explicitly use Gemini 2.5 Pro for nutrition
         });
         // Log the complete AI response with all reasoning
         console.log(`\n${'='.repeat(80)}`);

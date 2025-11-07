@@ -175,12 +175,15 @@ class ResearchSSEParser {
             case "token":
                 guard let content = json["content"] as? String else { return nil }
 
-                // 🔍 DIAGNOSTIC: Log token content to trace period loss
-                #if DEBUG
+                // 🔍 FORENSIC: Detailed token analysis
                 let charCount = content.count
-                let lastChar = content.last.map { String($0) } ?? "nil"
-                logger.debug("🔍 [TOKEN] Parsed token: length=\(charCount), last='\(lastChar)', content='\(content)'")
-                #endif
+                let bytes = content.utf8.map { String(format: "%02X", $0) }.joined(separator: " ")
+                let unicodeScalars = content.unicodeScalars.map { "U+\(String($0.value, radix: 16, uppercase: true))" }.joined(separator: " ")
+                let escapedContent = content.replacingOccurrences(of: "\n", with: "\\n")
+                    .replacingOccurrences(of: "\t", with: "\\t")
+                    .replacingOccurrences(of: "\r", with: "\\r")
+
+                logger.debug("🔍 [TOKEN-PARSED] chars=\(charCount), bytes=[\(bytes)], unicode=[\(unicodeScalars)], raw='\(escapedContent)'")
 
                 return .token(content: content)
 

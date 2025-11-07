@@ -8,6 +8,54 @@
 
 import SwiftUI
 
+// MARK: - Typewriter Text Component
+
+/// Simple typewriter effect for recipe name
+struct TypewriterText: View {
+    let content: String
+    let font: Font
+    let fontWeight: Font.Weight
+    let foregroundColor: Color
+
+    @State private var displayedText = ""
+    @State private var animator = TypewriterAnimator()
+
+    var body: some View {
+        Text(displayedText)
+            .font(font)
+            .fontWeight(fontWeight)
+            .foregroundColor(foregroundColor)
+            .onAppear {
+                // Start animation when view appears
+                Task {
+                    await animator.enqueueText(content, for: "recipe-name") { displayedContent in
+                        await MainActor.run {
+                            self.displayedText = displayedContent
+                        }
+                    } onComplete: {
+                        // Animation complete
+                    }
+                }
+            }
+            .onChange(of: content) { oldValue, newValue in
+                // Reset and animate new content
+                if oldValue != newValue {
+                    displayedText = ""
+                    Task {
+                        await animator.cancel("recipe-name")
+                        await animator.enqueueText(newValue, for: "recipe-name") { displayedContent in
+                            await MainActor.run {
+                                self.displayedText = displayedContent
+                            }
+                        } onComplete: {
+                            // Animation complete
+                        }
+                    }
+                }
+            }
+    }
+}
+
 // MARK: - Hero Image Section
 
 struct RecipeGenerationHeroImage: View {
@@ -138,11 +186,13 @@ struct RecipeGenerationMetadata: View {
                         .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
                         .submitLabel(.done)
                 } else if !recipeName.isEmpty {
-                    Text(recipeName)
-                        .font(.custom("Playfair Display", size: 34))
-                        .fontWeight(.bold)
-                        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
-                        .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
+                    TypewriterText(
+                        content: recipeName,
+                        font: .custom("Playfair Display", size: 34),
+                        fontWeight: .bold,
+                        foregroundColor: AppTheme.foregroundOnColor(for: colorScheme)
+                    )
+                    .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
                 } else {
                     Text("Tarif ismi")
                         .font(.system(size: 34, weight: .bold, design: .rounded))

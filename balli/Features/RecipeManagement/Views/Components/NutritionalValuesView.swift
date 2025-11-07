@@ -437,9 +437,9 @@ struct NutritionalValuesView: View {
 
                     // Center-Right: Current portion or stepper
                     if !isPortionAdjustmentExpanded {
-                        // Show current portion value
+                        // Show current portion value (base portion × multiplier)
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text("\(Int(currentPortionSize))")
+                            Text("\(Int(currentPortionSize * portionMultiplier))")
                                 .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .bold, design: .rounded))
                                 .foregroundStyle(AppTheme.primaryPurple)
 

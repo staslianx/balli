@@ -27,6 +27,7 @@ final class ResearchViewModelInitializer {
     // MARK: - Dependencies
 
     private let tokenBuffer: TokenBuffer
+    private let tokenSmoother: TokenSmoother
     private let streamProcessor: ResearchStreamProcessor
     private let stageCoordinator: ResearchStageCoordinator
     private let searchCoordinator: ResearchSearchCoordinator
@@ -38,6 +39,7 @@ final class ResearchViewModelInitializer {
 
     init(
         tokenBuffer: TokenBuffer,
+        tokenSmoother: TokenSmoother,
         streamProcessor: ResearchStreamProcessor,
         stageCoordinator: ResearchStageCoordinator,
         searchCoordinator: ResearchSearchCoordinator,
@@ -45,6 +47,7 @@ final class ResearchViewModelInitializer {
         currentUserId: String
     ) {
         self.tokenBuffer = tokenBuffer
+        self.tokenSmoother = tokenSmoother
         self.streamProcessor = streamProcessor
         self.stageCoordinator = stageCoordinator
         self.searchCoordinator = searchCoordinator
@@ -129,6 +132,7 @@ final class ResearchViewModelInitializer {
         // Initialize extracted components
         let eventHandler = ResearchEventHandler(
             tokenBuffer: tokenBuffer,
+            tokenSmoother: tokenSmoother,
             streamProcessor: streamProcessor,
             stageCoordinator: stageCoordinator,
             searchCoordinator: searchCoordinator,

@@ -54,7 +54,8 @@ jest.mock('../providers', () => ({
   getClassifierModel: jest.fn(() => 'gemini-1.5-flash'),
   getEmbedder: jest.fn(() => 'text-embedding-004'),
   getTier1Model: jest.fn(() => 'gemini-2.5-flash'),
-  getTier3Model: jest.fn(() => 'gemini-2.5-pro')
+  getTier3Model: jest.fn(() => 'gemini-2.5-flash'),
+  getNutritionCalculatorModel: jest.fn(() => 'gemini-2.5-pro')
 }));
 
 // Suppress console logs during tests (optional)

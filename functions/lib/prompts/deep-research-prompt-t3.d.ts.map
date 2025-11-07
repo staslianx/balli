@@ -1,1 +1,1 @@
-{"version":3,"file":"deep-research-prompt-t3.d.ts","sourceRoot":"","sources":["../../src/prompts/deep-research-prompt-t3.ts"],"names":[],"mappings":"AAAA;;;;;GAKG;AAEH,eAAO,MAAM,6BAA6B,kqnBAsXzC,CAAC;AAEF,wBAAgB,wBAAwB,CAAC,eAAe,EAAE,MAAM,GAAG,MAAM,CAKxE"}
+{"version":3,"file":"deep-research-prompt-t3.d.ts","sourceRoot":"","sources":["../../src/prompts/deep-research-prompt-t3.ts"],"names":[],"mappings":"AAAA;;;;;;GAMG;AAEH,eAAO,MAAM,6BAA6B,q4mBAgXzC,CAAC;AAEF,wBAAgB,wBAAwB,CAAC,eAAe,EAAE,MAAM,GAAG,MAAM,CAKxE"}

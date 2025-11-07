@@ -12,7 +12,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { onRequest } from 'firebase-functions/v2/https';
 import * as cors from 'cors';
 import { z } from 'genkit';
-import { logProviderSwitch, getRecipeModel, getTier3Model } from './providers';
+import { logProviderSwitch, getRecipeModel, getNutritionCalculatorModel } from './providers';
 import { cacheManager } from './cache-manager';
 import { ai } from './genkit-instance';
 // Removed extractMainIngredients - using markdown parsing instead
@@ -438,26 +438,36 @@ export const generateRecipeFromIngredients = onRequest({
           }
 
           // Parse metadata from markdown
-          // Format: # Recipe Name\n**Hazırlık:** X dakika | **Pişirme:** X dakika | **Porsiyon:** 1 kişi
+          // Format: # Recipe Name\n**Hazırlık:** X dakika | **Pişirme:** X dakika | [**Bekleme:** X dakika |] **Porsiyon:** 1 kişi
           const lines = fullContent.split('\n');
           let recipeName = 'Tarif';
           let prepTime = 15;
           let cookTime = 20;
+          let waitingTime: number | null = null;
 
           // Extract recipe name from first line (# Recipe Name)
-          if (lines[0]?.startsWith('# ')) {
-            recipeName = lines[0].substring(2).trim();
+          // Skip any preliminary text before the first # heading
+          let nameLineIndex = lines.findIndex(line => line.trim().startsWith('# '));
+          if (nameLineIndex >= 0) {
+            recipeName = lines[nameLineIndex].substring(2).trim();
+            console.log(`📝 [MARKDOWN-PARSE] Found recipe name at line ${nameLineIndex}: "${recipeName}"`);
           }
 
-          // Extract times from second line
-          const timeLine = lines[1] || '';
+          // Extract times from the line after recipe name
+          const timeLine = lines[nameLineIndex + 1] || '';
           const prepMatch = timeLine.match(/\*\*Hazırlık:\*\*\s*(\d+)\s*dakika/i);
           const cookMatch = timeLine.match(/\*\*Pişirme:\*\*\s*(\d+)\s*dakika/i);
+          const waitMatch = timeLine.match(/\*\*Bekleme:\*\*\s*(\d+)\s*dakika/i);
 
           if (prepMatch) prepTime = parseInt(prepMatch[1]);
           if (cookMatch) cookTime = parseInt(cookMatch[1]);
+          if (waitMatch) waitingTime = parseInt(waitMatch[1]);
 
-          console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min`);
+          if (waitingTime) {
+            console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min, waiting=${waitingTime}min`);
+          } else {
+            console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min (no waiting time)`);
+          }
 
           // Send completion event with markdown content
           const recipeData = {
@@ -466,6 +476,7 @@ export const generateRecipeFromIngredients = onRequest({
             recipeContent: fullContent,  // The full markdown content
             prepTime: prepTime,
             cookTime: cookTime,
+            waitingTime: waitingTime,  // Optional waiting time (null if not present)
             servings: 1,
             tokenCount: tokenCount,
             // Extract ingredients for memory system (parse from markdown)
@@ -656,21 +667,31 @@ export const generateSpontaneousRecipe = onRequest({
         let recipeName = 'Tarif';
         let prepTime = 15;
         let cookTime = 20;
+        let waitingTime: number | null = null;
 
         // Extract recipe name from first line (# Recipe Name)
-        if (lines[0]?.startsWith('# ')) {
-          recipeName = lines[0].substring(2).trim();
+        // Skip any preliminary text before the first # heading
+        let nameLineIndex = lines.findIndex(line => line.trim().startsWith('# '));
+        if (nameLineIndex >= 0) {
+          recipeName = lines[nameLineIndex].substring(2).trim();
+          console.log(`📝 [MARKDOWN-PARSE] Found recipe name at line ${nameLineIndex}: "${recipeName}"`);
         }
 
-        // Extract times from second line
-        const timeLine = lines[1] || '';
+        // Extract times from the line after recipe name
+        const timeLine = lines[nameLineIndex + 1] || '';
         const prepMatch = timeLine.match(/\*\*Hazırlık:\*\*\s*(\d+)\s*dakika/i);
         const cookMatch = timeLine.match(/\*\*Pişirme:\*\*\s*(\d+)\s*dakika/i);
+        const waitMatch = timeLine.match(/\*\*Bekleme:\*\*\s*(\d+)\s*dakika/i);
 
         if (prepMatch) prepTime = parseInt(prepMatch[1]);
         if (cookMatch) cookTime = parseInt(cookMatch[1]);
+        if (waitMatch) waitingTime = parseInt(waitMatch[1]);
 
-        console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min`);
+        if (waitingTime) {
+          console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min, waiting=${waitingTime}min`);
+        } else {
+          console.log(`📝 [MARKDOWN-PARSE] Extracted: name="${recipeName}", prep=${prepTime}min, cook=${cookTime}min (no waiting time)`);
+        }
 
         // Extract ingredients from markdown
         const extractedIngredients = extractIngredientsFromMarkdown(fullContent);
@@ -682,6 +703,7 @@ export const generateSpontaneousRecipe = onRequest({
           recipeContent: fullContent,  // The full markdown content
           prepTime: prepTime,
           cookTime: cookTime,
+          waitingTime: waitingTime,  // Optional waiting time (null if not present)
           servings: 1,
           tokenCount: tokenCount,
           extractedIngredients,  // For iOS memory system
@@ -1193,14 +1215,14 @@ export const calculateRecipeNutrition = onRequest({
     // Load nutrition calculator prompt
     const nutritionPrompt = ai.prompt('recipe_nutrition_calculator');
 
-    // Call Gemini 2.5 Pro for nutrition analysis
+    // Call Gemini 2.5 Pro for nutrition analysis (requires Pro for accuracy)
     const result = await nutritionPrompt({
       recipeName: input.recipeName,
       recipeContent: input.recipeContent,
       servings: input.servings ?? 1,  // Default to 1 if null (manual recipes)
       recipeType: isManualRecipe ? "manual" : "aiGenerated"
     }, {
-      model: getTier3Model() // Explicitly use Gemini 2.5 Pro
+      model: getNutritionCalculatorModel() // Explicitly use Gemini 2.5 Pro for nutrition
     });
 
     // Log the complete AI response with all reasoning

@@ -133,10 +133,26 @@ class ResearchStreamingAPIClient {
                 // Primary trigger: \n\n (SSE event boundary)
                 // Secondary trigger: 256 bytes (prevents accumulation if boundary detection fails)
                 let hasEventBoundary = currentChunk.count > 1 && currentChunk.suffix(2) == Data([0x0A, 0x0A])
-                let shouldProcessChunk = hasEventBoundary || currentChunk.count >= 256
+
+                // UTF-8 SAFETY: Don't split multi-byte sequences at 256 byte boundary
+                // Check if last byte is start of multi-byte UTF-8 sequence
+                let isUTF8Continuation = currentChunk.count >= 256 && !hasEventBoundary && isUTF8SequenceStart(currentChunk.last)
+                let shouldProcessChunk = hasEventBoundary || (currentChunk.count >= 256 && !isUTF8Continuation)
+
+                // 🔍 LOG UTF-8 BOUNDARY WAIT
+                if isUTF8Continuation {
+                    let lastByte = currentChunk.last.map { String(format: "%02X", $0) } ?? "nil"
+                    streamingLogger.warning("⏸️ [UTF8-WAIT] Delaying chunk at 256 bytes - last byte [\(lastByte)] starts multi-byte sequence")
+                }
 
                 if shouldProcessChunk {
-                    streamingLogger.debug("🔵 [STREAM-BYTE] Processing chunk: \(currentChunk.count) bytes, boundary: \(hasEventBoundary)")
+                    // 🔍 FORENSIC: Log raw chunk details with UTF-8 validation
+                    let chunkString = String(data: currentChunk, encoding: .utf8) ?? "<invalid UTF-8>"
+                    let hexBytes = currentChunk.prefix(20).map { String(format: "%02X", $0) }.joined(separator: " ")
+                    let lastBytes = currentChunk.suffix(5).map { String(format: "%02X", $0) }.joined(separator: " ")
+                    let isValidUTF8 = String(data: currentChunk, encoding: .utf8) != nil
+                    streamingLogger.debug("🔵 [RAW-CHUNK] bytes=\(currentChunk.count), boundary=\(hasEventBoundary), validUTF8=\(isValidUTF8), lastBytes=[\(lastBytes)], preview='\(chunkString.prefix(100))'")
+
                     // Append chunk to parser
                     await streamParser.appendToDataBuffer(currentChunk)
                     currentChunk.removeAll(keepingCapacity: true)
@@ -272,6 +288,23 @@ class ResearchStreamingAPIClient {
             streamingLogger.error("❌ Unexpected error: \(error.localizedDescription, privacy: .public)")
             onError(ResearchSearchError.networkError)
         }
+    }
+
+    // MARK: - UTF-8 Helper
+
+    /// Check if a byte is the start of a multi-byte UTF-8 sequence
+    /// UTF-8 encoding:
+    /// - 0xxxxxxx = single byte (ASCII)
+    /// - 110xxxxx = start of 2-byte sequence
+    /// - 1110xxxx = start of 3-byte sequence
+    /// - 11110xxx = start of 4-byte sequence
+    /// - 10xxxxxx = continuation byte
+    private func isUTF8SequenceStart(_ byte: UInt8?) -> Bool {
+        guard let byte = byte else { return false }
+        // Check if byte starts a multi-byte sequence (110xxxxx, 1110xxxx, 11110xxx)
+        return (byte & 0b11100000) == 0b11000000 ||  // 2-byte start
+               (byte & 0b11110000) == 0b11100000 ||  // 3-byte start
+               (byte & 0b11111000) == 0b11110000     // 4-byte start
     }
 
     // MARK: - Feedback Submission

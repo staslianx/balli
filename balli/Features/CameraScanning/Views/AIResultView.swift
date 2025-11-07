@@ -129,31 +129,45 @@ struct AIResultView: View {
                             .padding(.bottom, ResponsiveDesign.height(12))
                         } else if viewModel.uiState.showSaveButtons {
                             // Show both edit and save buttons after user taps done
-                            HStack(spacing: 16) {
-                                // Edit button (pencil) - circular, transparent glass
+                            HStack(spacing: 60) {
+                                // Edit button (pencil) - circular, transparent glass with purple icon
                                 Button(action: { viewModel.toggleEditMode() }) {
                                     Image(systemName: "pencil")
                                         .font(.system(size: 20, weight: .medium, design: .rounded))
-                                        .foregroundColor(.primary)
+                                        .foregroundColor(AppTheme.primaryPurple)
+                                        .frame(width: ResponsiveDesign.height(72), height: ResponsiveDesign.height(72))
+                                        .background(
+                                            Circle()
+                                                .fill(.clear)
+                                                .glassEffect(.regular.interactive(), in: Circle())
+                                        )
+                                        .overlay(
+                                            Circle()
+                                                .stroke(
+                                                    LinearGradient(
+                                                        colors: [
+                                                            AppTheme.primaryPurple.opacity(0.15),
+                                                            AppTheme.primaryPurple.opacity(0.05)
+                                                        ],
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing
+                                                    ),
+                                                    lineWidth: 0.5
+                                                )
+                                        )
                                 }
-                                .toolbarCircularGlass(size: ResponsiveDesign.height(72))
 
-                                // Save button - pill-shaped, filled purple (distinguishable)
+                                // Save button - circular, filled purple with white checkmark
                                 Button(action: handleSave) {
-                                    HStack(spacing: 12) {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                        Text("Kaydet")
-                                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                    }
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 32)
-                                    .padding(.vertical, 18)
-                                    .background(
-                                        Capsule()  // Pill shape
-                                            .fill(AppTheme.primaryPurple)
-                                            .glassEffect(.regular.interactive(), in: Capsule())
-                                    )
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 20, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(.white)
+                                        .frame(width: ResponsiveDesign.height(72), height: ResponsiveDesign.height(72))
+                                        .background(
+                                            Circle()
+                                                .fill(AppTheme.primaryPurple)
+                                                .glassEffect(.regular.interactive(), in: Circle())
+                                        )
                                 }
                             }
                             .padding(.bottom, ResponsiveDesign.height(12))

@@ -210,6 +210,14 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     if let times = self.extractTimes(from: fullContent) {
                         self.prepTime = times.prepTime
                         self.cookTime = times.cookTime
+
+                        // CRITICAL: Update formState with extracted times for persistence
+                        if let prep = times.prepTime {
+                            self.formState.prepTime = "\(prep)"
+                        }
+                        if let cook = times.cookTime {
+                            self.formState.cookTime = "\(cook)"
+                        }
                     }
 
                     // Remove header and metadata from displayed content

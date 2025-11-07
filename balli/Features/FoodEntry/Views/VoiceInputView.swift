@@ -326,7 +326,7 @@ struct VoiceInputView: View {
 
                     // Initialize insulin data if present
                     if let insulinDosage = mealData.insulinDosage, insulinDosage > 0 {
-                        editableInsulinDosage = insulinDosage
+                        editableInsulinDosage = insulinDosage.rounded() // Round to nearest integer
                         editableInsulinType = mealData.insulinType
                         editableInsulinName = mealData.insulinName
                         hasInsulin = true

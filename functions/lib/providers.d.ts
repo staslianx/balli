@@ -11,6 +11,7 @@ interface ModelReference {
     tier1: any;
     tier2: any;
     tier3: any;
+    nutritionCalculator: any;
 }
 export declare function getProviderConfig(): ProviderConfig['plugin'];
 export declare function getProviderName(): 'googleai' | 'vertexai';
@@ -25,6 +26,7 @@ export declare function getRouterModel(): any;
 export declare function getTier1Model(): any;
 export declare function getTier2Model(): any;
 export declare function getTier3Model(): any;
+export declare function getNutritionCalculatorModel(): any;
 export declare function supportsContextCaching(): boolean;
 export declare function getProviderSpecificConfig(): {
     type: "vertexai";

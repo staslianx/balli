@@ -794,6 +794,12 @@ async function streamDeepResearch(res, question, userId, diabetesProfile, conver
         config: {
             temperature: 0.15,
             maxOutputTokens: 12000,
+            // Enable dynamic thinking mode for T3 deep research (Gemini 2.5 Flash with extended reasoning)
+            // thinkingBudget: -1 enables dynamic thinking (model adjusts budget based on complexity)
+            // This increases latency but significantly improves quality for complex medical research
+            thinkingConfig: {
+                thinkingBudget: -1 // Dynamic thinking: model decides thinking token budget
+            },
             // CRITICAL: Allow medical content for diabetes health assistant
             safetySettings: [
                 { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },

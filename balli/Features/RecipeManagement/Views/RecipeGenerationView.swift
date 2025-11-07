@@ -64,60 +64,63 @@ struct RecipeGenerationView: View {
         return true
     }
 
-    var body: some View {
-        ZStack {
-            // MARK: - Error Banner
-            if let errorMessage = viewModel.generationError {
-                    VStack {
-                        HStack(spacing: 12) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundStyle(.white)
-                                .font(.system(size: 20))
+    @ViewBuilder
+    private var errorBanner: some View {
+        if let errorMessage = viewModel.generationError {
+            VStack {
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.white)
+                        .font(.system(size: 20))
 
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Tarif Oluşturulamadı")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundStyle(.white)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Tarif Oluşturulamadı")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white)
 
-                                Text(errorMessage)
-                                    .font(.system(size: 14))
-                                    .foregroundStyle(.white.opacity(0.9))
-                            }
+                        Text(errorMessage)
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.9))
+                    }
 
-                            Spacer()
+                    Spacer()
 
-                            Button {
-                                // Retry generation with same parameters
-                                let (shouldShowMenu, _) = generationViewModel.determineGenerationFlow()
-                                if shouldShowMenu {
-                                    showingMealSelection = true
-                                } else {
-                                    Task {
-                                        await generationViewModel.startGenerationWithDefaults()
-                                    }
-                                }
-                            } label: {
-                                Text("Tekrar Dene")
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
-                                    .background(Color.white.opacity(0.2))
-                                    .cornerRadius(8)
+                    Button {
+                        let (shouldShowMenu, _) = generationViewModel.determineGenerationFlow()
+                        if shouldShowMenu {
+                            showingMealSelection = true
+                        } else {
+                            Task {
+                                await generationViewModel.startGenerationWithDefaults()
                             }
                         }
-                        .padding(16)
-                        .background(Color.red.gradient)
-                        .cornerRadius(12)
-                        .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 60)
-
-                        Spacer()
+                    } label: {
+                        Text("Tekrar Dene")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.white.opacity(0.2))
+                            .cornerRadius(8)
                     }
-                    .zIndex(100)
-                    .transition(.move(edge: .top).combined(with: .opacity))
                 }
+                .padding(16)
+                .background(Color.red.gradient)
+                .cornerRadius(12)
+                .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                .padding(.horizontal, 20)
+                .padding(.top, 60)
+
+                Spacer()
+            }
+            .zIndex(100)
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            errorBanner
 
                 // MARK: - Scrollable Content
                 GeometryReader { geometry in
@@ -159,6 +162,7 @@ struct RecipeGenerationView: View {
                                 // Recipe content (markdown or manual input)
                                 RecipeGenerationContentSection(
                                     recipeContent: viewModel.recipeContent,
+                                    isStreaming: viewModel.isGeneratingRecipe,
                                     manualIngredients: $generationViewModel.manualIngredients,
                                     manualSteps: $generationViewModel.manualSteps,
                                     isAddingIngredient: $isAddingIngredient,
@@ -213,132 +217,9 @@ struct RecipeGenerationView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(ThemeColors.primaryPurple)
-                }
-            }
-
-            // Center item - time pills
-            ToolbarItem(placement: .principal) {
-                if viewModel.generationCoordinator.prepTime != nil || viewModel.generationCoordinator.cookTime != nil {
-                    HStack(spacing: 8) {
-                        if let prep = viewModel.generationCoordinator.prepTime {
-                            RecipeTimePill(icon: "timer", time: prep, label: "Hazırlık")
-                        }
-                        if let cook = viewModel.generationCoordinator.cookTime {
-                            RecipeTimePill(icon: "flame", time: cook, label: "Pişirme")
-                        }
-                    }
-                    .fixedSize()
-                }
-            }
-
-            // Trailing buttons (save + generate)
-            ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 12) {
-                    // Save button (checkmark) - shown after generation completes
-                    if showSaveButton {
-                        Button {
-                            Task {
-                                // For manual recipes, use the editable name
-                                if generationViewModel.isManualRecipe {
-                                    viewModel.recipeName = editableRecipeName.trimmingCharacters(in: .whitespacesAndNewlines)
-                                }
-
-                                await generationViewModel.saveRecipe()
-                                if generationViewModel.isSaved {
-                                    toastMessage = .success("Tarif kaydedildi!")
-                                } else if generationViewModel.isManualRecipe && editableRecipeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    toastMessage = .error("Lütfen tarif ismi girin")
-                                }
-                            }
-                        } label: {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(canSaveRecipe ? ThemeColors.primaryPurple : ThemeColors.primaryPurple.opacity(0.3))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!canSaveRecipe)
-                    }
-
-                    // Generate menu button (balli logo)
-                    Button {
-                        let (shouldShowMenu, reason) = generationViewModel.determineGenerationFlow()
-                        logger.info("\(reason)")
-
-                        if shouldShowMenu {
-                            showingMealSelection = true
-                        } else {
-                            Task {
-                                await generationViewModel.startGenerationWithDefaults()
-                            }
-                        }
-                    } label: {
-                        Image("balli-logo")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 20, height: 20)
-                            .rotationEffect(.degrees(viewModel.isGeneratingRecipe ? 360 : 0))
-                            .animation(
-                                viewModel.isGeneratingRecipe ?
-                                    .linear(duration: 1.0).repeatForever(autoreverses: false) :
-                                    .default,
-                                value: viewModel.isGeneratingRecipe
-                            )
-                            .onChange(of: viewModel.isGeneratingRecipe) { oldValue, newValue in
-                                logger.info("🔄 [VIEW] isGeneratingRecipe changed: \(oldValue) → \(newValue)")
-                            }
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+            toolbarConfiguration
         }
-        .sheet(isPresented: $showingMealSelection) {
-            RecipeMealSelectionView(
-                selectedMealType: $generationViewModel.selectedMealType,
-                selectedStyleType: $generationViewModel.selectedStyleType,
-                onGenerate: {
-                    Task {
-                        await generationViewModel.startGeneration()
-                    }
-                }
-            )
-            .presentationDetents([.fraction(0.4)])
-        }
-        .sheet(isPresented: $showingNutritionModal) {
-            NutritionalValuesView(
-                recipe: ObservableRecipeWrapper(recipe: nil),  // Recipe not saved yet during generation
-                recipeName: viewModel.recipeName,
-                calories: viewModel.calories,
-                carbohydrates: viewModel.carbohydrates,
-                fiber: viewModel.fiber,
-                sugar: viewModel.sugar,
-                protein: viewModel.protein,
-                fat: viewModel.fat,
-                glycemicLoad: viewModel.glycemicLoad,
-                caloriesPerServing: viewModel.caloriesPerServing,
-                carbohydratesPerServing: viewModel.carbohydratesPerServing,
-                fiberPerServing: viewModel.fiberPerServing,
-                sugarPerServing: viewModel.sugarPerServing,
-                proteinPerServing: viewModel.proteinPerServing,
-                fatPerServing: viewModel.fatPerServing,
-                glycemicLoadPerServing: viewModel.glycemicLoadPerServing,
-                totalRecipeWeight: viewModel.totalRecipeWeight,
-                digestionTiming: viewModel.digestionTiming,
-                portionMultiplier: $viewModel.portionMultiplier
-            )
-            .presentationDetents([.large])
-        }
-        .sheet(isPresented: $actionsHandler.showingNotesModal) {
-            UserNotesModalView(notes: $generationViewModel.userNotes) { newNotes in
-                logger.info("💬 [NOTES] User saved notes: '\(newNotes.prefix(50))...'")
-            }
-        }
+        .background(sheetConfigurations)
         .onAppear {
             // Set up toast callback with weak self to prevent retain cycles
             actionsHandler.onShowToast = { [weak actionsHandler] toast in
@@ -392,6 +273,185 @@ struct RecipeGenerationView: View {
                     viewModel.isCalculatingNutrition
                 }
             }
+        }
+    }
+
+    // MARK: - Toolbar Configuration
+
+    @ToolbarContentBuilder
+    private var toolbarConfiguration: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            leadingToolbarItem
+        }
+
+        ToolbarItem(placement: .principal) {
+            centerToolbarItem
+        }
+
+        ToolbarItem(placement: .navigationBarTrailing) {
+            trailingToolbarItem
+        }
+    }
+
+    @ViewBuilder
+    private var leadingToolbarItem: some View {
+        Button {
+            dismiss()
+        } label: {
+            Image(systemName: "chevron.left")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(ThemeColors.primaryPurple)
+        }
+    }
+
+    @ViewBuilder
+    private var centerToolbarItem: some View {
+        if viewModel.generationCoordinator.prepTime != nil || viewModel.generationCoordinator.cookTime != nil {
+            HStack(spacing: 8) {
+                if let prep = viewModel.generationCoordinator.prepTime {
+                    RecipeTimePill(icon: "timer", time: prep, label: "Hazırlık")
+                }
+                if let cook = viewModel.generationCoordinator.cookTime {
+                    RecipeTimePill(icon: "flame", time: cook, label: "Pişirme")
+                }
+            }
+            .fixedSize()
+        }
+    }
+
+    @ViewBuilder
+    private var trailingToolbarItem: some View {
+        HStack(spacing: 12) {
+            if showSaveButton {
+                saveButton
+            }
+            generateButton
+        }
+    }
+
+    @ViewBuilder
+    private var saveButton: some View {
+        Button {
+            Task {
+                if generationViewModel.isManualRecipe {
+                    viewModel.recipeName = editableRecipeName.trimmingCharacters(in: .whitespacesAndNewlines)
+                }
+
+                await generationViewModel.saveRecipe()
+                if generationViewModel.isSaved {
+                    toastMessage = .success("Tarif kaydedildi!")
+                } else if generationViewModel.isManualRecipe && editableRecipeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    toastMessage = .error("Lütfen tarif ismi girin")
+                }
+            }
+        } label: {
+            Image(systemName: "checkmark")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(canSaveRecipe ? ThemeColors.primaryPurple : ThemeColors.primaryPurple.opacity(0.3))
+        }
+        .buttonStyle(.plain)
+        .disabled(!canSaveRecipe)
+    }
+
+    @ViewBuilder
+    private var generateButton: some View {
+        Button {
+            let (shouldShowMenu, reason) = generationViewModel.determineGenerationFlow()
+            logger.info("\(reason)")
+
+            if shouldShowMenu {
+                showingMealSelection = true
+            } else {
+                Task {
+                    await generationViewModel.startGenerationWithDefaults()
+                }
+            }
+        } label: {
+            generateButtonContent
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var generateButtonContent: some View {
+        Image("balli-logo")
+            .resizable()
+            .scaledToFit()
+            .frame(width: 20, height: 20)
+            .rotationEffect(.degrees(viewModel.isGeneratingRecipe ? 360 : 0))
+            .animation(
+                viewModel.isGeneratingRecipe ?
+                    .linear(duration: 1.0).repeatForever(autoreverses: false) :
+                    .default,
+                value: viewModel.isGeneratingRecipe
+            )
+            .onChange(of: viewModel.isGeneratingRecipe) { oldValue, newValue in
+                logger.info("🔄 [VIEW] isGeneratingRecipe changed: \(oldValue) → \(newValue)")
+            }
+    }
+}
+
+// MARK: - Sheet Configurations
+
+extension RecipeGenerationView {
+    @ViewBuilder
+    var sheetConfigurations: some View {
+        EmptyView()
+            .sheet(isPresented: $showingMealSelection) {
+                mealSelectionSheet
+            }
+            .sheet(isPresented: $showingNutritionModal) {
+                nutritionModalSheet
+            }
+            .sheet(isPresented: $actionsHandler.showingNotesModal) {
+                notesModalSheet
+            }
+    }
+
+    @ViewBuilder
+    private var mealSelectionSheet: some View {
+        RecipeMealSelectionView(
+            selectedMealType: $generationViewModel.selectedMealType,
+            selectedStyleType: $generationViewModel.selectedStyleType,
+            onGenerate: {
+                Task {
+                    await generationViewModel.startGeneration()
+                }
+            }
+        )
+        .presentationDetents([.fraction(0.4)])
+    }
+
+    @ViewBuilder
+    private var nutritionModalSheet: some View {
+        NutritionalValuesView(
+            recipe: ObservableRecipeWrapper(recipe: nil),
+            recipeName: viewModel.recipeName,
+            calories: viewModel.calories,
+            carbohydrates: viewModel.carbohydrates,
+            fiber: viewModel.fiber,
+            sugar: viewModel.sugar,
+            protein: viewModel.protein,
+            fat: viewModel.fat,
+            glycemicLoad: viewModel.glycemicLoad,
+            caloriesPerServing: viewModel.caloriesPerServing,
+            carbohydratesPerServing: viewModel.carbohydratesPerServing,
+            fiberPerServing: viewModel.fiberPerServing,
+            sugarPerServing: viewModel.sugarPerServing,
+            proteinPerServing: viewModel.proteinPerServing,
+            fatPerServing: viewModel.fatPerServing,
+            glycemicLoadPerServing: viewModel.glycemicLoadPerServing,
+            totalRecipeWeight: viewModel.totalRecipeWeight,
+            digestionTiming: viewModel.digestionTiming,
+            portionMultiplier: $viewModel.portionMultiplier
+        )
+        .presentationDetents([.large])
+    }
+
+    @ViewBuilder
+    private var notesModalSheet: some View {
+        UserNotesModalView(notes: $generationViewModel.userNotes) { newNotes in
+            logger.info("💬 [NOTES] User saved notes: '\(newNotes.prefix(50))...'")
         }
     }
 }

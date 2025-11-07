@@ -107,9 +107,10 @@ struct MarkdownText: View {
             // Cancel previous debounce to reset the timer
             debounceTask?.cancel()
 
-            // Wait 50ms before parsing - batches rapid SSE tokens while staying responsive
+            // Wait 5ms before parsing - minimal debounce since TokenSmoother handles rate limiting
+            // Reduced from 50ms because TokenSmoother already delivers at steady 50ms rate
             debounceTask = Task {
-                try? await Task.sleep(for: .milliseconds(50))
+                try? await Task.sleep(for: .milliseconds(5))
 
                 // If not cancelled during debounce, trigger parse
                 guard !Task.isCancelled else { return }

@@ -13,6 +13,7 @@ exports.getRouterModel = getRouterModel;
 exports.getTier1Model = getTier1Model;
 exports.getTier2Model = getTier2Model;
 exports.getTier3Model = getTier3Model;
+exports.getNutritionCalculatorModel = getNutritionCalculatorModel;
 exports.supportsContextCaching = supportsContextCaching;
 exports.getProviderSpecificConfig = getProviderSpecificConfig;
 exports.getProviderError = getProviderError;
@@ -78,7 +79,8 @@ function getModelReferences() {
             router: 'vertexai/gemini-2.5-flash-lite', // Fast, cheap for classification
             tier1: 'vertexai/gemini-2.5-flash', // Direct knowledge
             tier2: 'vertexai/gemini-2.5-flash', // Web search
-            tier3: 'vertexai/gemini-2.5-pro' // Medical research
+            tier3: 'vertexai/gemini-2.5-flash', // Medical research with thinking mode
+            nutritionCalculator: 'vertexai/gemini-2.5-pro' // Nutrition calculation (stays Pro)
         };
     }
     else {
@@ -95,7 +97,8 @@ function getModelReferences() {
             router: 'googleai/gemini-2.5-flash-lite', // Fast, cheap for classification
             tier1: 'googleai/gemini-2.5-flash', // Direct knowledge
             tier2: 'googleai/gemini-2.5-flash', // Web search
-            tier3: 'googleai/gemini-2.5-pro' // Medical research
+            tier3: 'googleai/gemini-2.5-flash', // Medical research with thinking mode
+            nutritionCalculator: 'googleai/gemini-2.5-pro' // Nutrition calculation (stays Pro)
         };
     }
 }
@@ -132,6 +135,9 @@ function getTier2Model() {
 }
 function getTier3Model() {
     return getModelReferences().tier3;
+}
+function getNutritionCalculatorModel() {
+    return getModelReferences().nutritionCalculator;
 }
 // Context caching support detection
 function supportsContextCaching() {

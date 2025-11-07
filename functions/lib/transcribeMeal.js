@@ -113,13 +113,17 @@ async function transcribeMealAudio(input) {
 
 Kullanıcı doğal bir şekilde konuşuyor. İki farklı şekilde konuşabilir:
 
-TİP 1 - Basit format (toplam karbonhidrat):
+TİP 1 - Basit format (sadece toplam karbonhidrat):
 "yumurta yedim, peynir yedim, domates yedim, toplam 30 gram karbonhidrat"
-→ Yiyecekleri listele, toplam karbonhidratı kaydet
+→ foods: [{name: "yumurta", carbs: null}, {name: "peynir", carbs: null}, {name: "domates", carbs: null}]
+→ totalCarbs: 30
+→ TOPLAM DEĞER BİR YEMEĞE ATANMAZ!
 
 TİP 2 - Detaylı format (her yiyecek için ayrı):
-"2 yumurta bu 10 gram karbonhidrat, ekmek 20 gram karbonhidrat"
-→ Her yiyecek için ayrı karbonhidrat değeri kaydet
+"2 yumurta bu 10 gram karbonhidrat, ekmek 20 gram karbonhidrat, toplam 30 gram"
+→ foods: [{name: "yumurta", amount: "2 adet", carbs: 10}, {name: "ekmek", carbs: 20}]
+→ totalCarbs: 30
+→ Her yiyecek kendi karbonhidrat değerine sahip
 
 Kullanıcı hangi formatta konuşursa konuşsun, doğal konuşmayı anla ve yapılandır.
 
@@ -157,9 +161,12 @@ Kullanıcı insülin dozunu da söyleyebilir. İnsülin öğünle birlikte (bolu
   "confidence": "çıkarım güvenilirliği - high, medium, veya low"
 }
 
-ÖNEMLI:
-- Eğer kullanıcı her yiyecek için ayrı karbonhidrat söylediyse, foods array'indeki her item'ın carbs değeri olmalı
-- Eğer sadece toplam karbonhidrat söylediyse, foods array'indeki carbs değerleri null olmalı
+ÖNEMLI - KARBONHIDRAT KURALLARI:
+- Eğer kullanıcı her yiyecek için ayrı karbonhidrat söylediyse (TİP 2), foods array'indeki her item'ın carbs değeri olmalı
+- Eğer sadece toplam karbonhidrat söylediyse (TİP 1), foods array'indeki TÜM carbs değerleri MUTLAKA null olmalı
+  ❌ YANLIŞ: foods: [{name: "ekmek", carbs: 40}, {name: "peynir", carbs: null}] - Toplam 40g durumunda
+  ✅ DOĞRU: foods: [{name: "ekmek", carbs: null}, {name: "peynir", carbs: null}] - Toplam 40g durumunda
+- Toplam karbonhidratı BİR YEMEĞE ATAMA! Toplam ayrı, yiyecekler ayrı!
 - totalCarbs her zaman dolu olmalı (ya toplam, ya da items'ların toplamı)
 - Eğer karbonhidrat hiç belirtilmediyse totalCarbs = 0 ve confidence = "low"
 - "onu saymıyoruz", "onda yok" gibi ifadeler = carbs: 0

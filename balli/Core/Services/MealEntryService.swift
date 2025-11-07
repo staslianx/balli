@@ -103,7 +103,17 @@ final class MealEntryService {
             self.logger.info("✅ Saved meal entry: \(totalCarbs)g carbs, \(mealType)")
         }
 
-        // No manual merge needed - automatic merging handles it without blocking main thread
+        // CRITICAL FIX: automaticallyMergesChangesFromParent merges silently without triggering
+        // NSManagedObjectContextObjectsDidChange notifications. We must explicitly notify
+        // observers (like GlucoseChartViewModel) that meal data has changed.
+        await MainActor.run {
+            NotificationCenter.default.post(
+                name: .mealEntryDidSave,
+                object: nil,
+                userInfo: ["timestamp": timestamp, "mealType": mealType]
+            )
+            self.logger.debug("Posted mealEntryDidSave notification for glucose chart refresh")
+        }
     }
 
     // MARK: - Private Helpers
@@ -366,4 +376,12 @@ enum MealEntryServiceError: LocalizedError {
             return "Failed to save meal entry: \(error.localizedDescription)"
         }
     }
+}
+
+// MARK: - Notifications
+
+extension Notification.Name {
+    /// Posted when a meal entry is successfully saved to Core Data
+    /// Allows glucose chart and other observers to refresh immediately
+    static let mealEntryDidSave = Notification.Name("mealEntryDidSave")
 }

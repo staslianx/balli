@@ -20,7 +20,8 @@ interface ModelReference {
   router: any; // For tier routing (Flash Lite)
   tier1: any; // For direct knowledge (Flash)
   tier2: any; // For web search (Flash)
-  tier3: any; // For medical research (Pro)
+  tier3: any; // For medical research (Flash with thinking)
+  nutritionCalculator: any; // For nutrition calculation (Pro)
 }
 
 // Environment-based provider selection
@@ -86,7 +87,8 @@ export function getModelReferences(): ModelReference {
       router: 'vertexai/gemini-2.5-flash-lite', // Fast, cheap for classification
       tier1: 'vertexai/gemini-2.5-flash', // Direct knowledge
       tier2: 'vertexai/gemini-2.5-flash', // Web search
-      tier3: 'vertexai/gemini-2.5-pro' // Medical research
+      tier3: 'vertexai/gemini-2.5-flash', // Medical research with thinking mode
+      nutritionCalculator: 'vertexai/gemini-2.5-pro' // Nutrition calculation (stays Pro)
     };
   } else {
     // Google AI - use stable model names from Google AI API
@@ -102,7 +104,8 @@ export function getModelReferences(): ModelReference {
       router: 'googleai/gemini-2.5-flash-lite', // Fast, cheap for classification
       tier1: 'googleai/gemini-2.5-flash', // Direct knowledge
       tier2: 'googleai/gemini-2.5-flash', // Web search
-      tier3: 'googleai/gemini-2.5-pro' // Medical research
+      tier3: 'googleai/gemini-2.5-flash', // Medical research with thinking mode
+      nutritionCalculator: 'googleai/gemini-2.5-pro' // Nutrition calculation (stays Pro)
     };
   }
 }
@@ -149,6 +152,10 @@ export function getTier2Model() {
 
 export function getTier3Model() {
   return getModelReferences().tier3;
+}
+
+export function getNutritionCalculatorModel() {
+  return getModelReferences().nutritionCalculator;
 }
 
 // Context caching support detection

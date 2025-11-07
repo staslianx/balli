@@ -155,8 +155,11 @@ actor ResearchStreamParser {
             // Extract the complete event
             let eventData = String(textBuffer[..<eventEndRange.lowerBound])
 
-            // Store for processing
+            // 🔍 FORENSIC: Log complete SSE event before parsing
             if !eventData.isEmpty {
+                let eventPreview = eventData.prefix(200)
+                let eventBytes = eventData.utf8.count
+                logger.debug("🔍 [SSE-EVENT] bytes=\(eventBytes), preview='\(eventPreview)'")
                 processedEvents.append(eventData)
             }
 
@@ -203,9 +206,36 @@ actor ResearchStreamParser {
 
         switch event {
         case .token(let content):
+            // 🔍 WORD ORDER VALIDATION: Check for suspicious patterns
+            let previousTail = accumulatedAnswer.suffix(50)
+            let combinedText = String(previousTail) + content
+
+            // Check for common Turkish word patterns that might indicate reordering
+            let suspiciousPatterns = [
+                ("bu ", " bu"),      // "bu şekilde" vs "şekilde bu"
+                ("bir ", " bir"),    // Similar pattern
+                ("ve ", " ve"),      // "ve sonra" vs "sonra ve"
+                ("için ", " için"),  // Word order check
+            ]
+
+            for (correct, suspicious) in suspiciousPatterns {
+                if combinedText.contains(suspicious) && !combinedText.contains(correct + content.prefix(10)) {
+                    logger.error("⚠️ [WORD-ORDER] Potential reordering detected! Pattern '\(suspicious)' found near token boundary")
+                    logger.error("⚠️ [WORD-ORDER] Context: '...\(previousTail)\(content.prefix(30))...'")
+                }
+            }
+
             accumulatedAnswer += content
             tokenCount += 1
-            logger.debug("🟡 [TOKEN-EMIT] length=\(content.count), content='\(content.prefix(20))...', calling onToken callback")
+
+            // 🔍 FORENSIC: Detailed token emission tracking
+            let charCount = content.count
+            let bytes = content.utf8.map { String(format: "%02X", $0) }.joined(separator: " ")
+            let escapedContent = content.replacingOccurrences(of: "\n", with: "\\n")
+                .replacingOccurrences(of: "\t", with: "\\t")
+                .replacingOccurrences(of: "\r", with: "\\r")
+
+            logger.debug("🟡 [TOKEN-EMIT] #\(self.tokenCount) chars=\(charCount), bytes=[\(bytes)], accumulated=\(self.accumulatedAnswer.count), raw='\(escapedContent)'")
             onToken(content)
 
         case .tierSelected(let tier, let reasoning, let confidence):

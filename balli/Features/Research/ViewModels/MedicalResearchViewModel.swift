@@ -13,6 +13,21 @@ import SwiftData
 import OSLog
 import Combine
 
+/// Reconnection state for network retry UI
+enum ReconnectionState: Equatable {
+    case reconnecting(attempt: Int)
+    case reconnected
+
+    var displayMessage: String {
+        switch self {
+        case .reconnecting(let attempt):
+            return "Yeniden bağlanıyor... (deneme \(attempt)/3)"
+        case .reconnected:
+            return "Bağlantı yeniden kuruldu"
+        }
+    }
+}
+
 /// MedicalResearchViewModel manages medical research queries with T1/T2/T3 tier support
 /// Handles multi-round deep research, planning, reflection, and streaming synthesis
 /// @MainActor ensures all answer array mutations are serialized on the main thread
@@ -25,6 +40,9 @@ class MedicalResearchViewModel: ObservableObject {
 
     /// Track tier during search
     @Published var currentSearchTier: ResponseTier? = nil
+
+    /// Track reconnection state during network interruptions
+    @Published var reconnectionState: ReconnectionState? = nil
 
     // MARK: - Multi-Round Research State (delegated to stageCoordinator)
 
@@ -55,6 +73,7 @@ class MedicalResearchViewModel: ObservableObject {
     // MARK: - Convenience Properties
 
     /// Check if search is in progress
+    /// Returns true if backend is streaming
     var isSearching: Bool {
         searchState.isLoading
     }
@@ -93,6 +112,8 @@ class MedicalResearchViewModel: ObservableObject {
 
     private let searchService = ResearchStreamingAPIClient()
     private let tokenBuffer = TokenBuffer()
+    private let tokenSmoother = TokenSmoother()
+    private let connectionRetrier = ResearchConnectionRetrier()
     private let sessionManager: ResearchSessionManager
 
     // Extracted components
@@ -122,6 +143,7 @@ class MedicalResearchViewModel: ObservableObject {
         // Step 1: Initialize core components without observers
         let initializer = ResearchViewModelInitializer(
             tokenBuffer: tokenBuffer,
+            tokenSmoother: tokenSmoother,
             streamProcessor: streamProcessor,
             stageCoordinator: stageCoordinator,
             searchCoordinator: searchCoordinator,
@@ -356,27 +378,63 @@ class MedicalResearchViewModel: ObservableObject {
         let callbacksBuilder = ResearchStreamCallbacksBuilder(viewModel: self)
         let callbacks = callbacksBuilder.buildCallbacks(query: query, answerId: answerId)
 
-        await searchService.searchStreaming(
-            query: query,
-            userId: currentUserId,
-            conversationHistory: conversationHistory,
-            onToken: callbacks.onToken,
-            onTierSelected: callbacks.onTierSelected,
-            onSearchComplete: callbacks.onSearchComplete,
-            onSourcesReady: callbacks.onSourcesReady,
-            onComplete: callbacks.onComplete,
-            onError: callbacks.onError,
-            onPlanningStarted: callbacks.onPlanningStarted,
-            onPlanningComplete: callbacks.onPlanningComplete,
-            onRoundStarted: callbacks.onRoundStarted,
-            onRoundComplete: callbacks.onRoundComplete,
-            onApiStarted: callbacks.onApiStarted,
-            onReflectionStarted: callbacks.onReflectionStarted,
-            onReflectionComplete: callbacks.onReflectionComplete,
-            onSourceSelectionStarted: callbacks.onSourceSelectionStarted,
-            onSynthesisPreparation: callbacks.onSynthesisPreparation,
-            onSynthesisStarted: callbacks.onSynthesisStarted
-        )
+        // Wrap streaming call with retry logic for network resilience
+        do {
+            try await connectionRetrier.executeWithRetry(
+                operation: { [weak self] attempt in
+                    guard let self = self else { throw RetrierError.unknownFailure }
+
+                    // Execute streaming search (non-throwing wrapper)
+                    await self.searchService.searchStreaming(
+                        query: query,
+                        userId: self.currentUserId,
+                        conversationHistory: conversationHistory,
+                        onToken: callbacks.onToken,
+                        onTierSelected: callbacks.onTierSelected,
+                        onSearchComplete: callbacks.onSearchComplete,
+                        onSourcesReady: callbacks.onSourcesReady,
+                        onComplete: callbacks.onComplete,
+                        onError: callbacks.onError,
+                        onPlanningStarted: callbacks.onPlanningStarted,
+                        onPlanningComplete: callbacks.onPlanningComplete,
+                        onRoundStarted: callbacks.onRoundStarted,
+                        onRoundComplete: callbacks.onRoundComplete,
+                        onApiStarted: callbacks.onApiStarted,
+                        onReflectionStarted: callbacks.onReflectionStarted,
+                        onReflectionComplete: callbacks.onReflectionComplete,
+                        onSourceSelectionStarted: callbacks.onSourceSelectionStarted,
+                        onSynthesisPreparation: callbacks.onSynthesisPreparation,
+                        onSynthesisStarted: callbacks.onSynthesisStarted
+                    )
+
+                    return () // Return success
+                },
+                onReconnecting: { [weak self] attempt in
+                    await MainActor.run {
+                        self?.reconnectionState = .reconnecting(attempt: attempt)
+                        self?.logger.info("🔄 Reconnecting... attempt \(attempt)/3")
+                    }
+                },
+                onReconnected: { [weak self] in
+                    await MainActor.run {
+                        self?.reconnectionState = .reconnected
+                        self?.logger.info("✅ Reconnected successfully")
+
+                        // Clear reconnected state after 2 seconds
+                        Task {
+                            try? await Task.sleep(for: .seconds(2))
+                            await MainActor.run {
+                                self?.reconnectionState = nil
+                            }
+                        }
+                    }
+                }
+            )
+        } catch {
+            // If all retries exhausted, handle error normally
+            logger.error("❌ Stream failed after all retries: \(error.localizedDescription)")
+            callbacks.onError(error)
+        }
     }
 
     // MARK: - Event Handlers (Internal for ResearchStreamCallbacksBuilder)

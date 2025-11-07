@@ -18,6 +18,7 @@ final class ResearchEventHandler {
 
     // Dependencies
     private let tokenBuffer: TokenBuffer
+    private let tokenSmoother: TokenSmoother
     private let streamProcessor: ResearchStreamProcessor
     private let stageCoordinator: ResearchStageCoordinator
     private let searchCoordinator: ResearchSearchCoordinator
@@ -26,6 +27,7 @@ final class ResearchEventHandler {
 
     init(
         tokenBuffer: TokenBuffer,
+        tokenSmoother: TokenSmoother,
         streamProcessor: ResearchStreamProcessor,
         stageCoordinator: ResearchStageCoordinator,
         searchCoordinator: ResearchSearchCoordinator,
@@ -33,6 +35,7 @@ final class ResearchEventHandler {
         sessionManager: ResearchSessionManager
     ) {
         self.tokenBuffer = tokenBuffer
+        self.tokenSmoother = tokenSmoother
         self.streamProcessor = streamProcessor
         self.stageCoordinator = stageCoordinator
         self.searchCoordinator = searchCoordinator
@@ -57,43 +60,38 @@ final class ResearchEventHandler {
         nonisolated(unsafe) let capturedUpdateAnswer = updateAnswer
         nonisolated(unsafe) let capturedMarkFirstToken = markFirstTokenProcessed
 
-        await tokenBuffer.appendToken(token, for: answerId) { [weak self] batchedContent in
-            guard let self = self else { return }
+        // Direct streaming without animation layers
+        await MainActor.run {
+            guard let index = capturedGetAnswerIndex(answerId) else { return }
 
-            let deliverStart = Date()
-            Task { @MainActor in
-                let mainActorStart = Date()
-                guard let index = capturedGetAnswerIndex(answerId) else { return }
+            let currentAnswer = capturedGetAnswers()[index]
+            let firstTokenProcessed = capturedGetFirstTokenProcessed()
 
-                let currentAnswer = capturedGetAnswers()[index]
-                let firstTokenProcessed = capturedGetFirstTokenProcessed()
-
-                // Handle first token arrival
-                if currentAnswer.content.isEmpty && !firstTokenProcessed.contains(answerId) {
-                    capturedMarkFirstToken(answerId)
+            // Handle first token arrival
+            if currentAnswer.content.isEmpty && !firstTokenProcessed.contains(answerId) {
+                capturedMarkFirstToken(answerId)
+                Task {
                     await self.stageCoordinator.handleFirstTokenArrival(answerId: answerId)
                 }
-
-                let updatedContent = currentAnswer.content + batchedContent
-                let updatedAnswer = SearchAnswer(
-                    id: currentAnswer.id,
-                    query: currentAnswer.query,
-                    content: updatedContent,
-                    sources: currentAnswer.sources,
-                    citations: currentAnswer.citations,
-                    timestamp: currentAnswer.timestamp,
-                    tokenCount: currentAnswer.tokenCount,
-                    tier: currentAnswer.tier,
-                    thinkingSummary: currentAnswer.thinkingSummary,
-                    processingTierRaw: currentAnswer.processingTierRaw,
-                    completedRounds: currentAnswer.completedRounds,
-                    imageAttachment: currentAnswer.imageAttachment
-                )
-
-                capturedUpdateAnswer(index, updatedAnswer, currentAnswer.content.isEmpty)
-
-                let mainActorEnd = Date()
             }
+
+            // Update answer with new token appended directly
+            let updatedAnswer = SearchAnswer(
+                id: currentAnswer.id,
+                query: currentAnswer.query,
+                content: currentAnswer.content + token,  // Direct append, no animation
+                sources: currentAnswer.sources,
+                citations: currentAnswer.citations,
+                timestamp: currentAnswer.timestamp,
+                tokenCount: currentAnswer.tokenCount,
+                tier: currentAnswer.tier,
+                thinkingSummary: currentAnswer.thinkingSummary,
+                processingTierRaw: currentAnswer.processingTierRaw,
+                completedRounds: currentAnswer.completedRounds,
+                imageAttachment: currentAnswer.imageAttachment
+            )
+
+            capturedUpdateAnswer(index, updatedAnswer, currentAnswer.content.isEmpty)
         }
     }
 
@@ -194,35 +192,7 @@ final class ResearchEventHandler {
         nonisolated(unsafe) let capturedGetAnswers = getAnswers
         nonisolated(unsafe) let capturedUpdateAnswer = updateAnswer
 
-        // Flush remaining tokens
-        await tokenBuffer.flushRemaining(answerId) { [weak self] remainingContent in
-            guard self != nil else { return }
-
-            if !remainingContent.isEmpty {
-                Task { @MainActor in
-                    let answers = capturedGetAnswers()
-                    guard let index = answers.firstIndex(where: { $0.id == answerId }) else { return }
-
-                    let currentAnswer = answers[index]
-                    let finalContent = currentAnswer.content + remainingContent
-                    let updatedAnswer = SearchAnswer(
-                        id: currentAnswer.id,
-                        query: currentAnswer.query,
-                        content: finalContent,
-                        sources: currentAnswer.sources,
-                        citations: currentAnswer.citations,
-                        timestamp: currentAnswer.timestamp,
-                        tokenCount: currentAnswer.tokenCount,
-                        tier: currentAnswer.tier,
-                        thinkingSummary: currentAnswer.thinkingSummary,
-                        processingTierRaw: currentAnswer.processingTierRaw,
-                        completedRounds: currentAnswer.completedRounds,
-                        imageAttachment: currentAnswer.imageAttachment
-                    )
-                    capturedUpdateAnswer(index, updatedAnswer)
-                }
-            }
-        }
+        // No animation layers to flush - content already complete from direct streaming
 
         let answers = getAnswers()
         guard let index = answers.firstIndex(where: { $0.id == answerId }) else { return }
@@ -292,7 +262,7 @@ final class ResearchEventHandler {
         setSearchState: @escaping (ViewState<Void>) -> Void,
         setCurrentTier: @escaping (ResponseTier?) -> Void
     ) async {
-        await tokenBuffer.cancel(answerId)
+        // No animation layers to cancel - using direct streaming
 
         logger.error("Streaming error: \(error.localizedDescription, privacy: .public)")
         setSearchState(.error(error))

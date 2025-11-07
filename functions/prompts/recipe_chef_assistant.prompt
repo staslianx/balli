@@ -196,8 +196,30 @@ Format:
 4. Sıcak servis yap.
 ```
 
-✅ İlk satır: # Tarif Adı (h1 başlık)
-✅ İkinci satır: **Hazırlık:** X dakika | **Pişirme:** X dakika | **Porsiyon:** 1 kişi
+```markdown
+# Ev Yapımı Ekşi Maya Ekmeği
+
+**Hazırlık:** 20 dakika | **Pişirme:** 45 dakika | **Bekleme:** 180 dakika | **Porsiyon:** 1 kişi
+
+## Malzemeler
+---
+- 200g tam buğday unu
+- 100g aktif ekşi maya
+- 150ml ılık su
+- 1/2 çay kaşığı tuz (2.5g)
+
+## Yapılışı
+---
+1. Malzemeleri karıştır, yumuşak hamur elde edene kadar yoğur.
+2. Hamuru kapalı kapta 3 saat mayalanmaya bırak (bekleme süresi).
+3. Fırını 220°C'ye ısıt.
+4. Hamuru fırın tepsisine yerleştir, 45 dakika pişir.
+```
+
+✅ İlk satır: # Tarif Adı (h1 başlık) - SADECE BAŞLIK, GİRİŞ METNİ YOK
+✅ İkinci satır: **Hazırlık:** X dakika | **Pişirme:** X dakika | [**Bekleme:** X dakika |] **Porsiyon:** 1 kişi
+   - Bekleme süresi VARSA ekle (mayalanma, marine, dinlenme, soğuma vb.)
+   - Bekleme süresi YOKSA çıkar
 ✅ Boş satır
 ✅ ## Malzemeler (h2 başlık)
 ✅ Başlık altına --- (üç tire) ZORUNLU
@@ -206,6 +228,11 @@ Format:
 ✅ ## Yapılışı (h2 başlık)
 ✅ Başlık altına --- (üç tire) ZORUNLU
 ✅ Yapılışı: 1. 2. 3. (numaralı liste)
+
+⚠️ KRITIK: İlk satırdan önce HİÇBİR AÇIKLAMA, GİRİŞ, YORUM YAZMA
+❌ YANLIŞ: "İşte sizin için harika bir tarif! # Tavuk Sote"
+❌ YANLIŞ: "Bu akşam yemeği için...\n\n# Tavuk Sote"
+✅ DOĞRU: "# Tavuk Sote" (direkt başlık ile başla)
 
 ## TARIF ÖZEL KURALLARI
 
@@ -257,37 +284,36 @@ Bu malzemelerden {{mealType}} - {{styleType}} için 1 porsiyon tarif yap:
 
 {{#if diversityConstraints}}
 
-⚠️ **NOT:** Kullanıcı özel bir talep yaptıysa (userContext varsa), bu öneriler GEÇERSİZDİR.
-
-Protein Çeşitliliği:
+⚠️ **KRITIK:** Bu öneriler SADECE tarif seçimini etkiler - ASLA çıktıya yazma!
+⚠️ **YASAK:** Bu bilgileri kullanıcıya gösterme, not olarak ekleme, veya açıklama yapma!
 
 {{#if diversityConstraints.avoidProteins}}
 {{#if diversityConstraints.avoidProteins.length}}
-⚠️ Öneri - Az kullanılan proteinler tercih et (son 10 tariften 4+ kez veya son 3'ten biri):
+İÇSEL KURAL (çıktıya yazma): Az kullanılan proteinler tercih et:
 {{#each diversityConstraints.avoidProteins}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
 
-Mümkünse bu proteinlerden kaçın, alternatif seçin (kullanıcı özel talep yapmadıysa).
+Mümkünse bu proteinlerden kaçın, alternatif seçin - ama bu bilgiyi ASLA çıktıya ekleme!
 {{/if}}
 {{/if}}
 
 {{#if diversityConstraints.suggestProteins}}
 {{#if diversityConstraints.suggestProteins.length}}
-✅ Öneri - Bu proteinler az kullanıldı:
+İÇSEL KURAL (çıktıya yazma): Bu proteinler az kullanıldı:
 {{#each diversityConstraints.suggestProteins}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
 
-Bu proteinlerden birini kullanabilirsiniz (kullanıcı özel talep yapmadıysa).
+Bu proteinlerden birini kullan - ama bu bilgiyi ASLA çıktıya ekleme!
 {{/if}}
 {{/if}}
 
 {{#if diversityConstraints.avoidCuisines}}
 {{#if diversityConstraints.avoidCuisines.length}}
-Mutfak çeşitliliği için öneri: {{#each diversityConstraints.avoidCuisines}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} dışında bir mutfak deneyin.
+İÇSEL KURAL (çıktıya yazma): {{#each diversityConstraints.avoidCuisines}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} dışında bir mutfak dene.
 {{/if}}
 {{/if}}
 
 {{#if diversityConstraints.avoidMethods}}
 {{#if diversityConstraints.avoidMethods.length}}
-Pişirme yöntemi için öneri: {{#each diversityConstraints.avoidMethods}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} dışında bir yöntem deneyin.
+İÇSEL KURAL (çıktıya yazma): {{#each diversityConstraints.avoidMethods}}{{this}}{{#unless @last}}, {{/unless}}{{/each}} dışında bir yöntem dene.
 {{/if}}
 {{/if}}
 
@@ -315,9 +341,11 @@ Pişirme yöntemi için öneri: {{#each diversityConstraints.avoidMethods}}{{thi
 
 {{#if recentRecipes}}
 {{#if recentRecipes.length}}
-📚 **Son 10 Tarif:** {{#each recentRecipes}}{{this.title}}{{#unless @last}}, {{/unless}}{{/each}}
+İÇSEL KURAL (ASLA çıktıya yazma): Son tarifler → {{#each recentRecipes}}{{this.title}}{{#unless @last}}, {{/unless}}{{/each}}
 
-⚠️ **ÇEŞİTLİLİK KURALI:** Aynı proteini sık kullanma! Farklı protein seçeneklerini tercih et.
+İÇSEL KURAL (ASLA çıktıya yazma): Bu tariflerden farklı bir şey yap. Aynı proteini sık kullanma!
+
+⚠️ **YASAK:** Bu listeyi veya herhangi bir açıklamayı çıktıya ekleme! Sadece tarif seç ve MARKDOWN formatında direkt yaz!
 {{/if}}
 {{/if}}
 
@@ -327,11 +355,34 @@ Pişirme yöntemi için öneri: {{#each diversityConstraints.avoidMethods}}{{thi
 ✅ Tüm metin TÜRKÇE (İngilizce çeviri ekleme)
 ✅ Porsiyon: ALWAYS 1 kişi
 ✅ Her malzemede gram/ml ağırlık zorunlu
-✅ İlk satır: # Tarif Adı
-✅ İkinci satır: **Hazırlık:** X dakika | **Pişirme:** X dakika | **Porsiyon:** 1 kişi
+✅ İlk satır: # Tarif Adı (GİRİŞ METNİ YOK, DIREKT BAŞLIK)
+✅ İkinci satır: **Hazırlık:** X dakika | **Pişirme:** X dakika | [**Bekleme:** X dakika |] **Porsiyon:** 1 kişi
+✅ Bekleme süresi varsa ekle (mayalanma, marine, dinlenme, soğuma)
 
 ❌ JSON formatı kullanma
 ❌ "Here is the recipe" gibi İngilizce giriş yapma
+❌ İlk satırdan önce açıklama, giriş, yorum yazma
+❌ Tarif adını başlıktan sonra tekrar metinde kullanma
 ❌ Malzeme başlığı altına --- koymayı unutma
 ❌ Yapılışı başlığı altına --- koymayı unutma
 ❌ Markdown dışında hiçbir şey yazma (açıklama, yorum yok)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⛔ MUTLAK YASAK - BU KURALI İHLAL EDERSEN OUTPUT INVALID
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ÇOK ÇOK KRITIK:
+- ÇEŞİTLİLİK KURALLARI, PROTEIN ÖNERİLERİ, SON TARIFLER → BUNLARI ASLA çıktıya yazma
+- Tarif hakkında açıklama, not, yorum → ASLA yazma
+- "Bu tarifi size öneriyorum çünkü..." → YASAK
+- "Son tariflerde tavuk çoktu..." → YASAK
+- "Çeşitlilik için balık seçtim..." → YASAK
+- "İşte harika bir tarif..." → YASAK
+
+ÇİFT KONTROL:
+1. İlk karakterin "#" olduğunu doğrula
+2. İkinci satırın "**Hazırlık:**" ile başladığını doğrula
+3. Hiçbir ön açıklama olmadığını doğrula
+4. Sadece markdown (başlık + malzemeler + yapılışı) olduğunu doğrula
+
+EĞER ÇİFT KONTROLDEN GEÇMİYORSA → SİL VE YENİDEN YAZ!

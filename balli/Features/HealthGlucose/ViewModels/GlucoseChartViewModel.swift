@@ -157,6 +157,32 @@ final class GlucoseChartViewModel: ObservableObject {
                 }
             }
             .store(in: &cancellables)
+
+        // CRITICAL FIX: Subscribe to meal entry save notifications
+        // This catches voice-logged meals that save to background context
+        // automaticallyMergesChangesFromParent merges silently without triggering NSManagedObjectContextObjectsDidChange
+        NotificationCenter.default.publisher(for: .mealEntryDidSave)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                guard let self = self else { return }
+
+                Task { @MainActor in
+                    self.logger.info("🍽️ Meal entry saved - refreshing meal logs immediately")
+
+                    // Force immediate reload of meal logs
+                    guard let timeRange = self.calculateTimeRange() else {
+                        self.logger.error("Failed to calculate time range for meal log refresh")
+                        return
+                    }
+
+                    // Reload meal logs immediately
+                    self.loadMealLogs(timeRange: timeRange)
+
+                    // Force view refresh
+                    self.objectWillChange.send()
+                }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Public Methods
