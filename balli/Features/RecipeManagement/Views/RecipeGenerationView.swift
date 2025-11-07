@@ -30,6 +30,7 @@ struct RecipeGenerationView: View {
     @State private var toastMessage: ToastType? = nil
     @State private var editableRecipeName = ""
     @State private var showSaveButton = false
+    @State private var isContentAnimating = false  // Track typewriter animation state
     @FocusState private var focusedField: FocusField?
     @FocusState private var isNameFieldFocused: Bool
 
@@ -62,6 +63,12 @@ struct RecipeGenerationView: View {
             return !editableRecipeName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
         return true
+    }
+
+    /// True if backend is generating OR animation is still running
+    /// Prevents button rotation from stopping prematurely
+    private var isEffectivelyGenerating: Bool {
+        viewModel.isGeneratingRecipe || isContentAnimating
     }
 
     @ViewBuilder
@@ -169,7 +176,10 @@ struct RecipeGenerationView: View {
                                     isAddingStep: $isAddingStep,
                                     newIngredientText: $newIngredientText,
                                     newStepText: $newStepText,
-                                    focusedField: $focusedField
+                                    focusedField: $focusedField,
+                                    onAnimationStateChange: { isAnimating in
+                                        isContentAnimating = isAnimating
+                                    }
                                 )
                                 .padding(.horizontal, 20)
                                 .padding(.bottom, 40)
@@ -246,6 +256,12 @@ struct RecipeGenerationView: View {
         .onChange(of: viewModel.isAnimationComplete) { oldValue, newValue in
             // When streaming animation completes, show save button if recipe exists
             if !oldValue && newValue && !generationViewModel.isSaved {
+                showSaveButton = generationViewModel.shouldShowSaveButton
+            }
+        }
+        .onChange(of: isContentAnimating) { _, newValue in
+            // When typewriter animation stops, show save button if conditions met
+            if !newValue && !viewModel.isGeneratingRecipe && !generationViewModel.isSaved {
                 showSaveButton = generationViewModel.shouldShowSaveButton
             }
         }
@@ -378,15 +394,15 @@ struct RecipeGenerationView: View {
             .resizable()
             .scaledToFit()
             .frame(width: 20, height: 20)
-            .rotationEffect(.degrees(viewModel.isGeneratingRecipe ? 360 : 0))
+            .rotationEffect(.degrees(isEffectivelyGenerating ? 360 : 0))
             .animation(
-                viewModel.isGeneratingRecipe ?
+                isEffectivelyGenerating ?
                     .linear(duration: 1.0).repeatForever(autoreverses: false) :
                     .default,
-                value: viewModel.isGeneratingRecipe
+                value: isEffectivelyGenerating
             )
-            .onChange(of: viewModel.isGeneratingRecipe) { oldValue, newValue in
-                logger.info("🔄 [VIEW] isGeneratingRecipe changed: \(oldValue) → \(newValue)")
+            .onChange(of: isEffectivelyGenerating) { oldValue, newValue in
+                logger.info("🔄 [VIEW] isEffectivelyGenerating changed: \(oldValue) → \(newValue)")
             }
     }
 }

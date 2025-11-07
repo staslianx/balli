@@ -194,6 +194,7 @@ struct RecipeGenerationContentSection: View {
     @Binding var newIngredientText: String
     @Binding var newStepText: String
     var focusedField: FocusState<RecipeGenerationView.FocusField?>.Binding
+    let onAnimationStateChange: ((Bool) -> Void)?  // Callback for animation state
 
     var body: some View {
         Group {
@@ -206,7 +207,7 @@ struct RecipeGenerationContentSection: View {
                     content: recipeContent,
                     isStreaming: isStreaming,  // Use actual state from parent
                     recipeId: "recipe-generation",
-                    onAnimationStateChange: nil  // No callback needed in simple implementation
+                    onAnimationStateChange: onAnimationStateChange  // Pass through callback
                 )
             } else if recipeContent.isEmpty {
                 // Interactive placeholder - let user add their own recipe
