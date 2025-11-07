@@ -17,10 +17,11 @@ struct InformationRetrievalView: View {
     @State private var showingSettings = false
     @State private var displayedAnswerIds: Set<String> = []
     @State private var showScrollPadding = false // Smart padding for scroll-to-top
+    @State private var animatingAnswerIds: Set<String> = [] // Track which answers are still animating
 
     private var isEffectivelySearching: Bool {
-        // Still searching if backend is searching
-        viewModel.isSearching
+        // Still searching if backend is searching OR any animation is running
+        viewModel.isSearching || !animatingAnswerIds.isEmpty
     }
 
     var body: some View {
@@ -47,6 +48,7 @@ struct InformationRetrievalView: View {
                                         isSearchingSources: viewModel.searchingSourcesForAnswer[answer.id] ?? false,
                                         currentStage: viewModel.currentStages[answer.id],
                                         shouldHoldStream: viewModel.shouldHoldStream[answer.id] ?? false,
+                                        reconnectionState: viewModel.reconnectionState,
                                         onViewReady: { answerId in
                                             viewModel.signalViewReady(for: answerId)
                                         },
@@ -58,6 +60,13 @@ struct InformationRetrievalView: View {
                                         onQuestionSelect: { question in
                                             Task {
                                                 await viewModel.search(query: question)
+                                            }
+                                        },
+                                        onAnimationStateChange: { answerId, isAnimating in
+                                            if isAnimating {
+                                                animatingAnswerIds.insert(answerId)
+                                            } else {
+                                                animatingAnswerIds.remove(answerId)
                                             }
                                         }
                                     )

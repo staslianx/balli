@@ -21,9 +21,11 @@ struct AnswerCardView: View {
     let isSearchingSources: Bool
     let currentStage: String? // User-friendly research stage message
     let shouldHoldStream: Bool // Flag to delay stream display until stage completes
+    let reconnectionState: ReconnectionState? // Network reconnection state
     let onViewReady: ((String) -> Void)? // Callback to signal view is ready for stages
     let onFeedback: ((String, SearchAnswer) -> Void)? // Callback for feedback
     let onQuestionSelect: ((String) -> Void)? // Callback for follow-up question selection
+    let onAnimationStateChange: ((String, Bool) -> Void)? // Callback when animation starts/stops (answerId, isAnimating)
 
     @Environment(\.colorScheme) private var colorScheme
     private let researchFontSize: Double = 19.0
@@ -36,6 +38,9 @@ struct AnswerCardView: View {
     // Track last stage seen to keep displaying it
     @State private var lastStageBeforeContent: String? = nil
 
+    // Track typewriter animation state - true when animating, false when complete
+    @State private var isTypewriterAnimating = false
+
     init(
         answer: SearchAnswer,
         enableStreaming: Bool = true,
@@ -43,9 +48,11 @@ struct AnswerCardView: View {
         isSearchingSources: Bool = false,
         currentStage: String? = nil,
         shouldHoldStream: Bool = false,
+        reconnectionState: ReconnectionState? = nil,
         onViewReady: ((String) -> Void)? = nil,
         onFeedback: ((String, SearchAnswer) -> Void)? = nil,
-        onQuestionSelect: ((String) -> Void)? = nil
+        onQuestionSelect: ((String) -> Void)? = nil,
+        onAnimationStateChange: ((String, Bool) -> Void)? = nil
     ) {
         self.answer = answer
         self.enableStreaming = enableStreaming
@@ -53,9 +60,11 @@ struct AnswerCardView: View {
         self.isSearchingSources = isSearchingSources
         self.currentStage = currentStage
         self.shouldHoldStream = shouldHoldStream
+        self.reconnectionState = reconnectionState
         self.onViewReady = onViewReady
         self.onFeedback = onFeedback
         self.onQuestionSelect = onQuestionSelect
+        self.onAnimationStateChange = onAnimationStateChange
     }
 
     var body: some View {
@@ -74,22 +83,37 @@ struct AnswerCardView: View {
             // Current research stage - shown during deep research with progress bar
             renderStageCard()
 
+            // Reconnection banner - shown during network retry
+            if let reconnectionState = reconnectionState {
+                ReconnectionBanner(state: reconnectionState)
+                    .padding(.top, 8)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .move(edge: .top)).animation(.easeInOut(duration: 0.3)),
+                        removal: .opacity.animation(.easeOut(duration: 0.2))
+                    ))
+            }
 
-            // Answer content - markdown rendered directly from SSE streaming
-            // Raw streaming without character-by-character animation
+            // Answer content - typewriter animation for smooth streaming
             if !answer.content.isEmpty {
-                StreamingAnswerView(
+                TypewriterAnswerView(
                     content: answer.content,
                     isStreaming: !isStreamingComplete,
                     sourceCount: answer.sources.count,
                     sources: answer.sources,
-                    fontSize: researchFontSize
+                    fontSize: researchFontSize,
+                    answerId: answer.id,
+                    onAnimationStateChange: { isAnimating in
+                        self.isTypewriterAnimating = isAnimating
+                        logger.debug("🎬 [ANIMATION] Typewriter state changed: \(isAnimating ? "started" : "completed")")
+                        // Bubble up to parent view
+                        self.onAnimationStateChange?(answer.id, isAnimating)
+                    }
                 )
                 .padding(.vertical, 8)
                 .transition(.opacity.animation(.easeIn(duration: 0.15)))
 
-                // Action row - only show when streaming is complete
-                if isStreamingComplete {
+                // Action row - only show when BOTH backend AND animation are complete
+                if isStreamingComplete && !isTypewriterAnimating {
                     ResearchResponseActionRow(
                         content: answer.content,
                         shareSubject: answer.query
@@ -239,6 +263,46 @@ struct AnswerCardView: View {
     struct IndexWrapper: Identifiable {
         let id = UUID()
         let index: Int
+    }
+}
+
+// MARK: - Reconnection Banner
+
+/// Banner showing network reconnection status
+struct ReconnectionBanner: View {
+    let state: ReconnectionState
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // Status icon
+            if case .reconnecting = state {
+                ProgressView()
+                    .scaleEffect(0.8)
+            } else {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+            }
+
+            // Status message
+            Text(state.displayMessage)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.secondary)
+
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemGray6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .strokeBorder(
+                            state == .reconnected ? Color.green.opacity(0.3) : Color.blue.opacity(0.3),
+                            lineWidth: 1
+                        )
+                )
+        )
     }
 }
 
