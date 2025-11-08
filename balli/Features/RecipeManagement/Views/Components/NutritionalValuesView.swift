@@ -47,7 +47,7 @@ struct NutritionalValuesView: View {
     @State private var selectedTab = 0  // 0 = Porsiyon, 1 = 100g
     @State private var isPortionAdjustmentExpanded = false  // For portion adjustment section
     @State private var adjustingPortionWeight: Double = 0
-    @State private var showSuccessBanner = false
+    @State private var toastMessage: ToastType? = nil
 
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "NutritionalValuesView")
 
@@ -206,12 +206,7 @@ struct NutritionalValuesView: View {
                     .font(.system(size: 17, weight: .medium, design: .rounded))
                 }
             }
-            .overlay(alignment: .top) {
-                if showSuccessBanner {
-                    successBanner
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                }
-            }
+            .toast($toastMessage)
             .onAppear {
                 // Initialize slider to current effective portion size
                 adjustingPortionWeight = currentPortionSize * portionMultiplier
@@ -251,19 +246,12 @@ struct NutritionalValuesView: View {
             try viewContext.save()
             logger.info("✅ Saved portion size: \(self.adjustingPortionWeight)g")
 
-            // Show success feedback
-            withAnimation(.spring()) {
-                showSuccessBanner = true
-            }
+            // Show success toast
+            toastMessage = .success("Porsiyon kaydedildi!")
 
             // Collapse section after brief delay (Swift 6 concurrency compliance)
             Task { @MainActor in
-                try? await Task.sleep(for: .seconds(1.0))
-                withAnimation {
-                    showSuccessBanner = false
-                }
-
-                try? await Task.sleep(for: .seconds(0.3))
+                try? await Task.sleep(for: .seconds(1.8))
                 withAnimation(.easeInOut(duration: 0.3)) {
                     isPortionAdjustmentExpanded = false
                 }
@@ -271,6 +259,7 @@ struct NutritionalValuesView: View {
 
         } catch {
             logger.error("❌ Failed to save portion size: \(error.localizedDescription)")
+            toastMessage = .error("Kaydetme başarısız oldu")
         }
     }
 
@@ -298,44 +287,16 @@ struct NutritionalValuesView: View {
         portionMultiplier = newMultiplier
         logger.info("✅ [PORTION] Updated multiplier to \(newMultiplier)")
 
-        // Show success banner
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            showSuccessBanner = true
-        }
+        // Show success toast
+        toastMessage = .success("Porsiyon kaydedildi!")
 
-        // Hide banner and collapse section after delay
+        // Collapse section after delay
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.5))
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                showSuccessBanner = false
-            }
-
-            try? await Task.sleep(for: .seconds(0.3))
+            try? await Task.sleep(for: .seconds(1.8))
             withAnimation(.easeInOut(duration: 0.3)) {
                 isPortionAdjustmentExpanded = false
             }
         }
-    }
-
-    /// Success banner shown after saving
-    private var successBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title2)
-                .foregroundColor(.white)
-
-            Text("Porsiyon kaydedildi!")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-
-            Spacer()
-        }
-        .padding()
-        .background(Color.green)
-        .cornerRadius(12)
-        .shadow(radius: 8)
-        .padding()
     }
 
     // MARK: - Computed Properties
@@ -768,7 +729,7 @@ final class ObservableRecipeWrapper: ObservableObject {
 #Preview("With Both Values - Low Warning") {
     @Previewable @State var multiplier = 1.0
 
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
     let recipe = Recipe(context: context)
     recipe.id = UUID()
     recipe.name = "Izgara Tavuk Salatası"
@@ -811,7 +772,7 @@ final class ObservableRecipeWrapper: ObservableObject {
 #Preview("High Fat Recipe - Danger Warning") {
     @Previewable @State var multiplier = 1.0
 
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
     let recipe = Recipe(context: context)
     recipe.id = UUID()
     recipe.name = "Carbonara Makarna"
@@ -854,7 +815,7 @@ final class ObservableRecipeWrapper: ObservableObject {
 #Preview("Empty Values") {
     @Previewable @State var multiplier = 1.0
 
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
     let recipe = Recipe(context: context)
     recipe.id = UUID()
     recipe.name = "Test Tarifi"

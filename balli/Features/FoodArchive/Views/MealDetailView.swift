@@ -150,8 +150,8 @@ struct MealDetailView: View {
 
             ForEach(medications) { medication in
                 HStack(spacing: ResponsiveDesign.Spacing.medium) {
-                    // Syringe icon
-                    Image(systemName: "syringe.fill")
+                    // microbe.fill icon
+                    Image(systemName: "microbe.fill.fill")
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(24), weight: .semibold))
                         .foregroundStyle(AppTheme.primaryPurple)
                         .frame(width: ResponsiveDesign.Font.scaledSize(40), alignment: .center)
@@ -331,7 +331,7 @@ struct MealDetailView: View {
 }
 
 #Preview("Single Meal") {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
 
     // Create preview meal
     let meal = MealEntry(context: context)
@@ -356,7 +356,7 @@ struct MealDetailView: View {
 }
 
 #Preview("Multiple Ingredients") {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
 
     // Create multiple preview meals
     var meals: [MealEntry] = []

@@ -21,6 +21,7 @@ struct AnswerCardHeaderSection: View {
     let thinkingSummary: String?
     let showBadge: Bool
     let showSourcePill: Bool
+    let isTypewriterAnimating: Bool // Track if typewriter has started
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -69,11 +70,23 @@ struct AnswerCardHeaderSection: View {
                         Image(systemName: tier.iconName)
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(tier.badgeForegroundColor(for: colorScheme))
-                        Text(tier.label)
-                            .font(.system(size: 14, weight: .semibold, design: .default))
-                            .foregroundStyle(tier.badgeForegroundColor(for: colorScheme))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
+
+                        Group {
+                            if isTypewriterAnimating {
+                                // Typewriter started - show tier label without shimmer
+                                Text(tier.label)
+                                    .font(.system(size: 14, weight: .semibold, design: .default))
+                                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
+                            } else {
+                                // Before typewriter starts - show shimmer
+                                Text(tier.label)
+                                    .font(.system(size: 14, weight: .semibold, design: .default))
+                                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
+                                    .shimmer(duration: 2.5, bounceBack: false)
+                            }
+                        }
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                     }
                     .frame(height: 30)
                     .padding(.horizontal, 14)
@@ -120,4 +133,110 @@ struct AnswerCardHeaderSection: View {
             }
         }
     }
+}
+
+// MARK: - Previews
+
+#Preview("Before Typewriter (Shimmer)") {
+    VStack(spacing: 20) {
+        AnswerCardHeaderSection(
+            query: "What are the health benefits of turmeric?",
+            imageAttachment: nil,
+            tier: .model,
+            sources: [],
+            thinkingSummary: nil,
+            showBadge: true,
+            showSourcePill: false,
+            isTypewriterAnimating: false
+        )
+
+        AnswerCardHeaderSection(
+            query: "Explain quantum computing",
+            imageAttachment: nil,
+            tier: .search,
+            sources: [],
+            thinkingSummary: nil,
+            showBadge: true,
+            showSourcePill: false,
+            isTypewriterAnimating: false
+        )
+
+        AnswerCardHeaderSection(
+            query: "Climate change impact",
+            imageAttachment: nil,
+            tier: .research,
+            sources: [],
+            thinkingSummary: nil,
+            showBadge: true,
+            showSourcePill: false,
+            isTypewriterAnimating: false
+        )
+    }
+    .padding()
+}
+
+#Preview("After Typewriter (No Shimmer)") {
+    VStack(spacing: 20) {
+        AnswerCardHeaderSection(
+            query: "What are the health benefits of turmeric?",
+            imageAttachment: nil,
+            tier: .model,
+            sources: [],
+            thinkingSummary: nil,
+            showBadge: true,
+            showSourcePill: false,
+            isTypewriterAnimating: true
+        )
+
+        AnswerCardHeaderSection(
+            query: "Explain quantum computing",
+            imageAttachment: nil,
+            tier: .search,
+            sources: [],
+            thinkingSummary: nil,
+            showBadge: true,
+            showSourcePill: false,
+            isTypewriterAnimating: true
+        )
+
+        AnswerCardHeaderSection(
+            query: "Climate change impact",
+            imageAttachment: nil,
+            tier: .research,
+            sources: [],
+            thinkingSummary: nil,
+            showBadge: true,
+            showSourcePill: false,
+            isTypewriterAnimating: true
+        )
+    }
+    .padding()
+}
+
+#Preview("Dark Mode - Before Typewriter") {
+    VStack(spacing: 20) {
+        AnswerCardHeaderSection(
+            query: "What are the health benefits of turmeric?",
+            imageAttachment: nil,
+            tier: .model,
+            sources: [],
+            thinkingSummary: nil,
+            showBadge: true,
+            showSourcePill: false,
+            isTypewriterAnimating: false
+        )
+
+        AnswerCardHeaderSection(
+            query: "Explain quantum computing",
+            imageAttachment: nil,
+            tier: .search,
+            sources: [],
+            thinkingSummary: nil,
+            showBadge: true,
+            showSourcePill: false,
+            isTypewriterAnimating: false
+        )
+    }
+    .padding()
+    .preferredColorScheme(.dark)
 }

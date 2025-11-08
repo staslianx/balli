@@ -77,7 +77,8 @@ struct AnswerCardView: View {
                 sources: answer.sources,
                 thinkingSummary: answer.thinkingSummary,
                 showBadge: showBadge,
-                showSourcePill: showSourcePill
+                showSourcePill: showSourcePill,
+                isTypewriterAnimating: isTypewriterAnimating
             )
 
             // Current research stage - shown during deep research with progress bar

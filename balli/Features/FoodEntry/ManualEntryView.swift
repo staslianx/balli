@@ -301,5 +301,5 @@ struct CustomTextFieldStyle: TextFieldStyle {
 
 #Preview {
     ManualEntryView()
-        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .environment(\.managedObjectContext, PersistenceController.previewFast.container.viewContext)
 }

@@ -27,6 +27,9 @@ struct ManualIngredientsSection: View {
     @Binding var newIngredientText: String
     var focusedField: FocusState<RecipeGenerationView.FocusField?>.Binding
 
+    @State private var editingItemId: UUID?
+    @State private var editingText: String = ""
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Malzemeler")
@@ -38,11 +41,28 @@ struct ManualIngredientsSection: View {
             ForEach(ingredients) { item in
                 HStack(spacing: 8) {
                     Text("•")
-                        .font(.custom("Manrope", size: 20))
+                        .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
-                    Text(item.text)
-                        .font(.custom("Manrope", size: 20))
-                        .foregroundColor(.primary)
+
+                    if editingItemId == item.id {
+                        // Editing mode
+                        TextField("", text: $editingText)
+                            .font(.custom("Manrope-Medium", size: 20))
+                            .focused(focusedField, equals: .ingredient)
+                            .submitLabel(.done)
+                            .onSubmit {
+                                saveEdit(for: item.id)
+                            }
+                    } else {
+                        // Display mode
+                        Text(item.text)
+                            .font(.custom("Manrope-Medium", size: 20))
+                            .foregroundColor(.primary)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                startEditing(item: item)
+                            }
+                    }
 
                     Spacer()
 
@@ -60,10 +80,10 @@ struct ManualIngredientsSection: View {
             if isAddingIngredient {
                 HStack(spacing: 8) {
                     Text("•")
-                        .font(.custom("Manrope", size: 20))
+                        .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
                     TextField("Örn: 250g tavuk göğsü", text: $newIngredientText)
-                        .font(.custom("Manrope", size: 20))
+                        .font(.custom("Manrope-Medium", size: 20))
                         .focused(focusedField, equals: .ingredient)
                         .submitLabel(.done)
                         .onSubmit {
@@ -77,10 +97,10 @@ struct ManualIngredientsSection: View {
                 }) {
                     HStack(spacing: 8) {
                         Text("•")
-                            .font(.custom("Manrope", size: 20))
+                            .font(.custom("Manrope-Medium", size: 20))
                             .foregroundColor(.primary.opacity(0.7))
                         Text("Malzeme Ekle")
-                            .font(.custom("Manrope", size: 20))
+                            .font(.custom("Manrope-Medium", size: 20))
                             .foregroundColor(.primary.opacity(0.7))
                     }
                 }
@@ -96,7 +116,26 @@ struct ManualIngredientsSection: View {
         }
         ingredients.append(RecipeItem(text: newIngredientText))
         newIngredientText = ""
+        // Keep the field focused to continue adding ingredients smoothly
+        // No need to reassign focus - it's already focused
+    }
+
+    private func startEditing(item: RecipeItem) {
+        editingItemId = item.id
+        editingText = item.text
         focusedField.wrappedValue = .ingredient
+    }
+
+    private func saveEdit(for itemId: UUID) {
+        guard !editingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            editingItemId = nil
+            return
+        }
+        if let index = ingredients.firstIndex(where: { $0.id == itemId }) {
+            ingredients[index] = RecipeItem(text: editingText)
+        }
+        editingItemId = nil
+        editingText = ""
     }
 }
 
@@ -107,6 +146,9 @@ struct ManualStepsSection: View {
     @Binding var isAddingStep: Bool
     @Binding var newStepText: String
     var focusedField: FocusState<RecipeGenerationView.FocusField?>.Binding
+
+    @State private var editingItemId: UUID?
+    @State private var editingText: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -119,11 +161,28 @@ struct ManualStepsSection: View {
             ForEach(Array(steps.enumerated()), id: \.element.id) { index, item in
                 HStack(spacing: 8) {
                     Text("\(index + 1).")
-                        .font(.custom("Manrope", size: 20))
+                        .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
-                    Text(item.text)
-                        .font(.custom("Manrope", size: 20))
-                        .foregroundColor(.primary)
+
+                    if editingItemId == item.id {
+                        // Editing mode
+                        TextField("", text: $editingText)
+                            .font(.custom("Manrope-Medium", size: 20))
+                            .focused(focusedField, equals: .step)
+                            .submitLabel(.done)
+                            .onSubmit {
+                                saveEdit(for: item.id)
+                            }
+                    } else {
+                        // Display mode
+                        Text(item.text)
+                            .font(.custom("Manrope-Medium", size: 20))
+                            .foregroundColor(.primary)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                startEditing(item: item)
+                            }
+                    }
 
                     Spacer()
 
@@ -141,10 +200,10 @@ struct ManualStepsSection: View {
             if isAddingStep {
                 HStack(spacing: 8) {
                     Text("\(steps.count + 1).")
-                        .font(.custom("Manrope", size: 20))
+                        .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
                     TextField("Örn: Tavukları zeytinyağında sotele", text: $newStepText)
-                        .font(.custom("Manrope", size: 20))
+                        .font(.custom("Manrope-Medium", size: 20))
                         .focused(focusedField, equals: .step)
                         .submitLabel(.done)
                         .onSubmit {
@@ -158,10 +217,10 @@ struct ManualStepsSection: View {
                 }) {
                     HStack(spacing: 8) {
                         Text("\(steps.count + 1).")
-                            .font(.custom("Manrope", size: 20))
+                            .font(.custom("Manrope-Medium", size: 20))
                             .foregroundColor(.primary.opacity(0.7))
                         Text("Adım Ekle")
-                            .font(.custom("Manrope", size: 20))
+                            .font(.custom("Manrope-Medium", size: 20))
                             .foregroundColor(.primary.opacity(0.7))
                     }
                 }
@@ -177,7 +236,26 @@ struct ManualStepsSection: View {
         }
         steps.append(RecipeItem(text: newStepText))
         newStepText = ""
+        // Keep the field focused to continue adding steps smoothly
+        // No need to reassign focus - it's already focused
+    }
+
+    private func startEditing(item: RecipeItem) {
+        editingItemId = item.id
+        editingText = item.text
         focusedField.wrappedValue = .step
+    }
+
+    private func saveEdit(for itemId: UUID) {
+        guard !editingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            editingItemId = nil
+            return
+        }
+        if let index = steps.firstIndex(where: { $0.id == itemId }) {
+            steps[index] = RecipeItem(text: editingText)
+        }
+        editingItemId = nil
+        editingText = ""
     }
 }
 

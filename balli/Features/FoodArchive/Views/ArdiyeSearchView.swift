@@ -37,14 +37,24 @@ struct ArdiyeSearchView: View {
 
     // Get recently opened recipes (latest 3)
     private var recentlyOpenedRecipes: [Recipe] {
+        let thirtyDaysAgo = Date().addingTimeInterval(-30 * 24 * 60 * 60)
+
         let sortedByLastOpened = recipes.filter { recipe in
             // Only include recipes that have been opened (lastModified is recent)
             // We'll use this as a proxy until we add dedicated tracking
-            recipe.lastModified > Date().addingTimeInterval(-30 * 24 * 60 * 60) // Last 30 days
+            recipe.lastModified > thirtyDaysAgo
         }
         .sorted { $0.lastModified > $1.lastModified }
 
         return Array(sortedByLastOpened.prefix(3))
+    }
+
+    // Get recently used products (latest 4)
+    private var recentlyUsedProducts: [FoodItem] {
+        let scannedProducts = foodItems.filter { $0.source == "ai_scanned" }
+            .sorted { ($0.lastUsed ?? Date.distantPast) > ($1.lastUsed ?? Date.distantPast) }
+
+        return Array(scannedProducts.prefix(4))
     }
 
     // Get all items and filter by search
@@ -96,7 +106,7 @@ struct ArdiyeSearchView: View {
             typeFilteredItems = items.filter { !$0.isRecipe }
         }
 
-        // If search is empty, show recently opened recipes (only for recipes filter)
+        // If search is empty, show recently opened/used items
         if searchText.isEmpty {
             if selectedFilter == .recipes {
                 return recentlyOpenedRecipes.map { recipe in
@@ -114,8 +124,23 @@ struct ArdiyeSearchView: View {
                         foodItem: nil
                     )
                 }
+            } else {
+                return recentlyUsedProducts.map { foodItem in
+                    ArdiyeItem(
+                        id: foodItem.id,
+                        name: foodItem.name,
+                        displayTitle: foodItem.brand ?? "Marka Yok",
+                        subtitle: foodItem.name,
+                        totalCarbs: foodItem.totalCarbs,
+                        servingSize: foodItem.servingSize,
+                        servingUnit: foodItem.servingUnit,
+                        isFavorite: foodItem.isFavorite,
+                        isRecipe: false,
+                        recipe: nil,
+                        foodItem: foodItem
+                    )
+                }
             }
-            return []
         }
 
         let lowercasedSearch = searchText.lowercased()
@@ -202,21 +227,19 @@ struct ArdiyeSearchView: View {
                 }
             }
         }
-        .navigationTitle("Ara")
+        .navigationTitle(searchText.isEmpty ? "Son Açılanlar" : "Ara")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            // Filter button - only show when there's a search query
-            if !searchText.isEmpty {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        withAnimation {
-                            selectedFilter = selectedFilter == .recipes ? .products : .recipes
-                        }
-                    }) {
-                        Image(systemName: selectedFilter == .recipes ? "book.closed" : "laser.burst")
-                            .font(.system(size: 18, weight: .medium, design: .rounded))
-                            .foregroundColor(.primary)
+            // Filter button to toggle between recipes and products
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    withAnimation {
+                        selectedFilter = selectedFilter == .recipes ? .products : .recipes
                     }
+                }) {
+                    Image(systemName: selectedFilter == .recipes ? "book.closed" : "laser.burst")
+                        .font(.system(size: 18, weight: .medium, design: .rounded))
+                        .foregroundColor(AppTheme.primaryPurple)
                 }
             }
         }
@@ -238,45 +261,17 @@ struct ArdiyeSearchView: View {
     @ViewBuilder
     private var recipeListViewWithHeader: some View {
         List {
-            // Show header only when displaying recently opened recipes
-            if searchText.isEmpty && !displayedItems.isEmpty {
-                Section {
-                    ForEach(displayedItems) { item in
-                        if let recipe = item.recipe {
-                            Button(action: {
-                                selectedRecipe = recipe
-                            }) {
-                                recipeCardContent(for: item, recipe: recipe)
-                            }
-                            .buttonStyle(.plain)
-                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                            .listRowBackground(Color.clear)
-                            .listRowSeparator(.hidden)
-                        }
+            ForEach(displayedItems) { item in
+                if let recipe = item.recipe {
+                    Button(action: {
+                        selectedRecipe = recipe
+                    }) {
+                        recipeCardContent(for: item, recipe: recipe)
                     }
-                } header: {
-                    Text("Son Açılanlar")
-                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                        .foregroundColor(.secondary)
-                        .textCase(.none)
-                        .padding(.leading, 4)
-                        .padding(.top, 0)
-                }
-                .listRowBackground(Color.clear)
-            } else {
-                // Search results without header
-                ForEach(displayedItems) { item in
-                    if let recipe = item.recipe {
-                        Button(action: {
-                            selectedRecipe = recipe
-                        }) {
-                            recipeCardContent(for: item, recipe: recipe)
-                        }
-                        .buttonStyle(.plain)
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                        .listRowBackground(Color.clear)
-                        .listRowSeparator(.hidden)
-                    }
+                    .buttonStyle(.plain)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
                 }
             }
         }
@@ -419,6 +414,6 @@ struct ArdiyeSearchView: View {
 #Preview {
     NavigationStack {
         ArdiyeSearchView(searchText: .constant(""))
-            .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+            .environment(\.managedObjectContext, PersistenceController.previewFast.container.viewContext)
     }
 }

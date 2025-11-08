@@ -471,5 +471,5 @@ struct VoiceInputView: View {
 
 #Preview {
     VoiceInputView()
-        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .environment(\.managedObjectContext, PersistenceController.previewFast.container.viewContext)
 }

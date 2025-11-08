@@ -99,29 +99,34 @@ struct LoggedMealsView: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            Group {
                 if groupedEntries.isEmpty {
                     ContentUnavailableView(
                         "Henüz kayıtlı öğün yok",
                         systemImage: "calendar.day.timeline.left",
                         description: Text("Sesle kaydettiğin öğünler burada görünecek.")
                     )
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(AppTheme.primaryPurple)
+                    .frame(maxHeight: .infinity)
                 } else {
-                    ForEach(groupedEntries, id: \.date) { dateGroup in
-                        dayCard(for: dateGroup)
-                            .listRowInsets(EdgeInsets(
-                                top: ResponsiveDesign.Spacing.small,
-                                leading: ResponsiveDesign.Spacing.medium,
-                                bottom: ResponsiveDesign.Spacing.small,
-                                trailing: ResponsiveDesign.Spacing.medium
-                            ))
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
+                    List {
+                        ForEach(groupedEntries, id: \.date) { dateGroup in
+                            dayCard(for: dateGroup)
+                                .listRowInsets(EdgeInsets(
+                                    top: ResponsiveDesign.Spacing.small,
+                                    leading: ResponsiveDesign.Spacing.medium,
+                                    bottom: ResponsiveDesign.Spacing.small,
+                                    trailing: ResponsiveDesign.Spacing.medium
+                                ))
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                        }
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
             .background(Color(.systemBackground))
             .navigationTitle("Günlük Kayıtlar")
             .navigationBarTitleDisplayMode(.inline)
@@ -288,7 +293,7 @@ struct LoggedMealsView: View {
                 // Insulin info inline with carbs
                 if hasInsulin, let firstMedication = medications.first {
                     HStack(spacing: 4) {
-                        Image(systemName: "syringe.fill")
+                        Image(systemName: "microbe.fill.fill")
                             .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .medium))
                             .foregroundStyle(AppTheme.primaryPurple)
 
@@ -376,5 +381,5 @@ struct MealGroup: Identifiable {
 
 #Preview {
     LoggedMealsView()
-        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .environment(\.managedObjectContext, PersistenceController.previewFast.container.viewContext)
 }

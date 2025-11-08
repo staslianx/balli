@@ -168,6 +168,6 @@ final class ShoppingListViewModel: ObservableObject {
 
 extension ShoppingListViewModel {
     static var preview: ShoppingListViewModel {
-        ShoppingListViewModel(viewContext: PersistenceController.preview.container.viewContext)
+        ShoppingListViewModel(viewContext: PersistenceController.previewFast.container.viewContext)
     }
 }

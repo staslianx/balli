@@ -446,6 +446,6 @@ struct EditableItemRow: View {
 #Preview {
     NavigationStack {
         ShoppingListViewSimple()
-            .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+            .environment(\.managedObjectContext, PersistenceController.previewFast.container.viewContext)
     }
 }

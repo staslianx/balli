@@ -295,7 +295,7 @@ private struct NutritionFieldRow: View {
 // MARK: - Previews
 
 #Preview("Default State") {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
 
     let meal = MealEntry(context: context)
     meal.id = UUID()
@@ -315,7 +315,7 @@ private struct NutritionFieldRow: View {
 }
 
 #Preview("Filled State") {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
 
     let meal = MealEntry(context: context)
     meal.id = UUID()
@@ -335,7 +335,7 @@ private struct NutritionFieldRow: View {
 }
 
 #Preview("Dark Mode") {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
 
     let meal = MealEntry(context: context)
     meal.id = UUID()
@@ -356,7 +356,7 @@ private struct NutritionFieldRow: View {
 }
 
 #Preview("Long Notes") {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
 
     let meal = MealEntry(context: context)
     meal.id = UUID()
@@ -380,7 +380,7 @@ private struct NutritionFieldRow: View {
 }
 
 #Preview("Zero Values") {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
 
     let meal = MealEntry(context: context)
     meal.id = UUID()

@@ -11,6 +11,8 @@ import SwiftUI
 // MARK: - Processing State View
 
 struct ProcessingStateView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         VStack {
             Spacer()
@@ -23,7 +25,8 @@ struct ProcessingStateView: View {
 
                 Text("Notumu alıyorum")
                     .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    .foregroundStyle(AppTheme.primaryPurple)
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
+                    .shimmer(duration: 2.5, bounceBack: false)
             }
 
             Spacer()
@@ -97,6 +100,8 @@ struct PlaceholderStateView: View {
 // MARK: - Recording Active View
 
 struct RecordingActiveView: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         VStack {
             Spacer()
@@ -109,11 +114,47 @@ struct RecordingActiveView: View {
 
                 Text("Dinliyorum")
                     .font(.system(size: 24, weight: .semibold, design: .rounded))
-                    .foregroundStyle(AppTheme.primaryPurple)
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
+                    .shimmer(duration: 2.5, bounceBack: false)
             }
 
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
+
+// MARK: - Previews
+
+#Preview("Recording Active - Light") {
+    RecordingActiveView()
+        .preferredColorScheme(.light)
+}
+
+#Preview("Recording Active - Dark") {
+    RecordingActiveView()
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Processing - Light") {
+    ProcessingStateView()
+        .preferredColorScheme(.light)
+}
+
+#Preview("Processing - Dark") {
+    ProcessingStateView()
+        .preferredColorScheme(.dark)
+}
+
+#Preview("All States") {
+    VStack(spacing: 40) {
+        RecordingActiveView()
+            .frame(height: 200)
+            .border(Color.gray.opacity(0.3))
+
+        ProcessingStateView()
+            .frame(height: 200)
+            .border(Color.gray.opacity(0.3))
+    }
+    .padding()
 }

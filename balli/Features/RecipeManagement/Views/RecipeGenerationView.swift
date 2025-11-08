@@ -287,26 +287,27 @@ struct RecipeGenerationView: View {
     @ToolbarContentBuilder
     private var toolbarConfiguration: some ToolbarContent {
         ToolbarItem(placement: .navigationBarLeading) {
-            leadingToolbarItem
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(ThemeColors.primaryPurple)
+            }
         }
 
         ToolbarItem(placement: .principal) {
             centerToolbarItem
         }
 
-        ToolbarItem(placement: .navigationBarTrailing) {
-            trailingToolbarItem
+        if showSaveButton {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                saveButton
+            }
         }
-    }
 
-    @ViewBuilder
-    private var leadingToolbarItem: some View {
-        Button {
-            dismiss()
-        } label: {
-            Image(systemName: "chevron.left")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(ThemeColors.primaryPurple)
+        ToolbarItem(placement: .navigationBarTrailing) {
+            generateButton
         }
     }
 
@@ -322,16 +323,6 @@ struct RecipeGenerationView: View {
                 }
             }
             .fixedSize()
-        }
-    }
-
-    @ViewBuilder
-    private var trailingToolbarItem: some View {
-        HStack(spacing: 12) {
-            if showSaveButton {
-                saveButton
-            }
-            generateButton
         }
     }
 
@@ -533,5 +524,5 @@ struct RecipeButtonStyle: ButtonStyle {
 }
 
 #Preview {
-    RecipeGenerationView(viewContext: PersistenceController.preview.container.viewContext)
+    RecipeGenerationView(viewContext: PersistenceController.previewFast.container.viewContext)
 }

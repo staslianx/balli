@@ -95,7 +95,10 @@ struct RecipeShoppingSection: View {
         }
         .padding(.vertical, ResponsiveDesign.Spacing.medium)
         .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+        .background(.clear)
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
         .sheet(isPresented: $showIngredientsSheet) {
             RecipeIngredientsSheet(
                 recipeName: recipeName,

@@ -37,18 +37,29 @@ final class LabelAnalysisService: @unchecked Sendable {
     ) async throws -> NutritionExtractionResult {
         logger.info("🏷️ Starting nutrition label analysis")
 
-        // Step 1: Preprocess and encode image
-        await notifyProgress("Resmi hazırlıyor...", callback: progressCallback)
+        // Stage 1: Preparing
+        await notifyProgress(AnalysisStage.preparing.message, callback: progressCallback)
         let imageBase64 = try await preprocessAndEncodeImage(image)
 
-        // Step 2: Send to Firebase Functions
-        await notifyProgress("AI ile analiz ediyor...", callback: progressCallback)
+        // Stage 2: Analyzing
+        await notifyProgress(AnalysisStage.analyzing.message, callback: progressCallback)
+
+        // Stage 3: Reading
+        await notifyProgress(AnalysisStage.reading.message, callback: progressCallback)
+
+        // Stage 4: Sending
+        await notifyProgress(AnalysisStage.sending.message, callback: progressCallback)
         let result = try await callNutritionExtractionAPI(
             imageBase64: imageBase64,
             language: language
         )
 
-        await notifyProgress("Sonuçları hazırlıyor...", callback: progressCallback)
+        // Stage 5: Processing
+        await notifyProgress(AnalysisStage.processing.message, callback: progressCallback)
+
+        // Stage 6: Validating
+        await notifyProgress(AnalysisStage.validating.message, callback: progressCallback)
+
         logger.info("✅ Nutrition label analysis completed successfully")
 
         return result

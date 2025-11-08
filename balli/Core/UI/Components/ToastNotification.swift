@@ -96,11 +96,10 @@ struct ToastModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .safeAreaInset(edge: .top, spacing: 0) {
+            .overlay(alignment: .top) {
                 if let toast = toast, isShowing {
                     ToastNotification(type: toast, isShowing: $isShowing)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 44) // Match toolbar button height for alignment
+                        .padding(.top, 8) // Small padding below Dynamic Island
                         .onChange(of: isShowing) { oldValue, newValue in
                             if !newValue {
                                 // Clear toast when dismissed
@@ -110,8 +109,6 @@ struct ToastModifier: ViewModifier {
                                 }
                             }
                         }
-                } else {
-                    Color.clear.frame(height: 0)
                 }
             }
             .onChange(of: toast) { oldValue, newValue in

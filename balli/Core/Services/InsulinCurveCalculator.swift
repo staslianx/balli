@@ -238,4 +238,120 @@ actor InsulinCurveCalculator {
     nonisolated func isHighProteinLowCarb(proteinGrams: Double, carbsGrams: Double) -> Bool {
         return proteinGrams > 30 && carbsGrams < 20
     }
+
+    // MARK: - Insulin Effectiveness Calculation
+
+    /// Calculate insulin effectiveness curve based on fat-induced insulin resistance
+    /// - Parameter nutrition: Recipe nutrition data
+    /// - Returns: Array of TimePoint representing insulin effectiveness over time (0.0-1.0 where 1.0 = 100%)
+    ///
+    /// # Medical Rationale
+    /// Fat in meals causes temporary insulin resistance through:
+    /// - Increased free fatty acids in bloodstream
+    /// - Inflammation markers (cytokines)
+    /// - Reduced glucose transporter (GLUT4) activity
+    ///
+    /// This is why high-fat meals require more total insulin, not just different timing.
+    nonisolated func calculateInsulinEffectiveness(nutrition: RecipeNutrition) -> [TimePoint] {
+        // Determine effectiveness parameters based on fat content
+        let (reducedEffectiveness, resistanceDurationHours) = determineResistanceParameters(fatGrams: nutrition.fat)
+
+        // If no significant fat, return flat line at 100%
+        guard nutrition.fat >= 10 else {
+            return generateFlatEffectivenessCurve(effectiveness: 1.0)
+        }
+
+        // Generate curve with fat-induced resistance
+        return generateResistanceCurve(
+            reducedEffectiveness: reducedEffectiveness,
+            resistanceDurationHours: resistanceDurationHours
+        )
+    }
+
+    /// Determine resistance parameters based on fat content
+    /// - Parameter fatGrams: Total fat in grams
+    /// - Returns: Tuple of (reduced effectiveness 0-1, resistance duration in hours)
+    private nonisolated func determineResistanceParameters(fatGrams: Double) -> (effectiveness: Double, durationHours: Double) {
+        if fatGrams < 10 {
+            return (1.0, 0.0)      // 100% effectiveness, 0 hours resistance
+        } else if fatGrams < 20 {
+            return (0.85, 4.0)     // 85% effectiveness, 4 hours resistance
+        } else if fatGrams < 30 {
+            return (0.70, 6.0)     // 70% effectiveness, 6 hours resistance
+        } else {
+            return (0.60, 8.0)     // 60% effectiveness, 8 hours resistance (≥30g)
+        }
+    }
+
+    /// Generate flat effectiveness curve at specified level (for low-fat meals)
+    /// - Parameter effectiveness: Effectiveness level (0.0-1.0)
+    /// - Returns: Array of TimePoint with constant effectiveness over 8 hours
+    private nonisolated func generateFlatEffectivenessCurve(effectiveness: Double) -> [TimePoint] {
+        return [
+            TimePoint(timeHours: 0.0, intensity: effectiveness),
+            TimePoint(timeHours: 1.0, intensity: effectiveness),
+            TimePoint(timeHours: 2.0, intensity: effectiveness),
+            TimePoint(timeHours: 3.0, intensity: effectiveness),
+            TimePoint(timeHours: 4.0, intensity: effectiveness),
+            TimePoint(timeHours: 5.0, intensity: effectiveness),
+            TimePoint(timeHours: 6.0, intensity: effectiveness),
+            TimePoint(timeHours: 7.0, intensity: effectiveness),
+            TimePoint(timeHours: 8.0, intensity: effectiveness)
+        ]
+    }
+
+    /// Generate resistance curve showing drop in effectiveness during fat digestion
+    /// - Parameters:
+    ///   - reducedEffectiveness: Target effectiveness level during resistance (0.6-0.85)
+    ///   - resistanceDurationHours: How long resistance lasts (4-8 hours)
+    /// - Returns: Array of TimePoint showing effectiveness over time
+    ///
+    /// Curve shape:
+    /// - Start at 100% (meal consumed)
+    /// - Drop to reduced level over 30 minutes (fat starts being digested)
+    /// - Maintain reduced level during resistance duration
+    /// - Return to 100% over 30 minutes (fat fully absorbed)
+    private nonisolated func generateResistanceCurve(
+        reducedEffectiveness: Double,
+        resistanceDurationHours: Double
+    ) -> [TimePoint] {
+        let dropDuration = 0.5  // 30 minutes to reach reduced effectiveness
+        let recoveryStart = resistanceDurationHours
+        let recoveryEnd = resistanceDurationHours + 0.5  // 30 minutes to recover
+
+        var points: [TimePoint] = []
+
+        // Generate points every 30 minutes (0.5h) up to 8 hours
+        for i in 0...16 {  // 16 points = 8 hours at 0.5h intervals
+            let t = Double(i) * 0.5  // 0.0, 0.5, 1.0, ... 8.0
+            let effectiveness: Double
+
+            if t <= dropDuration {
+                // Dropping phase: smooth transition from 100% to reduced
+                // Use sine curve for smooth acceleration
+                let progress = t / dropDuration
+                let sineProgress = sin(progress * .pi / 2)  // 0° to 90°
+                effectiveness = 1.0 - (sineProgress * (1.0 - reducedEffectiveness))
+
+            } else if t < recoveryStart {
+                // Resistance plateau: maintain reduced effectiveness
+                effectiveness = reducedEffectiveness
+
+            } else if t <= recoveryEnd {
+                // Recovery phase: smooth transition back to 100%
+                // Use sine curve for smooth deceleration
+                let progress = (t - recoveryStart) / (recoveryEnd - recoveryStart)
+                let sineProgress = sin(progress * .pi / 2)  // 0° to 90°
+                effectiveness = reducedEffectiveness + (sineProgress * (1.0 - reducedEffectiveness))
+
+            } else {
+                // Post-recovery: back to 100%
+                effectiveness = 1.0
+            }
+
+            points.append(TimePoint(timeHours: t, intensity: effectiveness))
+        }
+
+        return points
+    }
 }

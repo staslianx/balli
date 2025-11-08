@@ -216,6 +216,9 @@ struct DexcomDiagnosticsView: View {
             } description: {
                 Text("No logs match the selected filters")
             }
+            .symbolRenderingMode(.hierarchical)
+            .foregroundStyle(AppTheme.primaryPurple)
+            .frame(maxHeight: .infinity)
         } else {
             List {
                 ForEach(logs) { log in

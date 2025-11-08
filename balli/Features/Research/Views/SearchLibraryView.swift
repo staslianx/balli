@@ -114,59 +114,67 @@ struct SearchLibraryView: View {
     // MARK: - View Components
 
     private var fullAnswersView: some View {
-        List {
+        Group {
             if isLoading {
                 ProgressView("Yükleniyor...")
-                    .frame(maxWidth: .infinity, alignment: .center)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             } else if threads.isEmpty {
                 ContentUnavailableView(
                     "Henüz araştırma yok",
                     systemImage: "book.closed",
                     description: Text("Yaptığın araştırmalar burada görünecek")
                 )
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(ThemeColors.primaryPurple)
+                .frame(maxHeight: .infinity)
             } else if filteredThreads.isEmpty {
                 ContentUnavailableView(
                     "Sonuç bulunamadı",
                     systemImage: "magnifyingglass",
                     description: Text("'\(searchText)' için eşleşen araştırma bulunamadı")
                 )
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(ThemeColors.primaryPurple)
+                .frame(maxHeight: .infinity)
             } else {
-                ForEach(filteredThreads) { thread in
-                    SearchAnswerRow(answer: thread)
-                        .equatable()
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            // Load highlights synchronously before navigation to prevent flicker
-                            Task { @MainActor in
-                                do {
-                                    let highlights = try await repository.loadHighlights(for: thread.id)
-                                    selectedThreadHighlights = highlights
-                                    selectedThread = thread
-                                    isShowingDetail = true
-                                } catch {
-                                    // If loading fails, navigate without highlights
-                                    logger.error("Failed to load highlights for navigation: \(error.localizedDescription)")
-                                    selectedThreadHighlights = []
-                                    selectedThread = thread
-                                    isShowingDetail = true
+                List {
+                    ForEach(filteredThreads) { thread in
+                        SearchAnswerRow(answer: thread)
+                            .equatable()
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                // Load highlights synchronously before navigation to prevent flicker
+                                Task { @MainActor in
+                                    do {
+                                        let highlights = try await repository.loadHighlights(for: thread.id)
+                                        selectedThreadHighlights = highlights
+                                        selectedThread = thread
+                                        isShowingDetail = true
+                                    } catch {
+                                        // If loading fails, navigate without highlights
+                                        logger.error("Failed to load highlights for navigation: \(error.localizedDescription)")
+                                        selectedThreadHighlights = []
+                                        selectedThread = thread
+                                        isShowingDetail = true
+                                    }
                                 }
                             }
-                        }
-                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                deleteThread(thread)
-                            } label: {
-                                Label("Sil", systemImage: "trash")
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                Button(role: .destructive) {
+                                    deleteThread(thread)
+                                } label: {
+                                    Label("Sil", systemImage: "trash")
+                                }
                             }
-                        }
+                    }
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
     }
 
     private var highlightsOnlyView: some View {
@@ -189,6 +197,8 @@ struct SearchLibraryView: View {
                     systemImage: "magnifyingglass",
                     description: Text("'\(searchText)' için eşleşen vurgu bulunamadı")
                 )
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(ThemeColors.primaryPurple)
                 .frame(maxHeight: .infinity)
             } else {
                 List {

@@ -151,5 +151,5 @@ struct OnlyFavoritesView: View {
 
 #Preview {
     OnlyFavoritesView()
-        .environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
+        .environment(\.managedObjectContext, PersistenceController.previewFast.container.viewContext)
 }

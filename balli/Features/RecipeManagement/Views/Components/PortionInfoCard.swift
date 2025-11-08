@@ -133,7 +133,7 @@ struct PortionInfoCard: View {
 // MARK: - Previews
 
 #Preview("Single Portion") {
-    let recipe = Recipe(context: PersistenceController.preview.container.viewContext)
+    let recipe = Recipe(context: PersistenceController.previewFast.container.viewContext)
     recipe.id = UUID()
     recipe.name = "Test Recipe"
     recipe.totalRecipeWeight = 342
@@ -145,7 +145,7 @@ struct PortionInfoCard: View {
 }
 
 #Preview("Multiple Portions") {
-    let recipe = Recipe(context: PersistenceController.preview.container.viewContext)
+    let recipe = Recipe(context: PersistenceController.previewFast.container.viewContext)
     recipe.id = UUID()
     recipe.name = "Test Recipe"
     recipe.totalRecipeWeight = 756
@@ -157,7 +157,7 @@ struct PortionInfoCard: View {
 }
 
 #Preview("Many Small Portions") {
-    let recipe = Recipe(context: PersistenceController.preview.container.viewContext)
+    let recipe = Recipe(context: PersistenceController.previewFast.container.viewContext)
     recipe.id = UUID()
     recipe.name = "Test Recipe"
     recipe.totalRecipeWeight = 1200

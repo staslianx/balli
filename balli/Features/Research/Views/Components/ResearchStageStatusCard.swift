@@ -13,6 +13,7 @@ struct ResearchStageStatusCard: View {
     let stageMessage: String
     let progress: Double // 0.0 to 1.0
 
+    @Environment(\.colorScheme) private var colorScheme
     @State private var animatedProgress: Double = 0.0
 
     /// Map stage message to appropriate SF Symbol
@@ -54,35 +55,36 @@ struct ResearchStageStatusCard: View {
 
                 Text(stageMessage)
                     .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-                    .textShimmer(duration: 2.0)
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
+                    .shimmer(duration: 2.5, bounceBack: false)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(height: 20, alignment: .leading) // Fixed height to prevent layout shift
 
-            // Progress bar (fixed height, no GeometryReader to prevent layout issues)
-            ZStack(alignment: .leading) {
-                // Background track
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.secondary.opacity(0.15))
-                    .frame(height: 8)
+            // Progress bar
+            GeometryReader { geometry in
+                ZStack(alignment: .leading) {
+                    // Background track
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.secondary.opacity(0.15))
+                        .frame(height: 8)
 
-                // Filled progress
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                AppTheme.primaryPurple,
-                                AppTheme.primaryPurple.opacity(0.7)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
+                    // Filled progress
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    AppTheme.primaryPurple,
+                                    AppTheme.primaryPurple.opacity(0.7)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                         )
-                    )
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .scaleEffect(x: animatedProgress, y: 1.0, anchor: .leading)
+                        .frame(width: geometry.size.width * animatedProgress, height: 8)
+                }
             }
-            .frame(height: 8) // Fixed height for consistency
+            .frame(height: 8)
         }
         .padding(18)
         .background {

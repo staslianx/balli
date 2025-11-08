@@ -46,20 +46,33 @@ struct AIDiagnosticsView: View {
     // MARK: - Body
 
     var body: some View {
-        List {
-            // Statistics Section
-            if let stats = statistics {
-                statisticsSection(stats)
+        Group {
+            if logs.isEmpty {
+                ContentUnavailableView(
+                    "Kayıt Yok",
+                    systemImage: "tray",
+                    description: Text("Seçilen filtrelere uygun AI tanılama kaydı bulunamadı.")
+                )
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(AppTheme.primaryPurple)
+                .frame(maxHeight: .infinity)
+            } else {
+                List {
+                    // Statistics Section
+                    if let stats = statistics {
+                        statisticsSection(stats)
+                    }
+
+                    // Filters Section
+                    filtersSection
+
+                    // Logs Section
+                    logsSection
+
+                    // Export Section
+                    exportSection
+                }
             }
-
-            // Filters Section
-            filtersSection
-
-            // Logs Section
-            logsSection
-
-            // Export Section
-            exportSection
         }
         .navigationTitle("AI Tanılama")
         .navigationBarTitleDisplayMode(.inline)
@@ -192,24 +205,20 @@ struct AIDiagnosticsView: View {
 
     private var logsSection: some View {
         Section {
-            if logs.isEmpty {
-                ContentUnavailableView(
-                    "Kayıt Yok",
-                    systemImage: "tray",
-                    description: Text("Seçilen filtrelere uygun AI tanılama kaydı bulunamadı.")
-                )
-            } else {
+            if !logs.isEmpty {
                 ForEach(logs) { log in
                     AILogEntryRow(entry: log)
                 }
             }
         } header: {
-            HStack {
-                Text("Kayıtlar")
-                Spacer()
-                Text("\(logs.count) kayıt")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            if !logs.isEmpty {
+                HStack {
+                    Text("Kayıtlar")
+                    Spacer()
+                    Text("\(logs.count) kayıt")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
     }

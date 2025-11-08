@@ -80,8 +80,8 @@ struct PortionDefinerModal: View {
     /// Current portion weight (5g steps)
     @State private var portionWeight: Double
 
-    /// Show success feedback
-    @State private var showSuccessFeedback = false
+    /// Toast notification
+    @State private var toastMessage: ToastType? = nil
 
     // MARK: - Initialization
 
@@ -167,12 +167,7 @@ struct PortionDefinerModal: View {
                     }
                 }
             }
-        }
-        .overlay(alignment: .top) {
-            if showSuccessFeedback {
-                successBanner
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
+            .toast($toastMessage)
         }
     }
 
@@ -416,26 +411,6 @@ struct PortionDefinerModal: View {
         }
     }
 
-    private var successBanner: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.title2)
-                .foregroundColor(.white)
-
-            Text("Porsiyon kaydedildi!")
-                .font(.subheadline)
-                .fontWeight(.semibold)
-                .foregroundColor(.white)
-
-            Spacer()
-        }
-        .padding()
-        .background(Color.green)
-        .cornerRadius(12)
-        .shadow(radius: 8)
-        .padding()
-    }
-
     // MARK: - Actions
 
     private func savePortionSize() {
@@ -457,24 +432,18 @@ struct PortionDefinerModal: View {
         do {
             try viewContext.save()
 
-            // Show success feedback
-            withAnimation(.spring()) {
-                showSuccessFeedback = true
-            }
+            // Show success toast
+            toastMessage = .success("Porsiyon kaydedildi!")
 
             // Dismiss after brief delay (Swift 6 concurrency compliance)
             Task { @MainActor in
-                try? await Task.sleep(for: .seconds(1.0))
-                withAnimation {
-                    showSuccessFeedback = false
-                }
-
-                try? await Task.sleep(for: .seconds(0.3))
+                try? await Task.sleep(for: .seconds(1.8))
                 dismiss()
             }
 
         } catch {
-            // Handle error (could add alert here)
+            // Show error toast
+            toastMessage = .error("Kaydetme başarısız oldu")
         }
     }
 }
@@ -524,7 +493,7 @@ private struct NutritionItemView: View {
 // MARK: - Previews
 
 #Preview("Define Mode - Manual Recipe") {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
     let recipe = Recipe(context: context)
     recipe.id = UUID()
     recipe.name = "Tavuklu Sebze Sote"
@@ -548,7 +517,7 @@ private struct NutritionItemView: View {
 }
 
 #Preview("Adjust Mode - AI Generated") {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
     let recipe = Recipe(context: context)
     recipe.id = UUID()
     recipe.name = "Mercimekli Bulgur Pilavı"
@@ -572,7 +541,7 @@ private struct NutritionItemView: View {
 }
 
 #Preview("Small Portion - Many Servings") {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
     let recipe = Recipe(context: context)
     recipe.id = UUID()
     recipe.name = "Büyük Sebze Güveç"

@@ -328,7 +328,7 @@ struct UnifiedDashboardView: View {
 // MARK: - Previews
 
 #Preview("Welcome Variant") {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
     let viewModel = HosgeldinViewModel.preview(viewContext: context)
 
     return UnifiedDashboardView(
@@ -344,7 +344,7 @@ struct UnifiedDashboardView: View {
 }
 
 #Preview("Today Variant") {
-    let context = PersistenceController.preview.container.viewContext
+    let context = PersistenceController.previewFast.container.viewContext
     let viewModel = HosgeldinViewModel.preview(viewContext: context)
 
     return UnifiedDashboardView(
