@@ -56,7 +56,7 @@ struct RecipeContentSection: View {
     private var editableRecipeContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Editable Ingredients Section
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 Text("Malzemeler")
                     .font(.custom("Playfair Display", size: 33))
                     .fontWeight(.bold)
@@ -64,24 +64,27 @@ struct RecipeContentSection: View {
                     .padding(.bottom, 0)
 
                 ForEach(Array(editedIngredients.enumerated()), id: \.offset) { index, ingredient in
-                    HStack(alignment: .top, spacing: 16) {
+                    HStack(alignment: .top, spacing: 6) {
                         Text("•")
-                            .font(.custom("Manrope", size: 20))
-                            .foregroundColor(AppTheme.primaryPurple)
-                            .padding(.top, 8)
+                            .font(.custom("Manrope", size: 20).weight(.heavy))
+                            .foregroundStyle(AppTheme.primaryPurple)
+                            .frame(width: 14, alignment: .trailing)
+                            .offset(x: -20)
 
                         TextField("", text: $editedIngredients[index], axis: .vertical)
-                            .font(.custom("Manrope", size: 20))
+                            .font(.custom("Manrope-Medium", size: 20))
                             .foregroundColor(.primary)
                             .textFieldStyle(.plain)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(.vertical, 4)
+                    .padding(.leading, 20)
                 }
             }
+            .padding(.vertical, 2)
             .padding(.bottom, 24)
 
             // Editable Instructions Section
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 12) {
                 Text("Yapılışı")
                     .font(.custom("Playfair Display", size: 33))
                     .fontWeight(.bold)
@@ -89,20 +92,23 @@ struct RecipeContentSection: View {
                     .padding(.bottom, 0)
 
                 ForEach(Array(editedInstructions.enumerated()), id: \.offset) { index, instruction in
-                    HStack(alignment: .top, spacing: 16) {
+                    HStack(alignment: .top, spacing: 6) {
                         Text("\(index + 1).")
-                            .font(.custom("Manrope", size: 20))
-                            .foregroundColor(AppTheme.primaryPurple)
-                            .padding(.top, 8)
+                            .font(.custom("Manrope", size: 20).weight(.bold))
+                            .foregroundStyle(AppTheme.primaryPurple)
+                            .frame(width: 24, alignment: .trailing)
+                            .offset(x: -30)
 
                         TextField("", text: $editedInstructions[index], axis: .vertical)
-                            .font(.custom("Manrope", size: 20))
+                            .font(.custom("Manrope-Medium", size: 20))
                             .foregroundColor(.primary)
                             .textFieldStyle(.plain)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(.vertical, 4)
+                    .padding(.leading, 30)
                 }
             }
+            .padding(.vertical, 2)
         }
     }
 

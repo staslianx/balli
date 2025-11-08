@@ -186,14 +186,31 @@ final class RecipeDetailViewModel: ObservableObject {
                 continue
             }
 
-            if trimmed.hasPrefix("- ") {
-                let item = trimmed.replacingOccurrences(of: "- ", with: "")
+            // Extract item content from both bullet points (- ) and numbered lists (1. 2. etc.)
+            var itemContent: String?
 
+            if trimmed.hasPrefix("- ") {
+                // Bullet point format: "- item" or "- **Adım 1:** item"
+                var content = trimmed.replacingOccurrences(of: "- ", with: "")
+                // Strip "**Adım N:**" prefix if present to avoid duplication
+                content = content.replacingOccurrences(of: #"^\*\*Adım \d+:\*\*\s*"#, with: "", options: .regularExpression)
+                itemContent = content
+            } else if let match = trimmed.range(of: #"^\d+\.\s+"#, options: .regularExpression) {
+                // Numbered list format: "1. item" or "2. item"
+                var content = String(trimmed[match.upperBound...])
+                // Strip "**Adım N:**" prefix if present to avoid duplication
+                content = content.replacingOccurrences(of: #"^\*\*Adım \d+:\*\*\s*"#, with: "", options: .regularExpression)
+                itemContent = content
+            }
+
+            // Add to appropriate section if we extracted content
+            if let item = itemContent, !item.isEmpty {
                 if currentSection?.lowercased().contains("malzeme") == true ||
                    currentSection?.lowercased().contains("ingredients") == true {
                     ingredients.append(item)
                 } else if currentSection?.lowercased().contains("talimat") == true ||
                           currentSection?.lowercased().contains("hazırlanış") == true ||
+                          currentSection?.lowercased().contains("yapılış") == true ||
                           currentSection?.lowercased().contains("instructions") == true {
                     instructions.append(item)
                 }
@@ -215,9 +232,9 @@ final class RecipeDetailViewModel: ObservableObject {
         }
 
         if !editedInstructions.isEmpty {
-            markdown += "## Hazırlanışı\n\n"
+            markdown += "## Yapılışı\n\n"
             for (index, instruction) in editedInstructions.enumerated() where !instruction.isEmpty {
-                markdown += "- **Adım \(index + 1):** \(instruction)\n"
+                markdown += "\(index + 1). \(instruction)\n"
             }
         }
 

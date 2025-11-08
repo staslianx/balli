@@ -203,6 +203,7 @@ struct ArdiyeSearchView: View {
             }
         }
         .navigationTitle("Ara")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             // Filter button - only show when there's a search query
             if !searchText.isEmpty {
@@ -259,7 +260,7 @@ struct ArdiyeSearchView: View {
                         .foregroundColor(.secondary)
                         .textCase(.none)
                         .padding(.leading, 4)
-                        .padding(.top, 8)
+                        .padding(.top, 0)
                 }
                 .listRowBackground(Color.clear)
             } else {
@@ -281,6 +282,7 @@ struct ArdiyeSearchView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .contentMargins(.top, 0, for: .scrollContent)
     }
 
     @ViewBuilder
