@@ -98,15 +98,10 @@ struct RecipeStoryCard: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Text(step)
                                 .font(.sfRounded(14, weight: .regular))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
                                 .lineLimit(2)
                                 .multilineTextAlignment(.leading)
-                                .opacity(pulseOpacity)
-                                .onAppear {
-                                    withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
-                                        pulseOpacity = 0.5
-                                    }
-                                }
+                                .shimmer(duration: 2.5, bounceBack: false)
 
                             // Progress bar
                             GeometryReader { geometry in
@@ -309,4 +304,37 @@ struct RecipeStoryCard: View {
             endPoint: .bottom
         )
     )
+}
+
+#Preview("Loading State with Shimmer") {
+    ZStack {
+        Color.black.ignoresSafeArea()
+
+        VStack(spacing: 24) {
+            RecipeStoryCard(
+                title: "balli'nin tarif analizi",
+                isLoading: true,
+                loadingStep: "Ham ağırlıkları hesaplıyorum",
+                loadingProgress: 25
+            ) {
+            }
+
+            RecipeStoryCard(
+                title: "balli'nin tarif analizi",
+                isLoading: true,
+                loadingStep: "Besin değerlerini analiz ediyorum",
+                loadingProgress: 60
+            ) {
+            }
+
+            RecipeStoryCard(
+                title: "balli'nin tarif analizi",
+                isLoading: true,
+                loadingStep: "Son kontrolleri yapıyorum",
+                loadingProgress: 90
+            ) {
+            }
+        }
+        .padding(.horizontal)
+    }
 }

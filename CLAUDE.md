@@ -788,5 +788,150 @@ onComplete: { response in
 
 ---
 
-**Last Updated:** 2025-11-07
+### Shimmer Effects in SwiftUI
+
+**Problem:** Creating a smooth, visible shimmer animation that sweeps across text without double-rendering, visible rectangles, or abrupt loop transitions.
+
+**Common Pitfalls:**
+
+1. **Double Text Rendering** - Using `.overlay` + `.mask(content)` causes content to render twice (once as base, once in mask)
+2. **Visible Rectangle Background** - Blend modes like `.overlay` or `.screen` can show the gradient rectangle instead of just affecting the text
+3. **Abrupt Loop Transitions** - Gradient going from end directly back to start creates jarring `0→1→0→1` jumps instead of smooth `0→1→0→0→1→0` loops
+4. **Animation Not Starting** - Using `.onAppear` on hidden content or wrong view hierarchy prevents animation initialization
+5. **Invisible Shimmer** - Wrong blend mode or opacity makes effect too subtle to see
+
+**Solution Pattern:**
+
+```swift
+@MainActor
+struct ShimmerEffect: ViewModifier {
+    @State private var phase: CGFloat = 0
+
+    let duration: Double
+    let bounceBack: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                LinearGradient(
+                    stops: [
+                        // 20% padding at start (clear)
+                        .init(color: .white.opacity(0), location: 0.0),
+                        .init(color: .white.opacity(0), location: 0.2),
+                        // Shimmer sweep (30% of gradient)
+                        .init(color: .white.opacity(0.3), location: 0.35),
+                        .init(color: .white.opacity(0.8), location: 0.45),
+                        .init(color: .white.opacity(1.0), location: 0.5),
+                        .init(color: .white.opacity(0.8), location: 0.55),
+                        .init(color: .white.opacity(0.3), location: 0.65),
+                        // 20% padding at end (clear)
+                        .init(color: .white.opacity(0), location: 0.8),
+                        .init(color: .white.opacity(0), location: 1.0)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                .scaleEffect(x: 4, anchor: .leading)
+                .offset(x: phase * UIScreen.main.bounds.width * 3 - UIScreen.main.bounds.width * 1.5)
+                .blendMode(.overlay)
+                .mask(content)  // Clips gradient to text shape ONLY
+            }
+            .task {
+                try? await Task.sleep(for: .milliseconds(100))
+                withAnimation(
+                    .linear(duration: duration)
+                    .repeatForever(autoreverses: bounceBack)
+                ) {
+                    phase = 1.0
+                }
+            }
+    }
+}
+
+extension View {
+    func shimmer(duration: Double = 2.0, bounceBack: Bool = false) -> some View {
+        modifier(ShimmerEffect(duration: duration, bounceBack: bounceBack))
+    }
+}
+```
+
+**Key Implementation Details:**
+
+1. **Gradient Padding (20% each side)**: Clear padding at 0.0-0.2 and 0.8-1.0 ensures smooth loops without abrupt transitions
+2. **Mask on Overlay**: Apply `.mask(content)` to the gradient overlay (NOT to base content) - prevents double rendering
+3. **Overlay Blend Mode**: `.overlay` blend mode adds light without showing rectangle background
+4. **Wider Travel Distance**: 4x scale + 3x offset movement ensures shimmer fully crosses text before looping
+5. **Task-Based Animation**: Use `.task` instead of `.onAppear` for reliable async animation initialization
+6. **Base Text Opacity**: Set base text to ~60% opacity so shimmer brightening is visible
+
+**Usage:**
+
+```swift
+Text(currentStage.message)
+    .font(.system(size: 20, weight: .medium, design: .rounded))
+    .foregroundColor(.primary.opacity(0.6))  // Dimmer base for visible shimmer
+    .shimmer(duration: 2.5, bounceBack: false)
+```
+
+**What NOT to Do:**
+
+❌ **WRONG:** Double rendering with separate mask
+```swift
+content
+    .hidden()  // Hides original
+    .overlay {
+        gradient.mask { content }  // Renders content AGAIN in mask
+    }
+```
+
+❌ **WRONG:** No gradient padding (abrupt loops)
+```swift
+LinearGradient(
+    colors: [.white.opacity(0), .white, .white.opacity(0)],  // No padding
+    startPoint: .leading,
+    endPoint: .trailing
+)
+// Result: 0→1→0→1 (abrupt jump)
+```
+
+❌ **WRONG:** Blend mode on rectangle (shows background)
+```swift
+Rectangle()
+    .fill(gradient)
+    .blendMode(.screen)  // Shows entire rectangle, not just text
+```
+
+✅ **RIGHT:** Mask gradient, blend on overlay
+```swift
+gradient
+    .blendMode(.overlay)
+    .mask(content)  // Clips to text shape only
+```
+
+**Debugging Tips:**
+
+1. **Test in isolation**: Create test view with solid black background to see shimmer clearly
+2. **Add phase indicator**: Show `phase` value (0.0-1.0) to verify animation is running
+3. **Try different blend modes**:
+   - `.overlay`: Subtle, best for light backgrounds
+   - `.screen`: Brighter, can show rectangle on glass backgrounds
+   - `.plusLighter`: Additive, very bright but can be harsh
+4. **Check glass effect**: Interactive glass backgrounds can interfere - use `.regular` instead of `.regular.interactive()`
+
+**Benefits:**
+- ✅ Single text render (no double text)
+- ✅ Smooth continuous loop with no abrupt transitions
+- ✅ Gradient clipped to text shape only (no visible rectangle)
+- ✅ Works on glass backgrounds
+- ✅ Configurable duration and direction
+
+**Files Implemented:**
+- `ShimmerEffect.swift`: Reusable modifier with gradient padding and proper masking
+- `AnalysisNutritionLabelView.swift`: Applied to status text during AI analysis stages
+
+**Related:** SwiftUI Animations, Blend Modes, View Masking, Gradient Animations
+
+---
+
+**Last Updated:** 2025-11-08
 **Enforced By:** Claude Code + Code Review

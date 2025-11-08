@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import os.log
 
 /// Nutrition label view displayed during AI analysis with live data updates
 struct AnalysisNutritionLabelView: View {
@@ -31,6 +32,9 @@ struct AnalysisNutritionLabelView: View {
 
     /// Rotation state for logo animation
     @State private var isRotating = false
+
+    // MARK: - Logger
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "ShimmerDebug")
 
     // MARK: - Body
 
@@ -172,13 +176,16 @@ struct AnalysisNutritionLabelView: View {
 
     private var progressSection: some View {
         VStack(spacing: ResponsiveDesign.Spacing.medium) {
-            // Status with rotating balli logo - Fixed height to prevent jumping
-            HStack(spacing: ResponsiveDesign.Spacing.small) {
+            // Status text CENTERED with rotating logo on left of TEXT
+            HStack(spacing: ResponsiveDesign.Spacing.medium) {
+                Spacer()
+
+                // Rotating balli logo
                 Image("balli-logo")
                     .resizable()
                     .renderingMode(.template)
                     .foregroundColor(currentStage.iconColor)
-                    .frame(width: ResponsiveDesign.Font.scaledSize(24), height: ResponsiveDesign.Font.scaledSize(24))
+                    .frame(width: ResponsiveDesign.Font.scaledSize(28), height: ResponsiveDesign.Font.scaledSize(28))
                     .aspectRatio(contentMode: .fit)
                     .rotationEffect(.degrees(isRotating ? 360 : 0))
                     .animation(
@@ -188,43 +195,55 @@ struct AnalysisNutritionLabelView: View {
                         value: isRotating
                     )
 
-                Text(currentStage.message)
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .medium, design: .rounded))
-                    .foregroundColor(.secondary)
+                // Status text with shimmer animation
+                Group {
+                    if currentStage == .completed {
+                        // No shimmer for completed state - just colored text
+                        Text(currentStage.message)
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .medium, design: .rounded))
+                            .foregroundColor(.secondary)
+                    } else {
+                        // Shimmer effect for active processing stages
+                        Text(currentStage.message)
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .medium, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
+                            .shimmer(duration: 2.5, bounceBack: false)
+                    }
+                }
+
+                Spacer()
             }
-            .frame(height: ResponsiveDesign.height(24))
-            .multilineTextAlignment(.center)
-            .onAppear {
+            .onAppearExcludingPreview {
                 // Start rotation when view appears (if not completed)
+                // Logging and animations only in real app, not previews
+                logger.info("✅ VIEW APPEARED: currentStage=\(String(describing: self.currentStage))")
                 if currentStage != .completed {
+                    logger.info("🎬 STARTING ANIMATIONS")
                     isRotating = true
                 }
             }
             .onChange(of: currentStage) { oldValue, newValue in
+                // Skip logging in preview mode
+                guard !ProcessInfo.processInfo.isPreviewMode else {
+                    // Still handle animation state changes
+                    if newValue == .completed {
+                        isRotating = false
+                    } else if !isRotating {
+                        isRotating = true
+                    }
+                    return
+                }
+
+                logger.info("🔄 STAGE CHANGED: \(String(describing: oldValue)) → \(String(describing: newValue))")
                 // Stop rotation when analysis completes
                 if newValue == .completed {
+                    logger.info("🛑 STOPPING ANIMATIONS")
                     isRotating = false
                 } else if !isRotating {
+                    logger.info("▶️ RESTARTING ANIMATIONS")
                     isRotating = true
                 }
             }
-
-            // Clean progress bar
-            GeometryReader { geometry in
-                ZStack(alignment: .leading) {
-                    // Background track
-                    RoundedRectangle(cornerRadius: ResponsiveDesign.height(3))
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(height: ResponsiveDesign.height(6))
-
-                    // Progress fill
-                    RoundedRectangle(cornerRadius: ResponsiveDesign.height(3))
-                        .fill(AppTheme.primaryPurple)
-                        .frame(width: geometry.size.width * CGFloat(visualProgress), height: ResponsiveDesign.height(6))
-                        .animation(.easeInOut(duration: 0.3), value: visualProgress)
-                }
-            }
-            .frame(height: ResponsiveDesign.height(6))
 
             // Error message if any
             if let error = errorMessage {
@@ -298,35 +317,117 @@ struct AnalysisNutritionLabelView: View {
 
 }
 
-
 // MARK: - Preview
 
-#Preview("Analysis in Progress") {
+#Preview("Stage 1: İnceliyorum") {
     ZStack {
         Color(.systemGray6)
             .ignoresSafeArea()
 
         AnalysisNutritionLabelView(
-            capturedImage: UIImage(systemName: "photo.fill") ?? UIImage(),
-            currentStage: .processing,
-            visualProgress: 0.65,
+            capturedImage: PreviewMocks.sampleImage,
+            currentStage: .preparing,
+            visualProgress: 0.15,
             errorMessage: nil,
             nutritionResult: nil
         )
     }
 }
 
-#Preview("Analysis Starting") {
+#Preview("Stage 2: Analiz ediyorum") {
     ZStack {
         Color(.systemGray6)
             .ignoresSafeArea()
 
         AnalysisNutritionLabelView(
-            capturedImage: UIImage(systemName: "photo.fill") ?? UIImage(),
+            capturedImage: PreviewMocks.sampleImage,
             currentStage: .analyzing,
-            visualProgress: 0.25,
+            visualProgress: 0.33,
             errorMessage: nil,
             nutritionResult: nil
+        )
+    }
+}
+
+#Preview("Stage 3: Sadeleştiriyorum") {
+    ZStack {
+        Color(.systemGray6)
+            .ignoresSafeArea()
+
+        AnalysisNutritionLabelView(
+            capturedImage: PreviewMocks.sampleImage,
+            currentStage: .reading,
+            visualProgress: 0.41,
+            errorMessage: nil,
+            nutritionResult: nil
+        )
+    }
+}
+
+#Preview("Stage 4: Etiketini oluşturuyorum") {
+    ZStack {
+        Color(.systemGray6)
+            .ignoresSafeArea()
+
+        AnalysisNutritionLabelView(
+            capturedImage: PreviewMocks.sampleImage,
+            currentStage: .sending,
+            visualProgress: 0.64,
+            errorMessage: nil,
+            nutritionResult: nil
+        )
+    }
+}
+
+#Preview("Stage 5: Sağlamasını yapıyorum") {
+    ZStack {
+        Color(.systemGray6)
+            .ignoresSafeArea()
+
+        AnalysisNutritionLabelView(
+            capturedImage: PreviewMocks.sampleImage,
+            currentStage: .processing,
+            visualProgress: 0.73,
+            errorMessage: nil,
+            nutritionResult: nil
+        )
+    }
+}
+
+#Preview("Stage 6: Son bi bakıyorum...") {
+    ZStack {
+        Color(.systemGray6)
+            .ignoresSafeArea()
+
+        AnalysisNutritionLabelView(
+            capturedImage: PreviewMocks.sampleImage,
+            currentStage: .validating,
+            visualProgress: 0.92,
+            errorMessage: nil,
+            nutritionResult: nil
+        )
+    }
+}
+
+#Preview("Completed") {
+    ZStack {
+        Color(.systemGray6)
+            .ignoresSafeArea()
+
+        AnalysisNutritionLabelView(
+            capturedImage: PreviewMocks.sampleImage,
+            currentStage: .completed,
+            visualProgress: 1.0,
+            errorMessage: nil,
+            nutritionResult: PreviewMocks.nutritionResult(
+                productName: "Çikolatalı Gofret",
+                brandName: "Ülker",
+                calories: 542,
+                carbs: 58.2,
+                protein: 7.8,
+                fat: 30.5,
+                servingSize: 100
+            )
         )
     }
 }
