@@ -274,12 +274,21 @@ struct RecipeGenerationContentSection: View {
     var focusedField: FocusState<RecipeGenerationView.FocusField?>.Binding
     let onAnimationStateChange: ((Bool) -> Void)?  // Callback for animation state
 
+    /// True when backend is generating but no content has arrived yet
+    private var isWaitingForContent: Bool {
+        isStreaming && recipeContent.isEmpty
+    }
+
     var body: some View {
         Group {
-            // CRITICAL: Always show TypewriterRecipeContentView, even with empty content
-            // The view MUST exist before streaming starts to set up onChange handlers
-            // Otherwise it misses all the streaming updates!
-            if isStreaming || !recipeContent.isEmpty {
+            if isWaitingForContent {
+                // Show shimmer placeholders while waiting for first content
+                VStack(alignment: .leading, spacing: 32) {
+                    IngredientsShimmerPlaceholder()
+                    StepsShimmerPlaceholder()
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else if isStreaming || !recipeContent.isEmpty {
                 // Use TypewriterRecipeContentView for smooth streaming animation
                 TypewriterRecipeContentView(
                     content: recipeContent,
@@ -287,7 +296,7 @@ struct RecipeGenerationContentSection: View {
                     recipeId: "recipe-generation",
                     onAnimationStateChange: onAnimationStateChange  // Pass through callback
                 )
-            } else if recipeContent.isEmpty {
+            } else {
                 // Interactive placeholder - let user add their own recipe
                 // Only show when NOT streaming and content is empty
                 VStack(alignment: .leading, spacing: 32) {

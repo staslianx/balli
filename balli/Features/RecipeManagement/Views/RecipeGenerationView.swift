@@ -191,6 +191,7 @@ struct RecipeGenerationView: View {
                             isManualRecipe: generationViewModel.isManualRecipe,
                             prepTime: viewModel.generationCoordinator.prepTime,
                             cookTime: viewModel.generationCoordinator.cookTime,
+                            isStreaming: viewModel.isGeneratingRecipe,
                             isNameFieldFocused: $isNameFieldFocused
                         )
 

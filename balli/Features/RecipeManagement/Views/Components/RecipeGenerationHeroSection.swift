@@ -155,6 +155,7 @@ struct RecipeGenerationMetadata: View {
     let isManualRecipe: Bool
     let prepTime: Int?
     let cookTime: Int?
+    let isStreaming: Bool  // Track if recipe is being generated
     @Environment(\.colorScheme) private var colorScheme
     @FocusState.Binding var isNameFieldFocused: Bool
 
@@ -194,10 +195,19 @@ struct RecipeGenerationMetadata: View {
                     )
                     .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
                 } else {
-                    Text("Tarif ismi")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.3))
-                        .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
+                    // Show shimmer placeholder during generation, static placeholder otherwise
+                    if isStreaming {
+                        Text("Tarif ismi")
+                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                            .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.3))
+                            .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
+                            .shimmer(duration: 2.5, bounceBack: false)
+                    } else {
+                        Text("Tarif ismi")
+                            .font(.system(size: 34, weight: .bold, design: .rounded))
+                            .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.3))
+                            .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -267,6 +277,7 @@ struct RecipeGenerationCompleteHero: View {
     let isManualRecipe: Bool
     let prepTime: Int?
     let cookTime: Int?
+    let isStreaming: Bool  // Track if recipe is being generated
     @FocusState.Binding var isNameFieldFocused: Bool
     let onGeneratePhoto: () -> Void
     let onStoryCardTap: () -> Void
@@ -304,6 +315,7 @@ struct RecipeGenerationCompleteHero: View {
                 isManualRecipe: isManualRecipe,
                 prepTime: prepTime,
                 cookTime: cookTime,
+                isStreaming: isStreaming,
                 isNameFieldFocused: $isNameFieldFocused
             )
 
