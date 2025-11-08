@@ -9,7 +9,7 @@
 import SwiftUI
 
 /// Pulsing spatial.capture icon shown during photo generation
-/// Uses opacity animation only - no scale, no text
+/// Uses opacity animation with shimmer effect
 struct PulsingPhotoIcon: View {
     @State private var isAnimating = false
 
@@ -18,6 +18,7 @@ struct PulsingPhotoIcon: View {
             .font(.system(size: 64, weight: .light))
             .foregroundStyle(.white.opacity(0.8))
             .opacity(isAnimating ? 0.3 : 1.0)
+            .shimmer(duration: 2.5, bounceBack: false)
             .onAppear {
                 withAnimation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true)) {
                     isAnimating = true

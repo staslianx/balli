@@ -16,7 +16,8 @@ struct RecipeNameShimmerPlaceholder: View {
 
     var body: some View {
         Text("Tarif ismi")
-            .font(.system(size: 34, weight: .bold, design: .rounded))
+            .font(.custom("Playfair Display", size: 34))
+            .fontWeight(.bold)
             .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.3))
             .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
             .shimmer(duration: 2.5, bounceBack: false)
