@@ -97,7 +97,7 @@ struct RecipeStoryCard: View {
                         // Loading animation
                         VStack(alignment: .leading, spacing: 6) {
                             Text(step)
-                                .font(.sfRounded(14, weight: .regular))
+                                .font(.sfRounded(14, weight: .semiBold))
                                 .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
                                 .lineLimit(2)
                                 .multilineTextAlignment(.leading)
