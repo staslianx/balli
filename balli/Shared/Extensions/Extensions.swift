@@ -162,6 +162,36 @@ extension String {
     var nilIfEmpty: String? {
         self.trimmed.isEmpty ? nil : self
     }
+
+    /// Converts string to Double, accepting both comma and period as decimal separator
+    /// This handles Turkish locale (4,5) and US locale (4.5) input
+    var toDouble: Double? {
+        // First try with the current locale
+        let currentLocaleFormatter = NumberFormatter()
+        currentLocaleFormatter.locale = Locale.current
+        currentLocaleFormatter.numberStyle = .decimal
+
+        if let number = currentLocaleFormatter.number(from: self) {
+            return number.doubleValue
+        }
+
+        // Try replacing comma with period and parse again
+        let normalized = self.replacingOccurrences(of: ",", with: ".")
+        if let number = Double(normalized) {
+            return number
+        }
+
+        // Try Turkish locale explicitly
+        let turkishFormatter = NumberFormatter()
+        turkishFormatter.locale = Locale(identifier: "tr_TR")
+        turkishFormatter.numberStyle = .decimal
+
+        if let number = turkishFormatter.number(from: self) {
+            return number.doubleValue
+        }
+
+        return nil
+    }
 }
 
 // MARK: - Date Extensions
@@ -229,6 +259,32 @@ extension Double {
         formatter.minimumFractionDigits = 0
         formatter.maximumFractionDigits = 1
         return formatter.string(from: NSNumber(value: self)) ?? "0%"
+    }
+
+    /// Formats as locale-aware decimal (shows comma in Turkish, period in US)
+    /// - Parameter decimalPlaces: Number of decimal places (default: 1)
+    /// - Returns: Formatted string with locale-appropriate decimal separator
+    func asLocalizedDecimal(decimalPlaces: Int = 1) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale.current
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = decimalPlaces
+        return formatter.string(from: NSNumber(value: self)) ?? "\(self)"
+    }
+
+    /// Formats as decimal with specific locale
+    /// - Parameters:
+    ///   - decimalPlaces: Number of decimal places
+    ///   - locale: Specific locale (e.g., "tr_TR", "en_US")
+    /// - Returns: Formatted string
+    func asDecimal(decimalPlaces: Int = 1, locale: String = "tr_TR") -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.locale = Locale(identifier: locale)
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = decimalPlaces
+        return formatter.string(from: NSNumber(value: self)) ?? "\(self)"
     }
 }
 

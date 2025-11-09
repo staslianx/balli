@@ -92,55 +92,56 @@ struct NutritionLabelView: View {
     
     // Computed properties for proportional values
     private var adjustmentRatio: Double {
-        let baseServing = Double(servingSize) ?? 100.0
+        let baseServing = servingSize.toDouble ?? 100.0
         return portionGrams / baseServing
     }
-    
+
     private var adjustedCalories: String {
-        guard let baseValue = Double(calories) else { return calories }
+        guard let baseValue = calories.toDouble else { return calories }
         let adjusted = baseValue * adjustmentRatio
-        return String(format: "%.0f", adjusted)
+        return adjusted.asLocalizedDecimal(decimalPlaces: 0)
     }
-    
+
     private var adjustedCarbohydrates: String {
-        guard let baseValue = Double(carbohydrates) else { return carbohydrates }
+        guard let baseValue = carbohydrates.toDouble else { return carbohydrates }
         let adjusted = baseValue * adjustmentRatio
         return formatNutritionValue(adjusted)
     }
 
     private var adjustedFiber: String {
-        guard let baseValue = Double(fiber) else { return fiber }
+        guard let baseValue = fiber.toDouble else { return fiber }
         let adjusted = baseValue * adjustmentRatio
         return formatNutritionValue(adjusted)
     }
 
     private var adjustedSugars: String {
-        guard let baseValue = Double(sugars) else { return sugars }
+        guard let baseValue = sugars.toDouble else { return sugars }
         let adjusted = baseValue * adjustmentRatio
         return formatNutritionValue(adjusted)
     }
 
     private var adjustedProtein: String {
-        guard let baseValue = Double(protein) else { return protein }
+        guard let baseValue = protein.toDouble else { return protein }
         let adjusted = baseValue * adjustmentRatio
         return formatNutritionValue(adjusted)
     }
 
     private var adjustedFat: String {
-        guard let baseValue = Double(fat) else { return fat }
+        guard let baseValue = fat.toDouble else { return fat }
         let adjusted = baseValue * adjustmentRatio
         return formatNutritionValue(adjusted)
     }
 
-    /// Format nutrition value: show decimal only if there's a meaningful value (51.0 -> "51", 51.5 -> "51.5")
+    /// Format nutrition value with locale-aware decimal separator
+    /// Show decimal only if there's a meaningful value (51.0 -> "51", 51.5 -> "51,5" in Turkish)
     private func formatNutritionValue(_ value: Double) -> String {
         let rounded = round(value * 10) / 10  // Round to 1 decimal place
         if rounded.truncatingRemainder(dividingBy: 1) == 0 {
             // No decimal part, show as integer
-            return String(format: "%.0f", rounded)
+            return rounded.asLocalizedDecimal(decimalPlaces: 0)
         } else {
-            // Has decimal part, show 1 decimal
-            return String(format: "%.1f", rounded)
+            // Has decimal part, show 1 decimal with locale-aware separator
+            return rounded.asLocalizedDecimal(decimalPlaces: 1)
         }
     }
 
@@ -148,17 +149,17 @@ struct NutritionLabelView: View {
     /// Treats empty or invalid nutritional values as 0.0 to handle products with missing data
     private var currentImpactResult: ImpactScoreResult? {
         // Require only carbs and serving size - other nutrients can be zero
-        guard let baseCarbs = Double(carbohydrates),
-              let baseServing = Double(servingSize),
+        guard let baseCarbs = carbohydrates.toDouble,
+              let baseServing = servingSize.toDouble,
               baseServing > 0 else {
             return nil
         }
 
         // Parse optional nutrients - default to 0.0 if missing/empty/invalid
-        let baseFiber = Double(fiber) ?? 0.0
-        let baseSugars = Double(sugars) ?? 0.0
-        let baseProtein = Double(protein) ?? 0.0
-        let baseFat = Double(fat) ?? 0.0
+        let baseFiber = fiber.toDouble ?? 0.0
+        let baseSugars = sugars.toDouble ?? 0.0
+        let baseProtein = protein.toDouble ?? 0.0
+        let baseFat = fat.toDouble ?? 0.0
 
         return ImpactScoreCalculator.calculate(
             totalCarbs: baseCarbs,
@@ -279,8 +280,8 @@ struct NutritionLabelView: View {
             // Show real-time impact badge based on current portion
             if let result = currentImpactResult {
                 // Determine impact level using three-threshold evaluation with SCALED values
-                let scaledFat = (Double(fat) ?? 0.0) * adjustmentRatio
-                let scaledProtein = (Double(protein) ?? 0.0) * adjustmentRatio
+                let scaledFat = (fat.toDouble ?? 0.0) * adjustmentRatio
+                let scaledProtein = (protein.toDouble ?? 0.0) * adjustmentRatio
 
                 let currentLevel = ImpactLevel.from(
                     score: result.score,

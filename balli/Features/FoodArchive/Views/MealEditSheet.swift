@@ -33,23 +33,23 @@ struct MealEditSheet: View {
     init(meal: MealEntry) {
         self.meal = meal
 
-        // Initialize state from meal
+        // Initialize state from meal with locale-aware formatting (comma in Turkish, period in US)
         _mealType = State(initialValue: meal.mealType)
         _timestamp = State(initialValue: meal.timestamp)
-        _quantity = State(initialValue: String(format: "%.1f", meal.quantity))
+        _quantity = State(initialValue: meal.quantity.asLocalizedDecimal(decimalPlaces: 1))
         _unit = State(initialValue: meal.unit)
-        _consumedCarbs = State(initialValue: String(format: "%.1f", meal.consumedCarbs))
-        _consumedProtein = State(initialValue: String(format: "%.1f", meal.consumedProtein))
-        _consumedFat = State(initialValue: String(format: "%.1f", meal.consumedFat))
-        _consumedCalories = State(initialValue: String(format: "%.0f", meal.consumedCalories))
-        _consumedFiber = State(initialValue: String(format: "%.1f", meal.consumedFiber))
+        _consumedCarbs = State(initialValue: meal.consumedCarbs.asLocalizedDecimal(decimalPlaces: 1))
+        _consumedProtein = State(initialValue: meal.consumedProtein.asLocalizedDecimal(decimalPlaces: 1))
+        _consumedFat = State(initialValue: meal.consumedFat.asLocalizedDecimal(decimalPlaces: 1))
+        _consumedCalories = State(initialValue: meal.consumedCalories.asLocalizedDecimal(decimalPlaces: 0))
+        _consumedFiber = State(initialValue: meal.consumedFiber.asLocalizedDecimal(decimalPlaces: 1))
         _notes = State(initialValue: meal.notes ?? "")
     }
 
     private var canSave: Bool {
         !mealType.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        Double(quantity) != nil &&
-        Double(consumedCarbs) != nil
+        quantity.toDouble != nil &&
+        consumedCarbs.toDouble != nil
     }
 
     private var hasChanges: Bool {
@@ -59,13 +59,13 @@ struct MealEditSheet: View {
 
         return trimmedMealType != meal.mealType ||
                timestamp != meal.timestamp ||
-               Double(quantity) != meal.quantity ||
+               quantity.toDouble != meal.quantity ||
                trimmedUnit != meal.unit ||
-               Double(consumedCarbs) != meal.consumedCarbs ||
-               Double(consumedProtein) != meal.consumedProtein ||
-               Double(consumedFat) != meal.consumedFat ||
-               Double(consumedCalories) != meal.consumedCalories ||
-               Double(consumedFiber) != meal.consumedFiber ||
+               consumedCarbs.toDouble != meal.consumedCarbs ||
+               consumedProtein.toDouble != meal.consumedProtein ||
+               consumedFat.toDouble != meal.consumedFat ||
+               consumedCalories.toDouble != meal.consumedCalories ||
+               consumedFiber.toDouble != meal.consumedFiber ||
                (trimmedNotes.isEmpty ? nil : trimmedNotes) != meal.notes
     }
 
@@ -88,6 +88,7 @@ struct MealEditSheet: View {
                 notesSection
             }
             .formStyle(.grouped)
+            .scrollDismissesKeyboard(.interactively)
             .scrollContentBackground(.hidden)
             .background(Color(.systemBackground))
             .tint(AppTheme.primaryPurple)
@@ -214,8 +215,8 @@ struct MealEditSheet: View {
 
     @MainActor
     private func saveChanges() async {
-        guard let carbsValue = Double(consumedCarbs),
-              let quantityValue = Double(quantity) else {
+        guard let carbsValue = consumedCarbs.toDouble,
+              let quantityValue = quantity.toDouble else {
             errorMessage = "Lütfen geçerli sayısal değerler girin."
             showSaveError = true
             return
@@ -234,10 +235,10 @@ struct MealEditSheet: View {
         meal.quantity = quantityValue
         meal.unit = trimmedUnit
         meal.consumedCarbs = carbsValue
-        meal.consumedProtein = Double(consumedProtein) ?? 0
-        meal.consumedFat = Double(consumedFat) ?? 0
-        meal.consumedCalories = Double(consumedCalories) ?? 0
-        meal.consumedFiber = Double(consumedFiber) ?? 0
+        meal.consumedProtein = consumedProtein.toDouble ?? 0
+        meal.consumedFat = consumedFat.toDouble ?? 0
+        meal.consumedCalories = consumedCalories.toDouble ?? 0
+        meal.consumedFiber = consumedFiber.toDouble ?? 0
         meal.notes = trimmedNotes.isEmpty ? nil : trimmedNotes
         meal.lastModified = Date()
 

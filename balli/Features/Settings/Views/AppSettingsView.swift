@@ -125,9 +125,14 @@ struct AppSettingsView: View {
                     Button(action: {
                         openMessagesApp(email: "stasli.anx@icloud.com")
                     }) {
-                        Label("İletişim", systemImage: "envelope.fill")
-                            .foregroundStyle(.primary)
+                        HStack {
+                            Image(systemName: "envelope.fill")
+                                .foregroundStyle(AppTheme.primaryPurple)
+                            Text("İletişim")
+                                .foregroundStyle(.primary)
+                        }
                     }
+                    .buttonStyle(.plain)
 
                     NavigationLink(destination: AboutView()) {
                         Label("Hakkında", systemImage: "info.circle.fill")

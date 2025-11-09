@@ -94,20 +94,14 @@ struct ManualEntryView: View {
                         
                         Spacer(minLength: ResponsiveDesign.height(50))
 
-                        // Bottom controls - Modern glass button
+                        // Bottom controls - Checkmark button matching AI analysis style
                         Button(action: saveFood) {
-                            Text("Ardiye'ye Kaydet")
-                                .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold, design: .rounded))
-                                .foregroundColor(.white)
-                                .frame(width: ResponsiveDesign.width(240))
-                                .frame(height: ResponsiveDesign.height(56))
-                                .background(AppTheme.primaryPurple)
-                                .clipShape(Capsule())
-                                .shadow(color: AppTheme.primaryPurple.opacity(0.3), radius: 12, x: 0, y: 6)
+                            Image(systemName: "checkmark")
                         }
+                        .buttonStyle(.balliBordered(size: ResponsiveDesign.height(72)))
                         .disabled(isSaveInProgress)
                         .opacity(isSaveInProgress ? 0.6 : 1.0)
-                        .padding(.bottom, ResponsiveDesign.height(30))
+                        .padding(.bottom, ResponsiveDesign.height(12))
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
@@ -171,16 +165,16 @@ struct ManualEntryView: View {
         foodItem.servingUnit = "g"
 
         // Calculate adjusted values based on portion
-        let baseServing = Double(servingSize) ?? 100.0
+        let baseServing = servingSize.toDouble ?? 100.0
         let adjustmentRatio = portionGrams / baseServing
 
         // Save adjusted values based on the selected portion
-        foodItem.calories = (Double(calories) ?? 0) * adjustmentRatio
-        foodItem.totalCarbs = (Double(carbohydrates) ?? 0) * adjustmentRatio
-        foodItem.fiber = (Double(fiber) ?? 0) * adjustmentRatio
-        foodItem.sugars = (Double(sugars) ?? 0) * adjustmentRatio
-        foodItem.protein = (Double(protein) ?? 0) * adjustmentRatio
-        foodItem.totalFat = (Double(fat) ?? 0) * adjustmentRatio
+        foodItem.calories = (calories.toDouble ?? 0) * adjustmentRatio
+        foodItem.totalCarbs = (carbohydrates.toDouble ?? 0) * adjustmentRatio
+        foodItem.fiber = (fiber.toDouble ?? 0) * adjustmentRatio
+        foodItem.sugars = (sugars.toDouble ?? 0) * adjustmentRatio
+        foodItem.protein = (protein.toDouble ?? 0) * adjustmentRatio
+        foodItem.totalFat = (fat.toDouble ?? 0) * adjustmentRatio
         foodItem.sodium = 0 // Not collected in manual entry
 
         foodItem.source = "manual_entry"
@@ -234,11 +228,11 @@ struct ManualEntryView: View {
         }
 
         // Parse values with 0.0 fallback for missing/empty data
-        let baseCarbs = Double(carbohydrates) ?? 0.0
-        let baseFiber = Double(fiber) ?? 0.0
-        let baseSugars = Double(sugars) ?? 0.0
-        let baseProtein = Double(protein) ?? 0.0
-        let baseFat = Double(fat) ?? 0.0
+        let baseCarbs = carbohydrates.toDouble ?? 0.0
+        let baseFiber = fiber.toDouble ?? 0.0
+        let baseSugars = sugars.toDouble ?? 0.0
+        let baseProtein = protein.toDouble ?? 0.0
+        let baseFat = fat.toDouble ?? 0.0
 
         // Calculate impact score using validated Nestlé formula
         let result = ImpactScoreCalculator.calculate(

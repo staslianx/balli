@@ -304,13 +304,14 @@ struct AnalysisNutritionLabelView: View {
     private func realValue(for key: String) -> String? {
         guard let nutrition = nutritionResult else { return nil }
 
+        // Use locale-aware formatting (comma in Turkish, period in US)
         switch key {
-        case "kalori": return String(format: "%.0f", nutrition.nutrients.calories.value)
-        case "carbs": return String(format: "%.1f", nutrition.nutrients.totalCarbohydrates.value)
-        case "fiber": return nutrition.nutrients.dietaryFiber.map { String(format: "%.1f", $0.value) }
-        case "sugar": return nutrition.nutrients.sugars.map { String(format: "%.1f", $0.value) }
-        case "protein": return String(format: "%.1f", nutrition.nutrients.protein.value)
-        case "fat": return String(format: "%.1f", nutrition.nutrients.totalFat.value)
+        case "kalori": return nutrition.nutrients.calories.value.asLocalizedDecimal(decimalPlaces: 0)
+        case "carbs": return nutrition.nutrients.totalCarbohydrates.value.asLocalizedDecimal(decimalPlaces: 1)
+        case "fiber": return nutrition.nutrients.dietaryFiber.map { $0.value.asLocalizedDecimal(decimalPlaces: 1) }
+        case "sugar": return nutrition.nutrients.sugars.map { $0.value.asLocalizedDecimal(decimalPlaces: 1) }
+        case "protein": return nutrition.nutrients.protein.value.asLocalizedDecimal(decimalPlaces: 1)
+        case "fat": return nutrition.nutrients.totalFat.value.asLocalizedDecimal(decimalPlaces: 1)
         default: return nil
         }
     }

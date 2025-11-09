@@ -248,25 +248,25 @@ struct RecipeNutritionData: Codable, Sendable {
         if let totalRecipe = totalRecipe, totalRecipe.weight > 0 {
             let ratio = 100.0 / totalRecipe.weight
             return (
-                calories: String(format: "%.0f", totalRecipe.calories * ratio),
-                carbohydrates: String(format: "%.1f", totalRecipe.carbohydrates * ratio),
-                fiber: String(format: "%.1f", totalRecipe.fiber * ratio),
-                sugar: String(format: "%.1f", totalRecipe.sugar * ratio),
-                protein: String(format: "%.1f", totalRecipe.protein * ratio),
-                fat: String(format: "%.1f", totalRecipe.fat * ratio),
-                glycemicLoad: String(format: "%.0f", totalRecipe.glycemicLoad * ratio)
+                calories: (totalRecipe.calories * ratio).asLocalizedDecimal(decimalPlaces: 0),
+                carbohydrates: (totalRecipe.carbohydrates * ratio).asLocalizedDecimal(decimalPlaces: 1),
+                fiber: (totalRecipe.fiber * ratio).asLocalizedDecimal(decimalPlaces: 1),
+                sugar: (totalRecipe.sugar * ratio).asLocalizedDecimal(decimalPlaces: 1),
+                protein: (totalRecipe.protein * ratio).asLocalizedDecimal(decimalPlaces: 1),
+                fat: (totalRecipe.fat * ratio).asLocalizedDecimal(decimalPlaces: 1),
+                glycemicLoad: (totalRecipe.glycemicLoad * ratio).asLocalizedDecimal(decimalPlaces: 0)
             )
         }
 
         // For AI recipes, use provided per-100g values
         return (
-            calories: String(format: "%.0f", calories),
-            carbohydrates: String(format: "%.1f", carbohydrates),
-            fiber: String(format: "%.1f", fiber),
-            sugar: String(format: "%.1f", sugar),
-            protein: String(format: "%.1f", protein),
-            fat: String(format: "%.1f", fat),
-            glycemicLoad: String(format: "%.0f", glycemicLoad)
+            calories: calories.asLocalizedDecimal(decimalPlaces: 0),
+            carbohydrates: carbohydrates.asLocalizedDecimal(decimalPlaces: 1),
+            fiber: fiber.asLocalizedDecimal(decimalPlaces: 1),
+            sugar: sugar.asLocalizedDecimal(decimalPlaces: 1),
+            protein: protein.asLocalizedDecimal(decimalPlaces: 1),
+            fat: fat.asLocalizedDecimal(decimalPlaces: 1),
+            glycemicLoad: glycemicLoad.asLocalizedDecimal(decimalPlaces: 0)
         )
     }
 
@@ -286,27 +286,27 @@ struct RecipeNutritionData: Codable, Sendable {
         // If manual recipe, return total values directly
         if let totalRecipe = totalRecipe {
             return (
-                calories: String(format: "%.0f", totalRecipe.calories),
-                carbohydrates: String(format: "%.1f", totalRecipe.carbohydrates),
-                fiber: String(format: "%.1f", totalRecipe.fiber),
-                sugar: String(format: "%.1f", totalRecipe.sugar),
-                protein: String(format: "%.1f", totalRecipe.protein),
-                fat: String(format: "%.1f", totalRecipe.fat),
-                glycemicLoad: String(format: "%.0f", totalRecipe.glycemicLoad),
-                totalRecipeWeight: String(format: "%.0f", totalRecipe.weight)
+                calories: totalRecipe.calories.asLocalizedDecimal(decimalPlaces: 0),
+                carbohydrates: totalRecipe.carbohydrates.asLocalizedDecimal(decimalPlaces: 1),
+                fiber: totalRecipe.fiber.asLocalizedDecimal(decimalPlaces: 1),
+                sugar: totalRecipe.sugar.asLocalizedDecimal(decimalPlaces: 1),
+                protein: totalRecipe.protein.asLocalizedDecimal(decimalPlaces: 1),
+                fat: totalRecipe.fat.asLocalizedDecimal(decimalPlaces: 1),
+                glycemicLoad: totalRecipe.glycemicLoad.asLocalizedDecimal(decimalPlaces: 0),
+                totalRecipeWeight: totalRecipe.weight.asLocalizedDecimal(decimalPlaces: 0)
             )
         }
 
         // For AI recipes, return per-serving values
         return (
-            calories: String(format: "%.0f", caloriesPerServing),
-            carbohydrates: String(format: "%.1f", carbohydratesPerServing),
-            fiber: String(format: "%.1f", fiberPerServing),
-            sugar: String(format: "%.1f", sugarPerServing),
-            protein: String(format: "%.1f", proteinPerServing),
-            fat: String(format: "%.1f", fatPerServing),
-            glycemicLoad: String(format: "%.0f", glycemicLoadPerServing),
-            totalRecipeWeight: String(format: "%.0f", totalRecipeWeight)
+            calories: caloriesPerServing.asLocalizedDecimal(decimalPlaces: 0),
+            carbohydrates: carbohydratesPerServing.asLocalizedDecimal(decimalPlaces: 1),
+            fiber: fiberPerServing.asLocalizedDecimal(decimalPlaces: 1),
+            sugar: sugarPerServing.asLocalizedDecimal(decimalPlaces: 1),
+            protein: proteinPerServing.asLocalizedDecimal(decimalPlaces: 1),
+            fat: fatPerServing.asLocalizedDecimal(decimalPlaces: 1),
+            glycemicLoad: glycemicLoadPerServing.asLocalizedDecimal(decimalPlaces: 0),
+            totalRecipeWeight: totalRecipeWeight.asLocalizedDecimal(decimalPlaces: 0)
         )
     }
 }
