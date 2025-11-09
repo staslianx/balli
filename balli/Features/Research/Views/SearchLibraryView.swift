@@ -68,7 +68,7 @@ struct SearchLibraryView: View {
             }
             .background(Color(.systemBackground))
             .searchable(text: $searchText, prompt: isShowingHighlightsOnly ? "Vurgularda ara" : "Araştırmalarda ara")
-            .navigationTitle("Kütüphane")
+            .navigationTitle("Araştırmalar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -82,7 +82,7 @@ struct SearchLibraryView: View {
                     } label: {
                         Label(
                             isShowingHighlightsOnly ? "Tümünü Göster" : "Sadece Vurgular",
-                            systemImage: isShowingHighlightsOnly ? "append.page.fill" : "highlighter"
+                            systemImage: isShowingHighlightsOnly ? "highlighter" : "text.quote"
                         )
                         .foregroundStyle(isShowingHighlightsOnly ? ThemeColors.primaryPurple : .primary)
                         .font(.system(size: 15, weight: .medium))
@@ -121,7 +121,7 @@ struct SearchLibraryView: View {
             } else if threads.isEmpty {
                 ContentUnavailableView(
                     "Henüz araştırma yok",
-                    systemImage: "book.closed",
+                    systemImage: "text.quote",
                     description: Text("Yaptığın araştırmalar burada görünecek")
                 )
                 .symbolRenderingMode(.hierarchical)
@@ -287,21 +287,36 @@ struct SearchLibraryView: View {
     }
 
     private func deleteHighlight(_ highlightId: UUID, from answerId: String) {
+        logger.debug("🔍 [DELETE-FLOW] Starting highlight deletion - ID: \(highlightId), Answer: \(answerId)")
         Task {
             do {
                 // Delete highlight from repository
+                logger.debug("🔍 [DELETE-FLOW] Calling repository.deleteHighlight...")
                 try await repository.deleteHighlight(highlightId, from: answerId)
+                logger.debug("🔍 [DELETE-FLOW] Repository deletion successful")
 
                 // Update UI by removing from local state
                 await MainActor.run {
+                    let beforeCount = allHighlights.count
                     withAnimation {
                         allHighlights.removeAll { $0.highlight.id == highlightId }
                     }
+                    let afterCount = allHighlights.count
+                    logger.debug("🔍 [DELETE-FLOW] UI updated - highlights: \(beforeCount) → \(afterCount)")
                 }
+
+                // Post notification to sync with preview views
+                logger.debug("🔍 [DELETE-FLOW] Posting highlightDeleted notification...")
+                NotificationCenter.default.post(
+                    name: Notification.Name.highlightDeleted,
+                    object: nil,
+                    userInfo: ["highlightId": highlightId, "answerId": answerId]
+                )
+                logger.debug("🔍 [DELETE-FLOW] Notification posted successfully")
 
                 logger.info("✅ Deleted highlight: \(highlightId) from answer: \(answerId)")
             } catch {
-                logger.error("Failed to delete highlight: \(error.localizedDescription)")
+                logger.error("❌ [DELETE-FLOW] Failed to delete highlight: \(error.localizedDescription)")
             }
         }
     }
@@ -350,18 +365,7 @@ struct SearchAnswerRow: View, Equatable {
 
                 // Research type badge (compact, top-right)
                 if let tier = answer.tier {
-                    HStack(spacing: 4) {
-                        Image(systemName: tier.iconName)
-                            .font(.system(size: ResponsiveDesign.Font.scaledSize(11), weight: .medium))
-                            .foregroundStyle(tier.badgeForegroundColor(for: colorScheme))
-                    }
-                    .padding(.horizontal, ResponsiveDesign.Spacing.xSmall)
-                    .padding(.vertical, ResponsiveDesign.Spacing.xxSmall)
-                    .background {
-                        Capsule()
-                            .fill(tier.badgeBackgroundColor(for: colorScheme))
-                    }
-                    .fixedSize()
+                    ResearchLibraryTierBadge(tier: tier, colorScheme: colorScheme)
                 }
             }
 
@@ -388,6 +392,36 @@ struct SearchAnswerRow: View, Equatable {
         lhs.answer.query == rhs.answer.query &&
         lhs.answer.content == rhs.answer.content &&
         lhs.answer.tier?.rawValue == rhs.answer.tier?.rawValue
+    }
+}
+
+// MARK: - Research Library Tier Badge
+
+/// Tier badge specifically styled for the research library card view
+/// Customize appearance here without affecting other tier badge usages
+struct ResearchLibraryTierBadge: View {
+    let tier: ResponseTier
+    let colorScheme: ColorScheme
+
+    // Customizable badge styling parameters
+    private let iconSize: CGFloat = 18
+    private let horizontalPadding: CGFloat = ResponsiveDesign.Spacing.xSmall
+    private let verticalPadding: CGFloat = ResponsiveDesign.Spacing.xxSmall
+    private let iconSpacing: CGFloat = 4
+
+    var body: some View {
+        HStack(spacing: iconSpacing) {
+            Image(systemName: tier.iconName)
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(iconSize), weight: .medium))
+                .foregroundStyle(tier.badgeForegroundColor(for: colorScheme))
+        }
+        .padding(.horizontal, horizontalPadding)
+        .padding(.vertical, verticalPadding)
+        .background {
+            Capsule()
+                .fill(tier.badgeBackgroundColor(for: colorScheme))
+        }
+        .fixedSize()
     }
 }
 
@@ -422,7 +456,7 @@ struct SearchAnswerRow: View, Equatable {
                 ))
             }
         }
-        .navigationTitle("Kütüphane")
+        .navigationTitle("Araştırmalar")
         .navigationBarTitleDisplayMode(.inline)
     }
 }

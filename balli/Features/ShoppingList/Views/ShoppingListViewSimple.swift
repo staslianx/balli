@@ -175,23 +175,7 @@ struct ShoppingListViewSimple: View {
                 .listStyle(.plain)
                 .scrollDismissesKeyboard(.interactively)
                 .scrollContentBackground(.hidden)
-                .background(
-                    ZStack {
-                        Color.appBackground(for: colorScheme)
-                            .ignoresSafeArea()
-
-                        // Subtle glass layer for depth
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                AppTheme.primaryPurple.opacity(0.03),
-                                Color.clear
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                        .ignoresSafeArea()
-                    }
-                )
+                .background(Color(.systemBackground))
                 .padding(.bottom, 0)
 
                 // Input container at bottom with Liquid Glass
@@ -258,13 +242,13 @@ struct EditableItemRow: View {
     let onToggle: () -> Void
     let onNoteUpdate: (String) -> Void
 
-    @State private var isEditing = false
     @State private var editText = ""
     @State private var editQuantity = ""
     @State private var editNote = ""
+    @State private var isEditingName = false
     @State private var isEditingQuantity = false
     @State private var isEditingNote = false
-    @FocusState private var isFieldFocused: Bool
+    @FocusState private var isNameFocused: Bool
     @FocusState private var isQuantityFocused: Bool
     @FocusState private var isNoteFocused: Bool
 
@@ -289,103 +273,109 @@ struct EditableItemRow: View {
             }
             .buttonStyle(.plain)
 
-            // Text/TextField with quantity support and glass effects
-            if isEditing {
-                VStack(spacing: ResponsiveDesign.Spacing.xSmall) {
-                    TextField("Ürün adı", text: $editText)
-                        .font(.system(size: 17, weight: .regular, design: .rounded))
-                        .fontWeight(.semibold)
-                        .focused($isFieldFocused)
-                        .onSubmit {
-                            saveAndStopEditing()
-                        }
-                        .onAppear {
-                            isFieldFocused = true
-                        }
-                        .onChange(of: isFieldFocused) { _, focused in
-                            if !focused {
-                                saveAndStopEditing()
+            // Main content area
+            HStack {
+                VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xxSmall) {
+                    // Ingredient name (inline editable)
+                    if isEditingName {
+                        TextField("Ürün adı", text: $editText)
+                            .font(.system(size: 17, weight: .semibold, design: .rounded))
+                            .foregroundColor(.primary)
+                            .focused($isNameFocused)
+                            .onSubmit {
+                                saveNameAndStopEditing()
                             }
-                        }
-                        .liquidGlassTextField(style: .regular)
-
-                    TextField("Miktar (ör: x2, 1 kg)", text: $editQuantity)
-                        .font(.system(size: 12, weight: .regular, design: .rounded))
-                        .foregroundColor(.secondary)
-                        .liquidGlassTextField(style: .thin)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                HStack {
-                    VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xxSmall) {
+                            .onChange(of: isNameFocused) { _, focused in
+                                if !focused {
+                                    saveNameAndStopEditing()
+                                }
+                            }
+                            .onAppear {
+                                isNameFocused = true
+                            }
+                    } else {
                         Text(item.name)
                             .font(.system(size: 17, weight: .semibold, design: .rounded))
-                            .fontWeight(.semibold)
                             .foregroundColor(item.isCompleted ? .secondary : .primary)
                             .strikethrough(item.isCompleted)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                startEditing()
+                                startEditingName()
                             }
+                    }
 
-                        // Note/Suggestion below the name with glass effect
-                        if isEditingNote {
-                            TextField("Not ekle...", text: $editNote)
-                                .font(.system(size: 9, weight: .regular, design: .rounded))
-                                .foregroundColor(.secondary)
-                                .focused($isNoteFocused)
-                                .onSubmit {
+                    // Note/Suggestion below the name
+                    if isEditingNote {
+                        TextField("Not ekle...", text: $editNote)
+                            .font(.system(size: 9, weight: .regular, design: .rounded))
+                            .foregroundColor(.secondary)
+                            .focused($isNoteFocused)
+                            .onSubmit {
+                                saveNoteAndStopEditing()
+                            }
+                            .onChange(of: isNoteFocused) { _, focused in
+                                if !focused {
                                     saveNoteAndStopEditing()
                                 }
-                                .onChange(of: isNoteFocused) { _, focused in
-                                    if !focused {
-                                        saveNoteAndStopEditing()
-                                    }
-                                }
-                                .liquidGlassTextField(style: .thin)
-                        } else if let notes = item.notes, !notes.isEmpty {
-                            Text(notes)
-                                .font(.system(size: 9, weight: .regular, design: .rounded))
-                                .foregroundColor(notes.contains("balli'den öneri:") ? AppTheme.primaryPurple : .secondary)
-                                .italic()
-                                .onTapGesture {
-                                    startEditingNote()
-                                }
-                        }
-                    }
-
-                    // Quantity display with bordered prominent style
-                    if isEditingQuantity {
-                        TextField("x1", text: $editQuantity)
-                            .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white)
-                            .multilineTextAlignment(.center)
-                            .focused($isQuantityFocused)
-                            .padding(.horizontal, ResponsiveDesign.width(12))
-                            .padding(.vertical, ResponsiveDesign.height(6))
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.primaryPurple)
-                            .frame(minWidth: ResponsiveDesign.width(60))
-                            .onSubmit {
-                                saveQuantityAndStopEditing()
                             }
                             .onAppear {
-                                isQuantityFocused = true
+                                isNoteFocused = true
                             }
-                            .onChange(of: isQuantityFocused) { _, focused in
-                                if !focused {
-                                    saveQuantityAndStopEditing()
-                                }
+                    } else if let notes = item.notes, !notes.isEmpty {
+                        Text(notes)
+                            .font(.system(size: 9, weight: .regular, design: .rounded))
+                            .foregroundColor(notes.contains("balli'den öneri:") ? AppTheme.primaryPurple : .secondary)
+                            .italic()
+                            .onTapGesture {
+                                startEditingNote()
                             }
-                    } else if let quantity = item.quantity, !quantity.isEmpty {
-                        Button(action: { startEditingQuantity() }) {
-                            Text(quantity)
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppTheme.primaryPurple)
                     }
+                }
+
+                // Quantity display (inline editable)
+                if isEditingQuantity {
+                    TextField("x1", text: $editQuantity)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppTheme.primaryPurple)
+                        .multilineTextAlignment(.center)
+                        .focused($isQuantityFocused)
+                        .padding(.horizontal, ResponsiveDesign.width(12))
+                        .padding(.vertical, ResponsiveDesign.height(6))
+                        .background(
+                            Capsule()
+                                .fill(AppTheme.primaryPurple.opacity(0.15))
+                        )
+                        .frame(width: ResponsiveDesign.width(70))
+                        .onSubmit {
+                            saveQuantityAndStopEditing()
+                        }
+                        .onChange(of: isQuantityFocused) { _, focused in
+                            if !focused {
+                                saveQuantityAndStopEditing()
+                            }
+                        }
+                        .onAppear {
+                            isQuantityFocused = true
+                        }
+                        .transition(.scale.combined(with: .opacity))
+                } else if let quantity = item.quantity, !quantity.isEmpty {
+                    Text(quantity)
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundColor(AppTheme.primaryPurple)
+                        .padding(.horizontal, ResponsiveDesign.width(12))
+                        .padding(.vertical, ResponsiveDesign.height(6))
+                        .background(
+                            Capsule()
+                                .fill(AppTheme.primaryPurple.opacity(0.15))
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation(.smooth(duration: 0.25)) {
+                                startEditingQuantity()
+                            }
+                        }
+                        .transition(.scale.combined(with: .opacity))
                 }
             }
         }
@@ -399,17 +389,17 @@ struct EditableItemRow: View {
         }
     }
 
-    private func startEditing() {
+    private func startEditingName() {
         editText = item.name
-        editQuantity = item.quantity ?? ""
-        isEditing = true
+        isEditingName = true
     }
 
-    private func saveAndStopEditing() {
-        isEditing = false
-        isFieldFocused = false
-        if editText != item.name || editQuantity != (item.quantity ?? "") {
-            onSave(editText, editQuantity.isEmpty ? nil : editQuantity)
+    private func saveNameAndStopEditing() {
+        isEditingName = false
+        isNameFocused = false
+        let newName = editText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !newName.isEmpty && newName != item.name {
+            onSave(newName, item.quantity)
         }
     }
 
@@ -430,7 +420,6 @@ struct EditableItemRow: View {
     private func startEditingNote() {
         editNote = item.notes ?? ""
         isEditingNote = true
-        isNoteFocused = true
     }
 
     private func saveNoteAndStopEditing() {
