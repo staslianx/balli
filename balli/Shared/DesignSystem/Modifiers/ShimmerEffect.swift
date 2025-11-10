@@ -25,29 +25,30 @@ struct ShimmerEffect: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay {
-                GeometryReader { geometry in
-                    LinearGradient(
-                        stops: [
-                            .init(color: .white.opacity(0), location: 0.0),
-                            .init(color: .white.opacity(0), location: 0.2),
-                            .init(color: .white.opacity(0.3), location: 0.35),
-                            .init(color: .white.opacity(0.8), location: 0.45),
-                            .init(color: .white.opacity(1.0), location: 0.5),
-                            .init(color: .white.opacity(0.8), location: 0.55),
-                            .init(color: .white.opacity(0.3), location: 0.65),
-                            .init(color: .white.opacity(0), location: 0.8),
-                            .init(color: .white.opacity(0), location: 1.0)
-                        ],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                    .scaleEffect(x: 4, anchor: .leading)
-                    .offset(x: phase * geometry.size.width * 3 - geometry.size.width * 1.5)
-                    .blendMode(.overlay)
-                    .mask {
-                        content
-                    }
-                }
+                LinearGradient(
+                    stops: [
+                        // Extended padding at start (30% clear) for smoother loops
+                        .init(color: .white.opacity(0), location: 0.0),
+                        .init(color: .white.opacity(0), location: 0.30),
+                        // Shimmer sweep (20% of gradient - tighter)
+                        .init(color: .white.opacity(0.3), location: 0.38),
+                        .init(color: .white.opacity(0.8), location: 0.46),
+                        .init(color: .white.opacity(1.0), location: 0.5),
+                        .init(color: .white.opacity(0.8), location: 0.54),
+                        .init(color: .white.opacity(0.3), location: 0.62),
+                        // Extended padding at end (30% clear)
+                        .init(color: .white.opacity(0), location: 0.70),
+                        .init(color: .white.opacity(0), location: 1.0)
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+                // Larger scale for more spacing between passes
+                .scaleEffect(x: 5, anchor: .leading)
+                // Extended travel distance for smoother transitions
+                .offset(x: phase * UIScreen.main.bounds.width * 4 - UIScreen.main.bounds.width * 2)
+                .blendMode(.overlay)
+                .mask(content)
             }
             .task {
                 try? await Task.sleep(for: .milliseconds(100))
