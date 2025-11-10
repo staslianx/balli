@@ -71,6 +71,7 @@ struct AIResultView: View {
                                 errorMessage: nil,
                                 nutritionResult: viewModel.nutritionResult
                             )
+                            .id(viewModel.analysisStage)
                         } else {
                             // Food label container with integrated impact banner
                             NutritionLabelView(
@@ -97,7 +98,7 @@ struct AIResultView: View {
                             )
                         }
                         
-                        Spacer(minLength: ResponsiveDesign.height(50))
+                        Spacer(minLength: ResponsiveDesign.height(46))
                         
                         // Bottom controls - Analysis, Düzenle, or Kaydet
                         if viewModel.isAnalyzing {
@@ -113,15 +114,16 @@ struct AIResultView: View {
                             // Show edit (pencil) button when in read-only mode
                             Button(action: { viewModel.toggleEditMode() }) {
                                 Image(systemName: "pencil")
-                                    .font(.system(size: 20, weight: .medium, design: .rounded))
+                                    .font(.system(size: 30, weight: .medium, design: .rounded))
                                     .foregroundColor(.primary)
                             }
                             .toolbarCircularGlass(size: ResponsiveDesign.height(72))
                             .padding(.bottom, ResponsiveDesign.height(12))
                         } else if viewModel.uiState.isEditing {
-                            // Show done (checkmark) button when editing
+                            // Show done (checkmark) button when editing - SAME SIZE as retake button
                             Button(action: { viewModel.toggleEditMode() }) {
                                 Image(systemName: "checkmark")
+                                    .font(.system(size: 30, weight: .semibold, design: .rounded))
                             }
                             .buttonStyle(.balliBordered(size: ResponsiveDesign.height(72)))
                             .padding(.bottom, ResponsiveDesign.height(12))
@@ -131,7 +133,7 @@ struct AIResultView: View {
                                 // Edit button (pencil) - circular, transparent glass with purple icon
                                 Button(action: { viewModel.toggleEditMode() }) {
                                     Image(systemName: "pencil")
-                                        .font(.system(size: 20, weight: .medium, design: .rounded))
+                                        .font(.system(size: 30, weight: .medium, design: .rounded))
                                         .foregroundColor(AppTheme.primaryPurple)
                                         .frame(width: ResponsiveDesign.height(72), height: ResponsiveDesign.height(72))
                                         .background(
@@ -155,9 +157,10 @@ struct AIResultView: View {
                                         )
                                 }
 
-                                // Save button - circular, filled purple with light purple checkmark
+                                // Save button - circular, filled purple with light purple checkmark - SAME SIZE as retake
                                 Button(action: handleSave) {
                                     Image(systemName: "checkmark")
+                                        .font(.system(size: 30, weight: .semibold, design: .rounded))
                                 }
                                 .buttonStyle(.balliBordered(size: ResponsiveDesign.height(72)))
                             }

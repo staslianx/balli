@@ -8,7 +8,7 @@
 import SwiftUI
 
 /// Analysis stage enumeration with Turkish messages
-public enum AnalysisStage {
+public enum AnalysisStage: Hashable {
     case preparing
     case analyzing
     case reading
