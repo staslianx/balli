@@ -262,6 +262,20 @@
         <fetchIndex name="byDateCompletedIndex">
             <fetchIndexElement property="dateCompleted" type="Binary" order="descending"/>
         </fetchIndex>
+
+        <!-- PERFORMANCE FIX: Indexes for recipe queries -->
+        <fetchIndex name="byRecipeIdIndex">
+            <fetchIndexElement property="recipeId" type="Binary" order="ascending"/>
+        </fetchIndex>
+        <fetchIndex name="byRecipeNameIndex">
+            <fetchIndexElement property="recipeName" type="Binary" order="ascending"/>
+        </fetchIndex>
+
+        <!-- Composite index for common query: recipeName + isCompleted -->
+        <fetchIndex name="byRecipeNameCompletedIndex">
+            <fetchIndexElement property="recipeName" type="Binary" order="ascending"/>
+            <fetchIndexElement property="isCompleted" type="Binary" order="ascending"/>
+        </fetchIndex>
     </entity>
     
     <!-- RecipeHistory Entity -->

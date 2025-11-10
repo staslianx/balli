@@ -89,7 +89,7 @@ final class EdamamTestService: ObservableObject {
 
             // Log first 500 characters of recipe content for debugging
             let previewLength = min(recipeContent.count, 500)
-            let preview = String(recipeContent.prefix(previewLength))
+            _ = String(recipeContent.prefix(previewLength))
         } catch {
             logger.error("❌ [EDAMAM-TEST] Failed to encode request: \(error.localizedDescription)")
             throw EdamamTestError.decodingError("Failed to encode request: \(error.localizedDescription)")

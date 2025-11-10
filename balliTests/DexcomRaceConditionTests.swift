@@ -42,8 +42,8 @@ final class DexcomRaceConditionTests: XCTestCase {
         keychainStorage = DexcomKeychainStorage()
         try await keychainStorage.clearAllTokens()
 
-        // Use shared DexcomService instance
-        dexcomService = DexcomService.shared
+        // Use DexcomService from dependency container
+        dexcomService = DependencyContainer.shared.dexcomService as? DexcomService
 
         // Get lifecycle coordinator
         lifecycleCoordinator = AppLifecycleCoordinator.shared

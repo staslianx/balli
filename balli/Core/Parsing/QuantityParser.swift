@@ -10,12 +10,15 @@ import Foundation
 public actor QuantityParser: QuantityParsing {
     
     // MARK: - Turkish Number System
-    
+
     private let numberWords: [String: Double] = [
         "bir": 1, "iki": 2, "üç": 3, "dört": 4, "beş": 5,
         "altı": 6, "yedi": 7, "sekiz": 8, "dokuz": 9, "on": 10,
         "onbir": 11, "oniki": 12, "onüç": 13, "ondört": 14, "onbeş": 15,
+        "onaltı": 16, "onyedi": 17, "onsekiz": 18, "ondokuz": 19,
         "yirmi": 20, "otuz": 30, "kırk": 40, "elli": 50,
+        "altmış": 60, "yetmiş": 70, "seksen": 80, "doksan": 90,
+        "yüz": 100, "bin": 1000,
         "yarım": 0.5, "çeyrek": 0.25, "üççeyrek": 0.75,
         "buçuk": 0.5 // as in "iki buçuk kilo" = 2.5 kg
     ]
@@ -102,54 +105,91 @@ public actor QuantityParser: QuantityParsing {
     }
     
     // MARK: - Complex Number Parsing
-    
+
     public func parseComplexNumber(startingAt index: Int, in words: [String]) async -> (value: Double, nextIndex: Int)? {
         var currentIndex = index
         var totalValue: Double = 0
+        _ = 1.0 // currentMultiplier placeholder
         var foundNumber = false
-        
-        // Handle cases like "iki kilo üç yüz gram" or "bir buçuk kilo"
+        var lastWasMultiplier = false
+
+        // Handle cases like "üç yüz gram" (300g), "iki bin" (2000), "bir buçuk kilo" (1.5kg)
         while currentIndex < words.count {
             let word = words[currentIndex].lowercased()
-            
+
+            // Check for multipliers (yüz = 100, bin = 1000)
+            if word == "yüz" {
+                if totalValue == 0 {
+                    // "yüz gram" = 100 grams
+                    totalValue = 100
+                } else {
+                    // "üç yüz" = 3 * 100 = 300
+                    totalValue *= 100
+                }
+                foundNumber = true
+                lastWasMultiplier = true
+                currentIndex += 1
+                continue
+            }
+
+            if word == "bin" {
+                if totalValue == 0 {
+                    // "bin gram" = 1000 grams
+                    totalValue = 1000
+                } else {
+                    // "iki bin" = 2 * 1000 = 2000
+                    totalValue *= 1000
+                }
+                foundNumber = true
+                lastWasMultiplier = true
+                currentIndex += 1
+                continue
+            }
+
+            // Handle "buçuk" pattern: "iki buçuk" = 2.5
+            if word == "buçuk" && foundNumber && !lastWasMultiplier {
+                totalValue += 0.5
+                currentIndex += 1
+                continue
+            }
+
             // Direct number word
             if let numberValue = numberWords[word] {
-                totalValue += numberValue
+                if lastWasMultiplier {
+                    // After multiplier, add the number: "yüz elli" = 100 + 50 = 150
+                    totalValue += numberValue
+                    lastWasMultiplier = false
+                } else {
+                    // Regular number: add to total
+                    totalValue += numberValue
+                }
                 foundNumber = true
                 currentIndex += 1
-                
-                // Handle "buçuk" pattern: "iki buçuk" = 2.5
-                if currentIndex < words.count && words[currentIndex].lowercased() == "buçuk" {
-                    totalValue += 0.5
-                    currentIndex += 1
-                }
                 continue
             }
-            
+
             // Numeric digit
             if let numberValue = Double(word) {
-                totalValue += numberValue
+                if lastWasMultiplier {
+                    totalValue += numberValue
+                    lastWasMultiplier = false
+                } else {
+                    totalValue += numberValue
+                }
                 foundNumber = true
                 currentIndex += 1
                 continue
             }
-            
-            // "yüz" (hundred) multiplier
-            if word == "yüz" && foundNumber {
-                totalValue *= 100
-                currentIndex += 1
-                continue
-            }
-            
+
             // If we haven't found any number yet, this might not be a number pattern
             if !foundNumber {
                 return nil
             }
-            
+
             // If we found numbers but this word isn't a number, we're done
             break
         }
-        
+
         return foundNumber ? (value: totalValue, nextIndex: currentIndex) : nil
     }
     

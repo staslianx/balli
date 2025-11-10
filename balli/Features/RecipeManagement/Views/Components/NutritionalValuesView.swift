@@ -102,7 +102,7 @@ struct NutritionalValuesView: View {
                             nutritionRow(
                                 label: "Kalori",
                                 value: selectedTab == 0
-                                    ? String(format: "%.0f", (Double(caloriesPerServing) ?? 0) * portionMultiplier)
+                                    ? String(format: "%.0f", (caloriesPerServing.toDouble ?? 0) * portionMultiplier)
                                     : calories,
                                 unit: "kcal"
                             )
@@ -115,7 +115,7 @@ struct NutritionalValuesView: View {
                             nutritionRow(
                                 label: "Karbonhidrat",
                                 value: selectedTab == 0
-                                    ? String(format: "%.1f", (Double(carbohydratesPerServing) ?? 0) * portionMultiplier)
+                                    ? String(format: "%.1f", (carbohydratesPerServing.toDouble ?? 0) * portionMultiplier)
                                     : carbohydrates,
                                 unit: "g"
                             )
@@ -128,7 +128,7 @@ struct NutritionalValuesView: View {
                             nutritionRow(
                                 label: "Lif",
                                 value: selectedTab == 0
-                                    ? String(format: "%.1f", (Double(fiberPerServing) ?? 0) * portionMultiplier)
+                                    ? String(format: "%.1f", (fiberPerServing.toDouble ?? 0) * portionMultiplier)
                                     : fiber,
                                 unit: "g"
                             )
@@ -141,7 +141,7 @@ struct NutritionalValuesView: View {
                             nutritionRow(
                                 label: "Şeker",
                                 value: selectedTab == 0
-                                    ? String(format: "%.1f", (Double(sugarPerServing) ?? 0) * portionMultiplier)
+                                    ? String(format: "%.1f", (sugarPerServing.toDouble ?? 0) * portionMultiplier)
                                     : sugar,
                                 unit: "g"
                             )
@@ -154,7 +154,7 @@ struct NutritionalValuesView: View {
                             nutritionRow(
                                 label: "Protein",
                                 value: selectedTab == 0
-                                    ? String(format: "%.1f", (Double(proteinPerServing) ?? 0) * portionMultiplier)
+                                    ? String(format: "%.1f", (proteinPerServing.toDouble ?? 0) * portionMultiplier)
                                     : protein,
                                 unit: "g"
                             )
@@ -167,7 +167,7 @@ struct NutritionalValuesView: View {
                             nutritionRow(
                                 label: "Yağ",
                                 value: selectedTab == 0
-                                    ? String(format: "%.1f", (Double(fatPerServing) ?? 0) * portionMultiplier)
+                                    ? String(format: "%.1f", (fatPerServing.toDouble ?? 0) * portionMultiplier)
                                     : fat,
                                 unit: "g"
                             )
@@ -181,7 +181,7 @@ struct NutritionalValuesView: View {
 
                                 nutritionRow(
                                     label: "Glisemik Yük",
-                                    value: String(format: "%.0f", (Double(glycemicLoadPerServing) ?? 0) * portionMultiplier),
+                                    value: String(format: "%.0f", (glycemicLoadPerServing.toDouble ?? 0) * portionMultiplier),
                                     unit: ""
                                 )
                             }
@@ -518,7 +518,7 @@ struct NutritionalValuesView: View {
                     // Center-Right: Current portion or stepper
                     if !isPortionAdjustmentExpanded {
                         // Show current portion value
-                        if let weightValue = Double(totalRecipeWeight), weightValue > 0 {
+                        if let weightValue = totalRecipeWeight.toDouble, weightValue > 0 {
                             HStack(alignment: .firstTextBaseline, spacing: 4) {
                                 Text("\(Int(weightValue * portionMultiplier))")
                                     .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .bold, design: .rounded))

@@ -89,7 +89,10 @@ struct GlucoseChartCard: View {
 
     @ViewBuilder
     private var chartView: some View {
-        if let timeRange = viewModel.calculateTimeRange() {
+        // CRITICAL FIX: Use cached time range instead of recalculating on every render
+        // This prevents the chart's x-axis from drifting forward when app is backgrounded
+        // Fallback to calculated range only if cache is nil (initial state)
+        if let timeRange = viewModel.cachedTimeRange ?? viewModel.calculateTimeRange() {
             let average = viewModel.calculateAverage()
 
             Chart {

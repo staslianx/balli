@@ -22,10 +22,12 @@ struct ProcessingStateView: View {
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundStyle(AppTheme.primaryPurple)
                     .symbolEffect(.pulse.wholeSymbol, options: .repeat(.continuous))
+                    .frame(width: 24, height: 24)
 
                 Text("Notumu alıyorum")
                     .font(.system(size: 24, weight: .semibold, design: .rounded))
                     .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
+                    .fixedSize(horizontal: true, vertical: false)
                     .shimmer(duration: 2.5, bounceBack: false)
             }
 
@@ -111,10 +113,12 @@ struct RecordingActiveView: View {
                     .font(.system(size: 24, weight: .semibold))
                     .foregroundStyle(AppTheme.primaryPurple)
                     .symbolEffect(.variableColor)
+                    .frame(width: 24, height: 24)
 
                 Text("Dinliyorum")
                     .font(.system(size: 24, weight: .semibold, design: .rounded))
                     .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
+                    .fixedSize(horizontal: true, vertical: false)
                     .shimmer(duration: 2.5, bounceBack: false)
             }
 

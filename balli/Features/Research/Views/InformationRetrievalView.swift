@@ -18,6 +18,7 @@ struct InformationRetrievalView: View {
     @State private var displayedAnswerIds: Set<String> = []
     @State private var showScrollPadding = false // Smart padding for scroll-to-top
     @State private var animatingAnswerIds: Set<String> = [] // Track which answers are still animating
+    @FocusState private var isSearchFocused: Bool // KEYBOARD FIX: Track search bar focus
 
     private var isEffectivelySearching: Bool {
         // Still searching if backend is searching OR any animation is running
@@ -85,7 +86,14 @@ struct InformationRetrievalView: View {
                             // ✅ SMART PADDING: Large padding when showing new question, small when scrolling
                             .padding(.bottom, showScrollPadding ? geometry.size.height - 100 : 32)
                         }
-                        .scrollDismissesKeyboard(.interactively)
+                        .scrollDismissesKeyboard(.immediately)
+                        .simultaneousGesture(
+                            // KEYBOARD FIX: Dismiss keyboard on any scroll or drag gesture
+                            DragGesture(minimumDistance: 10)
+                                .onChanged { _ in
+                                    isSearchFocused = false
+                                }
+                        )
                         .onChange(of: viewModel.answers.count) { oldCount, newCount in
                             // ONLY scroll when a NEW question is added (count increases)
                             if newCount > oldCount, let latestAnswer = viewModel.answers.first {
@@ -132,6 +140,9 @@ struct InformationRetrievalView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 // New conversation button
                 Button {
+                    // KEYBOARD FIX: Dismiss keyboard when starting new conversation
+                    isSearchFocused = false
+
                     // Immediately clear UI state for instant visual feedback
                     searchQuery = ""
                     displayedAnswerIds.removeAll()
@@ -159,7 +170,8 @@ struct InformationRetrievalView: View {
                 onCancel: {
                     viewModel.cancelCurrentSearch()
                 },
-                isSearching: isEffectivelySearching
+                isSearching: isEffectivelySearching,
+                isFocused: $isSearchFocused
             )
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -189,6 +201,9 @@ struct InformationRetrievalView: View {
         let hasImage = attachedImage != nil
 
         guard hasText || hasImage else { return }
+
+        // KEYBOARD FIX: Dismiss keyboard immediately when search starts
+        isSearchFocused = false
 
         // Capture image before clearing for async task
         let imageToSend = attachedImage

@@ -38,13 +38,13 @@ struct AIResultUIState: Sendable {
     // MARK: - Initialization
 
     /// Initialize for read-only mode (after analysis)
-    /// Shows label with impact banner WITH slider, checkmark button
+    /// Shows label with impact banner WITH slider, pencil + save buttons
     /// Values show adjusted amounts but are tappable to edit base values
     static func readOnly() -> AIResultUIState {
         AIResultUIState(
             isEditing: false,  // ✅ Show adjusted values (slider updates them in real-time)
             showEditButton: false,
-            showSaveButtons: false,
+            showSaveButtons: true,  // ✅ Show save buttons immediately after analysis completes
             showImpactBanner: true,
             showingValues: true,
             showSlider: true,  // ✅ Show slider immediately after analysis

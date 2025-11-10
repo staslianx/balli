@@ -51,11 +51,11 @@ final class ResearchStreamCallbacksBuilder {
         return (
             onToken: { [weak viewModel] token in
                 guard let viewModel = viewModel else { return }
-                let timestamp = Date()
+                _ = Date()
                 Task {
-                    let taskStart = Date()
+                    _ = Date()
                     await viewModel.handleToken(token, answerId: answerId)
-                    let taskEnd = Date()
+                    _ = Date()
                 }
             },
             onTierSelected: { [weak viewModel] tier in

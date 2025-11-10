@@ -6,8 +6,10 @@
  * - T2 (tier 2): Hybrid Research with Flash + thinking + 10 sources (40% of queries)
  * - T3 (tier 3): Deep Research with Pro + 25+ sources - USER CONTROLLED ONLY (20% of queries)
  *
- * Uses Gemini 2.5 Flash Lite for fast, accurate routing
- * Cost: $0.0001 per call
+ * Uses simple string matching for tier determination:
+ * - Contains "derinleş" → T3 (Deep Research)
+ * - Contains "araştır" → T2 (Hybrid Research)
+ * - Everything else → T1 (Model-only)
  */
 export interface RouterInput {
     question: string;

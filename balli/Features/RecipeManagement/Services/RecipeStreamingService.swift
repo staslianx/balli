@@ -345,6 +345,17 @@ class RecipeStreamingService {
                     extractedIngredients: getStringArray("extractedIngredients")
                 )
 
+                // CRITICAL SAFETY: Validate nutrition data before accepting recipe
+                // Invalid carb counts could lead to wrong insulin doses
+                let validationErrors = RecipeNutritionValidator.validate(response)
+                if !validationErrors.isEmpty {
+                    logger.error("❌ [STREAMING] Invalid nutrition data detected: \(validationErrors.joined(separator: "; "))")
+                    await MainActor.run {
+                        onError(RecipeStreamingError.invalidNutritionData(errors: validationErrors))
+                    }
+                    return
+                }
+
                 logger.info("✅ [STREAMING] Successfully parsed recipe: \(response.recipeName)")
                 logger.debug("✅ [STREAMING] Nutrition values - Calories: \(response.calories), Carbs: \(response.carbohydrates), Protein: \(response.protein), Fat: \(response.fat)")
                 await MainActor.run { onComplete(response) }
@@ -459,6 +470,7 @@ enum RecipeStreamingError: LocalizedError {
     case httpError(statusCode: Int)
     case decodingError(Error)
     case serverError(message: String)
+    case invalidNutritionData(errors: [String])
     case unknownError
 
     var errorDescription: String? {
@@ -475,6 +487,8 @@ enum RecipeStreamingError: LocalizedError {
             return "Failed to decode response: \(error.localizedDescription)"
         case .serverError(let message):
             return "Server error: \(message)"
+        case .invalidNutritionData(let errors):
+            return "Nutrition data looks wrong. Please regenerate recipe.\n\nIssues found: \(errors.joined(separator: ", "))"
         case .unknownError:
             return "Unknown error occurred"
         }

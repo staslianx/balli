@@ -133,7 +133,7 @@ struct TimeSeriesCSVGenerator: Sendable {
             guard let timestamp = entry.timestamp as Date? else { continue }
             let roundedTime = roundToInterval(timestamp)
 
-            let type = entry.medicationType ?? "unknown"
+            let type = entry.medicationType
             let isRapid = type == "rapid" || type == "bolus"
 
             if let existing = lookup[roundedTime] {

@@ -74,8 +74,10 @@ final class ActivityMetricsViewModel: ObservableObject {
         Task {
             // Use cached permission status if checked recently (within 5 seconds)
             // This prevents flickering when view reappears
+            // CRITICAL FIX: If data is all zeros, bypass cache and force a fresh check
+            let hasZeroData = todaySteps == 0 && todayCalories == 0
             let shouldCheckPermission: Bool
-            if let lastCheck = lastPermissionCheck, Date().timeIntervalSince(lastCheck) < 5 {
+            if let lastCheck = lastPermissionCheck, Date().timeIntervalSince(lastCheck) < 5, !hasZeroData {
                 shouldCheckPermission = false
                 // Use cached status
                 if !hasPermissionCache {
@@ -85,6 +87,9 @@ final class ActivityMetricsViewModel: ObservableObject {
                 }
             } else {
                 shouldCheckPermission = true
+                if hasZeroData {
+                    logger.info("Data is zeros - bypassing permission cache to load fresh data")
+                }
             }
 
             if shouldCheckPermission {

@@ -127,8 +127,10 @@ struct ArdiyeView: View {
         case .recipes:
             typeFilteredItems = cachedItems.filter { $0.isRecipe }
         case .products:
-            // Only show scanned products (ai_scanned), exclude voice-logged meals (voice)
-            typeFilteredItems = cachedItems.filter { !$0.isRecipe && $0.foodItem?.source == "ai_scanned" }
+            // Show scanned products (ai_scanned) and manually entered products (manual_entry), exclude voice-logged meals (voice)
+            typeFilteredItems = cachedItems.filter {
+                !$0.isRecipe && ($0.foodItem?.source == "ai_scanned" || $0.foodItem?.source == "manual_entry")
+            }
         }
 
         // Then apply search filter if needed

@@ -185,18 +185,6 @@ actor GeminiTranscriptionService {
 
         logger.info("🔄 Sending transcription request to Cloud Function...")
 
-        // Show network activity indicator
-        await MainActor.run {
-            UIApplication.shared.isNetworkActivityIndicatorVisible = true
-        }
-
-        // Ensure indicator is hidden when function exits (success or error)
-        defer {
-            Task { @MainActor in
-                UIApplication.shared.isNetworkActivityIndicatorVisible = false
-            }
-        }
-
         // Execute request
         do {
             let (data, response) = try await session.data(for: request)

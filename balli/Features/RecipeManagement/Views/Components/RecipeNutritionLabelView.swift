@@ -88,48 +88,48 @@ struct RecipeNutritionLabelView: View {
 
     // Computed properties for proportional values
     private var adjustmentRatio: Double {
-        let baseServing = Double(servingSize) ?? 100.0
+        let baseServing = servingSize.toDouble ?? 100.0
         return portionGrams / baseServing
     }
 
     private var adjustedCalories: String {
-        guard let baseValue = Double(calories) else { return calories }
+        guard let baseValue = calories.toDouble else { return calories }
         let adjusted = baseValue * adjustmentRatio
         return String(format: "%.0f", adjusted)
     }
 
     private var adjustedCarbohydrates: String {
-        guard let baseValue = Double(carbohydrates) else { return carbohydrates }
+        guard let baseValue = carbohydrates.toDouble else { return carbohydrates }
         let adjusted = baseValue * adjustmentRatio
         return formatNutritionValue(adjusted)
     }
 
     private var adjustedFiber: String {
-        guard let baseValue = Double(fiber) else { return fiber }
+        guard let baseValue = fiber.toDouble else { return fiber }
         let adjusted = baseValue * adjustmentRatio
         return formatNutritionValue(adjusted)
     }
 
     private var adjustedSugars: String {
-        guard let baseValue = Double(sugars) else { return sugars }
+        guard let baseValue = sugars.toDouble else { return sugars }
         let adjusted = baseValue * adjustmentRatio
         return formatNutritionValue(adjusted)
     }
 
     private var adjustedProtein: String {
-        guard let baseValue = Double(protein) else { return protein }
+        guard let baseValue = protein.toDouble else { return protein }
         let adjusted = baseValue * adjustmentRatio
         return formatNutritionValue(adjusted)
     }
 
     private var adjustedFat: String {
-        guard let baseValue = Double(fat) else { return fat }
+        guard let baseValue = fat.toDouble else { return fat }
         let adjusted = baseValue * adjustmentRatio
         return formatNutritionValue(adjusted)
     }
 
     private var adjustedGlycemicLoad: String {
-        guard let baseValue = Double(glycemicLoad) else { return glycemicLoad }
+        guard let baseValue = glycemicLoad.toDouble else { return glycemicLoad }
         let adjusted = baseValue * adjustmentRatio
         return formatNutritionValue(adjusted)
     }

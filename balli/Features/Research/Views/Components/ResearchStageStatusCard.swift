@@ -12,9 +12,16 @@ import SwiftUI
 struct ResearchStageStatusCard: View {
     let stageMessage: String
     let progress: Double // 0.0 to 1.0
+    let isActive: Bool // Controls shimmer animation
 
     @Environment(\.colorScheme) private var colorScheme
     @State private var animatedProgress: Double = 0.0
+
+    init(stageMessage: String, progress: Double, isActive: Bool = true) {
+        self.stageMessage = stageMessage
+        self.progress = progress
+        self.isActive = isActive
+    }
 
     /// Map stage message to appropriate SF Symbol
     private var stageIcon: String {
@@ -55,9 +62,15 @@ struct ResearchStageStatusCard: View {
 
                 Text(stageMessage)
                     .font(.system(size: 16, weight: .medium, design: .rounded))
-                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
-                    .shimmer(duration: 2.5, bounceBack: false)
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.5) : Color.black.opacity(0.7))
                     .fixedSize(horizontal: false, vertical: true)
+                    .modifier(
+                        ConditionalShimmer(
+                            isActive: isActive,
+                            duration: 2.5,
+                            bounceBack: false
+                        )
+                    )
             }
             .frame(height: 20, alignment: .leading) // Fixed height to prevent layout shift
 

@@ -21,7 +21,7 @@ struct AnswerCardHeaderSection: View {
     let thinkingSummary: String?
     let showBadge: Bool
     let showSourcePill: Bool
-    let isTypewriterAnimating: Bool // Track if typewriter has started
+    let hasResponseStarted: Bool // Track if response has started (for shimmer control)
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -71,22 +71,18 @@ struct AnswerCardHeaderSection: View {
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(tier.badgeForegroundColor(for: colorScheme))
 
-                        Group {
-                            if isTypewriterAnimating {
-                                // Typewriter started - show tier label without shimmer
-                                Text(tier.label)
-                                    .font(.system(size: 14, weight: .semibold, design: .default))
-                                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
-                            } else {
-                                // Before typewriter starts - show shimmer
-                                Text(tier.label)
-                                    .font(.system(size: 14, weight: .semibold, design: .default))
-                                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
-                                    .shimmer(duration: 2.5, bounceBack: false)
-                            }
-                        }
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                        Text(tier.label)
+                            .font(.system(size: 14, weight: .semibold, design: .default))
+                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .modifier(
+                                ConditionalShimmer(
+                                    isActive: !hasResponseStarted,
+                                    duration: 2.5,
+                                    bounceBack: false
+                                )
+                            )
                     }
                     .frame(height: 30)
                     .padding(.horizontal, 14)
@@ -137,7 +133,7 @@ struct AnswerCardHeaderSection: View {
 
 // MARK: - Previews
 
-#Preview("Before Typewriter (Shimmer)") {
+#Preview("Before Response (Shimmer Active)") {
     VStack(spacing: 20) {
         AnswerCardHeaderSection(
             query: "What are the health benefits of turmeric?",
@@ -147,7 +143,7 @@ struct AnswerCardHeaderSection: View {
             thinkingSummary: nil,
             showBadge: true,
             showSourcePill: false,
-            isTypewriterAnimating: false
+            hasResponseStarted: false
         )
 
         AnswerCardHeaderSection(
@@ -158,7 +154,7 @@ struct AnswerCardHeaderSection: View {
             thinkingSummary: nil,
             showBadge: true,
             showSourcePill: false,
-            isTypewriterAnimating: false
+            hasResponseStarted: false
         )
 
         AnswerCardHeaderSection(
@@ -169,13 +165,13 @@ struct AnswerCardHeaderSection: View {
             thinkingSummary: nil,
             showBadge: true,
             showSourcePill: false,
-            isTypewriterAnimating: false
+            hasResponseStarted: false
         )
     }
     .padding()
 }
 
-#Preview("After Typewriter (No Shimmer)") {
+#Preview("After Response Started (No Shimmer)") {
     VStack(spacing: 20) {
         AnswerCardHeaderSection(
             query: "What are the health benefits of turmeric?",
@@ -185,7 +181,7 @@ struct AnswerCardHeaderSection: View {
             thinkingSummary: nil,
             showBadge: true,
             showSourcePill: false,
-            isTypewriterAnimating: true
+            hasResponseStarted: true
         )
 
         AnswerCardHeaderSection(
@@ -196,7 +192,7 @@ struct AnswerCardHeaderSection: View {
             thinkingSummary: nil,
             showBadge: true,
             showSourcePill: false,
-            isTypewriterAnimating: true
+            hasResponseStarted: true
         )
 
         AnswerCardHeaderSection(
@@ -207,13 +203,13 @@ struct AnswerCardHeaderSection: View {
             thinkingSummary: nil,
             showBadge: true,
             showSourcePill: false,
-            isTypewriterAnimating: true
+            hasResponseStarted: true
         )
     }
     .padding()
 }
 
-#Preview("Dark Mode - Before Typewriter") {
+#Preview("Dark Mode - Before Response") {
     VStack(spacing: 20) {
         AnswerCardHeaderSection(
             query: "What are the health benefits of turmeric?",
@@ -223,7 +219,7 @@ struct AnswerCardHeaderSection: View {
             thinkingSummary: nil,
             showBadge: true,
             showSourcePill: false,
-            isTypewriterAnimating: false
+            hasResponseStarted: false
         )
 
         AnswerCardHeaderSection(
@@ -234,7 +230,7 @@ struct AnswerCardHeaderSection: View {
             thinkingSummary: nil,
             showBadge: true,
             showSourcePill: false,
-            isTypewriterAnimating: false
+            hasResponseStarted: false
         )
     }
     .padding()

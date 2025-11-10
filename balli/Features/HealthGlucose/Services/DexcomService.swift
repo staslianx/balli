@@ -26,7 +26,18 @@ final class DexcomService: DexcomServiceProtocol {
         }
     }
     @Published var connectionStatus: ConnectionStatus = .disconnected
-    @Published var lastSync: Date?
+    @Published var lastSync: Date? {
+        didSet {
+            // Persist successful sync timestamp to UserDefaults for cross-launch persistence
+            if let date = lastSync {
+                UserDefaults.standard.set(date, forKey: "DexcomLastSuccessfulSync")
+                logger.debug("💾 Persisted lastSync: \(date.formatted())")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "DexcomLastSuccessfulSync")
+                logger.debug("💾 Cleared lastSync from persistence")
+            }
+        }
+    }
     @Published var latestReading: DexcomGlucoseReading?
     @Published var currentDevice: DexcomDevice?
     @Published var error: DexcomError?
@@ -89,6 +100,12 @@ final class DexcomService: DexcomServiceProtocol {
         self.configuration = configuration
         self.authManager = DexcomAuthManager(configuration: configuration)
         self.apiClient = DexcomAPIClient(configuration: configuration, authManager: authManager)
+
+        // Load persisted lastSync timestamp from UserDefaults
+        if let persistedDate = UserDefaults.standard.object(forKey: "DexcomLastSuccessfulSync") as? Date {
+            self.lastSync = persistedDate
+            logger.debug("💾 Loaded persisted lastSync: \(persistedDate.formatted())")
+        }
 
         // PERFORMANCE FIX: Don't check connection on init - let views call it explicitly when needed
         // This prevents 4+ simultaneous connection checks on app launch

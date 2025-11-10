@@ -27,9 +27,9 @@ public class RecipeDataManager {
         fiber: String,
         sugar: String
     ) -> RecipeValidationResult {
-        let carbValue = Double(carbohydrates) ?? 0.0
-        let fiberValue = Double(fiber) ?? 0.0
-        let sugarValue = Double(sugar) ?? 0.0
+        let carbValue = carbohydrates.toDouble ?? 0.0
+        let fiberValue = fiber.toDouble ?? 0.0
+        let sugarValue = sugar.toDouble ?? 0.0
         
         if (fiberValue + sugarValue) > carbValue && carbValue > 0 {
             let errorMessage = "Lif ve şeker toplamı (\(String(format: "%.1f", fiberValue + sugarValue))g) karbonhidrat değerini (\(String(format: "%.1f", carbValue))g) aşamaz."
@@ -157,23 +157,23 @@ public class RecipeDataManager {
         recipe.lastModified = Date()
 
         // Per-100g nutrition values
-        recipe.calories = Double(data.calories) ?? recipe.calories
-        recipe.totalCarbs = Double(data.carbohydrates) ?? recipe.totalCarbs
-        recipe.fiber = Double(data.fiber) ?? recipe.fiber
-        recipe.sugars = Double(data.sugar) ?? recipe.sugars
-        recipe.protein = Double(data.protein) ?? recipe.protein
-        recipe.totalFat = Double(data.fat) ?? recipe.totalFat
-        recipe.glycemicLoad = Double(data.glycemicLoad) ?? 0.0
+        recipe.calories = data.calories.toDouble ?? recipe.calories
+        recipe.totalCarbs = data.carbohydrates.toDouble ?? recipe.totalCarbs
+        recipe.fiber = data.fiber.toDouble ?? recipe.fiber
+        recipe.sugars = data.sugar.toDouble ?? recipe.sugars
+        recipe.protein = data.protein.toDouble ?? recipe.protein
+        recipe.totalFat = data.fat.toDouble ?? recipe.totalFat
+        recipe.glycemicLoad = data.glycemicLoad.toDouble ?? 0.0
 
         // Per-serving nutrition values (entire recipe = 1 serving)
-        recipe.caloriesPerServing = Double(data.caloriesPerServing) ?? recipe.caloriesPerServing
-        recipe.carbsPerServing = Double(data.carbohydratesPerServing) ?? recipe.carbsPerServing
-        recipe.fiberPerServing = Double(data.fiberPerServing) ?? recipe.fiberPerServing
-        recipe.sugarsPerServing = Double(data.sugarPerServing) ?? recipe.sugarsPerServing
-        recipe.proteinPerServing = Double(data.proteinPerServing) ?? recipe.proteinPerServing
-        recipe.fatPerServing = Double(data.fatPerServing) ?? recipe.fatPerServing
-        recipe.glycemicLoadPerServing = Double(data.glycemicLoadPerServing) ?? recipe.glycemicLoadPerServing
-        recipe.totalRecipeWeight = Double(data.totalRecipeWeight) ?? recipe.totalRecipeWeight
+        recipe.caloriesPerServing = data.caloriesPerServing.toDouble ?? recipe.caloriesPerServing
+        recipe.carbsPerServing = data.carbohydratesPerServing.toDouble ?? recipe.carbsPerServing
+        recipe.fiberPerServing = data.fiberPerServing.toDouble ?? recipe.fiberPerServing
+        recipe.sugarsPerServing = data.sugarPerServing.toDouble ?? recipe.sugarsPerServing
+        recipe.proteinPerServing = data.proteinPerServing.toDouble ?? recipe.proteinPerServing
+        recipe.fatPerServing = data.fatPerServing.toDouble ?? recipe.fatPerServing
+        recipe.glycemicLoadPerServing = data.glycemicLoadPerServing.toDouble ?? recipe.glycemicLoadPerServing
+        recipe.totalRecipeWeight = data.totalRecipeWeight.toDouble ?? recipe.totalRecipeWeight
         recipe.portionMultiplier = data.portionMultiplier
 
         // Update time fields
@@ -218,28 +218,28 @@ public class RecipeDataManager {
         recipe.servings = Int16(RecipeConstants.Defaults.servings)
         
         // Per-100g nutrition values
-        recipe.calories = Double(data.calories) ?? 0.0
-        recipe.totalCarbs = Double(data.carbohydrates) ?? 0.0
-        recipe.fiber = Double(data.fiber) ?? 0.0
-        recipe.sugars = Double(data.sugar) ?? 0.0
-        recipe.protein = Double(data.protein) ?? 0.0
-        recipe.totalFat = Double(data.fat) ?? 0.0
-        recipe.glycemicLoad = Double(data.glycemicLoad) ?? 0.0
+        recipe.calories = data.calories.toDouble ?? 0.0
+        recipe.totalCarbs = data.carbohydrates.toDouble ?? 0.0
+        recipe.fiber = data.fiber.toDouble ?? 0.0
+        recipe.sugars = data.sugar.toDouble ?? 0.0
+        recipe.protein = data.protein.toDouble ?? 0.0
+        recipe.totalFat = data.fat.toDouble ?? 0.0
+        recipe.glycemicLoad = data.glycemicLoad.toDouble ?? 0.0
 
         // Per-serving nutrition values (entire recipe = 1 serving)
-        recipe.caloriesPerServing = Double(data.caloriesPerServing) ?? 0.0
-        recipe.carbsPerServing = Double(data.carbohydratesPerServing) ?? 0.0
-        recipe.fiberPerServing = Double(data.fiberPerServing) ?? 0.0
-        recipe.sugarsPerServing = Double(data.sugarPerServing) ?? 0.0
-        recipe.proteinPerServing = Double(data.proteinPerServing) ?? 0.0
-        recipe.fatPerServing = Double(data.fatPerServing) ?? 0.0
-        recipe.glycemicLoadPerServing = Double(data.glycemicLoadPerServing) ?? 0.0
-        recipe.totalRecipeWeight = Double(data.totalRecipeWeight) ?? 0.0
+        recipe.caloriesPerServing = data.caloriesPerServing.toDouble ?? 0.0
+        recipe.carbsPerServing = data.carbohydratesPerServing.toDouble ?? 0.0
+        recipe.fiberPerServing = data.fiberPerServing.toDouble ?? 0.0
+        recipe.sugarsPerServing = data.sugarPerServing.toDouble ?? 0.0
+        recipe.proteinPerServing = data.proteinPerServing.toDouble ?? 0.0
+        recipe.fatPerServing = data.fatPerServing.toDouble ?? 0.0
+        recipe.glycemicLoadPerServing = data.glycemicLoadPerServing.toDouble ?? 0.0
+        recipe.totalRecipeWeight = data.totalRecipeWeight.toDouble ?? 0.0
         recipe.portionMultiplier = data.portionMultiplier
 
         // Set initial portion size to Gemini's recommended weight
         // This is the "1 portion" weight that nutrition was calculated for
-        recipe.portionSize = Double(data.totalRecipeWeight) ?? 0.0
+        recipe.portionSize = data.totalRecipeWeight.toDouble ?? 0.0
 
         // Save time fields
         recipe.prepTime = Int16(data.prepTime) ?? 0
@@ -279,7 +279,7 @@ public class RecipeDataManager {
         recipeHistory.recipeName = data.recipeName
         recipeHistory.mealType = RecipeConstants.DefaultTypes.manualHistory
         recipeHistory.styleType = RecipeConstants.DefaultTypes.customStyle
-        recipeHistory.carbCount = Int32(Double(data.carbohydrates) ?? 0.0)
+        recipeHistory.carbCount = Int32(data.carbohydrates.toDouble ?? 0.0)
         recipeHistory.mainProtein = data.protein.isEmpty ? nil : data.protein
         recipeHistory.ingredients = data.ingredients.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } as NSObject
         recipeHistory.instructions = data.directions.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty } as NSObject

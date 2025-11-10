@@ -38,6 +38,9 @@ struct AnswerCardView: View {
     // Track last stage seen to keep displaying it
     @State private var lastStageBeforeContent: String? = nil
 
+    // Track if response has started - once true, stays true to stop shimmer permanently
+    @State private var hasResponseStarted = false
+
     // Track typewriter animation state - true when animating, false when complete
     @State private var isTypewriterAnimating = false
 
@@ -78,7 +81,7 @@ struct AnswerCardView: View {
                 thinkingSummary: answer.thinkingSummary,
                 showBadge: showBadge,
                 showSourcePill: showSourcePill,
-                isTypewriterAnimating: isTypewriterAnimating
+                hasResponseStarted: hasResponseStarted
             )
 
             // Current research stage - shown during deep research with progress bar
@@ -104,7 +107,15 @@ struct AnswerCardView: View {
                     fontSize: researchFontSize,
                     answerId: answer.id,
                     onAnimationStateChange: { isAnimating in
+                        // Track current animation state for action row visibility
                         self.isTypewriterAnimating = isAnimating
+
+                        // Once response starts, keep hasResponseStarted = true to stop shimmer permanently
+                        if isAnimating && !self.hasResponseStarted {
+                            self.hasResponseStarted = true
+                            logger.debug("🎬 [ANIMATION] Response started - shimmer will stop permanently")
+                        }
+
                         logger.debug("🎬 [ANIMATION] Typewriter state changed: \(isAnimating ? "started" : "completed")")
                         // Bubble up to parent view
                         self.onAnimationStateChange?(answer.id, isAnimating)
@@ -180,6 +191,8 @@ struct AnswerCardView: View {
             showBadge = false
             showSourcePill = false
             lastStageBeforeContent = nil
+            hasResponseStarted = false  // Reset shimmer state for new answer
+            isTypewriterAnimating = false  // Reset animation state for new answer
             progressCalculator.reset() // Reset progress tracking for new answer
 
             // Re-trigger animations for new answer
@@ -232,7 +245,8 @@ struct AnswerCardView: View {
         if let stageMessage = displayStage, answer.content.isEmpty {
             ResearchStageStatusCard(
                 stageMessage: stageMessage,
-                progress: progressCalculator.effectiveProgress(for: stageMessage)
+                progress: progressCalculator.effectiveProgress(for: stageMessage),
+                isActive: shouldShowShimmer
             )
             .padding(.top, 12)
             .transition(.asymmetric(

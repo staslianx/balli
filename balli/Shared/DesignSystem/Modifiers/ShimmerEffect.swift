@@ -25,25 +25,29 @@ struct ShimmerEffect: ViewModifier {
     func body(content: Content) -> some View {
         content
             .overlay {
-                LinearGradient(
-                    stops: [
-                        .init(color: .white.opacity(0), location: 0.0),
-                        .init(color: .white.opacity(0), location: 0.2),
-                        .init(color: .white.opacity(0.3), location: 0.35),
-                        .init(color: .white.opacity(0.8), location: 0.45),
-                        .init(color: .white.opacity(1.0), location: 0.5),
-                        .init(color: .white.opacity(0.8), location: 0.55),
-                        .init(color: .white.opacity(0.3), location: 0.65),
-                        .init(color: .white.opacity(0), location: 0.8),
-                        .init(color: .white.opacity(0), location: 1.0)
-                    ],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-                .scaleEffect(x: 4, anchor: .leading)
-                .offset(x: phase * UIScreen.main.bounds.width * 3 - UIScreen.main.bounds.width * 1.5)
-                .blendMode(.overlay)
-                .mask(content)
+                GeometryReader { geometry in
+                    LinearGradient(
+                        stops: [
+                            .init(color: .white.opacity(0), location: 0.0),
+                            .init(color: .white.opacity(0), location: 0.2),
+                            .init(color: .white.opacity(0.3), location: 0.35),
+                            .init(color: .white.opacity(0.8), location: 0.45),
+                            .init(color: .white.opacity(1.0), location: 0.5),
+                            .init(color: .white.opacity(0.8), location: 0.55),
+                            .init(color: .white.opacity(0.3), location: 0.65),
+                            .init(color: .white.opacity(0), location: 0.8),
+                            .init(color: .white.opacity(0), location: 1.0)
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                    .scaleEffect(x: 4, anchor: .leading)
+                    .offset(x: phase * geometry.size.width * 3 - geometry.size.width * 1.5)
+                    .blendMode(.overlay)
+                    .mask {
+                        content
+                    }
+                }
             }
             .task {
                 try? await Task.sleep(for: .milliseconds(100))
@@ -54,6 +58,23 @@ struct ShimmerEffect: ViewModifier {
                     phase = 1.0
                 }
             }
+    }
+}
+
+/// Conditional shimmer modifier that only applies shimmer when active
+/// Maintains proper text alignment without causing layout shifts
+@MainActor
+struct ConditionalShimmer: ViewModifier {
+    let isActive: Bool
+    let duration: Double
+    let bounceBack: Bool
+
+    func body(content: Content) -> some View {
+        if isActive {
+            content.modifier(ShimmerEffect(duration: duration, bounceBack: bounceBack))
+        } else {
+            content
+        }
     }
 }
 

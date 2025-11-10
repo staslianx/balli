@@ -188,7 +188,7 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         tokenCount = 0
 
         let userId = getUserId()
-        let startTime = Date()
+        _ = Date() // Track generation start
 
         // Call streaming service for ingredients-based generation
         await streamingService.generateWithIngredients(
@@ -330,7 +330,7 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                 diversityConstraints = nil
             }
 
-            let startTime = Date()
+            _ = Date() // Track generation start
 
             // Call simple generation service on background thread with recent recipes and diversity constraints
             let response = try await Task.detached(priority: .userInitiated) { [generationService] in

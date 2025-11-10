@@ -110,13 +110,13 @@ struct AbsorptionTimingChart: View {
         .onAppear {
             calculateAbsorptionProfile()
         }
-        .onChange(of: fat) { _ in
+        .onChange(of: fat) { _, _ in
             calculateAbsorptionProfile()
         }
-        .onChange(of: protein) { _ in
+        .onChange(of: protein) { _, _ in
             calculateAbsorptionProfile()
         }
-        .onChange(of: carbs) { _ in
+        .onChange(of: carbs) { _, _ in
             calculateAbsorptionProfile()
         }
         .animation(.easeInOut, value: absorptionProfile?.mealPeakTime)

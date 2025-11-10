@@ -123,6 +123,7 @@ actor MockRecipeGenerationService: RecipeGenerationServiceProtocol {
             recipeName: name,
             prepTime: "15 dakika",
             cookTime: "20 dakika",
+            waitingTime: nil,
             ingredients: ["Mock ingredient 1", "Mock ingredient 2"],
             directions: ["Step 1", "Step 2"],
             notes: "Mock notes",

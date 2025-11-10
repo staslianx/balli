@@ -135,6 +135,7 @@ struct RecipePreferencesView: View {
                     Text("Diversity scoring ensures variety in your recipes over time")
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Recipe Preferences")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

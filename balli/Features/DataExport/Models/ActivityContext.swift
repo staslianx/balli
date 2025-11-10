@@ -166,8 +166,8 @@ extension ActivityContext {
             totalCalories: totalCalories,
             exerciseMinutes: Int(dailyActivity.exerciseMinutes),
             distance: dailyActivity.distance,
-            date: dailyActivity.date ?? Date(),
-            source: dailyActivity.source ?? "apple_health"
+            date: dailyActivity.date,
+            source: dailyActivity.source
         )
     }
 

@@ -24,7 +24,8 @@ struct UserNotesModalView: View {
 
     var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
+            ScrollView {
+                VStack(spacing: 0) {
                     // Text Editor
                     TextEditor(text: $editedNotes)
                         .font(.sfRounded(16, weight: .regular))
@@ -51,9 +52,12 @@ struct UserNotesModalView: View {
                         .focused($isTextFieldFocused)
                         .padding(.horizontal, 20)
                         .padding(.top, 16)
+                        .frame(minHeight: 400)
 
-                Spacer()
+                    Spacer()
+                }
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(Color(.systemBackground))
             .navigationTitle("Notlarım")
             .navigationBarTitleDisplayMode(.inline)

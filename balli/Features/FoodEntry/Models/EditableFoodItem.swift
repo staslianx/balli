@@ -9,7 +9,7 @@
 import Foundation
 
 /// Editable version of food item for user corrections
-struct EditableFoodItem: Identifiable, Sendable {
+struct EditableFoodItem: Identifiable, Sendable, Equatable {
     let id: UUID
     var name: String
     var amount: String

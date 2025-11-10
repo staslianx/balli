@@ -140,7 +140,7 @@ actor TokenSmoother {
             }
 
             // Clean up
-            await cleanup(answerId)
+            cleanup(answerId)
         }
 
         // Store task

@@ -96,23 +96,23 @@ public final class RecipePersistenceCoordinator: ObservableObject {
         recipe.recipeContent = formState.recipeContent.isEmpty ? nil : formState.recipeContent
 
         // Per-100g nutrition values
-        recipe.calories = Double(formState.calories) ?? recipe.calories
-        recipe.totalCarbs = Double(formState.carbohydrates) ?? recipe.totalCarbs
-        recipe.fiber = Double(formState.fiber) ?? recipe.fiber
-        recipe.protein = Double(formState.protein) ?? recipe.protein
-        recipe.totalFat = Double(formState.fat) ?? recipe.totalFat
-        recipe.sugars = Double(formState.sugar) ?? recipe.sugars
-        recipe.glycemicLoad = Double(formState.glycemicLoad) ?? recipe.glycemicLoad
+        recipe.calories = formState.calories.toDouble ?? recipe.calories
+        recipe.totalCarbs = formState.carbohydrates.toDouble ?? recipe.totalCarbs
+        recipe.fiber = formState.fiber.toDouble ?? recipe.fiber
+        recipe.protein = formState.protein.toDouble ?? recipe.protein
+        recipe.totalFat = formState.fat.toDouble ?? recipe.totalFat
+        recipe.sugars = formState.sugar.toDouble ?? recipe.sugars
+        recipe.glycemicLoad = formState.glycemicLoad.toDouble ?? recipe.glycemicLoad
 
         // Per-serving nutrition values (entire recipe = 1 serving)
-        recipe.caloriesPerServing = Double(formState.caloriesPerServing) ?? recipe.caloriesPerServing
-        recipe.carbsPerServing = Double(formState.carbohydratesPerServing) ?? recipe.carbsPerServing
-        recipe.fiberPerServing = Double(formState.fiberPerServing) ?? recipe.fiberPerServing
-        recipe.proteinPerServing = Double(formState.proteinPerServing) ?? recipe.proteinPerServing
-        recipe.fatPerServing = Double(formState.fatPerServing) ?? recipe.fatPerServing
-        recipe.sugarsPerServing = Double(formState.sugarPerServing) ?? recipe.sugarsPerServing
-        recipe.glycemicLoadPerServing = Double(formState.glycemicLoadPerServing) ?? recipe.glycemicLoadPerServing
-        recipe.totalRecipeWeight = Double(formState.totalRecipeWeight) ?? recipe.totalRecipeWeight
+        recipe.caloriesPerServing = formState.caloriesPerServing.toDouble ?? recipe.caloriesPerServing
+        recipe.carbsPerServing = formState.carbohydratesPerServing.toDouble ?? recipe.carbsPerServing
+        recipe.fiberPerServing = formState.fiberPerServing.toDouble ?? recipe.fiberPerServing
+        recipe.proteinPerServing = formState.proteinPerServing.toDouble ?? recipe.proteinPerServing
+        recipe.fatPerServing = formState.fatPerServing.toDouble ?? recipe.fatPerServing
+        recipe.sugarsPerServing = formState.sugarPerServing.toDouble ?? recipe.sugarsPerServing
+        recipe.glycemicLoadPerServing = formState.glycemicLoadPerServing.toDouble ?? recipe.glycemicLoadPerServing
+        recipe.totalRecipeWeight = formState.totalRecipeWeight.toDouble ?? recipe.totalRecipeWeight
         recipe.portionMultiplier = formState.portionMultiplier
 
         recipe.lastModified = Date()
@@ -128,6 +128,9 @@ public final class RecipePersistenceCoordinator: ObservableObject {
         do {
             try viewContext.save()
             showingSaveConfirmation = true
+
+            // PERFORMANCE FIX: Sync shopping list items with real recipe ID
+            syncShoppingListWithRecipeId(recipeName: recipe.name, recipeId: recipe.id)
 
             // Upload image in background if needed
             if let imageData = imageData, imageURL == nil {
@@ -188,6 +191,11 @@ public final class RecipePersistenceCoordinator: ObservableObject {
             logger.info("✅ [PERSIST] Recipe saved successfully to Core Data")
             showingSaveConfirmation = true
 
+            // PERFORMANCE FIX: Sync shopping list items with real recipe ID
+            if let savedRecipe = try? viewContext.fetch(Recipe.fetchRequest()).first(where: { $0.name == formState.recipeName }) {
+                syncShoppingListWithRecipeId(recipeName: savedRecipe.name, recipeId: savedRecipe.id)
+            }
+
             // Upload image in background if needed
             if let imageData = imageData, imageURL == nil {
                 logger.info("📤 [PERSIST] Starting background image upload to Firebase Storage")
@@ -221,5 +229,42 @@ public final class RecipePersistenceCoordinator: ObservableObject {
 
         // Load form state
         formState.loadFromRecipe(recipe)
+    }
+
+    // MARK: - Shopping List UUID Sync
+
+    /// Sync shopping list items with real recipe ID after save
+    /// Fixes orphaned shopping list items that were created before recipe was saved
+    private func syncShoppingListWithRecipeId(recipeName: String, recipeId: UUID) {
+        logger.info("🔗 [SYNC] Syncing shopping list items for recipe: '\(recipeName)' with ID: \(recipeId)")
+
+        let request = ShoppingListItem.fetchRequest()
+        request.predicate = NSPredicate(
+            format: "recipeName == %@ AND isFromRecipe == YES",
+            recipeName
+        )
+
+        do {
+            let items = try viewContext.fetch(request)
+
+            if items.isEmpty {
+                logger.debug("ℹ️ [SYNC] No shopping list items found for '\(recipeName)'")
+                return
+            }
+
+            // Update all matching items with the real recipe ID
+            for item in items {
+                if item.recipeId != recipeId {
+                    logger.debug("🔄 [SYNC] Updating item '\(item.name)' from UUID \(item.recipeId?.uuidString ?? "nil") to \(recipeId.uuidString)")
+                    item.recipeId = recipeId
+                }
+            }
+
+            try viewContext.save()
+            logger.info("✅ [SYNC] Successfully synced \(items.count) shopping list items with recipe ID")
+        } catch {
+            logger.error("❌ [SYNC] Failed to sync shopping list UUIDs: \(error.localizedDescription)")
+            // Don't fail the recipe save if sync fails - just log it
+        }
     }
 }

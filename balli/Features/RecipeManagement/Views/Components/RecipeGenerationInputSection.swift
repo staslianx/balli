@@ -27,8 +27,7 @@ struct ManualIngredientsSection: View {
     @Binding var newIngredientText: String
     var focusedField: FocusState<RecipeGenerationView.FocusField?>.Binding
 
-    @State private var editingItemId: UUID?
-    @State private var editingText: String = ""
+    @FocusState private var focusedIngredientId: UUID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -37,37 +36,26 @@ struct ManualIngredientsSection: View {
                 .fontWeight(.bold)
                 .foregroundColor(.primary.opacity(0.3))
 
-            // Show existing manual ingredients
-            ForEach(ingredients) { item in
+            // Show all ingredients (including empty ones being typed)
+            ForEach($ingredients) { $item in
                 HStack(spacing: 8) {
                     Text("•")
                         .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
 
-                    if editingItemId == item.id {
-                        // Editing mode
-                        TextField("", text: $editingText)
-                            .font(.custom("Manrope-Medium", size: 20))
-                            .focused(focusedField, equals: .ingredient)
-                            .submitLabel(.done)
-                            .onSubmit {
-                                saveEdit(for: item.id)
-                            }
-                    } else {
-                        // Display mode
-                        Text(item.text)
-                            .font(.custom("Manrope-Medium", size: 20))
-                            .foregroundColor(.primary)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                startEditing(item: item)
-                            }
-                    }
+                    TextField("Örn: 250g tavuk göğsü", text: $item.text)
+                        .font(.custom("Manrope-Medium", size: 20))
+                        .foregroundColor(.primary)
+                        .focused($focusedIngredientId, equals: item.id)
+                        .submitLabel(.next)
+                        .onSubmit {
+                            moveToNextIngredient(currentId: item.id)
+                        }
 
                     Spacer()
 
                     Button(action: {
-                        ingredients.removeAll { $0.id == item.id }
+                        deleteIngredient(id: item.id)
                     }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 18))
@@ -76,24 +64,10 @@ struct ManualIngredientsSection: View {
                 }
             }
 
-            // Inline input or add button
-            if isAddingIngredient {
-                HStack(spacing: 8) {
-                    Text("•")
-                        .font(.custom("Manrope-Medium", size: 20))
-                        .foregroundColor(.primary)
-                    TextField("Örn: 250g tavuk göğsü", text: $newIngredientText)
-                        .font(.custom("Manrope-Medium", size: 20))
-                        .focused(focusedField, equals: .ingredient)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            addIngredient()
-                        }
-                }
-            } else {
+            // Add ingredient button (only shown when not currently adding)
+            if !isAddingIngredient {
                 Button(action: {
-                    isAddingIngredient = true
-                    focusedField.wrappedValue = .ingredient
+                    addNewIngredientField()
                 }) {
                     HStack(spacing: 8) {
                         Text("•")
@@ -107,35 +81,46 @@ struct ManualIngredientsSection: View {
                 .buttonStyle(.plain)
             }
         }
+        .onChange(of: focusedIngredientId) { _, newValue in
+            // Update parent's isAddingIngredient state based on focus
+            isAddingIngredient = newValue != nil
+        }
     }
 
-    private func addIngredient() {
-        guard !newIngredientText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    private func addNewIngredientField() {
+        let newItem = RecipeItem(text: "")
+        ingredients.append(newItem)
+        isAddingIngredient = true
+        // Focus on the new field
+        focusedIngredientId = newItem.id
+    }
+
+    private func moveToNextIngredient(currentId: UUID) {
+        guard let currentIndex = ingredients.firstIndex(where: { $0.id == currentId }) else { return }
+
+        let currentItem = ingredients[currentIndex]
+
+        // If current field is empty, dismiss keyboard and stop adding
+        if currentItem.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            ingredients.removeAll { $0.id == currentId }
+            focusedIngredientId = nil
             isAddingIngredient = false
             return
         }
-        ingredients.append(RecipeItem(text: newIngredientText))
-        newIngredientText = ""
-        // Keep the field focused to continue adding ingredients smoothly
-        // No need to reassign focus - it's already focused
+
+        // Current field has content - create next field
+        let newItem = RecipeItem(text: "")
+        ingredients.append(newItem)
+        // Move focus to new field
+        focusedIngredientId = newItem.id
     }
 
-    private func startEditing(item: RecipeItem) {
-        editingItemId = item.id
-        editingText = item.text
-        focusedField.wrappedValue = .ingredient
-    }
-
-    private func saveEdit(for itemId: UUID) {
-        guard !editingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            editingItemId = nil
-            return
+    private func deleteIngredient(id: UUID) {
+        // If we're deleting the focused field, clear focus first
+        if focusedIngredientId == id {
+            focusedIngredientId = nil
         }
-        if let index = ingredients.firstIndex(where: { $0.id == itemId }) {
-            ingredients[index] = RecipeItem(text: editingText)
-        }
-        editingItemId = nil
-        editingText = ""
+        ingredients.removeAll { $0.id == id }
     }
 }
 
@@ -147,8 +132,7 @@ struct ManualStepsSection: View {
     @Binding var newStepText: String
     var focusedField: FocusState<RecipeGenerationView.FocusField?>.Binding
 
-    @State private var editingItemId: UUID?
-    @State private var editingText: String = ""
+    @FocusState private var focusedStepId: UUID?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -157,37 +141,26 @@ struct ManualStepsSection: View {
                 .fontWeight(.bold)
                 .foregroundColor(.primary.opacity(0.3))
 
-            // Show existing manual steps
-            ForEach(Array(steps.enumerated()), id: \.element.id) { index, item in
+            // Show all steps (including empty ones being typed)
+            ForEach(Array($steps.enumerated()), id: \.element.id) { index, $item in
                 HStack(spacing: 8) {
                     Text("\(index + 1).")
                         .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
 
-                    if editingItemId == item.id {
-                        // Editing mode
-                        TextField("", text: $editingText)
-                            .font(.custom("Manrope-Medium", size: 20))
-                            .focused(focusedField, equals: .step)
-                            .submitLabel(.done)
-                            .onSubmit {
-                                saveEdit(for: item.id)
-                            }
-                    } else {
-                        // Display mode
-                        Text(item.text)
-                            .font(.custom("Manrope-Medium", size: 20))
-                            .foregroundColor(.primary)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                startEditing(item: item)
-                            }
-                    }
+                    TextField("Örn: Tavukları zeytinyağında sotele", text: $item.text)
+                        .font(.custom("Manrope-Medium", size: 20))
+                        .foregroundColor(.primary)
+                        .focused($focusedStepId, equals: item.id)
+                        .submitLabel(.next)
+                        .onSubmit {
+                            moveToNextStep(currentId: item.id)
+                        }
 
                     Spacer()
 
                     Button(action: {
-                        steps.removeAll { $0.id == item.id }
+                        deleteStep(id: item.id)
                     }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 18))
@@ -196,24 +169,10 @@ struct ManualStepsSection: View {
                 }
             }
 
-            // Inline input or add button
-            if isAddingStep {
-                HStack(spacing: 8) {
-                    Text("\(steps.count + 1).")
-                        .font(.custom("Manrope-Medium", size: 20))
-                        .foregroundColor(.primary)
-                    TextField("Örn: Tavukları zeytinyağında sotele", text: $newStepText)
-                        .font(.custom("Manrope-Medium", size: 20))
-                        .focused(focusedField, equals: .step)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            addStep()
-                        }
-                }
-            } else {
+            // Add step button (only shown when not currently adding)
+            if !isAddingStep {
                 Button(action: {
-                    isAddingStep = true
-                    focusedField.wrappedValue = .step
+                    addNewStepField()
                 }) {
                     HStack(spacing: 8) {
                         Text("\(steps.count + 1).")
@@ -227,35 +186,46 @@ struct ManualStepsSection: View {
                 .buttonStyle(.plain)
             }
         }
+        .onChange(of: focusedStepId) { _, newValue in
+            // Update parent's isAddingStep state based on focus
+            isAddingStep = newValue != nil
+        }
     }
 
-    private func addStep() {
-        guard !newStepText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+    private func addNewStepField() {
+        let newItem = RecipeItem(text: "")
+        steps.append(newItem)
+        isAddingStep = true
+        // Focus on the new field
+        focusedStepId = newItem.id
+    }
+
+    private func moveToNextStep(currentId: UUID) {
+        guard let currentIndex = steps.firstIndex(where: { $0.id == currentId }) else { return }
+
+        let currentItem = steps[currentIndex]
+
+        // If current field is empty, dismiss keyboard and stop adding
+        if currentItem.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            steps.removeAll { $0.id == currentId }
+            focusedStepId = nil
             isAddingStep = false
             return
         }
-        steps.append(RecipeItem(text: newStepText))
-        newStepText = ""
-        // Keep the field focused to continue adding steps smoothly
-        // No need to reassign focus - it's already focused
+
+        // Current field has content - create next field
+        let newItem = RecipeItem(text: "")
+        steps.append(newItem)
+        // Move focus to new field
+        focusedStepId = newItem.id
     }
 
-    private func startEditing(item: RecipeItem) {
-        editingItemId = item.id
-        editingText = item.text
-        focusedField.wrappedValue = .step
-    }
-
-    private func saveEdit(for itemId: UUID) {
-        guard !editingText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            editingItemId = nil
-            return
+    private func deleteStep(id: UUID) {
+        // If we're deleting the focused field, clear focus first
+        if focusedStepId == id {
+            focusedStepId = nil
         }
-        if let index = steps.firstIndex(where: { $0.id == itemId }) {
-            steps[index] = RecipeItem(text: editingText)
-        }
-        editingItemId = nil
-        editingText = ""
+        steps.removeAll { $0.id == id }
     }
 }
 

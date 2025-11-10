@@ -271,10 +271,6 @@ struct MealDetailView: View {
             }
         }
         .padding(ResponsiveDesign.Spacing.medium)
-        .background(.clear)
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .shadow(color: .black.opacity(0.04), radius: ResponsiveDesign.height(4), x: 0, y: ResponsiveDesign.height(2))
     }
 
     // MARK: - Helper Functions

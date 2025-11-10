@@ -8,6 +8,7 @@
 import Foundation
 import AuthenticationServices
 import Combine
+import HealthKit
 @testable import balli
 
 @MainActor
@@ -16,21 +17,22 @@ final class MockDexcomService: DexcomServiceProtocol {
     // MARK: - Published Properties
 
     @Published var isConnected = false
-    @Published var connectionStatus = "Not Connected"
-    @Published var isLoading = false
+    @Published var connectionStatus: DexcomService.ConnectionStatus = .disconnected
+    @Published var lastSync: Date?
+    @Published var latestReading: DexcomGlucoseReading?
+    @Published var currentDevice: DexcomDevice?
     @Published var error: DexcomError?
-    @Published var latestReading: HealthGlucoseReading?
-    @Published var readings: [HealthGlucoseReading] = []
 
     // MARK: - Mock Configuration
 
     var shouldSucceedConnection = true
     var shouldSucceedSync = true
     var shouldSucceedFetch = true
-    var shouldSucceedTokenRefresh = true
     var shouldSucceedBackgroundFetch = true
     var mockError: DexcomError?
     var mockReadings: [HealthGlucoseReading] = []
+    var mockDexcomReading: DexcomGlucoseReading?
+    var mockDevices: [DexcomDevice] = []
     var hasNewDataInBackground = true
 
     // MARK: - Call Tracking
@@ -40,41 +42,36 @@ final class MockDexcomService: DexcomServiceProtocol {
     var checkConnectionStatusCallCount = 0
     var syncDataCallCount = 0
     var fetchRecentReadingsCallCount = 0
-    var refreshTokenIfNeededCallCount = 0
-    var performBackgroundFetchCallCount = 0
+    var fetchGlucoseReadingsCallCount = 0
+    var fetchDevicesCallCount = 0
 
-    var lastSyncForce: Bool?
+    var lastSyncIncludeHistorical: Bool?
     var lastFetchDays: Int?
 
     // MARK: - Connection Management
 
     func connect(presentationAnchor: ASPresentationAnchor) async throws {
         connectCallCount += 1
-        isLoading = true
 
         if let error = mockError {
-            isLoading = false
             self.error = error
             throw error
         }
 
         guard shouldSucceedConnection else {
-            isLoading = false
-            let error = DexcomError.authenticationFailed
+            let error = DexcomError.networkError(NSError(domain: "MockDexcom", code: -1, userInfo: nil))
             self.error = error
             throw error
         }
 
         isConnected = true
-        connectionStatus = "Connected"
-        isLoading = false
+        connectionStatus = .connected
     }
 
-    func disconnect() async {
+    func disconnect() async throws {
         disconnectCallCount += 1
         isConnected = false
-        connectionStatus = "Not Connected"
-        readings.removeAll()
+        connectionStatus = .disconnected
         latestReading = nil
         error = nil
     }
@@ -83,135 +80,140 @@ final class MockDexcomService: DexcomServiceProtocol {
         checkConnectionStatusCallCount += 1
 
         if isConnected {
-            connectionStatus = "Connected"
+            connectionStatus = .connected
         } else {
-            connectionStatus = "Not Connected"
+            connectionStatus = .disconnected
         }
     }
 
     // MARK: - Data Synchronization
 
-    func syncData(force: Bool = false) async throws {
+    func syncData(includeHistorical: Bool) async throws {
         syncDataCallCount += 1
-        lastSyncForce = force
-        isLoading = true
+        lastSyncIncludeHistorical = includeHistorical
 
         if let error = mockError {
-            isLoading = false
             self.error = error
             throw error
         }
 
         guard shouldSucceedSync else {
-            isLoading = false
             let error = DexcomError.networkError(NSError(domain: "MockDexcom", code: -1, userInfo: nil))
             self.error = error
             throw error
         }
 
-        readings = mockReadings
-        latestReading = mockReadings.first
-        isLoading = false
+        latestReading = mockDexcomReading
+        lastSync = Date()
     }
 
     func fetchRecentReadings(days: Int = 7) async throws -> [HealthGlucoseReading] {
         fetchRecentReadingsCallCount += 1
         lastFetchDays = days
-        isLoading = true
 
         if let error = mockError {
-            isLoading = false
             self.error = error
             throw error
         }
 
         guard shouldSucceedFetch else {
-            isLoading = false
             let error = DexcomError.networkError(NSError(domain: "MockDexcom", code: -1, userInfo: nil))
             self.error = error
             throw error
         }
 
-        isLoading = false
         return mockReadings
     }
 
-    // MARK: - Token Management
-
-    func refreshTokenIfNeeded() async throws {
-        refreshTokenIfNeededCallCount += 1
+    func fetchGlucoseReadings(startDate: Date, endDate: Date?) async throws -> [HealthGlucoseReading] {
+        fetchGlucoseReadingsCallCount += 1
 
         if let error = mockError {
             self.error = error
             throw error
         }
 
-        guard shouldSucceedTokenRefresh else {
-            let error = DexcomError.tokenRefreshFailed
+        guard shouldSucceedFetch else {
+            let error = DexcomError.networkError(NSError(domain: "MockDexcom", code: -1, userInfo: nil))
             self.error = error
             throw error
         }
+
+        return mockReadings
     }
 
-    // MARK: - Background Operations
+    // MARK: - Device Management
 
-    func performBackgroundFetch() async -> Bool {
-        performBackgroundFetchCallCount += 1
+    func fetchDevices() async throws -> [DexcomDevice] {
+        fetchDevicesCallCount += 1
 
-        if !shouldSucceedBackgroundFetch {
-            return false
+        if let error = mockError {
+            self.error = error
+            throw error
         }
 
-        if hasNewDataInBackground {
-            readings = mockReadings
-            latestReading = mockReadings.first
-        }
-
-        return hasNewDataInBackground
+        return mockDevices
     }
 
     // MARK: - Test Helpers
 
-    /// Create a mock glucose reading
-    static func mockGlucoseReading(
+    /// Create a mock glucose reading for HealthKit
+    static func mockHealthGlucoseReading(
         value: Double = 120.0,
-        timestamp: Date = Date(),
-        trend: GlucoseTrend = .flat
+        timestamp: Date = Date()
     ) -> HealthGlucoseReading {
         return HealthGlucoseReading(
             id: UUID(),
+            value: value,
+            unit: HKUnit(from: "mg/dL"),
             timestamp: timestamp,
-            glucoseValue: value,
-            unit: "mg/dL",
-            source: .dexcom,
-            trend: trend
+            device: "Mock Dexcom",
+            source: "Dexcom",
+            metadata: nil
+        )
+    }
+
+    /// Create a mock Dexcom API glucose reading
+    static func mockDexcomGlucoseReading(
+        value: Int = 120,
+        timestamp: Date = Date()
+    ) -> DexcomGlucoseReading {
+        return DexcomGlucoseReading(
+            recordId: UUID().uuidString,
+            systemTime: timestamp,
+            displayTime: timestamp,
+            value: value,
+            status: "ok",
+            trend: "flat",
+            trendRate: 0.0
         )
     }
 
     /// Reset all mock state
     func reset() {
         isConnected = false
-        connectionStatus = "Not Connected"
-        isLoading = false
+        connectionStatus = .disconnected
+        lastSync = nil
         error = nil
         latestReading = nil
-        readings = []
+        currentDevice = nil
         shouldSucceedConnection = true
         shouldSucceedSync = true
         shouldSucceedFetch = true
-        shouldSucceedTokenRefresh = true
         shouldSucceedBackgroundFetch = true
         mockError = nil
         mockReadings = []
+        mockDexcomReading = nil
+        mockDevices = []
         hasNewDataInBackground = true
         connectCallCount = 0
         disconnectCallCount = 0
         checkConnectionStatusCallCount = 0
         syncDataCallCount = 0
         fetchRecentReadingsCallCount = 0
-        refreshTokenIfNeededCallCount = 0
-        performBackgroundFetchCallCount = 0
-        lastSyncForce = nil
+        fetchGlucoseReadingsCallCount = 0
+        fetchDevicesCallCount = 0
+        lastSyncIncludeHistorical = nil
         lastFetchDays = nil
     }
 }

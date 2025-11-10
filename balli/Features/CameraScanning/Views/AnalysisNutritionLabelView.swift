@@ -195,21 +195,21 @@ struct AnalysisNutritionLabelView: View {
                         value: isRotating
                     )
 
-                // Status text with shimmer animation
-                Group {
-                    if currentStage == .completed {
-                        // No shimmer for completed state - just colored text
-                        Text(currentStage.message)
-                            .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .medium, design: .rounded))
-                            .foregroundColor(.secondary)
-                    } else {
-                        // Shimmer effect for active processing stages
-                        Text(currentStage.message)
-                            .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .medium, design: .rounded))
-                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
-                            .shimmer(duration: 2.5, bounceBack: false)
-                    }
-                }
+                // Status text with shimmer animation (conditionally applied)
+                Text(currentStage.message)
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .medium, design: .rounded))
+                    .foregroundColor(
+                        currentStage == .completed
+                            ? .secondary
+                            : (colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
+                    )
+                    .modifier(
+                        ConditionalShimmer(
+                            isActive: currentStage != .completed,
+                            duration: 2.5,
+                            bounceBack: false
+                        )
+                    )
 
                 Spacer()
             }

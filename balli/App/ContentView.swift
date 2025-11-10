@@ -101,7 +101,7 @@ struct ContentView: View {
             }
 
             // Research/Balli Tab
-            Tab("Araştır", systemImage: "gyroscope", value: 2) {
+            Tab("Araştır", systemImage: "text.quote", value: 2) {
                 NavigationStack {
                     InformationRetrievalView()
                 }

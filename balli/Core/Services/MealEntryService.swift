@@ -63,63 +63,104 @@ final class MealEntryService {
         // Do NOT set it again here as it causes ALL active @FetchRequest to re-evaluate synchronously,
         // which can freeze the UI when multiple views have fetch requests active (e.g., ArdiyeView).
 
-        // Perform CoreData operations on background context
-        try await context.perform {
-            if isGeminiFormat {
-                // GEMINI FORMAT: Create separate MealEntry for each food item
-                try self.createGeminiFormatEntries(
-                    foodDataArray: foodDataArray,
-                    isSimpleFormat: isSimpleFormat,
-                    totalCarbs: totalCarbs,
-                    mealType: mealType,
-                    timestamp: timestamp,
-                    context: context
-                )
-            } else {
-                // LEGACY FORMAT: Single entry (backward compatible)
-                try self.createLegacyFormatEntry(
-                    totalCarbs: totalCarbs,
-                    mealType: mealType,
-                    timestamp: timestamp,
-                    context: context
-                )
-            }
+        // Perform CoreData operations on background context with auto-retry
+        var saveSucceeded = false
+        var saveAttempt = 0
+        let maxAttempts = 2
 
-            // CREATE INSULIN MEDICATION ENTRY (if insulin was specified)
-            if hasInsulin && insulinDosage > 0 {
-                try self.createInsulinEntry(
-                    dosage: insulinDosage,
-                    insulinType: insulinType,
-                    insulinName: insulinName,
-                    timestamp: timestamp,
-                    context: context
-                )
-            }
+        while !saveSucceeded && saveAttempt < maxAttempts {
+            saveAttempt += 1
 
-            // Save on background thread
-            // The save will automatically trigger a merge into viewContext
-            // because automaticallyMergesChangesFromParent = true
-            try context.save()
-            self.logger.info("✅ Saved meal entry: \(totalCarbs)g carbs, \(mealType)")
+            do {
+                try await context.perform {
+                    if isGeminiFormat {
+                        // GEMINI FORMAT: Create separate MealEntry for each food item
+                        try self.createGeminiFormatEntries(
+                            foodDataArray: foodDataArray,
+                            isSimpleFormat: isSimpleFormat,
+                            totalCarbs: totalCarbs,
+                            mealType: mealType,
+                            timestamp: timestamp,
+                            context: context
+                        )
+                    } else {
+                        // LEGACY FORMAT: Single entry (backward compatible)
+                        try self.createLegacyFormatEntry(
+                            totalCarbs: totalCarbs,
+                            mealType: mealType,
+                            timestamp: timestamp,
+                            context: context
+                        )
+                    }
+
+                    // CREATE INSULIN MEDICATION ENTRY (if insulin was specified)
+                    if hasInsulin && insulinDosage > 0 {
+                        try self.createInsulinEntry(
+                            dosage: insulinDosage,
+                            insulinType: insulinType,
+                            insulinName: insulinName,
+                            timestamp: timestamp,
+                            context: context
+                        )
+                    }
+
+                    // Save on background thread
+                    // The save will automatically trigger a merge into viewContext
+                    // because automaticallyMergesChangesFromParent = true
+                    try context.save()
+                }
+
+                // Save succeeded
+                saveSucceeded = true
+                if saveAttempt == 1 {
+                    self.logger.info("✅ Saved meal entry: \(totalCarbs)g carbs, \(mealType)")
+                } else {
+                    self.logger.info("✅ Saved meal entry on retry: \(totalCarbs)g carbs, \(mealType)")
+                }
+
+            } catch {
+                if saveAttempt < maxAttempts {
+                    // CRITICAL SAFETY: Retry once for transient CoreData failures
+                    // (disk busy, temporary permission issues, etc.)
+                    self.logger.warning("⚠️ Save attempt \(saveAttempt) failed: \(error.localizedDescription) - retrying once...")
+                    try? await Task.sleep(for: .milliseconds(500))
+                } else {
+                    // Both attempts failed - this is a real problem
+                    self.logger.error("❌ CRITICAL: Failed to save meal entry after \(maxAttempts) attempts: \(error.localizedDescription)")
+                    throw MealEntryServiceError.saveFailed(error)
+                }
+            }
         }
 
         // CRITICAL FIX: automaticallyMergesChangesFromParent merges silently without triggering
         // NSManagedObjectContextObjectsDidChange notifications. We must explicitly notify
         // observers (like GlucoseChartViewModel) that meal data has changed.
+        //
+        // RACE CONDITION FIX: The background context save triggers an async merge to the main context.
+        // We MUST explicitly trigger a refresh on the main context to ensure the merge has completed
+        // and the new objects are available before notifying observers!
         await MainActor.run {
+            // Force the view context to process pending changes from the merge
+            // This ensures that @FetchRequest and manual fetches will see the new data
+            viewContext.refreshAllObjects()
+
+            // Process pending changes to trigger any active @FetchRequest queries
+            viewContext.processPendingChanges()
+
+            // NOW post the notification - observers will see the refreshed data
             NotificationCenter.default.post(
                 name: .mealEntryDidSave,
                 object: nil,
                 userInfo: ["timestamp": timestamp, "mealType": mealType]
             )
-            self.logger.debug("Posted mealEntryDidSave notification for glucose chart refresh")
+            self.logger.debug("Posted mealEntryDidSave notification after forcing context refresh")
         }
     }
 
     // MARK: - Private Helpers
 
     /// Create meal entries for Gemini format (separate entry for each food)
-    private func createGeminiFormatEntries(
+    nonisolated private func createGeminiFormatEntries(
         foodDataArray: [(name: String, amount: String, carbs: Int?)],
         isSimpleFormat: Bool,
         totalCarbs: Int,
@@ -239,7 +280,7 @@ final class MealEntryService {
     }
 
     /// Create single meal entry for legacy format
-    private func createLegacyFormatEntry(
+    nonisolated private func createLegacyFormatEntry(
         totalCarbs: Int,
         mealType: String,
         timestamp: Date,
@@ -301,7 +342,7 @@ final class MealEntryService {
     }
 
     /// Create insulin medication entry
-    private func createInsulinEntry(
+    nonisolated private func createInsulinEntry(
         dosage: Double,
         insulinType: String?,
         insulinName: String?,
@@ -373,7 +414,7 @@ enum MealEntryServiceError: LocalizedError {
         case .invalidFoodData:
             return "Invalid food data - no valid food items found"
         case .saveFailed(let error):
-            return "Failed to save meal entry: \(error.localizedDescription)"
+            return "Öğün kaydedilemedi. Lütfen tekrar deneyin.\n\nHata: \(error.localizedDescription)"
         }
     }
 }

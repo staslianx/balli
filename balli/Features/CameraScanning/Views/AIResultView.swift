@@ -122,10 +122,8 @@ struct AIResultView: View {
                             // Show done (checkmark) button when editing
                             Button(action: { viewModel.toggleEditMode() }) {
                                 Image(systemName: "checkmark")
-                                    .font(.system(size: 20, weight: .medium, design: .rounded))
-                                    .foregroundColor(.primary)
                             }
-                            .toolbarCircularGlass(size: ResponsiveDesign.height(72))
+                            .buttonStyle(.balliBordered(size: ResponsiveDesign.height(72)))
                             .padding(.bottom, ResponsiveDesign.height(12))
                         } else if viewModel.uiState.showSaveButtons {
                             // Show both edit and save buttons after user taps done
@@ -157,18 +155,11 @@ struct AIResultView: View {
                                         )
                                 }
 
-                                // Save button - circular, filled purple with white checkmark
+                                // Save button - circular, filled purple with light purple checkmark
                                 Button(action: handleSave) {
                                     Image(systemName: "checkmark")
-                                        .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(.white)
-                                        .frame(width: ResponsiveDesign.height(72), height: ResponsiveDesign.height(72))
-                                        .background(
-                                            Circle()
-                                                .fill(AppTheme.primaryPurple)
-                                                .glassEffect(.regular.interactive(), in: Circle())
-                                        )
                                 }
+                                .buttonStyle(.balliBordered(size: ResponsiveDesign.height(72)))
                             }
                             .padding(.bottom, ResponsiveDesign.height(12))
                         }

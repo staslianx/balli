@@ -15,11 +15,18 @@ struct ShoppingListViewSimple: View {
     // PERFORMANCE FIX: Remove animation from @FetchRequest to prevent UI freeze
     // Animation on @FetchRequest causes synchronous re-evaluation on every change
     // Instead, we animate individual UI changes in the ViewModel
+    //
+    // PERFORMANCE FIX: Filter out old completed items (30+ days old)
+    // Prevents table from growing indefinitely and causing memory pressure
     @FetchRequest(
         sortDescriptors: [
             NSSortDescriptor(keyPath: \ShoppingListItem.isCompleted, ascending: true),
             NSSortDescriptor(keyPath: \ShoppingListItem.sortOrder, ascending: false)
         ],
+        predicate: NSPredicate(
+            format: "isCompleted == NO OR dateCompleted > %@ OR dateCompleted == nil",
+            Calendar.current.date(byAdding: .day, value: -30, to: Date())! as NSDate
+        ),
         animation: .default
     ) private var items: FetchedResults<ShoppingListItem>
 

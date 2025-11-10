@@ -23,6 +23,11 @@ final class GlucoseChartViewModel: ObservableObject {
     @Published var dataSource: String? // "Dexcom", "SHARE", "Hybrid", or "HealthKit"
     @Published var isRealTimeModeEnabled: Bool = false
 
+    // CRITICAL FIX: Cache the time range when data is loaded
+    // This prevents the chart's x-axis from drifting forward when app is backgrounded
+    // The time range should only update when we actually reload data
+    @Published private(set) var cachedTimeRange: (start: Date, end: Date)?
+
     // MARK: - Dependencies
 
     private let healthKitService: HealthKitServiceProtocol
@@ -40,7 +45,9 @@ final class GlucoseChartViewModel: ObservableObject {
 
     private var loadTask: Task<Void, Never>?
     private var lastLoadTime: Date?
-    private let minimumLoadInterval: TimeInterval = 60 // Don't reload more than once per 60 seconds
+    // CRITICAL FIX: Reduced from 60s to 10s to allow more frequent updates
+    // This prevents stale data from being displayed when user switches tabs or returns from background
+    private let minimumLoadInterval: TimeInterval = 10 // Don't reload more than once per 10 seconds
 
     // MARK: - Combine Subscriptions
 
@@ -93,9 +100,11 @@ final class GlucoseChartViewModel: ObservableObject {
                 guard let self = self else { return }
 
                 Task { @MainActor in
-                    // DEBOUNCE: Don't refresh if we just refreshed
+                    // CRITICAL FIX: Reduced debounce from 2.0s to 0.5s
+                    // This allows tab switches and app foregrounding to refresh properly
+                    // while still preventing duplicate calls from system notifications
                     if let lastRefresh = self.lastRefreshTime,
-                       Date().timeIntervalSince(lastRefresh) < 2.0 {
+                       Date().timeIntervalSince(lastRefresh) < 0.5 {
                         self.logger.debug("Skipping scene refresh - too soon (last refresh \(Date().timeIntervalSince(lastRefresh))s ago)")
                         return
                     }
@@ -167,7 +176,11 @@ final class GlucoseChartViewModel: ObservableObject {
                 guard let self = self else { return }
 
                 Task { @MainActor in
-                    self.logger.info("🍽️ Meal entry saved - refreshing meal logs immediately")
+                    // Extract meal info from notification for logging
+                    let timestamp = notification.userInfo?["timestamp"] as? Date ?? Date()
+                    let mealType = notification.userInfo?["mealType"] as? String ?? "unknown"
+
+                    self.logger.info("🍽️ Meal entry saved notification received: \(mealType) at \(timestamp)")
 
                     // Force immediate reload of meal logs
                     guard let timeRange = self.calculateTimeRange() else {
@@ -175,8 +188,17 @@ final class GlucoseChartViewModel: ObservableObject {
                         return
                     }
 
+                    self.logger.debug("  Time range for fetch: \(timeRange.start) to \(timeRange.end)")
+                    self.logger.debug("  Meal timestamp: \(timestamp)")
+
+                    // Check if meal is within the visible time range
+                    let isInRange = timestamp >= timeRange.start && timestamp <= timeRange.end
+                    self.logger.debug("  Meal is \(isInRange ? "WITHIN" : "OUTSIDE") time range")
+
                     // Reload meal logs immediately
                     self.loadMealLogs(timeRange: timeRange)
+
+                    self.logger.info("✅ Meal logs reloaded - now showing \(self.mealLogs.count) meals")
 
                     // Force view refresh
                     self.objectWillChange.send()
@@ -205,10 +227,16 @@ final class GlucoseChartViewModel: ObservableObject {
 
         // PERFORMANCE: Debounce rapid successive calls
         // Don't reload if we loaded recently and already have data
+        // CRITICAL FIX: If data is empty, ALWAYS try to load (user is seeing zeros/empty state)
         if let lastLoad = lastLoadTime,
            Date().timeIntervalSince(lastLoad) < minimumLoadInterval,
            !glucoseData.isEmpty {
+            logger.debug("Debouncing loadGlucoseData - last load \(Date().timeIntervalSince(lastLoad))s ago, data exists (\(self.glucoseData.count) readings)")
             return
+        }
+
+        if self.glucoseData.isEmpty {
+            logger.info("Data is empty - bypassing debounce to load fresh data")
         }
 
         // Create new load task
@@ -231,6 +259,9 @@ final class GlucoseChartViewModel: ObservableObject {
                 isLoading = false
                 return
             }
+
+            // CRITICAL FIX: Cache the time range so chart domain doesn't drift when app backgrounds
+            cachedTimeRange = timeRange
 
             logger.debug("Time range: \(timeRange.start) to \(timeRange.end) (last 6 hours)")
             logger.debug("Current time: \(Date())")

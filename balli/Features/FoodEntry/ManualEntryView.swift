@@ -221,7 +221,7 @@ struct ManualEntryView: View {
     /// Matches the calculation logic from NutritionFormState
     private func updateImpactCalculation() {
         // Validate we have a valid serving size
-        guard let baseServing = Double(servingSize), baseServing > 0 else {
+        guard let baseServing = servingSize.toDouble, baseServing > 0 else {
             currentImpactScore = nil
             currentImpactLevel = nil
             return

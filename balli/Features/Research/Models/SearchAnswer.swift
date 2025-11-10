@@ -136,7 +136,7 @@ enum ResponseTier: String, Codable, Sendable {
 
     /// Background color for the badge with appropriate opacity
     func badgeBackgroundColor(for colorScheme: ColorScheme) -> Color {
-        color(for: colorScheme).opacity(0.15)
+        color(for: colorScheme).opacity(0)
     }
 
     /// Foreground color for badge text and icon
@@ -200,7 +200,7 @@ enum ResearchMode: String, CaseIterable, Sendable {
     var icon: String {
         switch self {
         case .all: return "globe"
-        case .medical: return "cross.case"
+        case .medical: return "stethoscope"
         case .nutrition: return "leaf"
         case .myData: return "chart.xyaxis.line"
         case .recipes: return "fork.knife"

@@ -29,7 +29,11 @@ extension MedicationEntry {
 
     /// Device identifier for multi-device sync conflict resolution
     var deviceIdentifier: String {
-        UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+        // Access UIDevice from MainActor context
+        // This is safe because the device identifier is a constant for app lifetime
+        MainActor.assumeIsolated {
+            UIDevice.current.identifierForVendor?.uuidString ?? "unknown"
+        }
     }
 }
 

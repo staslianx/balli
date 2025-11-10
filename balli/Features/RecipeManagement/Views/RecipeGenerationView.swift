@@ -344,11 +344,10 @@ struct RecipeGenerationView: View {
             }
         } label: {
             Image(systemName: "checkmark")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(canSaveRecipe ? ThemeColors.primaryPurple : ThemeColors.primaryPurple.opacity(0.3))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.balliBordered)
         .disabled(!canSaveRecipe)
+        .opacity(canSaveRecipe ? 1.0 : 0.5)
     }
 
     @ViewBuilder
@@ -440,7 +439,7 @@ struct RecipeGenerationView: View {
                     await generationViewModel.startGeneration()
                 }
             } label: {
-                Label("Atıştırmalık", systemImage: "circle.hexagongrid.fill")
+                Label("Atıştırmalık", systemImage: "carrot.fill")
             }
         } label: {
             generateButtonContent
@@ -452,7 +451,7 @@ struct RecipeGenerationView: View {
         Image("balli-logo")
             .resizable()
             .scaledToFit()
-            .frame(width: 20, height: 20)
+            .frame(width: 26, height: 26)
             .rotationEffect(.degrees(isEffectivelyGenerating ? 360 : 0))
             .animation(
                 isEffectivelyGenerating ?
@@ -524,6 +523,67 @@ struct RecipeButtonStyle: ButtonStyle {
     }
 }
 
-#Preview {
+#Preview("Default") {
     RecipeGenerationView(viewContext: PersistenceController.previewFast.container.viewContext)
+}
+
+#Preview("With Save Button") {
+    struct PreviewWrapper: View {
+        var body: some View {
+            RecipeGenerationViewWithSaveButton()
+        }
+    }
+    return PreviewWrapper()
+}
+
+// Helper view for preview with save button visible
+private struct RecipeGenerationViewWithSaveButton: View {
+    @Environment(\.managedObjectContext) private var viewContext
+    @StateObject private var viewModel: RecipeViewModel
+    @StateObject private var generationViewModel: RecipeGenerationViewModel
+    @StateObject private var actionsHandler = RecipeGenerationActionsHandler()
+    @StateObject private var loadingHandler = LoadingAnimationHandler()
+    @State private var showSaveButton = true  // Always show for preview
+
+    init() {
+        let recipeVM = RecipeViewModel(context: PersistenceController.previewFast.container.viewContext)
+        _viewModel = StateObject(wrappedValue: recipeVM)
+        _generationViewModel = StateObject(wrappedValue: RecipeGenerationViewModel(
+            viewContext: PersistenceController.previewFast.container.viewContext,
+            recipeViewModel: recipeVM
+        ))
+    }
+
+    var body: some View {
+        NavigationStack {
+            Text("Preview Content")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button {} label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(ThemeColors.primaryPurple)
+                        }
+                    }
+
+                    if showSaveButton {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button {
+                                print("Save tapped")
+                            } label: {
+                                Image(systemName: "checkmark")
+                            }
+                            .buttonStyle(.balliBordered)
+                        }
+                    }
+
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Image("balli-logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 26, height: 26)
+                    }
+                }
+        }
+    }
 }

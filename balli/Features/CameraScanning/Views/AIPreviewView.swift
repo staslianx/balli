@@ -64,18 +64,13 @@ struct AIPreviewView: View {
                                 )
                         }
 
-                        // Kullan button (use) - filled purple like save button
+                        // Kullan button (use) - filled purple with light purple checkmark
                         Button(action: handleUse) {
                             Image(systemName: "checkmark")
                                 .font(.system(size: 20, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.white)
-                                .frame(width: ResponsiveDesign.height(72), height: ResponsiveDesign.height(72))
-                                .background(
-                                    Circle()
-                                        .fill(AppTheme.primaryPurple)
-                                        .glassEffect(.regular.interactive(), in: Circle())
-                                )
                         }
+                        .buttonStyle(.balliBordered)
+                        .controlSize(.large)
                     }
                     .padding(.bottom, ResponsiveDesign.height(12))
                 }
@@ -133,9 +128,28 @@ struct AIPreviewView: View {
 
 // MARK: - Preview
 #Preview {
-    AIPreviewView(
-        capturedImage: UIImage(systemName: "photo.fill") ?? UIImage(),
-        captureFlowManager: CaptureFlowManager(cameraManager: CameraManager()),
-        onUsePhoto: { print("Use photo tapped") }
-    )
+    // PREVIEW FIX: Wrap in NavigationStack to support toolbar and dismiss environment
+    // Use StateObject to create CaptureFlowManager within preview context safely
+    struct PreviewContainer: View {
+        @StateObject private var cameraManager = CameraManager()
+        @StateObject private var captureFlowManager: CaptureFlowManager
+
+        init() {
+            let camera = CameraManager()
+            _cameraManager = StateObject(wrappedValue: camera)
+            _captureFlowManager = StateObject(wrappedValue: CaptureFlowManager(cameraManager: camera))
+        }
+
+        var body: some View {
+            NavigationStack {
+                AIPreviewView(
+                    capturedImage: UIImage(systemName: "photo.fill") ?? UIImage(),
+                    captureFlowManager: captureFlowManager,
+                    onUsePhoto: { print("Use photo tapped") }
+                )
+            }
+        }
+    }
+
+    return PreviewContainer()
 }

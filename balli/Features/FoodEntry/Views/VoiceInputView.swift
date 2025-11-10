@@ -40,12 +40,16 @@ struct VoiceInputView: View {
     @State private var editableMealType: String = "ara öğün"
     @State private var editableMealTime: String = ""
     @State private var editableTimestamp: Date = Date()
+    @State private var isDetailedFormat: Bool = false // Tracks if ANY ingredient has per-item carbs
 
     // Editable insulin data
     @State private var editableInsulinDosage: Double = 0
     @State private var editableInsulinType: String? = nil
     @State private var editableInsulinName: String? = nil
     @State private var hasInsulin: Bool = false
+
+    // Success confirmation
+    @State private var showingSaveConfirmation = false
 
     // Haptic feedback
     private let hapticManager = HapticManager()
@@ -62,6 +66,27 @@ struct VoiceInputView: View {
                 // Floating recording button overlay
                 recordingControlsView
                     .padding(.bottom, ResponsiveDesign.Spacing.large)
+
+                // Success confirmation toast
+                if showingSaveConfirmation {
+                    VStack {
+                        Spacer()
+                        HStack(spacing: 12) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(AppTheme.primaryPurple)
+                            Text("Öğün kaydedildi ✓")
+                                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                .foregroundColor(.primary)
+                        }
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .recipeGlass(tint: .warm, cornerRadius: 100)
+                        .padding(.bottom, 100)
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingSaveConfirmation)
+                }
             }
             .navigationTitle("Öğününü Kaydet")
             .navigationBarTitleDisplayMode(.inline)
@@ -76,8 +101,7 @@ struct VoiceInputView: View {
                         } label: {
                             Image(systemName: "checkmark")
                         }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppTheme.primaryPurple)
+                        .buttonStyle(.balliBordered)
                     }
                 }
             }
@@ -145,6 +169,7 @@ struct VoiceInputView: View {
     private func mealPreviewView(_ data: ParsedMealData) -> some View {
         MealPreviewEditor(
             parsedData: data,
+            isDetailedFormat: isDetailedFormat, // Use corrected format flag, not parsedData.isDetailedFormat
             editableFoods: $editableFoods,
             editableTotalCarbs: $editableTotalCarbs,
             editableMealType: $editableMealType,
@@ -313,6 +338,10 @@ struct VoiceInputView: View {
                             carbs: isSimpleFormat ? nil : food.carbs
                         )
                     }
+
+                    // Set detailed format flag based on CORRECTED editableFoods, not raw Gemini response
+                    // This ensures UI only shows per-item carbs when they were explicitly provided by user
+                    self.isDetailedFormat = !isSimpleFormat
                     editableTotalCarbs = "\(mealData.totalCarbs)"
                     editableMealType = mealData.mealType
                     editableMealTime = mealData.mealTime ?? ""
@@ -418,7 +447,22 @@ struct VoiceInputView: View {
             await MainActor.run {
                 logger.info("✅ Saved meal entry: \(totalCarbs)g carbs, \(editableMealType)")
                 hapticManager.notification(.success)
-                dismiss()
+
+                // Show success toast
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    showingSaveConfirmation = true
+                }
+
+                // Auto-dismiss toast and view
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(1.5))
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        showingSaveConfirmation = false
+                    }
+                    // Dismiss view after toast disappears
+                    try? await Task.sleep(for: .seconds(0.3))
+                    dismiss()
+                }
             }
         } catch {
             // Error

@@ -21,7 +21,7 @@ final class AppLifecycleTokenRefreshTests: XCTestCase {
 
     override func setUp() async throws {
         lifecycleCoordinator = AppLifecycleCoordinator.shared
-        dexcomService = DependencyContainer.shared.dexcomService
+        dexcomService = DependencyContainer.shared.dexcomService as? DexcomService
         keychainStorage = DexcomKeychainStorage()
 
         // Clean keychain before each test

@@ -66,16 +66,6 @@ struct ShoppingListInputContainer: View {
                     .autocorrectionDisabled(true)
                     // Optimize keyboard for faster response
                     .keyboardType(.default)
-                    // Swipe down gesture to dismiss keyboard
-                    .gesture(
-                        DragGesture(minimumDistance: 20)
-                            .onEnded { value in
-                                // Only dismiss if dragging downward
-                                if value.translation.height > 0 {
-                                    isInputFocused = false
-                                }
-                            }
-                    )
 
                 // Send button at the bottom
                 HStack {

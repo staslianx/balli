@@ -225,6 +225,7 @@ class MedicalResearchViewModel: ObservableObject {
                 }
             },
             rebuildLookup: { @MainActor [weak self] in
+                _ = self // Explicit ignore to silence warning
                 // No-op: stateManager rebuilds lookup automatically during insertAnswer
             }
         )

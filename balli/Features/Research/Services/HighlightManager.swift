@@ -16,6 +16,14 @@ private let logger = Logger(
     category: "HighlightManager"
 )
 
+// MARK: - Highlight Notifications
+extension Notification.Name {
+    static let highlightDeleted = Notification.Name("com.balli.highlightDeleted")
+    static let highlightAdded = Notification.Name("com.balli.highlightAdded")
+    static let highlightColorChanged = Notification.Name("com.balli.highlightColorChanged")
+}
+
+// MARK: - Highlight Manager
 /// Manages text highlights for research answers with persistence
 @MainActor
 final class HighlightManager: ObservableObject {
@@ -72,6 +80,13 @@ final class HighlightManager: ObservableObject {
                 throw error
             }
         }
+
+        // Post notification to notify all views of the addition
+        NotificationCenter.default.post(
+            name: Notification.Name.highlightAdded,
+            object: nil,
+            userInfo: ["highlight": highlight, "answerId": answerId]
+        )
     }
 
     /// Update the color of an existing highlight
@@ -142,31 +157,90 @@ final class HighlightManager: ObservableObject {
                 throw error
             }
         }
+
+        // Post notification to notify all views of the deletion
+        NotificationCenter.default.post(
+            name: Notification.Name.highlightDeleted,
+            object: nil,
+            userInfo: ["highlightId": highlightId, "answerId": answerId]
+        )
     }
+
+    // MARK: - Cache Synchronization (for NotificationCenter updates)
+
+    /// Remove a highlight from the in-memory cache without persisting
+    /// Used when receiving deletion notifications from other views
+    func syncRemoveFromCache(_ highlightId: UUID, from answerId: String) {
+        guard var answerHighlights = highlights[answerId] else { return }
+        answerHighlights.removeAll { $0.id == highlightId }
+
+        // CRITICAL: Trigger @Published update by reassigning the entire dictionary
+        // This ensures SwiftUI observers detect the change and re-render views
+        var updatedHighlights = highlights
+        updatedHighlights[answerId] = answerHighlights
+        highlights = updatedHighlights
+
+        logger.info("🔄 [HIGHLIGHT] Synced deletion in cache: \(highlightId) (remaining: \(answerHighlights.count))")
+    }
+
+    /// Add a highlight to the in-memory cache without persisting
+    /// Used when receiving addition notifications from other views
+    func syncAddToCache(_ highlight: TextHighlight, to answerId: String) {
+        var answerHighlights = highlights[answerId] ?? []
+        // Avoid duplicates
+        guard !answerHighlights.contains(where: { $0.id == highlight.id }) else {
+            logger.info("⚠️ [HIGHLIGHT] Highlight already in cache: \(highlight.id)")
+            return
+        }
+        answerHighlights.append(highlight)
+
+        // CRITICAL: Trigger @Published update by reassigning the entire dictionary
+        // This ensures SwiftUI observers detect the change and re-render views
+        var updatedHighlights = highlights
+        updatedHighlights[answerId] = answerHighlights
+        highlights = updatedHighlights
+
+        logger.info("🔄 [HIGHLIGHT] Synced addition in cache: \(highlight.id) (total: \(answerHighlights.count))")
+    }
+
+    // MARK: - Persistence Operations
 
     /// Load highlights for an answer from persistence
     /// Always reloads from database to ensure fresh data
     func loadHighlights(for answerId: String) async {
+        logger.debug("🔍 [LOAD-FLOW] Starting loadHighlights for answer: \(answerId)")
         logger.info("📂 [HIGHLIGHT] Loading highlights for answer: \(answerId)")
 
         // Try loading from CoreData first (for SearchAnswer highlights)
         do {
+            logger.debug("🔍 [LOAD-FLOW] Attempting CoreData load...")
             let loaded = try await repository.loadHighlights(for: answerId)
+            logger.debug("🔍 [LOAD-FLOW] CoreData returned \(loaded.count) highlights")
+
             // CRITICAL: Update @Published property on main thread
             await MainActor.run {
+                let oldCount = highlights[answerId]?.count ?? 0
                 highlights[answerId] = loaded
+                logger.debug("🔍 [LOAD-FLOW] Updated cache - highlights: \(oldCount) → \(loaded.count)")
             }
             logger.info("💾 [HIGHLIGHT] Loaded \(loaded.count) highlights from CoreData")
         } catch {
+            logger.debug("🔍 [LOAD-FLOW] CoreData load failed: \(error.localizedDescription)")
             // If CoreData load fails, try SwiftData (for SessionMessage highlights)
             if let sessionManager = sessionManager {
+                logger.debug("🔍 [LOAD-FLOW] Attempting SwiftData load...")
                 let loaded = await sessionManager.loadHighlights(for: answerId)
+                logger.debug("🔍 [LOAD-FLOW] SwiftData returned \(loaded?.count ?? 0) highlights")
+
                 // CRITICAL: Update @Published property on main thread
                 await MainActor.run {
+                    let oldCount = highlights[answerId]?.count ?? 0
                     highlights[answerId] = loaded ?? []
+                    logger.debug("🔍 [LOAD-FLOW] Updated cache - highlights: \(oldCount) → \(loaded?.count ?? 0)")
                 }
                 logger.info("💾 [HIGHLIGHT] Loaded \(loaded?.count ?? 0) highlights from SwiftData")
             } else {
+                logger.debug("🔍 [LOAD-FLOW] No persistence available")
                 // CRITICAL: Update @Published property on main thread
                 await MainActor.run {
                     highlights[answerId] = []

@@ -225,17 +225,17 @@ struct FoodItemDetailView: View {
     // Handles missing/zero nutritional values gracefully by defaulting to 0.0
     private var currentImpactResult: ImpactScoreResult? {
         // Require only carbs and serving size - other nutrients can be zero
-        guard let baseCarbs = Double(carbohydrates),
-              let baseServing = Double(servingSize),
+        guard let baseCarbs = carbohydrates.toDouble,
+              let baseServing = servingSize.toDouble,
               baseServing > 0 else {
             return nil
         }
 
         // Parse optional nutrients - default to 0.0 if missing/empty/invalid
-        let baseFiber = Double(fiber) ?? 0.0
-        let baseSugars = Double(sugars) ?? 0.0
-        let baseProtein = Double(protein) ?? 0.0
-        let baseFat = Double(fat) ?? 0.0
+        let baseFiber = fiber.toDouble ?? 0.0
+        let baseSugars = sugars.toDouble ?? 0.0
+        let baseProtein = protein.toDouble ?? 0.0
+        let baseFat = fat.toDouble ?? 0.0
 
         return ImpactScoreCalculator.calculate(
             totalCarbs: baseCarbs,
@@ -265,11 +265,11 @@ struct FoodItemDetailView: View {
         // portion changes. The archive badge then calculates from these SCALED
         // saved values. To show consistent badges, we must scale fat/protein here
         // to match what will be in the database after save.
-        let baseServing = Double(servingSize) ?? 100.0
+        let baseServing = servingSize.toDouble ?? 100.0
         let adjustmentRatio = portionGrams / baseServing
 
-        let scaledFat = (Double(fat) ?? 0.0) * adjustmentRatio
-        let scaledProtein = (Double(protein) ?? 0.0) * adjustmentRatio
+        let scaledFat = (fat.toDouble ?? 0.0) * adjustmentRatio
+        let scaledProtein = (protein.toDouble ?? 0.0) * adjustmentRatio
 
         // Use three-threshold evaluation with SCALED values (matches saved state)
         return ImpactLevel.from(
@@ -309,7 +309,7 @@ struct FoodItemDetailView: View {
             validationErrors.append("Ürün adı boş olamaz")
         }
 
-        if let caloriesValue = Double(calories), caloriesValue < 0 {
+        if let caloriesValue = calories.toDouble, caloriesValue < 0 {
             validationErrors.append("Kalori değeri negatif olamaz")
         }
 
@@ -329,7 +329,7 @@ struct FoodItemDetailView: View {
         // Save to Core Data
         Task { @MainActor in
             do {
-                let baseServing = Double(servingSize) ?? 100.0
+                let baseServing = servingSize.toDouble ?? 100.0
                 let portionChanged = portionGrams != foodItem.servingSize
 
                 // Update food item
@@ -352,12 +352,12 @@ struct FoodItemDetailView: View {
                     foodItem.servingSize = portionGrams
 
                     // Adjust all nutrition values proportionally to maintain consistency
-                    foodItem.calories = (Double(calories) ?? 0) * adjustmentRatio
-                    foodItem.totalCarbs = (Double(carbohydrates) ?? 0) * adjustmentRatio
-                    foodItem.fiber = (Double(fiber) ?? 0) * adjustmentRatio
-                    foodItem.sugars = (Double(sugars) ?? 0) * adjustmentRatio
-                    foodItem.protein = (Double(protein) ?? 0) * adjustmentRatio
-                    foodItem.totalFat = (Double(fat) ?? 0) * adjustmentRatio
+                    foodItem.calories = (calories.toDouble ?? 0) * adjustmentRatio
+                    foodItem.totalCarbs = (carbohydrates.toDouble ?? 0) * adjustmentRatio
+                    foodItem.fiber = (fiber.toDouble ?? 0) * adjustmentRatio
+                    foodItem.sugars = (sugars.toDouble ?? 0) * adjustmentRatio
+                    foodItem.protein = (protein.toDouble ?? 0) * adjustmentRatio
+                    foodItem.totalFat = (fat.toDouble ?? 0) * adjustmentRatio
                     foodItem.sodium = (foodItem.sodium) * adjustmentRatio
 
                     logger.info("  - New carbs: \(foodItem.totalCarbs)g")
@@ -367,12 +367,12 @@ struct FoodItemDetailView: View {
                     logger.info("📝 TEXT FIELD UPDATE (no portion change)")
                     logger.info("  - Product: \(foodItem.name)")
 
-                    foodItem.calories = Double(calories) ?? 0
-                    foodItem.totalCarbs = Double(carbohydrates) ?? 0
-                    foodItem.fiber = Double(fiber) ?? 0
-                    foodItem.sugars = Double(sugars) ?? 0
-                    foodItem.protein = Double(protein) ?? 0
-                    foodItem.totalFat = Double(fat) ?? 0
+                    foodItem.calories = calories.toDouble ?? 0
+                    foodItem.totalCarbs = carbohydrates.toDouble ?? 0
+                    foodItem.fiber = fiber.toDouble ?? 0
+                    foodItem.sugars = sugars.toDouble ?? 0
+                    foodItem.protein = protein.toDouble ?? 0
+                    foodItem.totalFat = fat.toDouble ?? 0
                 }
 
                 logger.info("💾 Saving to Core Data...")

@@ -50,7 +50,7 @@ struct ActivitySyncSection: View {
             }
             .disabled(isBackfilling)
             .buttonStyle(.bordered)
-            .tint(AppTheme.primaryPurple)
+            // Removed .tint() - using global tint from balliApp.swift
 
             if isBackfilling {
                 VStack(alignment: .leading, spacing: 4) {

@@ -26,7 +26,7 @@ actor MockAnalyticsService: AnalyticsServiceProtocol {
 
     // MARK: - Event Tracking
 
-    func track(_ event: AnalyticsEvent, properties: [String: String] = [:]) async {
+    func track(_ event: AnalyticsEvent, properties: [String: String] = [:]) {
         trackCallCount += 1
         trackedEvents.append(event)
         trackedProperties.append(properties)
@@ -39,10 +39,8 @@ actor MockAnalyticsService: AnalyticsServiceProtocol {
     func trackError(_ event: AnalyticsEvent, error: Error) {
         trackErrorCallCount += 1
         trackedErrors.append((event, error))
-        // Track async in background (protocol requires sync)
-        Task {
-            await track(event, properties: ["error": error.localizedDescription])
-        }
+        // Track synchronously
+        track(event, properties: ["error": error.localizedDescription])
     }
 
     func startTimedEvent(_ event: AnalyticsEvent) -> @Sendable () async -> Void {
@@ -51,7 +49,7 @@ actor MockAnalyticsService: AnalyticsServiceProtocol {
 
         return { [weak self] in
             let duration = Date().timeIntervalSince(startTime)
-            await self?.track(event, properties: [
+            self?.track(event, properties: [
                 "duration_ms": String(format: "%.0f", duration * 1000)
             ])
         }
@@ -59,19 +57,19 @@ actor MockAnalyticsService: AnalyticsServiceProtocol {
 
     // MARK: - Metrics
 
-    func getEventCount(_ event: AnalyticsEvent) async -> Int {
+    func getEventCount(_ event: AnalyticsEvent) -> Int {
         eventCounts[event.rawValue] ?? 0
     }
 
-    func getLastEventTime(_ event: AnalyticsEvent) async -> Date? {
+    func getLastEventTime(_ event: AnalyticsEvent) -> Date? {
         lastEventTime[event.rawValue]
     }
 
-    func getAllEventCounts() async -> [String: Int] {
+    func getAllEventCounts() -> [String: Int] {
         eventCounts
     }
 
-    func reset() async {
+    func reset() {
         trackedEvents.removeAll()
         trackedProperties.removeAll()
         trackedErrors.removeAll()
@@ -85,7 +83,7 @@ actor MockAnalyticsService: AnalyticsServiceProtocol {
     // MARK: - Convenience Methods
 
     func trackDexcomSync<T>(_ operation: @Sendable () async throws -> T) async throws -> T {
-        await track(.dexcomSyncStarted)
+        track(.dexcomSyncStarted)
         let complete = startTimedEvent(.dexcomSyncSuccess)
 
         do {
@@ -99,11 +97,11 @@ actor MockAnalyticsService: AnalyticsServiceProtocol {
     }
 
     func trackDexcomConnection<T>(_ operation: @Sendable () async throws -> T) async throws -> T {
-        await track(.dexcomConnectionStarted)
+        track(.dexcomConnectionStarted)
 
         do {
             let result = try await operation()
-            await track(.dexcomConnectionSuccess)
+            track(.dexcomConnectionSuccess)
             return result
         } catch {
             trackError(.dexcomConnectionFailed, error: error)

@@ -16,7 +16,9 @@ struct SearchBarView: View {
     let onCancel: () -> Void
     let isSearching: Bool
     @Environment(\.colorScheme) private var colorScheme
-    @FocusState private var isInputFocused: Bool
+
+    // KEYBOARD FIX: Make focus state controllable by parent view
+    var isFocused: FocusState<Bool>.Binding
     @State private var showCamera = false
     @State private var showPhotosPicker = false
     @State private var selectedPhotoItem: PhotosPickerItem?
@@ -40,7 +42,7 @@ struct SearchBarView: View {
 
     private func handleSubmit() {
         if !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
-            isInputFocused = false // Dismiss keyboard
+            isFocused.wrappedValue = false // Dismiss keyboard
             onSubmit()
             // Clear the input box so user can type next question
             // CONCURRENCY FIX: Use Task.sleep for Swift 6 compliance
@@ -95,7 +97,7 @@ struct SearchBarView: View {
             // ULTRA PERFORMANCE FIX: Minimal TextField configuration for instant keyboard response
             TextField("balli'ye sor", text: $searchQuery, axis: .vertical)
                 .textFieldStyle(.plain)
-                .focused($isInputFocused)
+                .focused(isFocused)
                 .lineLimit(1...6)
                 // Remove heavy design font modifier
                 .font(.system(size: 19))
@@ -127,18 +129,12 @@ struct SearchBarView: View {
                         Label("Fotoğraf Seç", systemImage: "photo.on.rectangle")
                     }
                 } label: {
-                    ZStack {
-                        Circle()
-                            .fill(Color(.systemGray6))
-                            .frame(width: ResponsiveDesign.Font.scaledSize(36), height: ResponsiveDesign.Font.scaledSize(36))
-
-                        Image(systemName: "paperclip")
-                            .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .medium, design: .rounded))
-                            .foregroundColor(AppTheme.primaryPurple)
-                    }
+                    Image(systemName: "paperclip")
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(25), weight: .regular, design: .rounded))
+                        .foregroundColor(AppTheme.primaryPurple)
                 }
                 .disabled(isSearching)
-                .padding(.leading, ResponsiveDesign.Spacing.small)
+                .padding(.leading, ResponsiveDesign.Spacing.small-2)
 
                 Spacer()
 
@@ -148,11 +144,13 @@ struct SearchBarView: View {
                         Image(systemName: "stop.circle.fill")
                             .font(.system(size: ResponsiveDesign.Font.scaledSize(36), weight: .regular, design: .rounded))
                             .foregroundColor(AppTheme.primaryPurple)
+                            .padding(.leading, ResponsiveDesign.Spacing.xSmall)
                     } else {
                         // Send button (purple) when idle
                         Image(systemName: "arrow.up.circle.fill")
                             .font(.system(size: ResponsiveDesign.Font.scaledSize(36), weight: .regular, design: .rounded))
                             .foregroundColor(searchQuery.isEmpty ? Color(.systemGray3) : AppTheme.primaryPurple)
+                            .padding(.leading, ResponsiveDesign.Spacing.xSmall)
                     }
                 }
                 .disabled(!isSearching && searchQuery.trimmingCharacters(in: .whitespaces).isEmpty && attachedImage == nil)
@@ -245,13 +243,15 @@ struct CameraCapturePicker: UIViewControllerRepresentable {
 
 #Preview("Empty State") {
     @Previewable @State var image: UIImage? = nil
+    @Previewable @FocusState var isFocused: Bool
 
     SearchBarView(
         searchQuery: .constant(""),
         attachedImage: $image,
         onSubmit: { print("Search submitted") },
         onCancel: { print("Search cancelled") },
-        isSearching: false
+        isSearching: false,
+        isFocused: $isFocused
     )
     .previewWithPadding()
 }
@@ -259,13 +259,15 @@ struct CameraCapturePicker: UIViewControllerRepresentable {
 #Preview("With Text") {
     @Previewable @State var query = "What are the best foods for Type 1 diabetes?"
     @Previewable @State var image: UIImage? = nil
+    @Previewable @FocusState var isFocused: Bool
 
     SearchBarView(
         searchQuery: $query,
         attachedImage: $image,
         onSubmit: { print("Search submitted: \(query)") },
         onCancel: { print("Search cancelled") },
-        isSearching: false
+        isSearching: false,
+        isFocused: $isFocused
     )
     .previewWithPadding()
 }
@@ -280,13 +282,15 @@ struct CameraCapturePicker: UIViewControllerRepresentable {
             context.fill(CGRect(origin: .zero, size: size))
         }
     }()
+    @Previewable @FocusState var isFocused: Bool
 
     SearchBarView(
         searchQuery: $query,
         attachedImage: $image,
         onSubmit: { print("Search submitted with image") },
         onCancel: { print("Search cancelled") },
-        isSearching: false
+        isSearching: false,
+        isFocused: $isFocused
     )
     .previewWithPadding()
 }
@@ -294,13 +298,15 @@ struct CameraCapturePicker: UIViewControllerRepresentable {
 #Preview("Searching (Stop Button)") {
     @Previewable @State var query = "Loading response..."
     @Previewable @State var image: UIImage? = nil
+    @Previewable @FocusState var isFocused: Bool
 
     SearchBarView(
         searchQuery: $query,
         attachedImage: $image,
         onSubmit: { print("Search submitted") },
         onCancel: { print("Search cancelled") },
-        isSearching: true
+        isSearching: true,
+        isFocused: $isFocused
     )
     .previewWithPadding()
 }
@@ -308,13 +314,15 @@ struct CameraCapturePicker: UIViewControllerRepresentable {
 #Preview("Long Multiline Query") {
     @Previewable @State var query = "Can you explain the detailed mechanisms of how different types of exercise affect blood glucose levels in people with Type 1 diabetes, including both aerobic and resistance training?"
     @Previewable @State var image: UIImage? = nil
+    @Previewable @FocusState var isFocused: Bool
 
     SearchBarView(
         searchQuery: $query,
         attachedImage: $image,
         onSubmit: { print("Search submitted") },
         onCancel: { print("Search cancelled") },
-        isSearching: false
+        isSearching: false,
+        isFocused: $isFocused
     )
     .previewWithPadding()
 }
@@ -322,13 +330,15 @@ struct CameraCapturePicker: UIViewControllerRepresentable {
 #Preview("Dark Mode") {
     @Previewable @State var query = "How does insulin work?"
     @Previewable @State var image: UIImage? = nil
+    @Previewable @FocusState var isFocused: Bool
 
     SearchBarView(
         searchQuery: $query,
         attachedImage: $image,
         onSubmit: { print("Search submitted") },
         onCancel: { print("Search cancelled") },
-        isSearching: false
+        isSearching: false,
+        isFocused: $isFocused
     )
     .previewWithPadding()
     .preferredColorScheme(.dark)
@@ -337,13 +347,15 @@ struct CameraCapturePicker: UIViewControllerRepresentable {
 #Preview("Light Mode") {
     @Previewable @State var query = "Carb counting tips"
     @Previewable @State var image: UIImage? = nil
+    @Previewable @FocusState var isFocused: Bool
 
     SearchBarView(
         searchQuery: $query,
         attachedImage: $image,
         onSubmit: { print("Search submitted") },
         onCancel: { print("Search cancelled") },
-        isSearching: false
+        isSearching: false,
+        isFocused: $isFocused
     )
     .previewWithPadding()
     .preferredColorScheme(.light)
@@ -352,6 +364,7 @@ struct CameraCapturePicker: UIViewControllerRepresentable {
 #Preview("Interactive State") {
     @Previewable @State var query = ""
     @Previewable @State var image: UIImage? = nil
+    @Previewable @FocusState var isFocused: Bool
 
     VStack(spacing: 20) {
         Text("Tap to type, press send button to submit")
@@ -365,7 +378,8 @@ struct CameraCapturePicker: UIViewControllerRepresentable {
                 query = ""
             },
             onCancel: { },
-            isSearching: false
+            isSearching: false,
+            isFocused: $isFocused
         )
     }
     .previewWithPadding()

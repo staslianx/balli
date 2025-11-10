@@ -68,6 +68,7 @@ struct SearchLibraryView: View {
             }
             .background(Color(.systemBackground))
             .searchable(text: $searchText, prompt: isShowingHighlightsOnly ? "Vurgularda ara" : "Araştırmalarda ara")
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle("Araştırmalar")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

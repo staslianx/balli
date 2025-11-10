@@ -37,7 +37,10 @@ final class HosgeldinViewModel: ObservableObject {
 
     // PERFORMANCE: Debouncing to prevent excessive refreshes on tab switches
     private var lastAppearTime: Date?
-    private let minimumRefreshInterval: TimeInterval = 300 // 5 minutes, matching Dexcom's update frequency
+    // CRITICAL FIX: Reduced from 300s (5 min) to 30s
+    // The old 5-minute debounce was preventing necessary refreshes when user switches tabs
+    // 30 seconds is sufficient to prevent spam while allowing fresh data on tab switches
+    private let minimumRefreshInterval: TimeInterval = 30 // 30 seconds
 
     // MARK: - Initialization
 
@@ -81,7 +84,7 @@ final class HosgeldinViewModel: ObservableObject {
             if !shouldRefresh {
                 logger.debug("⚡️ Skipping data refresh - last refreshed \(Int(timeSinceLastAppear))s ago (threshold: \(Int(self.minimumRefreshInterval))s)")
             } else {
-                logger.info("🔄 Refreshing data - \(Int(timeSinceLastAppear))s since last refresh")
+                logger.info("🔄 Refreshing data - \(Int(timeSinceLastAppear))s since last refresh (threshold: \(Int(self.minimumRefreshInterval))s)")
             }
         } else {
             // First time appearing - always load

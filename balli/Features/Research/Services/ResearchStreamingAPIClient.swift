@@ -148,7 +148,7 @@ class ResearchStreamingAPIClient {
                 if shouldProcessChunk {
                     // 🔍 FORENSIC: Log raw chunk details with UTF-8 validation
                     let chunkString = String(data: currentChunk, encoding: .utf8) ?? "<invalid UTF-8>"
-                    let hexBytes = currentChunk.prefix(20).map { String(format: "%02X", $0) }.joined(separator: " ")
+                    _ = currentChunk.prefix(20).map { String(format: "%02X", $0) }.joined(separator: " ")
                     let lastBytes = currentChunk.suffix(5).map { String(format: "%02X", $0) }.joined(separator: " ")
                     let isValidUTF8 = String(data: currentChunk, encoding: .utf8) != nil
                     streamingLogger.debug("🔵 [RAW-CHUNK] bytes=\(currentChunk.count), boundary=\(hasEventBoundary), validUTF8=\(isValidUTF8), lastBytes=[\(lastBytes)], preview='\(chunkString.prefix(100))'")

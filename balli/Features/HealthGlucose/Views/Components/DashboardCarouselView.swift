@@ -20,6 +20,40 @@ struct DashboardCarouselView: View {
     // Scroll state
     @Binding var currentCardIndex: Int?
 
+    // Environment
+    @Environment(\.colorScheme) private var colorScheme
+
+    // Dark mode dissolved purple gradient (matching ProductCardView)
+    private var dissolvedPurpleDark: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: AppTheme.primaryPurple.opacity(0.12), location: 0.0),
+                .init(color: AppTheme.primaryPurple.opacity(0.08), location: 0.15),
+                .init(color: AppTheme.primaryPurple.opacity(0.05), location: 0.25),
+                .init(color: AppTheme.primaryPurple.opacity(0.03), location: 0.5),
+                .init(color: AppTheme.primaryPurple.opacity(0.05), location: 0.75),
+                .init(color: AppTheme.primaryPurple.opacity(0.08), location: 0.85),
+                .init(color: AppTheme.primaryPurple.opacity(0.12), location: 1.0)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    // Card background - dark mode keeps purple, light mode is colorless (matching ProductCardView)
+    private var cardBackground: some ShapeStyle {
+        if colorScheme == .dark {
+            return AnyShapeStyle(dissolvedPurpleDark)
+        } else {
+            return AnyShapeStyle(Color.clear)
+        }
+    }
+
+    // Glass effect style - always interactive
+    private var glassEffectStyle: Glass {
+        .regular.interactive()
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             // Carousel
@@ -33,9 +67,15 @@ struct DashboardCarouselView: View {
                                 healthKitPermissions: healthKitPermissions
                             )
                             .padding(.vertical, 24)
-                            .background(.clear)
-                            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                            .background(
+                                RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous)
+                                    .fill(cardBackground)
+                            )
                             .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                            .glassEffect(
+                                glassEffectStyle,
+                                in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous)
+                            )
                             .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
                             .frame(width: geometry.size.width - ResponsiveDesign.Spacing.medium * 2)
                             .id(0)
@@ -48,9 +88,15 @@ struct DashboardCarouselView: View {
                             // Glucose Card
                             GlucoseChartCard(viewModel: glucoseChartViewModel)
                                 .padding(.vertical, 24)
-                                .background(.clear)
-                                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                                .background(
+                                    RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous)
+                                        .fill(cardBackground)
+                                )
                                 .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+                                .glassEffect(
+                                    glassEffectStyle,
+                                    in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous)
+                                )
                                 .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
                                 .frame(width: geometry.size.width - ResponsiveDesign.Spacing.medium * 2)
                                 .id(1)

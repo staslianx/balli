@@ -161,13 +161,46 @@ TİP 2 - Detaylı format (her yiyecek için ayrı):
 → totalCarbs: 30
 → Her yiyecek kendi karbonhidrat değerine sahip
 
-Kullanıcı hangi formatta konuşursa konuşsun, doğal konuşmayı anla ve yapılandır.
+KRİTİK ÖRNEKLER - TOPLAMI BİR YEMEĞE ATAMA!
+
+❌ YANLIŞ Örnek 1:
+Kullanıcı: "tavuk yedim, brokoli yedim, domates yedim, 40 gram karbonhidrat"
+YANLIŞ: foods: [{name: "tavuk", carbs: 40}, {name: "brokoli", carbs: null}, {name: "domates", carbs: null}]
+NEDEN YANLIŞ: Kullanıcı tavuğun 40g olduğunu söylemedi, TOPLAM 40g dedi!
+
+✅ DOĞRU:
+foods: [{name: "tavuk", carbs: null}, {name: "brokoli", carbs: null}, {name: "domates", carbs: null}]
+totalCarbs: 40
+
+❌ YANLIŞ Örnek 2:
+Kullanıcı: "2 dilim ekmek yedim, yarım elma yedim, 50 gram karbonhidrat"
+YANLIŞ: foods: [{name: "ekmek", amount: "2 dilim", carbs: 50}, {name: "elma", amount: "yarım", carbs: null}]
+NEDEN YANLIŞ: Ekmek 50g değil, TOPLAM 50g!
+
+✅ DOĞRU:
+foods: [{name: "ekmek", amount: "2 dilim", carbs: null}, {name: "elma", amount: "yarım", carbs: null}]
+totalCarbs: 50
+
+❌ YANLIŞ Örnek 3:
+Kullanıcı: "tavuk göğsü, pilav, salata yedim, toplam 60 gram"
+YANLIŞ: foods: [{name: "tavuk göğsü", carbs: 60}, {name: "pilav", carbs: null}, {name: "salata", carbs: null}]
+NEDEN YANLIŞ: İlk yiyeceğe toplam değeri atama!
+
+✅ DOĞRU:
+foods: [{name: "tavuk göğsü", carbs: null}, {name: "pilav", carbs: null}, {name: "salata", carbs: null}]
+totalCarbs: 60
+
+✅ DOĞRU Örnek - Detaylı Format:
+Kullanıcı: "2 dilim ekmek 30 gram, yarım elma 15 gram, peynir 5 gram"
+DOĞRU: foods: [{name: "ekmek", amount: "2 dilim", carbs: 30}, {name: "elma", amount: "yarım", carbs: 15}, {name: "peynir", carbs: 5}]
+totalCarbs: 50
+NEDEN DOĞRU: HER yiyecek için AYRI karbonhidrat söyledi!
 
 Diğer örnekler:
-- "menemen yaptım sabah, otuz gram karbonhidrat falan"
-- "öğlen tavuklu salata yedim 25 gram karb"
-- "2 dilim ekmek yedim bu 15 gram, yumurta 2 tane o da 10 gram"
-- "makarna yaptım, yoğurt yedim, meyve salatası yedim, 60 gram toplam"
+- "menemen yaptım sabah, otuz gram karbonhidrat falan" → TÜM yiyecekler carbs: null
+- "öğlen tavuklu salata yedim 25 gram karb" → TÜM yiyecekler carbs: null
+- "2 dilim ekmek yedim bu 15 gram, yumurta 2 tane o da 10 gram" → HER yiyecek kendi carbsına sahip
+- "makarna yaptım, yoğurt yedim, meyve salatası yedim, 60 gram toplam" → TÜM yiyecekler carbs: null
 
 İNSÜLİN BİLGİSİ:
 Kullanıcı insülin dozunu da söyleyebilir. İnsülin öğünle birlikte (bolus) veya ayrı (basal) olabilir:
@@ -197,20 +230,37 @@ Kullanıcı insülin dozunu da söyleyebilir. İnsülin öğünle birlikte (bolu
   "confidence": "çıkarım güvenilirliği - high, medium, veya low"
 }
 
-ÖNEMLI - KARBONHIDRAT KURALLARI:
-- Eğer kullanıcı her yiyecek için ayrı karbonhidrat söylediyse (TİP 2), foods array'indeki her item'ın carbs değeri olmalı
-- Eğer sadece toplam karbonhidrat söylediyse (TİP 1), foods array'indeki TÜM carbs değerleri MUTLAKA null olmalı
-  ❌ YANLIŞ: foods: [{name: "ekmek", carbs: 40}, {name: "peynir", carbs: null}] - Toplam 40g durumunda
-  ✅ DOĞRU: foods: [{name: "ekmek", carbs: null}, {name: "peynir", carbs: null}] - Toplam 40g durumunda
-- Toplam karbonhidratı BİR YEMEĞE ATAMA! Toplam ayrı, yiyecekler ayrı!
-- totalCarbs her zaman dolu olmalı (ya toplam, ya da items'ların toplamı)
-- Eğer karbonhidrat hiç belirtilmediyse totalCarbs = 0 ve confidence = "low"
-- "onu saymıyoruz", "onda yok" gibi ifadeler = carbs: 0
-- Zaman formatları: "dokuz buçuk" = "09:30", "saat 13:00" = "13:00"
-- Öğün türünü yiyeceklere ve zamana göre tahmin et (belirtilmediyse)
-- İnsülin türünü isme göre otomatik belirle (Lantus/Tresiba/Levemir = basal, Humalog/NovoRapid = bolus)
-- Sadece "5 ünite" denirse ve öğün varsa bolus, öğün yoksa basal kabul et
-- İnsülin belirtilmediyse insulinDosage/insulinType/insulinName = null
+ÖNEMLI - KARBONHIDRAT KURALLARI (MUTLAKA UYULMASI GEREKEN):
+
+1. TOPLAM ATAMA YASAĞI:
+   - ASLA toplam karbonhidrat değerini ilk yiyeceğe atama!
+   - ASLA toplam değeri bir yiyeceğe özel karbonhidrat olarak verme!
+   - Kullanıcı "40 gram toplam" derse → TÜM yiyeceklerin carbs: null
+   - Kullanıcı "tavuk, ekmek, salata, 60 gram" derse → TÜM carbs: null, totalCarbs: 60
+
+2. FORMAT TESPİTİ:
+   - TİP 1 (Basit): Sadece toplam belirtildi → TÜM carbs: null
+   - TİP 2 (Detaylı): Her yiyecek için AYRI karbonhidrat → Her birinin carbs değeri dolu
+   - KARIŞIK OLMAZ! Ya hepsi null, ya hepsi dolu (veya çoğu dolu)
+
+3. YANLIŞ ÖRNEKLERİ TEKRAR ETMEYİN:
+   ❌ [{name: "tavuk", carbs: 40}, {name: "brokoli", carbs: null}] - Toplam 40g ise
+   ❌ [{name: "ekmek", carbs: 50}, {name: "elma", carbs: null}] - Toplam 50g ise
+   ❌ İlk item'a toplam atama, diğerleri null - BU YANLIŞ!
+
+   ✅ [{name: "tavuk", carbs: null}, {name: "brokoli", carbs: null}] - Toplam 40g
+   ✅ [{name: "ekmek", carbs: null}, {name: "elma", carbs: null}] - Toplam 50g
+   ✅ TÜM items null olmalı eğer sadece toplam belirtildiyse!
+
+4. DİĞER KURALLAR:
+   - totalCarbs her zaman dolu olmalı (ya toplam, ya da items'ların toplamı)
+   - Karbonhidrat hiç belirtilmediyse totalCarbs = 0 ve confidence = "low"
+   - "onu saymıyoruz", "onda yok" gibi ifadeler = carbs: 0
+   - Zaman formatları: "dokuz buçuk" = "09:30", "saat 13:00" = "13:00"
+   - Öğün türünü yiyeceklere ve zamana göre tahmin et (belirtilmediyse)
+   - İnsülin türünü isme göre otomatik belirle (Lantus/Tresiba/Levemir = basal, Humalog/NovoRapid = bolus)
+   - Sadece "5 ünite" denirse ve öğün varsa bolus, öğün yoksa basal kabul et
+   - İnsülin belirtilmediyse insulinDosage/insulinType/insulinName = null
 
 JSON formatında dön.`;
 

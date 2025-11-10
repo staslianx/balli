@@ -7,6 +7,12 @@
 
 import SwiftUI
 import Foundation
+import OSLog
+
+private let extensionsLogger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.anaxonic.balli",
+    category: "Extensions"
+)
 
 // MARK: - View Extensions
 extension View {
@@ -166,18 +172,23 @@ extension String {
     /// Converts string to Double, accepting both comma and period as decimal separator
     /// This handles Turkish locale (4,5) and US locale (4.5) input
     var toDouble: Double? {
+        extensionsLogger.debug("🔍 toDouble parsing: '\(self)'")
+
         // First try with the current locale
         let currentLocaleFormatter = NumberFormatter()
         currentLocaleFormatter.locale = Locale.current
         currentLocaleFormatter.numberStyle = .decimal
 
         if let number = currentLocaleFormatter.number(from: self) {
-            return number.doubleValue
+            let result = number.doubleValue
+            extensionsLogger.debug("✅ toDouble SUCCESS (current locale): '\(self)' -> \(result, privacy: .public)")
+            return result
         }
 
         // Try replacing comma with period and parse again
         let normalized = self.replacingOccurrences(of: ",", with: ".")
         if let number = Double(normalized) {
+            extensionsLogger.debug("✅ toDouble SUCCESS (normalized): '\(self)' -> '\(normalized)' -> \(number, privacy: .public)")
             return number
         }
 
@@ -187,9 +198,12 @@ extension String {
         turkishFormatter.numberStyle = .decimal
 
         if let number = turkishFormatter.number(from: self) {
-            return number.doubleValue
+            let result = number.doubleValue
+            extensionsLogger.debug("✅ toDouble SUCCESS (Turkish locale): '\(self)' -> \(result, privacy: .public)")
+            return result
         }
 
+        extensionsLogger.error("❌ toDouble FAILED: '\(self)' - all parsing methods failed")
         return nil
     }
 }
@@ -270,7 +284,20 @@ extension Double {
         formatter.locale = Locale.current
         formatter.minimumFractionDigits = 0
         formatter.maximumFractionDigits = decimalPlaces
-        return formatter.string(from: NSNumber(value: self)) ?? "\(self)"
+
+        // Attempt to format with locale-aware formatter
+        if let formatted = formatter.string(from: NSNumber(value: self)) {
+            extensionsLogger.debug("✅ asLocalizedDecimal SUCCESS: \(self, privacy: .public) (decimalPlaces: \(decimalPlaces)) -> '\(formatted)'")
+            return formatted
+        }
+
+        // CRITICAL FIX: Ultra-safe fallback that preserves the value
+        // If NumberFormatter fails (rare edge case), use String(format:) to ensure
+        // we NEVER return "0" for non-zero values
+        // Note: This fallback uses period separator, but at least shows the correct value
+        let fallback = String(format: "%.\(decimalPlaces)f", self)
+        extensionsLogger.warning("⚠️ asLocalizedDecimal FALLBACK: \(self, privacy: .public) -> '\(fallback)' (formatter returned nil)")
+        return fallback
     }
 
     /// Formats as decimal with specific locale

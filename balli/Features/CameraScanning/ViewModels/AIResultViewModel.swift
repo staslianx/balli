@@ -159,17 +159,17 @@ final class AIResultViewModel: ObservableObject {
         foodItem.servingUnit = "g"
 
         // Calculate adjusted values based on portion
-        let baseServing = Double(formState.servingSize) ?? 100.0
+        let baseServing = formState.servingSize.toDouble ?? 100.0
         let adjustmentRatio = formState.portionGrams / baseServing
 
         // Save adjusted values based on the selected portion
-        foodItem.calories = (Double(formState.calories) ?? 0) * adjustmentRatio
-        foodItem.totalCarbs = (Double(formState.carbohydrates) ?? 0) * adjustmentRatio
-        foodItem.fiber = (Double(formState.fiber) ?? 0) * adjustmentRatio
-        foodItem.sugars = (Double(formState.sugars) ?? 0) * adjustmentRatio
-        foodItem.protein = (Double(formState.protein) ?? 0) * adjustmentRatio
-        foodItem.totalFat = (Double(formState.fat) ?? 0) * adjustmentRatio
-        foodItem.sodium = (Double(formState.sodium) ?? 0) * adjustmentRatio
+        foodItem.calories = (formState.calories.toDouble ?? 0) * adjustmentRatio
+        foodItem.totalCarbs = (formState.carbohydrates.toDouble ?? 0) * adjustmentRatio
+        foodItem.fiber = (formState.fiber.toDouble ?? 0) * adjustmentRatio
+        foodItem.sugars = (formState.sugars.toDouble ?? 0) * adjustmentRatio
+        foodItem.protein = (formState.protein.toDouble ?? 0) * adjustmentRatio
+        foodItem.totalFat = (formState.fat.toDouble ?? 0) * adjustmentRatio
+        foodItem.sodium = (formState.sodium.toDouble ?? 0) * adjustmentRatio
 
         foodItem.source = "ai_scanned"
         foodItem.dateAdded = Date()

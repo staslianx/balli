@@ -79,16 +79,18 @@ struct RecipeShoppingSection: View {
                         }
                     }
 
-                    // Tarif badge button - custom purple fill
+                    // Tarif badge button - lighter purple fill to match individual ingredient pills
                     Button(action: { showIngredientsSheet = true }) {
                         Text("Tarif")
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white)
+                            .foregroundColor(AppTheme.primaryPurple)
                             .padding(.horizontal, ResponsiveDesign.width(12))
                             .padding(.vertical, ResponsiveDesign.height(6))
+                            .background(
+                                Capsule()
+                                    .fill(AppTheme.primaryPurple.opacity(0.15))
+                            )
                     }
-                    .background(AppTheme.primaryPurple)
-                    .clipShape(Capsule())
                 }
             }
             .buttonStyle(PlainButtonStyle())
@@ -319,36 +321,49 @@ struct RecipeItemRow: View {
                         }
                     }
 
-                    // Quantity display with bordered prominent style (like a pill)
+                    // Quantity display (inline editable) - matches main shopping list style
                     if isEditingQuantity {
                         TextField("x1", text: $editedQuantity)
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white)
+                            .foregroundColor(AppTheme.primaryPurple)
                             .multilineTextAlignment(.center)
                             .focused($isQuantityFocused)
                             .padding(.horizontal, ResponsiveDesign.width(12))
                             .padding(.vertical, ResponsiveDesign.height(6))
-                            .buttonStyle(.borderedProminent)
-                            .tint(AppTheme.primaryPurple)
-                            .frame(minWidth: ResponsiveDesign.width(60))
+                            .background(
+                                Capsule()
+                                    .fill(AppTheme.primaryPurple.opacity(0.15))
+                            )
+                            .frame(width: ResponsiveDesign.width(70))
                             .onSubmit {
                                 saveQuantityAndStopEditing()
-                            }
-                            .onAppear {
-                                isQuantityFocused = true
                             }
                             .onChange(of: isQuantityFocused) { _, focused in
                                 if !focused {
                                     saveQuantityAndStopEditing()
                                 }
                             }
+                            .onAppear {
+                                isQuantityFocused = true
+                            }
+                            .transition(.scale.combined(with: .opacity))
                     } else if let quantity = item.quantity, !quantity.isEmpty {
-                        Button(action: { startEditingQuantity() }) {
-                            Text(quantity)
-                                .font(.system(size: 12, weight: .semibold, design: .rounded))
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(AppTheme.primaryPurple)
+                        Text(quantity)
+                            .font(.system(size: 12, weight: .semibold, design: .rounded))
+                            .foregroundColor(AppTheme.primaryPurple)
+                            .padding(.horizontal, ResponsiveDesign.width(12))
+                            .padding(.vertical, ResponsiveDesign.height(6))
+                            .background(
+                                Capsule()
+                                    .fill(AppTheme.primaryPurple.opacity(0.15))
+                            )
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                withAnimation(.smooth(duration: 0.25)) {
+                                    startEditingQuantity()
+                                }
+                            }
+                            .transition(.scale.combined(with: .opacity))
                     }
                 }
             }

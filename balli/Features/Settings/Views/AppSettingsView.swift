@@ -62,7 +62,7 @@ struct AppSettingsView: View {
                     Toggle(isOn: $notificationsEnabled) {
                         Label("Bildirimler", systemImage: "bell.fill")
                     }
-                    .tint(AppTheme.primaryPurple)
+                    // Removed .tint() - using global tint from balliApp.swift
 
                     Picker(selection: $selectedTheme) {
                         ForEach(themes, id: \.self) { theme in
@@ -71,7 +71,7 @@ struct AppSettingsView: View {
                     } label: {
                         Label("Görünüş", systemImage: "circle.lefthalf.striped.horizontal.inverse")
                     }
-                    .tint(AppTheme.primaryPurple)
+                    // Removed .tint() - using global tint from balliApp.swift
                     .onChange(of: selectedTheme) { _, newValue in
                         updateAppearance(newValue)
                     }
@@ -83,12 +83,12 @@ struct AppSettingsView: View {
                         Label("Dexcom", systemImage: "sensor.tag.radiowaves.forward.fill")
                             .imageScale(.medium)
                     }
-                    .tint(AppTheme.primaryPurple)
+                    // Removed .tint() - using global tint from balliApp.swift
 
                     NavigationLink(destination: HealthKitManagerView()) {
                         Label("Apple Sağlık", systemImage: "heart.text.square.fill")
                     }
-                    .tint(AppTheme.primaryPurple)
+                    // Removed .tint() - using global tint from balliApp.swift
 
                     NavigationLink(destination: ActivityDetailView(
                         isBackfilling: $isBackfilling,
@@ -105,12 +105,12 @@ struct AppSettingsView: View {
                             }
                         }
                     }
-                    .tint(AppTheme.primaryPurple)
+                    // Removed .tint() - using global tint from balliApp.swift
 
                     NavigationLink(destination: DataExportView()) {
                         Label("Verileri Dışa Aktar", systemImage: "square.and.arrow.up.fill")
                     }
-                    .tint(AppTheme.primaryPurple)
+                    // Removed .tint() - using global tint from balliApp.swift
                 }
 
                 // MARK: - Uygulama Bilgisi (App Info)
@@ -125,19 +125,13 @@ struct AppSettingsView: View {
                     Button(action: {
                         openMessagesApp(email: "stasli.anx@icloud.com")
                     }) {
-                        HStack {
-                            Image(systemName: "envelope.fill")
-                                .foregroundStyle(AppTheme.primaryPurple)
-                            Text("İletişim")
-                                .foregroundStyle(.primary)
-                        }
+                        Label("İletişim", systemImage: "envelope.fill")
                     }
-                    .buttonStyle(.plain)
 
                     NavigationLink(destination: AboutView()) {
                         Label("Hakkında", systemImage: "info.circle.fill")
                     }
-                    .tint(AppTheme.primaryPurple)
+                    // Removed .tint() - using global tint from balliApp.swift
                 }
 
                 // MARK: - User Actions
@@ -153,12 +147,12 @@ struct AppSettingsView: View {
                     NavigationLink(destination: DexcomDiagnosticsView()) {
                         Label("Dexcom Log", systemImage: "stethoscope.circle.fill")
                     }
-                    .tint(AppTheme.primaryPurple)
+                    // Removed .tint() - using global tint from balliApp.swift
 
                     NavigationLink(destination: AIDiagnosticsView()) {
                         Label("AI Log", systemImage: "brain.fill")
                     }
-                    .tint(AppTheme.primaryPurple)
+                    // Removed .tint() - using global tint from balliApp.swift
                 }
 
                 // MARK: - Developer Settings (if enabled)
@@ -185,7 +179,7 @@ struct AppSettingsView: View {
                     Button("Kapat") {
                         dismiss()
                     }
-                    .foregroundColor(AppTheme.primaryPurple)
+                    // Removed .foregroundColor() - using global tint from balliApp.swift
                 }
             }
         }
@@ -312,7 +306,7 @@ struct ActivityDetailView: View {
                     Button("Kapat") {
                         dismiss()
                     }
-                    .foregroundColor(AppTheme.primaryPurple)
+                    // Removed .foregroundColor() - using global tint from balliApp.swift
                 }
             }
         }

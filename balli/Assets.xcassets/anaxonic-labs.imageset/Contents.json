@@ -1,7 +1,17 @@
 {
   "images" : [
     {
-      "filename" : "anx.pdf",
+      "filename" : "LIGHT-ANAX.pdf",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "DARK-ANAX.pdf",
       "idiom" : "universal"
     }
   ],

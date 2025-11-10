@@ -6,6 +6,12 @@
 //
 
 import SwiftUI
+import OSLog
+
+private let logger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.anaxonic.balli",
+    category: "NutritionLabel"
+)
 
 struct NutritionLabelView: View {
     // Product information
@@ -93,43 +99,89 @@ struct NutritionLabelView: View {
     // Computed properties for proportional values
     private var adjustmentRatio: Double {
         let baseServing = servingSize.toDouble ?? 100.0
-        return portionGrams / baseServing
+        let ratio = portionGrams / baseServing
+
+        logger.debug("🔢 adjustmentRatio - servingSize: '\(self.servingSize)' -> parsed: \(baseServing, privacy: .public), portionGrams: \(self.portionGrams, privacy: .public), ratio: \(ratio, privacy: .public)")
+
+        return ratio
     }
 
     private var adjustedCalories: String {
-        guard let baseValue = calories.toDouble else { return calories }
+        guard let baseValue = calories.toDouble else {
+            logger.error("❌ adjustedCalories - failed to parse calories: '\(self.calories)'")
+            return calories
+        }
         let adjusted = baseValue * adjustmentRatio
-        return adjusted.asLocalizedDecimal(decimalPlaces: 0)
+        let result = adjusted.asLocalizedDecimal(decimalPlaces: 0)
+
+        logger.debug("✅ adjustedCalories - base: '\(self.calories)' -> \(baseValue, privacy: .public), ratio: \(self.adjustmentRatio, privacy: .public), adjusted: \(adjusted, privacy: .public), formatted: '\(result)'")
+
+        return result
     }
 
     private var adjustedCarbohydrates: String {
-        guard let baseValue = carbohydrates.toDouble else { return carbohydrates }
+        guard let baseValue = carbohydrates.toDouble else {
+            logger.error("❌ adjustedCarbohydrates - failed to parse carbohydrates: '\(self.carbohydrates)'")
+            return carbohydrates
+        }
         let adjusted = baseValue * adjustmentRatio
-        return formatNutritionValue(adjusted)
+        let result = formatNutritionValue(adjusted)
+
+        logger.debug("✅ adjustedCarbohydrates - base: '\(self.carbohydrates)' -> \(baseValue, privacy: .public), ratio: \(self.adjustmentRatio, privacy: .public), adjusted: \(adjusted, privacy: .public), formatted: '\(result)'")
+
+        return result
     }
 
     private var adjustedFiber: String {
-        guard let baseValue = fiber.toDouble else { return fiber }
+        guard let baseValue = fiber.toDouble else {
+            logger.error("❌ adjustedFiber - failed to parse fiber: '\(self.fiber)'")
+            return fiber
+        }
         let adjusted = baseValue * adjustmentRatio
-        return formatNutritionValue(adjusted)
+        let result = formatNutritionValue(adjusted)
+
+        logger.debug("✅ adjustedFiber - base: '\(self.fiber)' -> \(baseValue, privacy: .public), ratio: \(self.adjustmentRatio, privacy: .public), adjusted: \(adjusted, privacy: .public), formatted: '\(result)'")
+
+        return result
     }
 
     private var adjustedSugars: String {
-        guard let baseValue = sugars.toDouble else { return sugars }
+        guard let baseValue = sugars.toDouble else {
+            logger.error("❌ adjustedSugars - failed to parse sugars: '\(self.sugars)'")
+            return sugars
+        }
         let adjusted = baseValue * adjustmentRatio
-        return formatNutritionValue(adjusted)
+        let result = formatNutritionValue(adjusted)
+
+        logger.debug("✅ adjustedSugars - base: '\(self.sugars)' -> \(baseValue, privacy: .public), ratio: \(self.adjustmentRatio, privacy: .public), adjusted: \(adjusted, privacy: .public), formatted: '\(result)'")
+
+        return result
     }
 
     private var adjustedProtein: String {
-        guard let baseValue = protein.toDouble else { return protein }
+        guard let baseValue = protein.toDouble else {
+            logger.error("❌ adjustedProtein - failed to parse protein: '\(self.protein)'")
+            return protein
+        }
         let adjusted = baseValue * adjustmentRatio
-        return formatNutritionValue(adjusted)
+        let result = formatNutritionValue(adjusted)
+
+        logger.debug("✅ adjustedProtein - base: '\(self.protein)' -> \(baseValue, privacy: .public), ratio: \(self.adjustmentRatio, privacy: .public), adjusted: \(adjusted, privacy: .public), formatted: '\(result)'")
+
+        return result
     }
 
     private var adjustedFat: String {
-        guard let baseValue = fat.toDouble else { return fat }
+        guard let baseValue = fat.toDouble else {
+            logger.error("❌ adjustedFat - failed to parse fat: '\(self.fat)'")
+            return fat
+        }
         let adjusted = baseValue * adjustmentRatio
-        return formatNutritionValue(adjusted)
+        let result = formatNutritionValue(adjusted)
+
+        logger.debug("✅ adjustedFat - base: '\(self.fat)' -> \(baseValue, privacy: .public), ratio: \(self.adjustmentRatio, privacy: .public), adjusted: \(adjusted, privacy: .public), formatted: '\(result)'")
+
+        return result
     }
 
     /// Format nutrition value with locale-aware decimal separator
@@ -388,7 +440,7 @@ struct NutritionLabelView: View {
     // MARK: - Logarithmic Slider Helpers
 
     /// Computed binding that converts between grams and slider position (0-1)
-    private var sliderPosition: Binding<Double> {
+    nonisolated private var sliderPosition: Binding<Double> {
         Binding<Double>(
             get: {
                 self.sliderPositionFromGrams(self.portionGrams)
@@ -408,14 +460,14 @@ struct NutritionLabelView: View {
     }
 
     /// Convert grams to slider position using a tunable logarithmic curve
-    private func sliderPositionFromGrams(_ grams: Double) -> Double {
+    nonisolated private func sliderPositionFromGrams(_ grams: Double) -> Double {
         let clamped = max(SliderConfig.minGrams, min(SliderConfig.maxGrams, grams))
         let normalized = (clamped - SliderConfig.minGrams) / (SliderConfig.maxGrams - SliderConfig.minGrams)
         return pow(normalized, SliderConfig.logGamma)
     }
 
     /// Convert slider position back to grams using the inverse curve
-    private func gramsFromSliderPosition(_ position: Double) -> Double {
+    nonisolated private func gramsFromSliderPosition(_ position: Double) -> Double {
         let clamped = max(0, min(1, position))
         let normalized = pow(clamped, 1 / SliderConfig.logGamma)
         let grams = SliderConfig.minGrams + normalized * (SliderConfig.maxGrams - SliderConfig.minGrams)
@@ -455,18 +507,29 @@ struct CaloriesSectionView: View {
     @FocusState private var caloriesFocused: Bool
     @FocusState private var servingSizeFocused: Bool
 
+    // Computed bindings to reduce duplication
+    // KNOWN ISSUE: Swift 6 strict concurrency generates warnings for @Binding mutations in closures
+    // This is a SwiftUI limitation - Binding(get:set:) doesn't support @Sendable closures
+    // These mutations are safe in practice as @Binding provides thread-safe access
+    private var caloriesBinding: Binding<String> {
+        Binding(
+            get: { caloriesFocused ? calories : adjustedCalories },
+            set: { calories = $0 }
+        )
+    }
+
+    private var servingSizeBinding: Binding<String> {
+        Binding(
+            get: { servingSizeFocused ? servingSize : String(format: "%.0f", portionGrams) },
+            set: { servingSize = $0 }
+        )
+    }
+
     var body: some View {
         HStack(alignment: .lastTextBaseline, spacing: ResponsiveDesign.Spacing.medium) {
             HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
                 // Always show TextField, but switch between adjusted/base value based on focus
-                TextField("0", text: Binding(
-                    get: {
-                        caloriesFocused ? calories : adjustedCalories
-                    },
-                    set: { newValue in
-                        calories = newValue
-                    }
-                ))
+                TextField("0", text: caloriesBinding)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .semibold, design: .rounded))
@@ -487,14 +550,7 @@ struct CaloriesSectionView: View {
 
             HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
                 // Serving size field - tap to edit base, otherwise shows portion grams
-                TextField("0", text: Binding(
-                    get: {
-                        servingSizeFocused ? servingSize : String(format: "%.0f", portionGrams)
-                    },
-                    set: { newValue in
-                        servingSize = newValue
-                    }
-                ))
+                TextField("0", text: servingSizeBinding)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
@@ -585,6 +641,17 @@ struct NutritionLabelRowProportional: View {
 
     @FocusState private var isFocused: Bool
 
+    // Computed binding to reduce duplication
+    // KNOWN ISSUE: Swift 6 strict concurrency generates warning for @Binding mutation in closure
+    // This is a SwiftUI limitation - Binding(get:set:) doesn't support @Sendable closures
+    // This mutation is safe in practice as @Binding provides thread-safe access
+    private var valueBinding: Binding<String> {
+        Binding(
+            get: { isFocused ? baseValue : adjustedValue },
+            set: { baseValue = $0 }
+        )
+    }
+
     var body: some View {
         HStack {
             Text(label)
@@ -596,17 +663,7 @@ struct NutritionLabelRowProportional: View {
             HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
                 // Always show TextField, but populate it with adjusted value when not focused
                 // This allows: (1) slider updates values in real-time, (2) tap to edit
-                TextField("0", text: Binding(
-                    get: {
-                        // When focused, show base value for editing
-                        // When not focused, show adjusted value for display
-                        isFocused ? baseValue : adjustedValue
-                    },
-                    set: { newValue in
-                        // When user types, update the base value
-                        baseValue = newValue
-                    }
-                ))
+                TextField("0", text: valueBinding)
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.trailing)
                 .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))

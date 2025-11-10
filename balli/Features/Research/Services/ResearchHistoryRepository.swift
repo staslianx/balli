@@ -351,14 +351,21 @@ actor ResearchHistoryRepository {
                 throw RepositoryError.answerNotFound
             }
 
-            // Load current highlights
+            // CRITICAL: Delete from CoreData relationship (primary storage)
+            if let highlightEntities = entity.highlights as? Set<TextHighlightEntity> {
+                // Find and delete the specific highlight entity
+                if let entityToDelete = highlightEntities.first(where: { $0.id == highlightId }) {
+                    context.delete(entityToDelete)
+                    self.logger.debug("🗑️ Deleted TextHighlightEntity from CoreData relationship")
+                }
+            }
+
+            // Also update JSON fallback for consistency
             var highlights: [TextHighlight] = try self.decodeFromJSON(entity.highlightsJSON) ?? []
-
-            // Remove the highlight with matching ID
             highlights.removeAll { $0.id == highlightId }
-
-            // Save updated highlights back
             entity.highlightsJSON = try self.encodeToJSON(highlights)
+
+            // Save changes to both relationship and JSON
             try context.save()
 
             self.logger.info("✅ Deleted highlight \(highlightId) from answer: \(answerId). Remaining: \(highlights.count)")

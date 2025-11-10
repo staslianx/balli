@@ -168,7 +168,8 @@ public actor RecipeGenerationService: RecipeGenerationServiceProtocol {
 
         guard httpResponse.statusCode == 200 else {
             // Try to extract error message from response body
-            if let errorString = String(data: data, encoding: .utf8) {
+            if String(data: data, encoding: .utf8) != nil {
+                // Error string available for debugging
             }
             throw NetworkError.serverError(
                 statusCode: httpResponse.statusCode,
@@ -179,13 +180,15 @@ public actor RecipeGenerationService: RecipeGenerationServiceProtocol {
         // Parse response
         do {
             // Log raw response for debugging
-            if let responseString = String(data: data, encoding: .utf8) {
+            if String(data: data, encoding: .utf8) != nil {
+                // Response string available for debugging
             }
 
             let responseContainer = try JSONDecoder().decode(ResponseContainer.self, from: data)
             return responseContainer.data
         } catch {
-            if let decodingError = error as? DecodingError {
+            if error is DecodingError {
+                // Decoding error available for debugging
             }
             throw NetworkError.decodingError(underlying: error)
         }

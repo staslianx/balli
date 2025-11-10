@@ -341,24 +341,23 @@ final class DexcomShareService: DexcomShareServiceProtocol {
             if let reading = reading {
                 logger.info("✅ SHARE sync complete: \(reading.Value) mg/dL at \(reading.displayTime)")
 
-                // Auto-save to CoreData with SHARE source identifier
-                Task {
-                    do {
-                        let healthReading = reading.toHealthGlucoseReading()
-                        self.logger.info("💾 SHARE API: Attempting to save reading to CoreData - \(healthReading.value) mg/dL at \(healthReading.timestamp)")
-                        let saved = try await self.glucoseRepository.saveReading(from: healthReading)
-                        if saved != nil {
-                            self.logger.info("✅ SHARE API: Saved to CoreData with source: dexcom_share")
-                        } else {
-                            self.logger.debug("⚠️ SHARE API: Reading already exists in CoreData (duplicate)")
-                        }
-                    } catch {
-                        self.logger.error("❌ SHARE API: Failed to save to CoreData: \(error.localizedDescription)")
-                        // Don't throw - CoreData save failure shouldn't block sync
+                // CRITICAL FIX: Auto-save to CoreData BEFORE posting notification
+                // This prevents race condition where UI refreshes before data is saved
+                do {
+                    let healthReading = reading.toHealthGlucoseReading()
+                    logger.info("💾 SHARE API: Attempting to save reading to CoreData - \(healthReading.value) mg/dL at \(healthReading.timestamp)")
+                    let saved = try await glucoseRepository.saveReading(from: healthReading)
+                    if saved != nil {
+                        logger.info("✅ SHARE API: Saved to CoreData with source: dexcom_share")
+                    } else {
+                        logger.debug("⚠️ SHARE API: Reading already exists in CoreData (duplicate)")
                     }
+                } catch {
+                    logger.error("❌ SHARE API: Failed to save to CoreData: \(error.localizedDescription)")
+                    // Don't throw - CoreData save failure shouldn't block sync
                 }
 
-                // Notify that new glucose data is available
+                // Notify that new glucose data is available (AFTER CoreData save completes)
                 NotificationCenter.default.post(name: .glucoseDataDidUpdate, object: nil)
             } else {
                 logger.info("✅ SHARE sync complete: No recent data")
@@ -393,8 +392,20 @@ final class DexcomShareService: DexcomShareServiceProtocol {
 
                     logger.info("✅ SHARE sync successful after re-authentication")
 
-                    // Notify that new glucose data is available
-                    if reading != nil {
+                    // CRITICAL FIX: Save to CoreData BEFORE posting notification
+                    if let reading = reading {
+                        do {
+                            let healthReading = reading.toHealthGlucoseReading()
+                            logger.info("💾 SHARE API (re-auth): Saving reading to CoreData...")
+                            let saved = try await glucoseRepository.saveReading(from: healthReading)
+                            if saved != nil {
+                                logger.info("✅ SHARE API (re-auth): Saved to CoreData")
+                            }
+                        } catch {
+                            logger.error("❌ SHARE API (re-auth): Failed to save to CoreData: \(error.localizedDescription)")
+                        }
+
+                        // Notify that new glucose data is available (AFTER save completes)
                         NotificationCenter.default.post(name: .glucoseDataDidUpdate, object: nil)
                     }
                     return

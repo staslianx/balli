@@ -95,9 +95,9 @@ struct NutritionFormState: Sendable {
 
     /// Calculate net carbs based on current form values
     func calculateNetCarbs() -> Double {
-        let totalCarbs = Double(carbohydrates) ?? 0
-        let fiberValue = Double(fiber) ?? 0
-        let ratio = portionGrams / (Double(servingSize) ?? 100.0)
+        let totalCarbs = carbohydrates.toDouble ?? 0
+        let fiberValue = fiber.toDouble ?? 0
+        let ratio = portionGrams / (servingSize.toDouble ?? 100.0)
 
         let adjustedCarbs = totalCarbs * ratio
         let adjustedFiber = fiberValue * ratio
@@ -128,16 +128,16 @@ struct NutritionFormState: Sendable {
     /// Calculate impact score using Nestlé validated formula
     /// Handles missing/zero values gracefully by defaulting to 0.0
     func calculateImpactScore() -> Double {
-        guard let baseServing = Double(servingSize), baseServing > 0 else {
+        guard let baseServing = servingSize.toDouble, baseServing > 0 else {
             return 0.0
         }
 
         // Parse values with 0.0 fallback for missing data
-        let baseCarbs = Double(carbohydrates) ?? 0.0
-        let baseFiber = Double(fiber) ?? 0.0
-        let baseSugars = Double(sugars) ?? 0.0
-        let baseProtein = Double(protein) ?? 0.0
-        let baseFat = Double(fat) ?? 0.0
+        let baseCarbs = carbohydrates.toDouble ?? 0.0
+        let baseFiber = fiber.toDouble ?? 0.0
+        let baseSugars = sugars.toDouble ?? 0.0
+        let baseProtein = protein.toDouble ?? 0.0
+        let baseFat = fat.toDouble ?? 0.0
 
         // Use the validated Nestlé formula instead of old custom calculation
         let result = ImpactScoreCalculator.calculate(
@@ -158,13 +158,13 @@ struct NutritionFormState: Sendable {
         let score = calculateImpactScore()
 
         // Calculate scaled fat and protein for current portion
-        guard let baseServing = Double(servingSize), baseServing > 0 else {
+        guard let baseServing = servingSize.toDouble, baseServing > 0 else {
             return .low
         }
 
         let adjustmentRatio = portionGrams / baseServing
-        let scaledFat = (Double(fat) ?? 0.0) * adjustmentRatio
-        let scaledProtein = (Double(protein) ?? 0.0) * adjustmentRatio
+        let scaledFat = (fat.toDouble ?? 0.0) * adjustmentRatio
+        let scaledProtein = (protein.toDouble ?? 0.0) * adjustmentRatio
 
         return ImpactLevel.from(
             score: score,

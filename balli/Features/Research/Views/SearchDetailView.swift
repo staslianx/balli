@@ -186,6 +186,8 @@ struct SearchDetailView: View {
             }
         }
         .onAppear {
+            logger.debug("🔍 [DETAIL-VIEW] onAppear triggered for answer: \(answer.id)")
+
             // Animate badge appearance
             if answer.tier != nil {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7).delay(0.1)) {
@@ -199,6 +201,54 @@ struct SearchDetailView: View {
                     showSourcePill = true
                 }
             }
+
+            // CRITICAL: Reload highlights from database when view reappears
+            // This ensures we always show the latest state after deletions in other views
+            Task {
+                logger.debug("🔍 [DETAIL-VIEW] Loading highlights for answer: \(answer.id)")
+                let beforeCount = highlightManager.highlights[answer.id]?.count ?? 0
+                await highlightManager.loadHighlights(for: answer.id)
+                let afterCount = highlightManager.highlights[answer.id]?.count ?? 0
+                logger.debug("🔍 [DETAIL-VIEW] Highlights loaded - count: \(beforeCount) → \(afterCount)")
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name.highlightDeleted)) { notification in
+            logger.debug("🔍 [DETAIL-VIEW] Received highlightDeleted notification")
+
+            // When a highlight is deleted from library, sync with preview
+            guard let userInfo = notification.userInfo,
+                  let highlightId = userInfo["highlightId"] as? UUID,
+                  let answerId = userInfo["answerId"] as? String else {
+                logger.debug("🔍 [DETAIL-VIEW] Missing userInfo in notification")
+                return
+            }
+
+            logger.debug("🔍 [DETAIL-VIEW] Notification data - highlightId: \(highlightId), answerId: \(answerId), myAnswerId: \(answer.id)")
+
+            guard answerId == answer.id else {
+                logger.debug("🔍 [DETAIL-VIEW] Notification for different answer, ignoring")
+                return
+            }
+
+            // Remove from highlight manager's cache (already persisted by library)
+            let beforeCount = highlightManager.highlights[answer.id]?.count ?? 0
+            highlightManager.syncRemoveFromCache(highlightId, from: answer.id)
+            let afterCount = highlightManager.highlights[answer.id]?.count ?? 0
+            logger.debug("🔍 [DETAIL-VIEW] Synced deletion - highlights: \(beforeCount) → \(afterCount)")
+            logger.info("🔄 Synced deleted highlight from library: \(highlightId)")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name.highlightAdded)) { notification in
+            // When a highlight is added in another view, sync with preview
+            guard let userInfo = notification.userInfo,
+                  let highlight = userInfo["highlight"] as? TextHighlight,
+                  let answerId = userInfo["answerId"] as? String,
+                  answerId == answer.id else {
+                return
+            }
+
+            // Add to highlight manager's cache (already persisted by other view)
+            highlightManager.syncAddToCache(highlight, to: answer.id)
+            logger.info("🔄 Synced added highlight from other view: \(highlight.id)")
         }
     }
 
@@ -215,18 +265,11 @@ struct SearchDetailView: View {
 
 
         // Find any highlight that overlaps with the selection
-        let overlapping = highlights.first { highlight in
+        return highlights.first { highlight in
             let highlightRange = NSRange(location: highlight.startOffset, length: highlight.length)
             let intersection = NSIntersectionRange(selectionRange, highlightRange)
-            let overlaps = intersection.length > 0
-            return overlaps
+            return intersection.length > 0
         }
-
-        if let overlapping = overlapping {
-        } else {
-        }
-
-        return overlapping
     }
 
     private func addHighlight(with color: TextHighlight.HighlightColor) {

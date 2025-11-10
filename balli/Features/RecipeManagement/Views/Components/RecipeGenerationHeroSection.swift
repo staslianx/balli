@@ -67,6 +67,8 @@ struct RecipeGenerationHeroImage: View {
     let onGeneratePhoto: () -> Void
     @Environment(\.colorScheme) private var colorScheme
 
+    @State private var imageOpacity: Double = 0.0
+
     var body: some View {
         // Calculate 50% of true screen height including safe area
         let safeAreaTop = geometry.safeAreaInsets.top
@@ -76,16 +78,23 @@ struct RecipeGenerationHeroImage: View {
         ZStack(alignment: .top) {
             // Show generated image if available, otherwise show placeholder gradient
             if let image = preparedImage {
-                // Display generated image
+                // Display generated image with fade-in effect
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: geometry.size.width, height: imageHeight)
                     .clipped()
+                    .opacity(imageOpacity)
+                    .onAppear {
+                        withAnimation(.easeIn(duration: 0.6)) {
+                            imageOpacity = 1.0
+                        }
+                    }
 
                 // Dark gradient overlay for text readability
                 RecipeImageGradient.textOverlay
                     .frame(width: geometry.size.width, height: imageHeight)
+                    .opacity(imageOpacity)
             } else {
                 // Placeholder gradient (purple like recipe detail view)
                 LinearGradient(
@@ -107,21 +116,38 @@ struct RecipeGenerationHeroImage: View {
             if !recipeName.isEmpty {
                 if isGeneratingPhoto {
                     // Show pulsing spatial.capture icon while generating
-                    PulsingPhotoIcon()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    VStack {
+                        Spacer()
+                        PulsingPhotoIcon()
+                        Spacer()
+                    }
+                    .frame(width: geometry.size.width, height: imageHeight)
                 } else if preparedImage == nil {
                     // Show photo generation button if no image yet
                     Button(action: onGeneratePhoto) {
-                        Image(systemName: "spatial.capture")
-                            .font(.system(size: 64, weight: .light))
-                            .foregroundStyle(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.8))
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        VStack {
+                            Spacer()
+                            Image(systemName: "spatial.capture")
+                                .font(.system(size: 64, weight: .light))
+                                .foregroundStyle(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.8))
+                            Spacer()
+                        }
+                        .frame(width: geometry.size.width, height: imageHeight)
                     }
                     .buttonStyle(.plain)
                 }
             }
         }
         .frame(height: imageHeight)
+        .onChange(of: preparedImage) { oldImage, newImage in
+            // Reset opacity when image changes to trigger fade-in again
+            if newImage != nil && oldImage == nil {
+                imageOpacity = 0.0
+                withAnimation(.easeIn(duration: 0.6)) {
+                    imageOpacity = 1.0
+                }
+            }
+        }
     }
 }
 
@@ -165,10 +191,7 @@ struct RecipeGenerationMetadata: View {
         let screenHeight = geometry.size.height + safeAreaTop
         let heroImageHeight = max(screenHeight * 0.5, 350)
 
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-
-            VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
                 // Logo - Shows balli logo if AI-generated recipe (same size in both light and dark mode)
                 if !recipeContent.isEmpty {
                     Image("balli-text-logo-dark")
@@ -196,27 +219,24 @@ struct RecipeGenerationMetadata: View {
                     .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
                 } else {
                     // Show shimmer placeholder during generation, static placeholder otherwise
-                    if isStreaming {
-                        Text("Tarif ismi")
-                            .font(.custom("Playfair Display", size: 34))
-                            .fontWeight(.bold)
-                            .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.3))
-                            .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
-                            .shimmer(duration: 2.5, bounceBack: false)
-                    } else {
-                        Text("Tarif ismi")
-                            .font(.custom("Playfair Display", size: 34))
-                            .fontWeight(.bold)
-                            .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.3))
-                            .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
-                    }
+                    Text("Tarif ismi")
+                        .font(.custom("Playfair Display", size: 34))
+                        .fontWeight(.bold)
+                        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.3))
+                        .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
+                        .modifier(
+                            ConditionalShimmer(
+                                isActive: isStreaming,
+                                duration: 2.5,
+                                bounceBack: false
+                            )
+                        )
                 }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 12) // Minimum gap between name and story card
         }
-        .frame(height: heroImageHeight - 49) // Ends where story card begins
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: heroImageHeight - 49, alignment: .bottom) // Ends where story card begins, align content to bottom
+        .padding(.horizontal, 20)
+        .padding(.bottom, 12) // Minimum gap between name and story card
     }
 }
 
@@ -333,4 +353,85 @@ struct RecipeGenerationCompleteHero: View {
             )
         }
     }
+}
+
+// MARK: - Previews
+
+#Preview("Photo Fade-In Effect") {
+    struct PreviewWrapper: View {
+        @State private var showPhoto = false
+        @FocusState private var isNameFieldFocused: Bool
+
+        var body: some View {
+            GeometryReader { geometry in
+                ZStack {
+                    RecipeGenerationHeroImage(
+                        recipeName: "Izgara Tavuk Salatası",
+                        preparedImage: showPhoto ? createPlaceholderImage() : nil,
+                        isGeneratingPhoto: false,
+                        recipeContent: "Some recipe content",
+                        geometry: geometry,
+                        onGeneratePhoto: {}
+                    )
+
+                    // Control button at bottom
+                    VStack {
+                        Spacer()
+                        Button(action: {
+                            showPhoto.toggle()
+                        }) {
+                            Text(showPhoto ? "Hide Photo" : "Show Photo with Fade-In")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(ThemeColors.primaryPurple)
+                                )
+                        }
+                        .padding(.bottom, 40)
+                    }
+                }
+            }
+            .ignoresSafeArea()
+        }
+
+        func createPlaceholderImage() -> UIImage {
+            let size = CGSize(width: 400, height: 400)
+            let renderer = UIGraphicsImageRenderer(size: size)
+            return renderer.image { context in
+                // Create a nice gradient background
+                let colors = [UIColor.systemPurple, UIColor.systemPink]
+                let colorSpace = CGColorSpaceCreateDeviceRGB()
+                let cgColors = colors.map { $0.cgColor } as CFArray
+                if let gradient = CGGradient(colorsSpace: colorSpace, colors: cgColors, locations: [0, 1]) {
+                    context.cgContext.drawLinearGradient(
+                        gradient,
+                        start: CGPoint(x: 0, y: 0),
+                        end: CGPoint(x: size.width, y: size.height),
+                        options: []
+                    )
+                }
+
+                // Add text overlay
+                let text = "Generated Recipe Photo"
+                let attributes: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: 32, weight: .bold),
+                    .foregroundColor: UIColor.white
+                ]
+                let attributedString = NSAttributedString(string: text, attributes: attributes)
+                let textSize = attributedString.size()
+                let textRect = CGRect(
+                    x: (size.width - textSize.width) / 2,
+                    y: (size.height - textSize.height) / 2,
+                    width: textSize.width,
+                    height: textSize.height
+                )
+                attributedString.draw(in: textRect)
+            }
+        }
+    }
+
+    return PreviewWrapper()
 }

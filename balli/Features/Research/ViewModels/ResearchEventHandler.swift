@@ -189,8 +189,8 @@ final class ResearchEventHandler {
         setCurrentTier: @escaping (ResponseTier?) -> Void
     ) async {
         // Capture closures for @Sendable context
-        nonisolated(unsafe) let capturedGetAnswers = getAnswers
-        nonisolated(unsafe) let capturedUpdateAnswer = updateAnswer
+        _ = getAnswers
+        _ = updateAnswer
 
         // No animation layers to flush - content already complete from direct streaming
 

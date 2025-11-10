@@ -179,12 +179,15 @@ struct DexcomConnectionView: View {
                     }
                 }
 
-                if let lastSync = dexcomService.lastSync {
-                    HStack {
-                        Text("Son Senkronizasyon")
-                        Spacer()
+                HStack {
+                    Text("Son Senkronizasyon")
+                    Spacer()
+                    if let lastSync = dexcomService.lastSync {
                         Text(lastSync, style: .relative)
                             .foregroundStyle(.secondary)
+                    } else {
+                        Text("Hiçbir Zaman")
+                            .foregroundStyle(.tertiary)
                     }
                 }
             } header: {

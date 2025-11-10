@@ -14,7 +14,7 @@ struct PulsingPhotoIcon: View {
     var body: some View {
         Image(systemName: "spatial.capture")
             .font(.system(size: 64, weight: .light))
-            .foregroundStyle(.white.opacity(0.8))
+            .foregroundStyle(.white.opacity(0.4))
             .shimmer(duration: 2.5, bounceBack: false)
     }
 }

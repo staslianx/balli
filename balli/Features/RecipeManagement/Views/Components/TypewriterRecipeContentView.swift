@@ -67,11 +67,12 @@ struct TypewriterRecipeContentView: View {
                     onAnimationStateChange?(true)  // Animation started
                 }
 
+                let fullContentCount = fullContentReceived.count
                 Task {
                     await animator.enqueueText(newChars, for: recipeId) { displayedText in
                         // PERFORMANCE: Only update UI every 3 characters to reduce rendering overhead
                         // This prevents stutter when markdown re-renders become expensive
-                        if displayedText.count % 3 == 0 || displayedText.count == self.fullContentReceived.count {
+                        if displayedText.count % 3 == 0 || displayedText.count == fullContentCount {
                             await MainActor.run {
                                 self.displayedContent = displayedText
                                 logger.debug("✍️ [RECIPE-TYPEWRITER] Updated displayedContent: \(displayedText.count) chars")
