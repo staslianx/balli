@@ -52,12 +52,13 @@ struct AIResultView: View {
     }
     
     var body: some View {
+        let _ = logger.debug("🔄 AIResultView BODY: isAnalyzing=\(viewModel.isAnalyzing), stage=\(String(describing: viewModel.analysisStage))")
         NavigationStack {
             ZStack {
                 // Background color
                 Color(.systemGray6)
                     .ignoresSafeArea()
-                
+
                 ScrollView {
                     VStack {
                         Spacer(minLength: ResponsiveDesign.height(50))
@@ -71,8 +72,7 @@ struct AIResultView: View {
                                 errorMessage: nil,
                                 nutritionResult: viewModel.nutritionResult
                             )
-                            .id(viewModel.analysisStage)
-                            .animation(.default, value: viewModel.analysisStage)
+                            // Don't force entire view recreation - let SwiftUI update only changed elements
                         } else {
                             // Food label container with integrated impact banner
                             NutritionLabelView(

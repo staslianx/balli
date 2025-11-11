@@ -34,11 +34,12 @@ struct AnalysisNutritionLabelView: View {
     @State private var isRotating = false
 
     // MARK: - Logger
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "ShimmerDebug")
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "AnalysisView")
 
     // MARK: - Body
 
     var body: some View {
+        let _ = logger.debug("📱 VIEW BODY: currentStage=\(String(describing: currentStage))")
         VStack(alignment: .leading, spacing: 0) {
             headerSection
             caloriesSection

@@ -70,7 +70,7 @@ final class AIResultViewModel: ObservableObject {
         self.formState = NutritionFormState()
         self.uiState = .analyzing()
         self.isAnalyzing = true
-        startAnalysisTracking()
+        // Note: Don't start tracking here - wait until analysis actually begins
     }
 
     // MARK: - Public Methods - UI Actions
@@ -142,7 +142,17 @@ final class AIResultViewModel: ObservableObject {
         }
 
         logger.info("Starting AI analysis processing")
-        await captureFlowManager.confirmAndProcess()
+
+        // Start confirmAndProcess (which sets isAnalyzing = true) and tracking concurrently
+        // confirmAndProcess will set isAnalyzing immediately, then tracking will see it as true
+        async let processing: () = captureFlowManager.confirmAndProcess()
+
+        // Give confirmAndProcess a moment to set isAnalyzing = true before starting tracking
+        try? await Task.sleep(for: .milliseconds(100))
+        startAnalysisTracking()
+
+        // Wait for processing to complete
+        await processing
     }
 
     // MARK: - Private Methods - Core Data Persistence
@@ -250,6 +260,9 @@ final class AIResultViewModel: ObservableObject {
     private func updateAnalysisState() {
         // More balanced progress tracking with even stage distribution
         let increment = 0.015 // Slower, more even progression
+        let oldProgress = analysisProgress
+        let oldStage = analysisStage
+
         analysisProgress = min(0.98, analysisProgress + increment)
 
         // Evenly distributed stage transitions
@@ -265,6 +278,11 @@ final class AIResultViewModel: ObservableObject {
             analysisStage = .processing
         } else {
             analysisStage = .validating
+        }
+
+        // Log stage transitions for debugging
+        if oldStage != self.analysisStage {
+            logger.info("🔄 VM STAGE TRANSITION: \(String(describing: oldStage)) → \(String(describing: self.analysisStage)) (progress: \(oldProgress, format: .fixed(precision: 2)) → \(self.analysisProgress, format: .fixed(precision: 2)))")
         }
     }
 
