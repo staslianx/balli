@@ -71,9 +71,11 @@ struct RecipeGenerationHeroImage: View {
 
     var body: some View {
         // Calculate 50% of true screen height including safe area
+        // PERFORMANCE FIX: Compute geometry values ONCE to avoid recalculation on every scroll frame
         let safeAreaTop = geometry.safeAreaInsets.top
         let screenHeight = geometry.size.height + safeAreaTop
         let imageHeight = max(screenHeight * 0.5, 350)
+        let imageWidth = geometry.size.width
 
         ZStack(alignment: .top) {
             // Show generated image if available, otherwise show placeholder gradient
@@ -82,7 +84,7 @@ struct RecipeGenerationHeroImage: View {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: geometry.size.width, height: imageHeight)
+                    .frame(width: imageWidth, height: imageHeight)
                     .clipped()
                     .opacity(imageOpacity)
                     .onAppear {
@@ -93,7 +95,7 @@ struct RecipeGenerationHeroImage: View {
 
                 // Dark gradient overlay for text readability
                 RecipeImageGradient.textOverlay
-                    .frame(width: geometry.size.width, height: imageHeight)
+                    .frame(width: imageWidth, height: imageHeight)
                     .opacity(imageOpacity)
             } else {
                 // Placeholder gradient (purple like recipe detail view)
@@ -105,11 +107,11 @@ struct RecipeGenerationHeroImage: View {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
-                .frame(width: geometry.size.width, height: imageHeight)
+                .frame(width: imageWidth, height: imageHeight)
 
                 // Dark gradient overlay
                 RecipeImageGradient.textOverlay
-                    .frame(width: geometry.size.width, height: imageHeight)
+                    .frame(width: imageWidth, height: imageHeight)
             }
 
             // Photo generation button or loading indicator
@@ -121,7 +123,7 @@ struct RecipeGenerationHeroImage: View {
                         PulsingPhotoIcon()
                         Spacer()
                     }
-                    .frame(width: geometry.size.width, height: imageHeight)
+                    .frame(width: imageWidth, height: imageHeight)
                 } else if preparedImage == nil {
                     // Show photo generation button if no image yet
                     Button(action: onGeneratePhoto) {
@@ -132,7 +134,7 @@ struct RecipeGenerationHeroImage: View {
                                 .foregroundStyle(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.8))
                             Spacer()
                         }
-                        .frame(width: geometry.size.width, height: imageHeight)
+                        .frame(width: imageWidth, height: imageHeight)
                     }
                     .buttonStyle(.plain)
                 }
@@ -191,7 +193,7 @@ struct RecipeGenerationMetadata: View {
         let screenHeight = geometry.size.height + safeAreaTop
         let heroImageHeight = max(screenHeight * 0.5, 350)
 
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
                 // Logo - Shows balli logo if AI-generated recipe (same size in both light and dark mode)
                 if !recipeContent.isEmpty {
                     Image("balli-text-logo-dark")
@@ -203,25 +205,30 @@ struct RecipeGenerationMetadata: View {
 
                 // Recipe title - editable for manual recipes, display-only for AI-generated
                 if isManualRecipe {
-                    TextField("Tarif ismi (zorunlu)", text: $editableRecipeName)
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                    TextField("Tarif ismi (zorunlu)", text: $editableRecipeName, axis: .vertical)
+                        .font(.custom("Playfair Display", size: 36))
+                        .fontWeight(.bold)
+                        .lineSpacing(0)
                         .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
+                        .textFieldStyle(.plain)
                         .focused($isNameFieldFocused)
                         .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
                         .submitLabel(.done)
                 } else if !recipeName.isEmpty {
                     TypewriterText(
                         content: recipeName,
-                        font: .custom("Playfair Display", size: 34),
+                        font: .custom("Playfair Display", size: 36),
                         fontWeight: .bold,
                         foregroundColor: AppTheme.foregroundOnColor(for: colorScheme)
                     )
+                    .lineSpacing(0)
                     .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
                 } else {
                     // Show shimmer placeholder during generation, static placeholder otherwise
                     Text("Tarif ismi")
-                        .font(.custom("Playfair Display", size: 34))
+                        .font(.custom("Playfair Display", size: 36))
                         .fontWeight(.bold)
+                        .lineSpacing(0)
                         .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.3))
                         .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
                         .modifier(
@@ -234,9 +241,9 @@ struct RecipeGenerationMetadata: View {
                 }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: heroImageHeight - 49, alignment: .bottom) // Ends where story card begins, align content to bottom
         .padding(.horizontal, 20)
         .padding(.bottom, 12) // Minimum gap between name and story card
+        .frame(height: heroImageHeight - 49, alignment: .bottom) // Ends where story card begins, align content to bottom
     }
 }
 

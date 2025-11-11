@@ -25,6 +25,7 @@ public final class RecipeGenerationCoordinator: ObservableObject {
     @Published public var tokenCount = 0  // Track streaming progress
     @Published public var prepTime: Int?  // Preparation time in minutes (extracted from markdown)
     @Published public var cookTime: Int?  // Cooking time in minutes (extracted from markdown)
+    @Published public var waitTime: Int?  // Waiting time in minutes - marinating, resting, rising (extracted from markdown)
 
     // Dependencies
     private let animationController: RecipeAnimationController
@@ -69,17 +70,17 @@ public final class RecipeGenerationCoordinator: ObservableObject {
         return nil
     }
 
-    /// Extracts prep and cooking times from markdown content
-    /// Returns tuple of (prepTime, cookTime) in minutes, or nil if not found
-    /// Format: **Hazırlık:** 15 dakika | **Pişirme:** 20 dakika
-    private func extractTimes(from content: String) -> (prepTime: Int?, cookTime: Int?)? {
+    /// Extracts prep, cooking, and waiting times from markdown content
+    /// Returns tuple of (prepTime, cookTime, waitTime) in minutes, or nil if not found
+    /// Format: **Hazırlık:** 15 dakika | **Pişirme:** 20 dakika | **Bekleme:** 30 dakika
+    private func extractTimes(from content: String) -> (prepTime: Int?, cookTime: Int?, waitTime: Int?)? {
         let lines = content.components(separatedBy: "\n")
 
         // Look for the metadata line (usually second line after title)
-        // It contains **Hazırlık:** and/or **Pişirme:**
+        // It contains **Hazırlık:** and/or **Pişirme:** and/or **Bekleme:**
         for line in lines {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed.contains("**Hazırlık:**") || trimmed.contains("**Pişirme:**") {
+            if trimmed.contains("**Hazırlık:**") || trimmed.contains("**Pişirme:**") || trimmed.contains("**Bekleme:**") {
                 // Extract prep time
                 let prepMatch = trimmed.range(of: #"\*\*Hazırlık:\*\*\s*(\d+)\s*dakika"#, options: .regularExpression)
                 var prepTime: Int?
@@ -108,7 +109,21 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     }
                 }
 
-                return (prepTime: prepTime, cookTime: cookTime)
+                // Extract waiting time (for marinating, resting, rising, etc.)
+                let waitMatch = trimmed.range(of: #"\*\*Bekleme:\*\*\s*(\d+)\s*dakika"#, options: .regularExpression)
+                var waitTime: Int?
+                if let match = waitMatch {
+                    let matchString = String(trimmed[match])
+                    if let timeString = matchString.components(separatedBy: CharacterSet.decimalDigits.inverted)
+                        .joined()
+                        .split(separator: " ")
+                        .first,
+                       let time = Int(timeString) {
+                        waitTime = time
+                    }
+                }
+
+                return (prepTime: prepTime, cookTime: cookTime, waitTime: waitTime)
             }
         }
 
@@ -206,10 +221,11 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                         self.formState.recipeName = recipeName
                     }
 
-                    // Extract prep and cooking times
+                    // Extract prep, cooking, and waiting times
                     if let times = self.extractTimes(from: fullContent) {
                         self.prepTime = times.prepTime
                         self.cookTime = times.cookTime
+                        self.waitTime = times.waitTime
 
                         // CRITICAL: Update formState with extracted times for persistence
                         if let prep = times.prepTime {
@@ -218,6 +234,21 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                         if let cook = times.cookTime {
                             self.formState.cookTime = "\(cook)"
                         }
+                        if let wait = times.waitTime {
+                            self.formState.waitTime = "\(wait)"
+                        }
+                    }
+
+                    // CRITICAL FIX: Parse ingredients and directions from markdown during streaming
+                    // This ensures formState has ingredients even if stream ends without "completed" event
+                    let parsed = self.formState.parseMarkdownContent(fullContent)
+                    if !parsed.ingredients.isEmpty {
+                        self.formState.ingredients = parsed.ingredients
+                        self.logger.debug("🔧 [STREAMING] Parsed \(parsed.ingredients.count) ingredients from markdown during streaming")
+                    }
+                    if !parsed.directions.isEmpty {
+                        self.formState.directions = parsed.directions
+                        self.logger.debug("🔧 [STREAMING] Parsed \(parsed.directions.count) directions from markdown during streaming")
                     }
 
                     // Remove header and metadata from displayed content
@@ -278,7 +309,11 @@ public final class RecipeGenerationCoordinator: ObservableObject {
 
                 // CRITICAL: This closure is @MainActor so executes synchronously on MainActor
                 self.logger.error("❌ [GENERATION] onError called (ingredients): \(error.localizedDescription)")
-                self.logger.info("🛑 [STATE] Setting isGenerating = false in error handler")
+                self.logger.info("🛑 [STATE] Stopping animation and setting isGenerating = false in error handler")
+
+                // CRITICAL: Stop animation BEFORE setting isGenerating = false
+                // This ensures loading UI transitions to stopped state properly
+                self.animationController.stopGenerationAnimation()
                 self.isGenerating = false
                 self.logger.info("✅ [STATE] isGenerating after error: \(self.isGenerating)")
 
@@ -445,6 +480,26 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                     if let times = self.extractTimes(from: fullContent) {
                         self.prepTime = times.prepTime
                         self.cookTime = times.cookTime
+
+                        // CRITICAL: Update formState with extracted times for persistence
+                        if let prep = times.prepTime {
+                            self.formState.prepTime = "\(prep)"
+                        }
+                        if let cook = times.cookTime {
+                            self.formState.cookTime = "\(cook)"
+                        }
+                    }
+
+                    // CRITICAL FIX: Parse ingredients and directions from markdown during streaming
+                    // This ensures formState has ingredients even if stream ends without "completed" event
+                    let parsed = self.formState.parseMarkdownContent(fullContent)
+                    if !parsed.ingredients.isEmpty {
+                        self.formState.ingredients = parsed.ingredients
+                        self.logger.debug("🔧 [STREAMING] Parsed \(parsed.ingredients.count) ingredients from markdown during streaming")
+                    }
+                    if !parsed.directions.isEmpty {
+                        self.formState.directions = parsed.directions
+                        self.logger.debug("🔧 [STREAMING] Parsed \(parsed.directions.count) directions from markdown during streaming")
                     }
 
                     let cleanedContent = self.removeHeaderAndMetadata(from: fullContent)
@@ -504,7 +559,11 @@ public final class RecipeGenerationCoordinator: ObservableObject {
 
                 // CRITICAL: This closure is @MainActor so executes synchronously on MainActor
                 self.logger.error("❌ [GENERATION] onError called (spontaneous): \(error.localizedDescription)")
-                self.logger.info("🛑 [STATE] Setting isGenerating = false in error handler")
+                self.logger.info("🛑 [STATE] Stopping animation and setting isGenerating = false in error handler")
+
+                // CRITICAL: Stop animation BEFORE setting isGenerating = false
+                // This ensures loading UI transitions to stopped state properly
+                self.animationController.stopGenerationAnimation()
                 self.isGenerating = false
                 self.logger.info("✅ [STATE] isGenerating after error: \(self.isGenerating)")
 

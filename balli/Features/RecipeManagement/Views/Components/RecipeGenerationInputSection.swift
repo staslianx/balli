@@ -72,10 +72,10 @@ struct ManualIngredientsSection: View {
                     HStack(spacing: 8) {
                         Text("•")
                             .font(.custom("Manrope-Medium", size: 20))
-                            .foregroundColor(.primary.opacity(0.7))
+                            .foregroundColor(.primary.opacity(0.3))
                         Text("Malzeme Ekle")
                             .font(.custom("Manrope-Medium", size: 20))
-                            .foregroundColor(.primary.opacity(0.7))
+                            .foregroundColor(.primary.opacity(0.3))
                     }
                 }
                 .buttonStyle(.plain)
@@ -177,10 +177,10 @@ struct ManualStepsSection: View {
                     HStack(spacing: 8) {
                         Text("\(steps.count + 1).")
                             .font(.custom("Manrope-Medium", size: 20))
-                            .foregroundColor(.primary.opacity(0.7))
+                            .foregroundColor(.primary.opacity(0.3))
                         Text("Adım Ekle")
                             .font(.custom("Manrope-Medium", size: 20))
-                            .foregroundColor(.primary.opacity(0.7))
+                            .foregroundColor(.primary.opacity(0.3))
                     }
                 }
                 .buttonStyle(.plain)

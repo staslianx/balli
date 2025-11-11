@@ -142,10 +142,10 @@ struct RecipeImageGradient {
         LinearGradient(
             stops: [
                 .init(color: .clear, location: 0.0),
-                .init(color: .black.opacity(0.05), location: 0.2),
-                .init(color: .black.opacity(0.15), location: 0.5),
-                .init(color: .black.opacity(0.3), location: 0.85),
-                .init(color: .black.opacity(0.4), location: 1.0)
+                .init(color: .black.opacity(0.1), location: 0.2),
+                .init(color: .black.opacity(0.25), location: 0.5),
+                .init(color: .black.opacity(0.45), location: 0.85),
+                .init(color: .black.opacity(0.6), location: 1.0)
             ],
             startPoint: .top,
             endPoint: .bottom

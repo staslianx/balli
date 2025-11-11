@@ -229,6 +229,10 @@ struct MealEditSheet: View {
         let trimmedUnit = unit.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedNotes = notes.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        // CRITICAL: Check if timestamp changed - if so, update paired insulin timestamps
+        let timestampChanged = meal.timestamp != timestamp
+        let originalTimestamp = meal.timestamp
+
         // Update meal properties
         meal.mealType = trimmedMealType
         meal.timestamp = timestamp
@@ -245,9 +249,18 @@ struct MealEditSheet: View {
         // Mark as pending sync
         meal.markAsPendingSync()
 
+        // CRITICAL FIX: If timestamp changed, update paired insulin medications
+        // This keeps meal and insulin together as a pair
+        if timestampChanged {
+            updatePairedInsulinTimestamps(from: originalTimestamp, to: timestamp)
+        }
+
         do {
             try viewContext.save()
             logger.info("✅ Meal edited successfully: \(meal.id)")
+            if timestampChanged {
+                logger.info("   - Updated paired insulin timestamps from \(originalTimestamp) to \(timestamp)")
+            }
             dismiss()
         } catch {
             errorMessage = "Değişiklikler kaydedilirken bir hata oluştu: \(error.localizedDescription)"
@@ -256,6 +269,42 @@ struct MealEditSheet: View {
             // Rollback to prevent invalid context state
             viewContext.rollback()
             logger.error("❌ Failed to save meal edit: \(error.localizedDescription)")
+        }
+    }
+
+    /// Update insulin timestamps to keep them paired with the meal
+    /// Finds insulin entries within 5 seconds of the original meal timestamp and updates them
+    private func updatePairedInsulinTimestamps(from originalTimestamp: Date, to newTimestamp: Date) {
+        let fetchRequest = MedicationEntry.fetchRequest()
+
+        // Find medications within 5 seconds of the ORIGINAL meal timestamp
+        let startDate = originalTimestamp.addingTimeInterval(-5)
+        let endDate = originalTimestamp.addingTimeInterval(5)
+
+        fetchRequest.predicate = NSPredicate(
+            format: "timestamp >= %@ AND timestamp <= %@ AND (medicationType == %@ OR medicationType == %@)",
+            startDate as NSDate,
+            endDate as NSDate,
+            "bolus_insulin",
+            "basal_insulin"
+        )
+
+        do {
+            let medications = try viewContext.fetch(fetchRequest)
+
+            if !medications.isEmpty {
+                logger.info("   - Found \(medications.count) paired insulin entries to update")
+
+                for medication in medications {
+                    medication.timestamp = newTimestamp
+                    medication.lastModified = Date()
+                    medication.markAsPendingSync()
+                }
+
+                logger.info("   - Updated \(medications.count) insulin timestamps to match meal")
+            }
+        } catch {
+            logger.error("❌ Failed to fetch paired insulin for timestamp update: \(error.localizedDescription)")
         }
     }
 }

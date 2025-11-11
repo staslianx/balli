@@ -17,6 +17,7 @@ struct RecipeShoppingSection: View {
     let onItemDelete: (ShoppingListItem) -> Void
     let onItemSave: (ShoppingListItem, String, String) -> Void
     let onNoteUpdate: (ShoppingListItem, String?) -> Void
+    let onRecipeDelete: () -> Void
 
     @State private var showIngredientsSheet = false
     @Environment(\.colorScheme) private var colorScheme
@@ -101,6 +102,11 @@ struct RecipeShoppingSection: View {
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive, action: onRecipeDelete) {
+                Label("Sil", systemImage: "trash")
+            }
+        }
         .sheet(isPresented: $showIngredientsSheet) {
             RecipeIngredientsSheet(
                 recipeName: recipeName,
@@ -195,22 +201,7 @@ struct RecipeIngredientsSheet: View {
                 .listStyle(.plain)
                 .scrollDismissesKeyboard(.interactively)
                 .scrollContentBackground(.hidden)
-                .background(
-                    ZStack {
-                        Color.appBackground(for: colorScheme)
-                            .ignoresSafeArea()
-
-                        LinearGradient(
-                            gradient: Gradient(colors: [
-                                AppTheme.primaryPurple.opacity(0.03),
-                                Color.clear
-                            ]),
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                        .ignoresSafeArea()
-                    }
-                )
+                .background(Color(.systemBackground))
 
                 // Input container at bottom with Liquid Glass
                 VStack {

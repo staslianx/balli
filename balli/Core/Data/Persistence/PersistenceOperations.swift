@@ -60,9 +60,19 @@ final class PersistenceOperations: @unchecked Sendable {
                         }
                     }
 
-                    continuation.resume(returning: result)
+                    // STREAMING FIX: Resume continuation on MainActor to prevent
+                    // @Published updates from background threads during persistence.
+                    // Even though we merge changes on MainActor, the continuation resumes
+                    // on Task.detached's background context, causing downstream code
+                    // (like notification observers) to run on background threads.
+                    await MainActor.run {
+                        continuation.resume(returning: result)
+                    }
                 } catch {
-                    continuation.resume(throwing: error)
+                    // Also resume error on MainActor for consistency
+                    await MainActor.run {
+                        continuation.resume(throwing: error)
+                    }
                 }
             }
         }

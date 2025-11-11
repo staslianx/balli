@@ -19,6 +19,7 @@ final class RecipeDetailViewModel: ObservableObject {
     // MARK: - Published State
 
     @Published var showingShareSheet = false
+    @Published var imageToShare: UIImage?
     @Published var showingNutritionalValues = false
     @Published var showingNotesModal = false
     @Published var isGeneratingPhoto = false
@@ -54,20 +55,20 @@ final class RecipeDetailViewModel: ObservableObject {
         RecipeDataManager(context: viewContext)
     }
 
-    // Loading animation steps
-    private let loadingSteps: [(label: String, duration: TimeInterval, progress: Int)] = [
-        ("Tarife tekrar bakıyorum", 5.0, 6),
-        ("Malzemeleri gruplara ayırıyorum", 6.0, 13),
-        ("Ağırlıkları belirliyorum", 7.0, 21),
-        ("Ham besin değerlerini hesaplıyorum", 7.0, 30),
-        ("Pişirme yöntemlerini analiz ediyorum", 7.0, 39),
-        ("Pişirme etkilerini belirliyorum", 7.0, 48),
-        ("Pişirme kayıplarını hesaplıyorum", 7.0, 57),
-        ("Sıvı emilimini hesaplıyorum", 7.0, 66),
-        ("100g için değerleri hesaplıyorum", 7.0, 75),
-        ("Porsiyon değerlerini hesaplıyorum", 7.0, 84),
-        ("Glisemik yükü hesaplıyorum", 7.0, 92),
-        ("Sağlamasını yapıyorum", 8.0, 100)
+    // Loading animation steps with start/end progress for smooth animations
+    private let loadingSteps: [(label: String, duration: TimeInterval, startProgress: Int, endProgress: Int)] = [
+        ("Tarife tekrar bakıyorum", 5.0, 5, 10),
+        ("Malzemeleri gruplara ayırıyorum", 6.0, 10, 18),
+        ("Ham besin değerlerini hesaplıyorum", 7.0, 18, 28),
+        ("Pişirme yöntemlerini analiz ediyorum", 7.0, 28, 38),
+        ("Pişirme etkilerini belirliyorum", 7.0, 38, 48),
+        ("Sıvı emilimini hesaplıyorum", 7.0, 48, 58),
+        ("Pişirme kayıplarını hesaplıyorum", 7.0, 58, 68),
+        ("Pişmiş değerleri hesaplıyorum", 7.0, 68, 78),
+        ("Porsiyon değerlerini hesaplıyorum", 7.0, 78, 86),
+        ("100g için değerleri hesaplıyorum", 7.0, 86, 93),
+        ("Glisemik yükü hesaplıyorum", 7.0, 93, 98),
+        ("Sağlamasını yapıyorum", 8.0, 98, 100)
     ]
 
     // MARK: - Initialization
@@ -244,14 +245,20 @@ final class RecipeDetailViewModel: ObservableObject {
     // MARK: - Action Handling
 
     func handleAction(_ action: RecipeAction) {
+        logger.info("🎯 [ACTION] handleAction called with: \(String(describing: action))")
+
         switch action {
         case .favorite:
+            logger.info("➡️ [ACTION] Routing to handleFavorite()")
             handleFavorite()
         case .notes:
+            logger.info("➡️ [ACTION] Routing to handleNotes()")
             handleNotes()
         case .shopping:
+            logger.info("➡️ [ACTION] Routing to handleShopping()")
             handleShopping()
         default:
+            logger.warning("⚠️ [ACTION] Unhandled action: \(String(describing: action))")
             break
         }
     }
@@ -274,18 +281,25 @@ final class RecipeDetailViewModel: ObservableObject {
     }
 
     private func handleShopping() {
-        logger.info("🛒 Adding ingredients to shopping list: \(self.recipeData.recipeName)")
+        logger.info("🛒 [SHOPPING] handleShopping() called for recipe: '\(self.recipeData.recipeName)'")
+
+        let ingredients = self.recipeData.recipe.ingredientsArray
+        logger.info("🛒 [SHOPPING] Found \(ingredients.count) ingredients: \(ingredients)")
+
+        guard !ingredients.isEmpty else {
+            logger.warning("⚠️ [SHOPPING] No ingredients found in recipe - aborting")
+            toastMessage = .error("Tarifde malzeme bulunamadı")
+            return
+        }
 
         let dataManager = RecipeDataManager(context: viewContext)
+        logger.info("🛒 [SHOPPING] Starting Task to add ingredients...")
 
         Task {
-            do {
-                let ingredients = self.recipeData.recipe.ingredientsArray
+            logger.info("🛒 [SHOPPING-TASK] Task started")
 
-                guard !ingredients.isEmpty else {
-                    logger.warning("⚠️ No ingredients found in recipe")
-                    return
-                }
+            do {
+                logger.info("🛒 [SHOPPING-TASK] Calling dataManager.addIngredientsToShoppingList()...")
 
                 _ = try await dataManager.addIngredientsToShoppingList(
                     ingredients: ingredients,
@@ -294,20 +308,46 @@ final class RecipeDetailViewModel: ObservableObject {
                     recipeId: self.recipeData.recipe.id
                 )
 
-                logger.info("✅ Successfully added \(ingredients.count) ingredients to shopping list")
+                logger.info("✅ [SHOPPING-TASK] Successfully added \(ingredients.count) ingredients to shopping list")
 
                 await MainActor.run {
+                    logger.info("🛒 [SHOPPING-TASK] Setting success toast message")
                     self.toastMessage = .success("Alışveriş listesine eklendi!")
                 }
 
-                // Update UI status
+                logger.info("🛒 [SHOPPING-TASK] Updating shopping list status...")
                 await checkShoppingListStatus()
+                logger.info("🛒 [SHOPPING-TASK] Complete!")
 
             } catch {
-                logger.error("❌ Failed to add to shopping list: \(error.localizedDescription)")
-                toastMessage = .error("Malzemeler eklenirken hata oluştu")
+                logger.error("❌ [SHOPPING-TASK] Failed to add to shopping list: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.toastMessage = .error("Malzemeler eklenirken hata oluştu")
+                }
             }
         }
+
+        logger.info("🛒 [SHOPPING] handleShopping() returning (Task continues in background)")
+    }
+
+    // MARK: - Photo Sharing
+
+    func shareRecipePhoto() {
+        logger.info("📤 Share photo button tapped")
+
+        // Get the image to share (priority: generated > local > none)
+        let imageData = generatedImageData ?? recipeData.recipe.imageData ?? recipeData.imageData
+
+        guard let data = imageData,
+              let image = UIImage(data: data) else {
+            logger.warning("⚠️ No image available to share")
+            toastMessage = .error("Paylaşılacak fotoğraf bulunamadı")
+            return
+        }
+
+        logger.info("✅ Preparing to share recipe photo")
+        imageToShare = image
+        showingShareSheet = true
     }
 
     // MARK: - Photo Generation
@@ -406,15 +446,32 @@ final class RecipeDetailViewModel: ObservableObject {
     func startLoadingAnimation() {
         Task {
             for step in loadingSteps {
-                currentLoadingStep = step.label
+                // Set text and start progress immediately
+                await MainActor.run {
+                    currentLoadingStep = step.label
+                    nutritionCalculationProgress = step.startProgress
+                }
 
-                try? await Task.sleep(for: .seconds(step.duration))
+                // Animate progress smoothly over the step duration
+                let progressRange = step.endProgress - step.startProgress
+                let updateInterval: TimeInterval = 0.1 // Update every 100ms
+                let totalUpdates = Int(step.duration / updateInterval)
+
+                for i in 1...totalUpdates {
+                    try? await Task.sleep(for: .seconds(updateInterval))
+                    guard !Task.isCancelled else { break }
+
+                    let progressIncrement = Double(progressRange) * (Double(i) / Double(totalUpdates))
+                    let currentProgress = step.startProgress + Int(progressIncrement)
+
+                    await MainActor.run {
+                        withAnimation(.linear(duration: updateInterval)) {
+                            nutritionCalculationProgress = currentProgress
+                        }
+                    }
+                }
 
                 guard !Task.isCancelled else { break }
-
-                await MainActor.run {
-                    nutritionCalculationProgress = step.progress
-                }
             }
         }
     }
@@ -465,9 +522,19 @@ final class RecipeDetailViewModel: ObservableObject {
 
             logger.info("✅ Nutrition calculation complete")
 
+        } catch let error as RecipeNutritionError {
+            logger.error("❌ Nutrition calculation failed: \(error.localizedDescription)")
+
+            // Show specific error with recovery suggestion
+            let errorMessage = error.errorDescription ?? "Besin değerleri hesaplanamadı"
+            let recoverySuggestion = error.recoverySuggestion ?? ""
+            let fullMessage = recoverySuggestion.isEmpty ? errorMessage : "\(errorMessage)\n\n\(recoverySuggestion)"
+
+            toastMessage = .error(fullMessage)
+
         } catch {
             logger.error("❌ Nutrition calculation failed: \(error.localizedDescription)")
-            toastMessage = .error("Besin değerleri hesaplanamadı")
+            toastMessage = .error("Besin değerleri hesaplanamadı: \(error.localizedDescription)")
         }
 
         isCalculatingNutrition = false

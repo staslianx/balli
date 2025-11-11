@@ -11,6 +11,7 @@ import CoreData
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var userManager = UserProfileSelector.shared
+    @StateObject private var notificationRouter = NotificationRouter.shared
     @State private var selectedTab = 1 // Start with Hoşgeldin tab
     @State private var calendarIcon = "calendar" // Dynamic calendar icon
     @State private var hasConfiguredTabBar = false
@@ -18,6 +19,9 @@ struct ContentView: View {
     // Search state for Ardiye view
     @State private var ardiyeSearchText = ""
     @State private var isArdiyeSearchPresented = false
+
+    // Notification deep link presentation
+    @State private var showVoiceInputFromNotification = false
 
     init() {
         // NOTE: Sync happens in balliApp.swift BEFORE ContentView is created
@@ -62,6 +66,15 @@ struct ContentView: View {
         .sheet(isPresented: $userManager.showUserSelection) {
             UserSelectionView()
                 .interactiveDismissDisabled()
+        }
+        .sheet(isPresented: $showVoiceInputFromNotification) {
+            VoiceInputView()
+                .environment(\.managedObjectContext, viewContext)
+        }
+        .onChange(of: notificationRouter.shouldShowVoiceInput) { _, shouldShow in
+            if shouldShow {
+                showVoiceInputFromNotification = true
+            }
         }
         .onAppear {
             // Configure tab bar (cosmetic, doesn't affect sync)

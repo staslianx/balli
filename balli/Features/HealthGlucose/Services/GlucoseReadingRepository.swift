@@ -87,8 +87,8 @@ actor GlucoseReadingRepository {
 
         logger.info("Batch saving \(healthReadings.count) glucose readings...")
 
-        // Filter out invalid and duplicate readings
-        var tempUniqueReadings: [HealthGlucoseReading] = []
+        // Step 1: Filter out invalid readings
+        var validReadings: [HealthGlucoseReading] = []
         var invalidCount = 0
 
         for reading in healthReadings {
@@ -105,34 +105,83 @@ actor GlucoseReadingRepository {
                 continue
             }
 
-            let coreDataSource = mapSourceToCoreData(reading.source)
-            if !(try await isDuplicate(timestamp: reading.timestamp, source: coreDataSource)) {
-                tempUniqueReadings.append(reading)
-            }
+            validReadings.append(reading)
         }
 
         if invalidCount > 0 {
             logger.info("Filtered \(invalidCount) invalid readings (out of range or future timestamp)")
         }
 
-        if tempUniqueReadings.isEmpty {
+        guard !validReadings.isEmpty else {
+            logger.info("All \(healthReadings.count) readings were invalid, skipping save")
+            return 0
+        }
+
+        // Step 2: BATCH duplicate detection - fetch all existing readings in time range ONCE
+        let timestamps = validReadings.map { $0.timestamp }
+        guard let minTimestamp = timestamps.min(),
+              let maxTimestamp = timestamps.max() else {
+            logger.info("No valid timestamps found")
+            return 0
+        }
+
+        // Expand range by 1 second on each side to account for duplicate detection window
+        let rangeStart = minTimestamp.addingTimeInterval(-1)
+        let rangeEnd = maxTimestamp.addingTimeInterval(1)
+
+        logger.debug("🔍 Fetching existing readings in range \(rangeStart) to \(rangeEnd) for duplicate detection")
+        let existingReadings = try await fetchReadings(startDate: rangeStart, endDate: rangeEnd)
+        logger.debug("🔍 Found \(existingReadings.count) existing readings in database")
+
+        // Step 3: In-memory duplicate detection using Set for O(n) performance
+        // Create a set of (timestamp_bucket, source) tuples for fast lookup
+        struct ReadingKey: Hashable {
+            let timestampBucket: TimeInterval  // Rounded to nearest second
+            let source: String
+        }
+
+        let existingKeys = Set(existingReadings.map { existing in
+            ReadingKey(
+                timestampBucket: round(existing.timestamp.timeIntervalSince1970),
+                source: existing.source ?? ""
+            )
+        })
+
+        // Filter out duplicates
+        var uniqueReadings: [HealthGlucoseReading] = []
+        for reading in validReadings {
+            let coreDataSource = mapSourceToCoreData(reading.source)
+            let key = ReadingKey(
+                timestampBucket: round(reading.timestamp.timeIntervalSince1970),
+                source: coreDataSource
+            )
+
+            if !existingKeys.contains(key) {
+                uniqueReadings.append(reading)
+            }
+        }
+
+        let duplicateCount = validReadings.count - uniqueReadings.count
+        if duplicateCount > 0 {
+            logger.info("Found \(duplicateCount) duplicates (filtered via batch query)")
+        }
+
+        if uniqueReadings.isEmpty {
             logger.info("All \(healthReadings.count) readings were duplicates or invalid, skipping save")
             return 0
         }
 
-        logger.info("Found \(tempUniqueReadings.count) unique readings to save (filtered \(healthReadings.count - tempUniqueReadings.count - invalidCount) duplicates)")
+        logger.info("Found \(uniqueReadings.count) unique readings to save")
 
-        // Make immutable copy for closure capture
-        let uniqueReadings = tempUniqueReadings
-        let count = uniqueReadings.count
-
-        // Prepare source mappings before entering background task
+        // Step 4: Prepare source mappings before entering background task
         let readingsWithMappedSources: [(reading: HealthGlucoseReading, coreDataSource: String)] = uniqueReadings.map { reading in
             let coreDataSource = mapSourceToCoreData(reading.source)
             return (reading, coreDataSource)
         }
 
-        // Batch save in background context
+        let count = readingsWithMappedSources.count
+
+        // Step 5: Batch save in SINGLE background context (not N contexts)
         try await persistenceController.performBackgroundTask { context in
             for (healthReading, coreDataSource) in readingsWithMappedSources {
                 let reading = GlucoseReading(context: context)
@@ -147,7 +196,7 @@ actor GlucoseReadingRepository {
             try context.save()
         }
 
-        logger.info("✅ Batch saved \(count) glucose readings")
+        logger.info("✅ Batch saved \(count) glucose readings (1 database query for duplicates, 1 save operation)")
         return count
     }
 

@@ -177,8 +177,8 @@ public class RecipeDataManager {
         recipe.portionMultiplier = data.portionMultiplier
 
         // Update time fields
-        recipe.prepTime = Int16(data.prepTime) ?? recipe.prepTime
-        recipe.cookTime = Int16(data.cookTime) ?? recipe.cookTime
+        recipe.prepTime = data.prepTime.toInt16 ?? recipe.prepTime
+        recipe.cookTime = data.cookTime.toInt16 ?? recipe.cookTime
 
         // AI notes deprecated - notes field reserved for user's personal notes only
         // Do not overwrite existing user notes with empty AI notes
@@ -237,13 +237,24 @@ public class RecipeDataManager {
         recipe.totalRecipeWeight = data.totalRecipeWeight.toDouble ?? 0.0
         recipe.portionMultiplier = data.portionMultiplier
 
+        // CRITICAL: Initialize IMMUTABLE total recipe nutrition fields
+        // These preserve the original full recipe nutrition and NEVER change
+        // Used as the source of truth for all portion calculations
+        recipe.totalRecipeCalories = data.caloriesPerServing.toDouble ?? 0.0
+        recipe.totalRecipeCarbs = data.carbohydratesPerServing.toDouble ?? 0.0
+        recipe.totalRecipeFiber = data.fiberPerServing.toDouble ?? 0.0
+        recipe.totalRecipeSugar = data.sugarPerServing.toDouble ?? 0.0
+        recipe.totalRecipeProtein = data.proteinPerServing.toDouble ?? 0.0
+        recipe.totalRecipeFat = data.fatPerServing.toDouble ?? 0.0
+        recipe.totalRecipeGlycemicLoad = data.glycemicLoadPerServing.toDouble ?? 0.0
+
         // Set initial portion size to Gemini's recommended weight
         // This is the "1 portion" weight that nutrition was calculated for
         recipe.portionSize = data.totalRecipeWeight.toDouble ?? 0.0
 
-        // Save time fields
-        recipe.prepTime = Int16(data.prepTime) ?? 0
-        recipe.cookTime = Int16(data.cookTime) ?? 0
+        // Save time fields using toInt16 extension (handles empty/invalid gracefully)
+        recipe.prepTime = data.prepTime.toInt16 ?? 0
+        recipe.cookTime = data.cookTime.toInt16 ?? 0
 
         // AI notes deprecated - notes field reserved for user's personal notes only
         // Leave notes nil for new recipes (user can add their own later)

@@ -76,6 +76,8 @@ struct RecipeNutritionSheet: View {
 
     private func loadRecipeData() {
         productName = recipeData.recipeName
+
+        // Load per-100g nutrition values from recipe
         calories = String(format: "%.0f", recipeData.recipe.calories)
         carbohydrates = String(format: "%.1f", recipeData.recipe.totalCarbs)
         fiber = String(format: "%.1f", recipeData.recipe.fiber)
@@ -83,6 +85,15 @@ struct RecipeNutritionSheet: View {
         protein = String(format: "%.1f", recipeData.recipe.protein)
         fat = String(format: "%.1f", recipeData.recipe.totalFat)
         glycemicLoad = String(format: "%.0f", recipeData.recipe.glycemicLoad)
+
+        // CRITICAL FIX: Load saved portion size if user has previously adjusted it
+        // This ensures nutrition values reflect the user's custom portion when modal reopens
+        if recipeData.recipe.isPortionDefined {
+            portionGrams = recipeData.recipe.portionSize
+        } else {
+            // Default to 100g for new recipes without portion definition
+            portionGrams = 100.0
+        }
     }
 }
 

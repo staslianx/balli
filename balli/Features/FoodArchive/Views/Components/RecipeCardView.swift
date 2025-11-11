@@ -88,8 +88,8 @@ struct RecipeCardView: View {
                     .font(.system(size: 14, weight: .regular, design: .rounded))
                     .foregroundColor(.primary.opacity(0.7))
 
-                // Carb amount
-                Text(String(format: "%.1f gr Karb.", item.totalCarbs))
+                // Carb amount (with locale-appropriate decimal separator: comma in Turkish)
+                Text("\(item.totalCarbs.asLocalizedDecimal(decimalPlaces: 1)) gr Karb.")
                     .font(.system(size: 16, weight: .medium, design: .rounded))
                     .foregroundColor(.primary)
             }

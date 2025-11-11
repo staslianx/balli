@@ -50,50 +50,46 @@ struct TypewriterRecipeContentView: View {
             }
         }
         .onAppear {
-            logger.debug("🎬 [RECIPE-TYPEWRITER] View appeared - content count: \(content.count), displayed count: \(displayedContent.count)")
+            // View initialization - no logging needed
         }
-        .onChange(of: content) { oldValue, newValue in
-            // Track new characters based on fullContentReceived, not displayedContent
-            // displayedContent is animated progressively, fullContentReceived is complete
-            if newValue.count > fullContentReceived.count {
-                let newChars = String(newValue.dropFirst(fullContentReceived.count))
-                fullContentReceived = newValue  // Update full content tracker
+        .task(id: content) {
+            // STREAMING FIX: Replace .onChange with .task(id:) to prevent
+            // "multiple updates per frame" warnings during fast token streaming.
+            // .task automatically cancels and restarts when content changes,
+            // coalescing rapid updates into single executions.
 
-                logger.debug("📝 [RECIPE-TYPEWRITER] New chars: '\(newChars.prefix(30))...' (total: \(newValue.count))")
+            guard content.count > fullContentReceived.count else { return }
 
-                // Mark animation as active when first characters arrive
-                if fullContentReceived == newChars {  // First content
-                    isAnimationComplete = false
-                    onAnimationStateChange?(true)  // Animation started
-                }
+            let newChars = String(content.dropFirst(fullContentReceived.count))
+            fullContentReceived = content  // Update full content tracker
 
-                let fullContentCount = fullContentReceived.count
-                Task {
-                    await animator.enqueueText(newChars, for: recipeId) { displayedText in
-                        // PERFORMANCE: Only update UI every 3 characters to reduce rendering overhead
-                        // This prevents stutter when markdown re-renders become expensive
-                        if displayedText.count % 3 == 0 || displayedText.count == fullContentCount {
-                            await MainActor.run {
-                                self.displayedContent = displayedText
-                                logger.debug("✍️ [RECIPE-TYPEWRITER] Updated displayedContent: \(displayedText.count) chars")
-                            }
-                        }
-                    } onComplete: {
-                        // Animation completed naturally - mark as complete and show final content
-                        await MainActor.run {
-                            self.displayedContent = self.fullContentReceived  // Ensure all content is shown
-                            self.isAnimationComplete = true
-                            self.onAnimationStateChange?(false)
-                            logger.debug("✅ [RECIPE-TYPEWRITER] Animation naturally completed")
-                        }
+            // Mark animation as active when first characters arrive
+            if fullContentReceived == newChars {  // First content
+                isAnimationComplete = false
+                onAnimationStateChange?(true)  // Animation started
+            }
+
+            let fullContentCount = fullContentReceived.count
+            await animator.enqueueText(newChars, for: recipeId) { displayedText in
+                // PERFORMANCE: Only update UI every 3 characters to reduce rendering overhead
+                // This prevents stutter when markdown re-renders become expensive
+                if displayedText.count % 3 == 0 || displayedText.count == fullContentCount {
+                    await MainActor.run {
+                        self.displayedContent = displayedText
                     }
+                }
+            } onComplete: {
+                // Animation completed naturally - mark as complete and show final content
+                await MainActor.run {
+                    self.displayedContent = self.fullContentReceived  // Ensure all content is shown
+                    self.isAnimationComplete = true
+                    self.onAnimationStateChange?(false)
                 }
             }
         }
         .onChange(of: isStreaming) { _, newValue in
             // When streaming completes, let animation finish naturally
             if !newValue {
-                logger.debug("🏁 [RECIPE-TYPEWRITER] Backend streaming complete, animation will continue naturally")
                 // Don't flush - let the typewriter animator finish at its own pace (8ms per char)
                 // The animation will complete when the character queue is empty
                 // This creates smooth, natural text appearance instead of instant dump

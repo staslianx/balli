@@ -64,13 +64,12 @@ struct AIPreviewView: View {
                                 )
                         }
 
-                        // Kullan button (use) - filled purple with light purple checkmark
+                        // Kullan button (use) - filled purple with light purple checkmark - SAME SIZE as retake
                         Button(action: handleUse) {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 20, weight: .semibold, design: .rounded))
+                                .font(.system(size: 30, weight: .semibold, design: .rounded))
                         }
-                        .buttonStyle(.balliBordered)
-                        .controlSize(.large)
+                        .buttonStyle(.balliBordered(size: ResponsiveDesign.height(72)))
                     }
                     .padding(.bottom, ResponsiveDesign.height(12))
                 }

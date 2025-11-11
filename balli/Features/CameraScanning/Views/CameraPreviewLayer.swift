@@ -91,21 +91,26 @@ struct CameraPreviewLayer: UIViewRepresentable {
 
             // Wait for valid bounds before creating preview layer
             Task { @MainActor [weak self] in
-                guard let self = self else { return }
+                // CRITICAL FIX: Guard against dangling pointer access
+                // Must unwrap self early and verify it's still valid before any property access
+                guard let strongSelf = self else {
+                    logger.debug("View deallocated before preview layer creation")
+                    return
+                }
 
                 let targetBounds: CGRect
-                if self.bounds.isEmpty {
+                if strongSelf.bounds.isEmpty {
                     // Try to get bounds from window first, fallback to window scene screen
-                    if let windowBounds = self.window?.bounds, !windowBounds.isEmpty {
+                    if let windowBounds = strongSelf.window?.bounds, !windowBounds.isEmpty {
                         targetBounds = windowBounds
-                    } else if let screenBounds = self.window?.windowScene?.screen.bounds {
+                    } else if let screenBounds = strongSelf.window?.windowScene?.screen.bounds {
                         targetBounds = screenBounds
                     } else {
                         // Final fallback to reasonable default
                         targetBounds = CGRect(x: 0, y: 0, width: 393, height: 852)
                     }
                 } else {
-                    targetBounds = self.bounds
+                    targetBounds = strongSelf.bounds
                 }
                 logger.debug("Creating preview layer with bounds: \(String(describing: targetBounds))")
 
@@ -123,9 +128,15 @@ struct CameraPreviewLayer: UIViewRepresentable {
                     logger.debug("Set video orientation")
                 }
 
+                // CRITICAL: Verify self is still valid before modifying layer
+                guard let finalSelf = self else {
+                    logger.debug("View deallocated before adding preview layer")
+                    return
+                }
+
                 // Add to view
-                self.layer.addSublayer(newPreviewLayer)
-                self.previewLayer = newPreviewLayer
+                finalSelf.layer.addSublayer(newPreviewLayer)
+                finalSelf.previewLayer = newPreviewLayer
 
                 logger.debug("Preview layer added, frame: \(String(describing: newPreviewLayer.frame))")
             }

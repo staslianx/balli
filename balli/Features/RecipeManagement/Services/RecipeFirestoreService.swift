@@ -62,16 +62,11 @@ final class RecipeFirestoreService: ObservableObject {
         logger.info("Uploading recipe \(recipeData.id) for user \(userId)")
 
         do {
-            // Upload photo to Firebase Storage if exists
-            var photoURL: String?
-            if let imageData = recipeData.imageData {
-                photoURL = try await uploadRecipePhoto(recipeId: recipeData.id, imageData: imageData, userId: userId)
-            } else if let existingURL = recipeData.imageURL {
-                photoURL = existingURL
-            }
+            // NOTE: Recipe photos are now stored only in CoreData, not uploaded to Firebase Storage
+            // Only sync recipe metadata to Firestore
 
-            // Create Firestore document
-            let firestoreDoc = createFirestoreDocument(from: recipeData, photoURL: photoURL)
+            // Create Firestore document (without photo URL)
+            let firestoreDoc = createFirestoreDocument(from: recipeData, photoURL: nil)
 
             try await db
                 .collection("users")
@@ -169,8 +164,7 @@ final class RecipeFirestoreService: ObservableObject {
         let userId = userSession.firestoreUserId
         logger.info("Deleting recipe \(recipeId) from Firestore and CoreData")
 
-        // Delete photo from Storage if exists
-        try await deleteRecipePhoto(recipeId: recipeId, userId: userId)
+        // NOTE: Photos are stored only in CoreData, so no Firebase Storage deletion needed
 
         // Delete from Firestore
         try await db
@@ -180,7 +174,7 @@ final class RecipeFirestoreService: ObservableObject {
             .document(recipeId.uuidString)
             .delete()
 
-        // Delete from CoreData
+        // Delete from CoreData (this also deletes the photo from imageData)
         try await persistenceController.performBackgroundTask { context in
             let request = Recipe.fetchRequest()
             request.predicate = NSPredicate(format: "id == %@", recipeId as CVarArg)

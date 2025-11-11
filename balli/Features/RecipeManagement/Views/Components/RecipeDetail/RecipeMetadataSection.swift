@@ -18,7 +18,7 @@ struct RecipeMetadataSection: View {
     @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 0) {
             // AI-generated: Show balli logo
             // Manual: Show user name in Galano Alt Semibold white
             if recipeSource == RecipeConstants.Source.ai {
@@ -38,15 +38,17 @@ struct RecipeMetadataSection: View {
             // Recipe title - conditionally editable
             if isEditing {
                 TextField("", text: $editedName, axis: .vertical)
-                    .font(.custom("Playfair Display", size: 34))
+                    .font(.custom("Playfair Display", size: 36))
                     .fontWeight(.bold)
+                    .lineSpacing(0)
                     .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                     .textFieldStyle(.plain)
                     .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
             } else {
                 Text(recipeName)
-                    .font(.custom("Playfair Display", size: 34))
+                    .font(.custom("Playfair Display", size: 36))
                     .fontWeight(.bold)
+                    .lineSpacing(0)
                     .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
                     .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
             }

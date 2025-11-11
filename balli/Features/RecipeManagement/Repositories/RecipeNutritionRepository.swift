@@ -42,6 +42,80 @@ actor RecipeNutritionRepository {
         logger.info("🍽️ [NUTRITION-CALC] Servings: \(servings?.description ?? "nil")")
         logger.info("🍽️ [NUTRITION-CALC] Recipe Type: \(recipeType)")
 
+        // STEP 1: Check network connectivity BEFORE attempting request
+        let isConnected = await NetworkMonitor.shared.isConnected
+        guard isConnected else {
+            logger.error("❌ [NUTRITION-CALC] No internet connection")
+            throw RecipeNutritionError.offline
+        }
+
+        // STEP 2: Validate recipe data
+        guard !recipeName.isEmpty, !recipeContent.isEmpty else {
+            logger.error("❌ [NUTRITION-CALC] Missing recipe name or content")
+            throw RecipeNutritionError.invalidRecipeData(reason: "Tarif adı veya içeriği eksik")
+        }
+
+        // STEP 3: Use NetworkRetryHandler with custom configuration for long-running operations
+        let retryConfig = RetryConfiguration(
+            maxAttempts: 3,
+            initialDelay: 2.0,
+            backoffMultiplier: 2.0,
+            maxDelay: 30.0,
+            shouldRetry: { error in
+                // Retry on nutrition-specific retryable errors
+                if let nutritionError = error as? RecipeNutritionError {
+                    return nutritionError.isRetryable
+                }
+                // Fallback to default network retry logic
+                return NetworkRetryHandler.defaultShouldRetry(error)
+            }
+        )
+
+        do {
+            return try await NetworkRetryHandler.retryWithBackoff(
+                configuration: retryConfig
+            ) {
+                try await self.performNutritionCalculation(
+                    recipeName: recipeName,
+                    recipeContent: recipeContent,
+                    servings: servings,
+                    recipeType: recipeType
+                )
+            }
+        } catch let error as RetryError {
+            // Convert retry exhaustion to nutrition-specific error
+            logger.error("❌ [NUTRITION-CALC] All retry attempts exhausted")
+            if case .maxAttemptsExceeded(_, let lastError) = error {
+                if let nutritionError = lastError as? RecipeNutritionError {
+                    throw nutritionError
+                }
+            }
+            throw RecipeNutritionError.networkError("Birden fazla deneme başarısız oldu")
+        }
+    }
+
+    // MARK: - Private Helpers
+
+    /// Performs the actual nutrition calculation request (extracted for retry logic)
+    private func performNutritionCalculation(
+        recipeName: String,
+        recipeContent: String,
+        servings: Int?,
+        recipeType: String
+    ) async throws -> RecipeNutritionData {
+        let requestStartTime = Date()
+
+        // CRITICAL DEBUG: Log what we're sending to API
+        logger.info("📤 [NUTRITION-API] Request parameters:")
+        logger.info("   - recipeName: '\(recipeName)'")
+        logger.info("   - recipeContent length: \(recipeContent.count) chars")
+        logger.info("   - recipeContent isEmpty: \(recipeContent.isEmpty)")
+        if !recipeContent.isEmpty {
+            logger.info("   - recipeContent first 200 chars: '\(String(recipeContent.prefix(200)))'")
+        }
+        logger.info("   - servings: \(servings?.description ?? "nil")")
+        logger.info("   - recipeType: \(recipeType)")
+
         guard let url = URL(string: nutritionCalculatorURL) else {
             logger.error("❌ [NUTRITION-CALC] Invalid URL: \(self.nutritionCalculatorURL)")
             throw RecipeNutritionError.invalidURL
@@ -69,11 +143,14 @@ actor RecipeNutritionRepository {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = jsonData
-        request.timeoutInterval = 120  // 120 seconds to accommodate Cloud Function's 90s timeout
+        request.timeoutInterval = 120  // Matches Cloud Function's 120s timeout (Gemini needs 60-70s typically)
 
         do {
             // Make request
             let (data, response) = try await URLSession.shared.data(for: request)
+
+            let duration = Date().timeIntervalSince(requestStartTime)
+            logger.info("🍽️ [NUTRITION-CALC] Response received in \(String(format: "%.1f", duration))s")
 
             // Check response status
             guard let httpResponse = response as? HTTPURLResponse else {
@@ -81,14 +158,20 @@ actor RecipeNutritionRepository {
                 throw RecipeNutritionError.invalidResponse
             }
 
-            logger.info("🍽️ [NUTRITION-CALC] Response status: \(httpResponse.statusCode)")
+            logger.info("🍽️ [NUTRITION-CALC] HTTP Status: \(httpResponse.statusCode)")
+
+            // Check for timeout-related status codes
+            if httpResponse.statusCode == 408 || httpResponse.statusCode == 504 {
+                logger.error("❌ [NUTRITION-CALC] Timeout: Status \(httpResponse.statusCode)")
+                throw RecipeNutritionError.timeout
+            }
 
             guard httpResponse.statusCode == 200 else {
                 logger.error("❌ [NUTRITION-CALC] HTTP error: \(httpResponse.statusCode)")
 
                 // Try to parse error message
                 if let errorResponse = try? JSONDecoder().decode(RecipeNutritionErrorResponse.self, from: data) {
-                    logger.error("❌ [NUTRITION-CALC] Error: \(errorResponse.error)")
+                    logger.error("❌ [NUTRITION-CALC] Server Error: \(errorResponse.error)")
                     throw RecipeNutritionError.serverError(errorResponse.error)
                 }
 
@@ -103,17 +186,33 @@ actor RecipeNutritionRepository {
                 throw RecipeNutritionError.calculationFailed
             }
 
-            logger.info("✅ [NUTRITION-CALC] Calculation complete:")
-            logger.info("   Calories: \(apiResponse.data.calories) kcal/100g")
-            logger.info("   Carbs: \(apiResponse.data.carbohydrates)g, Protein: \(apiResponse.data.protein)g, Fat: \(apiResponse.data.fat)g")
-            logger.info("   Glycemic Load: \(apiResponse.data.glycemicLoad)")
+            logger.info("""
+            ✅ [NUTRITION-CALC] Success in \(String(format: "%.1f", duration))s:
+               - Calories: \(apiResponse.data.calories) kcal/100g
+               - Carbs: \(apiResponse.data.carbohydrates)g
+               - Protein: \(apiResponse.data.protein)g
+               - Fat: \(apiResponse.data.fat)g
+               - GL: \(apiResponse.data.glycemicLoad)
+            """)
 
             return apiResponse.data
 
+        } catch let error as URLError {
+            let duration = Date().timeIntervalSince(requestStartTime)
+            logger.error("❌ [NUTRITION-CALC] URLError after \(String(format: "%.1f", duration))s: \(error.code.rawValue)")
+
+            switch error.code {
+            case .timedOut:
+                throw RecipeNutritionError.timeout
+            case .notConnectedToInternet, .networkConnectionLost:
+                throw RecipeNutritionError.offline
+            default:
+                throw RecipeNutritionError.networkError(error.localizedDescription)
+            }
         } catch let error as RecipeNutritionError {
             throw error
         } catch {
-            logger.error("❌ [NUTRITION-CALC] Network error: \(error.localizedDescription)")
+            logger.error("❌ [NUTRITION-CALC] Unexpected error: \(error.localizedDescription)")
             throw RecipeNutritionError.networkError(error.localizedDescription)
         }
     }
@@ -337,6 +436,9 @@ enum RecipeNutritionError: LocalizedError {
     case serverError(String)
     case calculationFailed
     case networkError(String)
+    case timeout
+    case offline
+    case invalidRecipeData(reason: String)
 
     var errorDescription: String? {
         switch self {
@@ -347,13 +449,57 @@ enum RecipeNutritionError: LocalizedError {
         case .invalidResponse:
             return "Invalid response from nutrition calculation service"
         case .httpError(let code):
-            return "Nutrition calculation failed with HTTP error \(code)"
+            return httpErrorMessage(for: code)
         case .serverError(let message):
-            return "Nutrition calculation error: \(message)"
+            return String(format: NSLocalizedString("error.nutrition.serverError", comment: ""), message)
         case .calculationFailed:
             return "Nutrition calculation failed"
         case .networkError(let message):
-            return "Network error during nutrition calculation: \(message)"
+            return String(format: NSLocalizedString("error.nutrition.networkError", comment: ""), message)
+        case .timeout:
+            return NSLocalizedString("error.nutrition.timeout", comment: "")
+        case .offline:
+            return NSLocalizedString("error.nutrition.offline", comment: "")
+        case .invalidRecipeData(let reason):
+            return String(format: NSLocalizedString("error.nutrition.invalidData", comment: ""), reason)
+        }
+    }
+
+    private func httpErrorMessage(for code: Int) -> String {
+        switch code {
+        case 500...599:
+            return NSLocalizedString("error.nutrition.serverUnavailable", comment: "")
+        case 408, 504:
+            return NSLocalizedString("error.nutrition.gatewayTimeout", comment: "")
+        default:
+            return String(format: NSLocalizedString("error.nutrition.httpError", comment: ""), code)
+        }
+    }
+
+    var isRetryable: Bool {
+        switch self {
+        case .timeout, .networkError, .offline:
+            return true
+        case .httpError(let code):
+            // Retry on timeout codes (408, 504) or server errors (5xx)
+            return code >= 500 || code == 408 || code == 504
+        default:
+            return false
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch self {
+        case .timeout:
+            return NSLocalizedString("recovery.nutrition.timeout", comment: "")
+        case .offline:
+            return NSLocalizedString("recovery.nutrition.offline", comment: "")
+        case .invalidRecipeData:
+            return NSLocalizedString("recovery.nutrition.invalidData", comment: "")
+        case .httpError(500...599), .serverError:
+            return NSLocalizedString("recovery.nutrition.serverError", comment: "")
+        default:
+            return NSLocalizedString("recovery.nutrition.generic", comment: "")
         }
     }
 }

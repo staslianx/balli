@@ -46,7 +46,10 @@ public actor TokenBuffer {
 
         guard !batched.isEmpty else { return }
 
-        Task.detached(priority: .utility) {
+        // STREAMING FIX: Deliver on MainActor instead of Task.detached
+        // to prevent @Published updates from background threads.
+        // The deliver closure updates UI state, so it must run on MainActor.
+        await MainActor.run {
             deliver(batched)
         }
     }

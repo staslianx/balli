@@ -24,6 +24,7 @@ public final class RecipeFormState: ObservableObject {
     @Published public var recipeName = ""
     @Published public var prepTime = ""
     @Published public var cookTime = ""
+    @Published public var waitTime = ""
     @Published public var ingredients: [String] = [""]
     @Published public var directions: [String] = [""]
     @Published public var notes = ""
@@ -125,6 +126,7 @@ public final class RecipeFormState: ObservableObject {
         recipeName = ""
         prepTime = ""
         cookTime = ""
+        waitTime = ""
         ingredients = [""]
         directions = [""]
         notes = ""
@@ -161,6 +163,7 @@ public final class RecipeFormState: ObservableObject {
             recipeName = recipe.name
             prepTime = recipe.prepTime > 0 ? String(recipe.prepTime) : ""
             cookTime = recipe.cookTime > 0 ? String(recipe.cookTime) : ""
+            waitTime = recipe.waitTime > 0 ? String(recipe.waitTime) : ""
 
             if let ingredientsArray = recipe.ingredients as? [String] {
                 ingredients = ingredientsArray.isEmpty ? [""] : ingredientsArray
@@ -171,6 +174,7 @@ public final class RecipeFormState: ObservableObject {
             }
 
             notes = recipe.notes ?? ""
+            recipeContent = recipe.recipeContent ?? ""  // CRITICAL FIX: Load markdown content from CoreData
             calories = recipe.calories > 0 ? String(Int(recipe.calories)) : ""
             carbohydrates = recipe.totalCarbs > 0 ? String(Int(recipe.totalCarbs)) : ""
             fiber = recipe.fiber > 0 ? String(Int(recipe.fiber)) : ""
@@ -194,25 +198,44 @@ public final class RecipeFormState: ObservableObject {
     /// Load recipe data from generation response
     /// Uses a transaction to batch all property updates and prevent flickering
     public func loadFromGenerationResponse(_ response: RecipeGenerationResponse) {
+        logger.info("📥 [FORMSTATE] loadFromGenerationResponse() called")
+        logger.info("📥 [FORMSTATE] Recipe name: '\(response.recipeName)'")
+        logger.info("📥 [FORMSTATE] Response has recipeContent: \(response.recipeContent != nil)")
+        logger.info("📥 [FORMSTATE] Response ingredients count: \(response.ingredients.count)")
+        if !response.ingredients.isEmpty {
+            logger.info("📥 [FORMSTATE] Response ingredients: \(response.ingredients)")
+        }
+
         // PERFORMANCE FIX: Wrap all updates in withAnimation(.none) to prevent flickering
         // This batches the updates and prevents 14 separate view re-renders that cause text stuttering
         withAnimation(.none) {
             recipeName = response.recipeName
             prepTime = response.prepTime
             cookTime = response.cookTime
+            waitTime = response.waitTime ?? ""
 
             // NEW FORMAT: Use recipeContent if available (markdown), otherwise fall back to legacy arrays
             if let content = response.recipeContent, !content.isEmpty {
+                logger.info("📥 [FORMSTATE] Using recipeContent (markdown format)")
+                logger.info("📥 [FORMSTATE] Content length: \(content.count) chars")
                 recipeContent = content
                 // Parse markdown to extract ingredients and directions for shopping list
                 let parsed = parseMarkdownContent(content)
+                logger.info("📥 [FORMSTATE] Parsed \(parsed.ingredients.count) ingredients from markdown")
+                logger.info("📥 [FORMSTATE] Parsed \(parsed.directions.count) directions from markdown")
+                if !parsed.ingredients.isEmpty {
+                    logger.info("📥 [FORMSTATE] Parsed ingredients: \(parsed.ingredients)")
+                }
                 ingredients = parsed.ingredients.isEmpty ? [""] : parsed.ingredients
                 directions = parsed.directions.isEmpty ? [""] : parsed.directions
+                logger.info("📥 [FORMSTATE] Final formState.ingredients count: \(self.ingredients.count)")
             } else {
+                logger.info("📥 [FORMSTATE] Using legacy array format")
                 // Legacy format: structured arrays
                 ingredients = response.ingredients.isEmpty ? [""] : response.ingredients
                 directions = response.directions.isEmpty ? [""] : response.directions
                 recipeContent = ""
+                logger.info("📥 [FORMSTATE] Final formState.ingredients count: \(self.ingredients.count)")
             }
 
             notes = response.notes ?? ""  // AI notes deprecated, default to empty
@@ -231,7 +254,9 @@ public final class RecipeFormState: ObservableObject {
     }
 
     // MARK: - Markdown Parser
-    private func parseMarkdownContent(_ markdown: String) -> (ingredients: [String], directions: [String]) {
+    /// Parse ingredients and directions from markdown recipe content
+    /// Made public so RecipeGenerationCoordinator can parse during streaming
+    public func parseMarkdownContent(_ markdown: String) -> (ingredients: [String], directions: [String]) {
         var ingredients: [String] = []
         var directions: [String] = []
 

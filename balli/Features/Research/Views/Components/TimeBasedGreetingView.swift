@@ -9,11 +9,11 @@
 import SwiftUI
 
 struct TimeBasedGreetingView: View {
-    @ObservedObject private var userSession = UserSession.shared
+    @ObservedObject private var userManager = UserProfileSelector.shared
     @State private var currentGreeting = GreetingType.current()
 
     var body: some View {
-        Text("\(currentGreeting.text) \(userSession.displayName)")
+        Text("\(currentGreeting.text) \(userManager.currentUserDisplayName)")
             .font(.system(size: 28, weight: .semibold, design: .rounded))
             .foregroundStyle(AppTheme.balliGradient)
             .multilineTextAlignment(.center)

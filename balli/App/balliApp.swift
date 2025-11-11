@@ -72,26 +72,9 @@ struct balliApp: App {
                 appLogger.error("Failed to sync today's activity: \(error.localizedDescription)")
             }
 
-            // Backfill historical data if not completed recently
-            // Runs silently in background - no UI blocking
-            let shouldBackfill: Bool = {
-                guard UserDefaults.standard.bool(forKey: "ActivityBackfillCompleted"),
-                      let lastBackfill = UserDefaults.standard.object(forKey: "ActivityBackfillDate") as? Date else {
-                    return true
-                }
-                let daysSince = Calendar.current.dateComponents([.day], from: lastBackfill, to: Date()).day ?? 0
-                return daysSince >= 7
-            }()
-
-            if shouldBackfill {
-                Task.detached(priority: .background) {
-                    do {
-                        try await activityService.backfillHistoricalData(days: 90)
-                    } catch {
-                        appLogger.error("Historical activity backfill failed: \(error.localizedDescription)")
-                    }
-                }
-            }
+            // NOTE: Historical backfill disabled - was causing rate limit issues
+            // If needed in future, can be triggered manually via a settings toggle
+            // or run as a one-time migration task
         }
 
         // Clean up old offline audio files to prevent storage leaks

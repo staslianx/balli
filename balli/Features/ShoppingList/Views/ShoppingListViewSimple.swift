@@ -74,7 +74,8 @@ struct ShoppingListViewSimple: View {
                             onItemToggle: { toggleItem($0) },
                             onItemDelete: { deleteItem($0) },
                             onItemSave: { item, text, quantity in saveItem(item, newText: text, newQuantity: quantity) },
-                            onNoteUpdate: { item, note in updateItemNote(item, note: note) }
+                            onNoteUpdate: { item, note in updateItemNote(item, note: note) },
+                            onRecipeDelete: { deleteRecipe(group.recipeId) }
                         )
                         .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         .listRowSeparator(.hidden)
@@ -131,7 +132,8 @@ struct ShoppingListViewSimple: View {
                                 onItemToggle: { toggleItem($0) },
                                 onItemDelete: { deleteItem($0) },
                                 onItemSave: { item, text, quantity in saveItem(item, newText: text, newQuantity: quantity) },
-                                onNoteUpdate: { item, note in updateItemNote(item, note: note) }
+                                onNoteUpdate: { item, note in updateItemNote(item, note: note) },
+                                onRecipeDelete: { deleteRecipe(group.recipeId) }
                             )
                             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                             .listRowSeparator(.hidden)
@@ -238,6 +240,10 @@ struct ShoppingListViewSimple: View {
 
     private func updateItemNote(_ item: ShoppingListItem, note: String?) {
         viewModel.updateItemNote(item, note: note)
+    }
+
+    private func deleteRecipe(_ recipeId: UUID) {
+        viewModel.deleteRecipe(recipeId: recipeId, allItems: Array(items))
     }
 
 }

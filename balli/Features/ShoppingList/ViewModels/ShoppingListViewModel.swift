@@ -140,6 +140,21 @@ final class ShoppingListViewModel: ObservableObject {
         }
     }
 
+    func deleteRecipe(recipeId: UUID, allItems: [ShoppingListItem]) {
+        withAnimation(.spring()) {
+            // Find all items belonging to this recipe
+            let recipeItems = allItems.filter { $0.isFromRecipe && $0.recipeId == recipeId }
+
+            // Delete all items
+            for item in recipeItems {
+                viewContext.delete(item)
+            }
+
+            saveContext()
+            logger.info("Deleted \(recipeItems.count) items from recipe \(recipeId)")
+        }
+    }
+
     func updateItemNote(_ item: ShoppingListItem, note: String?) {
         item.notes = note?.isEmpty == true ? nil : note
         item.lastModified = Date()

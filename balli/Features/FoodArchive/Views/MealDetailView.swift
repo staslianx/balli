@@ -151,8 +151,8 @@ struct MealDetailView: View {
             ForEach(medications) { medication in
                 HStack(spacing: ResponsiveDesign.Spacing.medium) {
                     // microbe.fill icon
-                    Image(systemName: "microbe.fill.fill")
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(24), weight: .semibold))
+                    Image(systemName: "microbe.fill")
+                        .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold))
                         .foregroundStyle(AppTheme.primaryPurple)
                         .frame(width: ResponsiveDesign.Font.scaledSize(40), alignment: .center)
 

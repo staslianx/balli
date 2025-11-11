@@ -202,6 +202,15 @@ class MedicalResearchViewModel: ObservableObject {
 
     // MARK: - Session Management
 
+    /// Recover session if needed (called on view appear to handle tab switching/lock scenarios)
+    func recoverSessionIfNeeded() async {
+        // Only recover if we don't already have answers loaded
+        guard answers.isEmpty else { return }
+
+        await loadSessionHistory()
+        await recoverActiveSession()
+    }
+
     private func recoverActiveSession() async {
         await sessionCoordinator.recoverActiveSession()
     }

@@ -114,15 +114,22 @@ public struct NutritionValues: Codable, Equatable, Sendable {
     /// # Medical Accuracy Note
     /// All values are scaled, including glycemic load, which is mathematically correct
     /// because GL is additive across ingredients.
+    ///
+    /// # CRITICAL FIX (Issue #5): NO ROUNDING during calculation
+    /// Rounding is ONLY applied at display time to prevent precision loss
+    /// compounding over multiple calculations. This ensures:
+    /// - Multiple scaling operations are reversible
+    /// - Nutrition values don't drift from true values
+    /// - Critical for medical accuracy in diabetes management
     public func scaled(by ratio: Double) -> NutritionValues {
         return NutritionValues(
-            calories: (calories * ratio).rounded(toPlaces: 1),
-            carbohydrates: (carbohydrates * ratio).rounded(toPlaces: 1),
-            fiber: (fiber * ratio).rounded(toPlaces: 1),
-            sugar: (sugar * ratio).rounded(toPlaces: 1),
-            protein: (protein * ratio).rounded(toPlaces: 1),
-            fat: (fat * ratio).rounded(toPlaces: 1),
-            glycemicLoad: (glycemicLoad * ratio).rounded(toPlaces: 0)
+            calories: calories * ratio,           // NO ROUNDING
+            carbohydrates: carbohydrates * ratio, // NO ROUNDING
+            fiber: fiber * ratio,                 // NO ROUNDING
+            sugar: sugar * ratio,                 // NO ROUNDING
+            protein: protein * ratio,             // NO ROUNDING
+            fat: fat * ratio,                     // NO ROUNDING
+            glycemicLoad: glycemicLoad * ratio    // NO ROUNDING
         )
     }
 
@@ -140,6 +147,67 @@ public struct NutritionValues: Codable, Equatable, Sendable {
     /// ```
     public static func * (lhs: NutritionValues, rhs: Double) -> NutritionValues {
         return lhs.scaled(by: rhs)
+    }
+
+    // MARK: - Display Formatting (Issue #5 FIX)
+
+    /// Format calories for display with appropriate precision
+    /// ISSUE #4 FIX: Returns "—" for missing/zero data
+    public var displayCalories: String {
+        guard calories > 0 else { return "—" }
+        if calories < NutritionConstants.decimalThreshold {
+            return String(format: "%.1f", calories)
+        } else {
+            return String(format: "%.0f", calories)
+        }
+    }
+
+    /// Format carbohydrates for display
+    public var displayCarbohydrates: String {
+        guard carbohydrates > 0 else { return "—" }
+        if carbohydrates < NutritionConstants.decimalThreshold {
+            return String(format: "%.1f", carbohydrates)
+        } else {
+            return String(format: "%.0f", carbohydrates)
+        }
+    }
+
+    /// Format protein for display
+    public var displayProtein: String {
+        guard protein > 0 else { return "—" }
+        if protein < NutritionConstants.decimalThreshold {
+            return String(format: "%.1f", protein)
+        } else {
+            return String(format: "%.0f", protein)
+        }
+    }
+
+    /// Format fat for display
+    public var displayFat: String {
+        guard fat > 0 else { return "—" }
+        if fat < NutritionConstants.decimalThreshold {
+            return String(format: "%.1f", fat)
+        } else {
+            return String(format: "%.0f", fat)
+        }
+    }
+
+    /// Format fiber for display
+    public var displayFiber: String {
+        guard fiber > 0 else { return "—" }
+        return String(format: "%.1f", fiber)
+    }
+
+    /// Format sugar for display
+    public var displaySugar: String {
+        guard sugar > 0 else { return "—" }
+        return String(format: "%.1f", sugar)
+    }
+
+    /// Format glycemic load for display (always integer)
+    public var displayGlycemicLoad: String {
+        guard glycemicLoad > 0 else { return "—" }
+        return String(format: "%.0f", glycemicLoad)
     }
 
     // MARK: - Validation

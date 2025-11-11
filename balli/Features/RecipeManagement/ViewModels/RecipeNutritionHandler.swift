@@ -184,21 +184,38 @@ public class RecipeNutritionHandler: ObservableObject {
     public func calculateNutrition(isManualRecipe: Bool = false) {
         logger.info("🍽️ [NUTRITION] Starting on-demand nutrition calculation - isManualRecipe: \(isManualRecipe)")
 
+        // CRITICAL DEBUG: Log formState values BEFORE validation
+        logger.info("📊 [NUTRITION-DEBUG] FormState values:")
+        logger.info("   - recipeName: '\(self.formState.recipeName)'")
+        logger.info("   - recipeContent length: \(self.formState.recipeContent.count) chars")
+        logger.info("   - recipeContent isEmpty: \(self.formState.recipeContent.isEmpty)")
+        if !self.formState.recipeContent.isEmpty {
+            logger.info("   - recipeContent first 100 chars: '\(String(self.formState.recipeContent.prefix(100)))'")
+        }
+        logger.info("   - ingredients count: \(self.formState.ingredients.count)")
+        logger.info("   - ingredients: \(self.formState.ingredients)")
+        logger.info("   - directions count: \(self.formState.directions.count)")
+
         // Validate we have recipe data
         guard !formState.recipeName.isEmpty else {
             logger.error("❌ [NUTRITION] Cannot calculate - no recipe name")
-            nutritionCalculationError = "Recipe name is required"
+            nutritionCalculationError = NSLocalizedString("error.nutrition.invalidData", comment: "Tarif adı eksik")
             return
         }
 
-        // Allow calculation if EITHER recipeContent exists OR ingredients + directions exist
-        // This handles streaming recipes where content may not be fully populated yet
-        let hasContent = !formState.recipeContent.isEmpty ||
-                         (!formState.ingredients.isEmpty && !formState.directions.isEmpty)
+        // IMPROVED VALIDATION: Check for actual content, not just array presence
+        let hasValidRecipeContent = !formState.recipeContent.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasValidIngredients = formState.ingredients.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let hasValidDirections = formState.directions.contains { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+        let hasContent = hasValidRecipeContent || (hasValidIngredients && hasValidDirections)
 
         guard hasContent else {
             logger.error("❌ [NUTRITION] Cannot calculate - no recipe content or ingredients")
-            nutritionCalculationError = "Recipe content is required"
+            logger.error("   - hasValidRecipeContent: \(hasValidRecipeContent)")
+            logger.error("   - hasValidIngredients: \(hasValidIngredients)")
+            logger.error("   - hasValidDirections: \(hasValidDirections)")
+            nutritionCalculationError = NSLocalizedString("error.nutrition.invalidData", comment: "Tarif içeriği eksik")
             return
         }
 
@@ -246,17 +263,6 @@ public class RecipeNutritionHandler: ObservableObject {
                     // Store digestion timing insights
                     formState.digestionTiming = nutritionData.digestionTiming
 
-                    isCalculatingNutrition = false
-                    nutritionCalculationProgress = 100  // Set to 100% on completion
-
-                    logger.info("✅ [NUTRITION] Calculation complete and form state updated")
-                    logger.info("   Per-100g: \(formattedValues.calories) kcal, \(formattedValues.carbohydrates)g carbs")
-                    logger.info("   Per-serving: \(servingValues.calories) kcal, \(servingValues.carbohydrates)g carbs, \(servingValues.totalRecipeWeight)g total")
-                    if let insights = nutritionData.digestionTiming {
-                        logger.info("   Digestion timing: \(insights.hasMismatch ? "mismatch detected" : "no mismatch"), peak at \(insights.glucosePeakTime)h")
-                    }
-
-                    // Verify formState was actually updated
                     logger.info("🔍 [NUTRITION] Verifying formState update:")
                     logger.info("   - formState.calories = '\(self.formState.calories)'")
                     logger.info("   - formState.carbohydrates = '\(self.formState.carbohydrates)'")
@@ -264,12 +270,35 @@ public class RecipeNutritionHandler: ObservableObject {
                     logger.info("   - isEmpty check: \(self.formState.calories.isEmpty), \(self.formState.carbohydrates.isEmpty), \(self.formState.protein.isEmpty)")
                 }
 
+                // CRITICAL FIX: Wait one frame for SwiftUI to process formState updates
+                // This ensures the UI reflects the new nutrition values BEFORE we clear the loading state
+                try? await Task.sleep(for: .milliseconds(100))
+
+                await MainActor.run {
+                    nutritionCalculationProgress = 100  // Set to 100% first
+                    isCalculatingNutrition = false      // Then clear loading state AFTER values are rendered
+
+                    logger.info("✅ [NUTRITION] Calculation complete - loading state cleared")
+                }
+
+            } catch let error as RecipeNutritionError {
+                await MainActor.run {
+                    self.isCalculatingNutrition = false
+                    self.nutritionCalculationProgress = 0  // Reset on error
+
+                    // Show specific error with recovery suggestion
+                    let errorMessage = error.errorDescription ?? "Besin değerleri hesaplanamadı"
+                    let recoverySuggestion = error.recoverySuggestion ?? ""
+                    self.nutritionCalculationError = recoverySuggestion.isEmpty ? errorMessage : "\(errorMessage) \(recoverySuggestion)"
+
+                    self.logger.error("❌ [NUTRITION] Calculation failed: \(self.nutritionCalculationError!)")
+                }
             } catch {
                 await MainActor.run {
-                    isCalculatingNutrition = false
-                    nutritionCalculationProgress = 0  // Reset on error
-                    nutritionCalculationError = error.localizedDescription
-                    logger.error("❌ [NUTRITION] Calculation failed: \(error.localizedDescription)")
+                    self.isCalculatingNutrition = false
+                    self.nutritionCalculationProgress = 0  // Reset on error
+                    self.nutritionCalculationError = error.localizedDescription
+                    self.logger.error("❌ [NUTRITION] Calculation failed: \(error.localizedDescription)")
                 }
             }
         }

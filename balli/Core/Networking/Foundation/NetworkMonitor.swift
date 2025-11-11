@@ -49,7 +49,7 @@ final class NetworkMonitor: ObservableObject {
     // MARK: - Initialization
 
     private init() {
-        startMonitoring()
+        // Note: Monitoring is started explicitly by AppDelegate to control initialization timing
     }
 
     deinit {

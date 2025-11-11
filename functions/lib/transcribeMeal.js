@@ -113,11 +113,22 @@ async function transcribeMealAudio(input) {
 
 Kullanıcı doğal bir şekilde konuşuyor. İki farklı şekilde konuşabilir:
 
+⚠️ KRİTİK: "amount" FİZİKSEL MİKTAR, "carbs" KARBONHİDRAT DEĞERİ!
+- amount = fiziksel miktar (2 adet, 100g TAVUk, 1 dilim, yarım porsiyon)
+- carbs = karbonhidrat değeri (30 gram KARBONHIDRAT)
+- "50g" dediğinde → "amount" İSE fiziksel ağırlık, "carbs" İSE karbonhidrat değeri
+- "tavuk 100 gram" = amount: "100g" (tavuğun FİZİKSEL ağırlığı)
+- "toplam 50 gram karbonhidrat" = totalCarbs: 50 (karbonhidrat DEĞERİ)
+
 TİP 1 - Basit format (sadece toplam karbonhidrat):
-"yumurta yedim, peynir yedim, domates yedim, toplam 30 gram karbonhidrat"
-→ foods: [{name: "yumurta", carbs: null}, {name: "peynir", carbs: null}, {name: "domates", carbs: null}]
-→ totalCarbs: 30
-→ TOPLAM DEĞER BİR YEMEĞE ATANMAZ!
+"tavuk yedim 100 gram, ekmek yedim 2 dilim, domates yedim 5 tane, toplam 30 gram karbonhidrat"
+→ foods: [
+    {name: "tavuk", amount: "100g", carbs: null},  // 100g = tavuğun FİZİKSEL ağırlığı
+    {name: "ekmek", amount: "2 dilim", carbs: null},
+    {name: "domates", amount: "5 tane", carbs: null}
+  ]
+→ totalCarbs: 30  // 30g = KARBONHIDRAT değeri
+→ TOPLAM KARBONHIDRAT DEĞERİ BİR YEMEĞE ATANMAZ!
 
 TİP 2 - Detaylı format (her yiyecek için ayrı):
 "2 yumurta bu 10 gram karbonhidrat, ekmek 20 gram karbonhidrat, toplam 30 gram"
@@ -127,10 +138,24 @@ TİP 2 - Detaylı format (her yiyecek için ayrı):
 
 KRİTİK ÖRNEKLER - TOPLAMI BİR YEMEĞE ATAMA!
 
-❌ YANLIŞ Örnek 1:
+❌ YANLIŞ Örnek 1 (amount vs carbs karıştırma):
+Kullanıcı: "tavuk yedim 100 gram, ekmek 2 dilim, domates 5 tane, hepsi 50 gram karbonhidrat"
+YANLIŞ 1: foods: [{name: "tavuk", amount: "100g", carbs: 50}, ...]  // ❌ 50g'ı carbs'a atama!
+YANLIŞ 2: foods: [{name: "tavuk", amount: "50g", carbs: null}, ...]  // ❌ 50g'ı amount'a atama!
+NEDEN YANLIŞ: "100 gram" = tavuğun FİZİKSEL ağırlığı, "50 gram karbonhidrat" = TOPLAM karbonhidrat değeri!
+
+✅ DOĞRU:
+foods: [
+  {name: "tavuk", amount: "100g", carbs: null},  // 100g = tavuğun fiziksel ağırlığı
+  {name: "ekmek", amount: "2 dilim", carbs: null},
+  {name: "domates", amount: "5 tane", carbs: null}
+]
+totalCarbs: 50  // 50g = KARBONHIDRAT değeri
+
+❌ YANLIŞ Örnek 2:
 Kullanıcı: "tavuk yedim, brokoli yedim, domates yedim, 40 gram karbonhidrat"
 YANLIŞ: foods: [{name: "tavuk", carbs: 40}, {name: "brokoli", carbs: null}, {name: "domates", carbs: null}]
-NEDEN YANLIŞ: Kullanıcı tavuğun 40g olduğunu söylemedi, TOPLAM 40g dedi!
+NEDEN YANLIŞ: Kullanıcı tavuğun 40g KARBONHIDRAT olduğunu söylemedi, TOPLAM 40g dedi!
 
 ✅ DOĞRU:
 foods: [{name: "tavuk", carbs: null}, {name: "brokoli", carbs: null}, {name: "domates", carbs: null}]
@@ -196,11 +221,21 @@ Kullanıcı insülin dozunu da söyleyebilir. İnsülin öğünle birlikte (bolu
 
 ÖNEMLI - KARBONHIDRAT KURALLARI (MUTLAKA UYULMASI GEREKEN):
 
+0. FİZİKSEL MİKTAR vs KARBONHİDRAT DEĞERİ:
+   - "amount" = yiyeceğin FİZİKSEL miktarı (100g tavuk, 2 dilim ekmek, 1 kase çorba)
+   - "carbs" = yiyeceğin KARBONHİDRAT değeri (30g karbonhidrat)
+   - "tavuk 100 gram" dediğinde → amount: "100g" (tavuğun ağırlığı)
+   - "toplam 50 gram karbonhidrat" dediğinde → totalCarbs: 50 (karbonhidrat değeri)
+   - "100 gram" ile "100 gram karbonhidrat" FARKLI şeyler!
+   - "hepsi 50 gram", "toplam 50g", "50 gram karbonhidrat" → totalCarbs'a git, amount'a DEĞİL!
+
 1. TOPLAM ATAMA YASAĞI:
    - ASLA toplam karbonhidrat değerini ilk yiyeceğe atama!
    - ASLA toplam değeri bir yiyeceğe özel karbonhidrat olarak verme!
+   - ASLA toplam karbonhidrat değerini amount alanına atama!
    - Kullanıcı "40 gram toplam" derse → TÜM yiyeceklerin carbs: null
    - Kullanıcı "tavuk, ekmek, salata, 60 gram" derse → TÜM carbs: null, totalCarbs: 60
+   - Kullanıcı "tavuk 100g, ekmek, hepsi 50g karb" → tavuk amount: "100g", carbs: null, totalCarbs: 50
 
 2. FORMAT TESPİTİ:
    - TİP 1 (Basit): Sadece toplam belirtildi → TÜM carbs: null

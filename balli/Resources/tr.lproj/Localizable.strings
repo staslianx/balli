@@ -29,6 +29,27 @@
 "recovery.dexcom.serverError" = "Birkaç dakika sonra tekrar deneyin";
 "recovery.dexcom.noDataAvailable" = "Dexcom CGM'nizin düzgün çalıştığından emin olun";
 
+/* Nutrition Calculation Errors */
+"error.nutrition.timeout" = "Besin değeri hesaplama zaman aşımına uğradı";
+"error.nutrition.offline" = "İnternet bağlantısı yok";
+"error.nutrition.invalidData" = "Tarif verileri eksik: %@";
+"error.nutrition.serverUnavailable" = "Sunucu geçici olarak kullanılamıyor";
+"error.nutrition.gatewayTimeout" = "Sunucu yanıt vermiyor - zaman aşımı";
+"error.nutrition.serverError" = "Sunucu hatası: %@";
+"error.nutrition.networkError" = "Ağ hatası: %@";
+"error.nutrition.httpError" = "HTTP hatası (%d)";
+
+/* Nutrition Calculation Recovery Suggestions */
+"recovery.nutrition.timeout" = "İstek uzun sürüyor. Tarif çok karmaşıksa basitleştirmeyi deneyin.";
+"recovery.nutrition.offline" = "Lütfen internet bağlantınızı kontrol edip tekrar deneyin.";
+"recovery.nutrition.invalidData" = "Lütfen tarifin malzemeler ve talimatlar bölümlerini kontrol edin.";
+"recovery.nutrition.serverError" = "Birkaç saniye bekleyip tekrar deneyin.";
+"recovery.nutrition.generic" = "Lütfen daha sonra tekrar deneyin.";
+
+/* Nutrition Calculation Progress */
+"progress.nutrition.retrying" = "Yeniden deneniyor... (Deneme %d/%d)";
+"progress.nutrition.longWait" = "İşlem normalden uzun sürüyor, lütfen bekleyin...";
+
 /* FTS5 Database Errors */
 "error.fts5.databaseError" = "Veritabanı hatası: %@";
 "error.fts5.invalidQuery" = "Geçersiz arama sorgusu: %@";

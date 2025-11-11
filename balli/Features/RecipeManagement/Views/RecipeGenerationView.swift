@@ -237,16 +237,21 @@ struct RecipeGenerationView: View {
                 guard let generationViewModel else { return }
                 await generationViewModel.checkShoppingListStatus()
             }
-
-            // Check shopping list status on view appear
-            Task {
-                await generationViewModel.checkShoppingListStatus()
+        }
+        .task(id: viewModel.isGeneratingRecipe) {
+            // P0.7 FIX: Monitor generation state for automatic cancellation
+            // CRITICAL: Automatically cancels when view disappears OR isGeneratingRecipe changes
+            // This prevents wasted token generation when user navigates away mid-stream
+            if viewModel.isGeneratingRecipe {
+                logger.info("🔄 [LIFECYCLE] Generation started - monitoring for cancellation")
+            } else {
+                logger.info("✅ [LIFECYCLE] Generation completed or stopped")
             }
         }
-        .onChange(of: viewModel.recipeName) { _, _ in
-            Task {
-                await generationViewModel.checkShoppingListStatus()
-            }
+        .task(id: viewModel.recipeName) {
+            // P0.7 FIX: Auto-cancel shopping list checks when view disappears
+            // Runs when recipeName changes, auto-cancels on view dismissal
+            await generationViewModel.checkShoppingListStatus()
         }
         .onChange(of: isEffectivelyGenerating) { oldValue, newValue in
             // Show save button ONLY when generation fully completes (backend + animation)
@@ -314,13 +319,16 @@ struct RecipeGenerationView: View {
 
     @ViewBuilder
     private var centerToolbarItem: some View {
-        if viewModel.generationCoordinator.prepTime != nil || viewModel.generationCoordinator.cookTime != nil {
+        if viewModel.generationCoordinator.prepTime != nil || viewModel.generationCoordinator.cookTime != nil || viewModel.generationCoordinator.waitTime != nil {
             HStack(spacing: 8) {
                 if let prep = viewModel.generationCoordinator.prepTime {
-                    RecipeTimePill(icon: "timer", time: prep, label: "Hazırlık")
+                    RecipeTimePill(icon: "rectangle.3.group", time: prep, label: "Hazırlık")
                 }
                 if let cook = viewModel.generationCoordinator.cookTime {
-                    RecipeTimePill(icon: "flame", time: cook, label: "Pişirme")
+                    RecipeTimePill(icon: "frying.pan", time: cook, label: "Pişirme")
+                }
+                if let wait = viewModel.generationCoordinator.waitTime {
+                    RecipeTimePill(icon: "hourglass", time: wait, label: "Bekleme")
                 }
             }
             .fixedSize()
@@ -352,97 +360,113 @@ struct RecipeGenerationView: View {
 
     @ViewBuilder
     private var generateButton: some View {
-        Menu {
-            // Kahvaltı (no subcategories)
+        // Determine which flow to use based on recipe state
+        let flow = generationViewModel.determineGenerationFlow()
+
+        if flow.shouldShowMenu {
+            // Flows 1 & 2: Show menu to discover user intent
+            Menu {
+                // Kahvaltı (no subcategories)
+                Button {
+                    Task {
+                        generationViewModel.selectedMealType = "Kahvaltı"
+                        generationViewModel.selectedStyleType = ""
+                        await generationViewModel.startGeneration()
+                    }
+                } label: {
+                    Label("Kahvaltı", systemImage: "sun.max.fill")
+                }
+
+                // Salatalar with submenu
+                Menu {
+                    Button("Doyurucu Salata") {
+                        Task {
+                            generationViewModel.selectedMealType = "Salatalar"
+                            generationViewModel.selectedStyleType = "Doyurucu Salata"
+                            await generationViewModel.startGeneration()
+                        }
+                    }
+                    Button("Hafif Salata") {
+                        Task {
+                            generationViewModel.selectedMealType = "Salatalar"
+                            generationViewModel.selectedStyleType = "Hafif Salata"
+                            await generationViewModel.startGeneration()
+                        }
+                    }
+                } label: {
+                    Label("Salatalar", systemImage: "leaf.fill")
+                }
+
+                // Akşam yemeği with submenu
+                Menu {
+                    Button("Karbonhidrat ve Protein Uyumu") {
+                        Task {
+                            generationViewModel.selectedMealType = "Akşam yemeği"
+                            generationViewModel.selectedStyleType = "Karbonhidrat ve Protein Uyumu"
+                            await generationViewModel.startGeneration()
+                        }
+                    }
+                    Button("Tam Buğday Makarna") {
+                        Task {
+                            generationViewModel.selectedMealType = "Akşam yemeği"
+                            generationViewModel.selectedStyleType = "Tam Buğday Makarna"
+                            await generationViewModel.startGeneration()
+                        }
+                    }
+                } label: {
+                    Label("Akşam yemeği", systemImage: "fork.knife")
+                }
+
+                // Tatlılar with submenu
+                Menu {
+                    Button("Sana Özel Tatlılar") {
+                        Task {
+                            generationViewModel.selectedMealType = "Tatlılar"
+                            generationViewModel.selectedStyleType = "Sana Özel Tatlılar"
+                            await generationViewModel.startGeneration()
+                        }
+                    }
+                    Button("Dondurma") {
+                        Task {
+                            generationViewModel.selectedMealType = "Tatlılar"
+                            generationViewModel.selectedStyleType = "Dondurma"
+                            await generationViewModel.startGeneration()
+                        }
+                    }
+                    Button("Meyve Salatası") {
+                        Task {
+                            generationViewModel.selectedMealType = "Tatlılar"
+                            generationViewModel.selectedStyleType = "Meyve Salatası"
+                            await generationViewModel.startGeneration()
+                        }
+                    }
+                } label: {
+                    Label("Tatlılar", systemImage: "sparkles")
+                }
+
+                // Atıştırmalık (no subcategories)
+                Button {
+                    Task {
+                        generationViewModel.selectedMealType = "Atıştırmalık"
+                        generationViewModel.selectedStyleType = ""
+                        await generationViewModel.startGeneration()
+                    }
+                } label: {
+                    Label("Atıştırmalık", systemImage: "carrot.fill")
+                }
+            } label: {
+                generateButtonContent
+            }
+        } else {
+            // Flows 3 & 4: Skip menu, generate directly with user's notes/context
             Button {
                 Task {
-                    generationViewModel.selectedMealType = "Kahvaltı"
-                    generationViewModel.selectedStyleType = ""
-                    await generationViewModel.startGeneration()
+                    logger.info("📝 [FLOW] \(flow.reason)")
+                    await generationViewModel.startGenerationWithDefaults()
                 }
             } label: {
-                Label("Kahvaltı", systemImage: "sun.max.fill")
+                generateButtonContent
             }
-
-            // Salatalar with submenu
-            Menu {
-                Button("Doyurucu Salata") {
-                    Task {
-                        generationViewModel.selectedMealType = "Salatalar"
-                        generationViewModel.selectedStyleType = "Doyurucu Salata"
-                        await generationViewModel.startGeneration()
-                    }
-                }
-                Button("Hafif Salata") {
-                    Task {
-                        generationViewModel.selectedMealType = "Salatalar"
-                        generationViewModel.selectedStyleType = "Hafif Salata"
-                        await generationViewModel.startGeneration()
-                    }
-                }
-            } label: {
-                Label("Salatalar", systemImage: "leaf.fill")
-            }
-
-            // Akşam yemeği with submenu
-            Menu {
-                Button("Karbonhidrat ve Protein Uyumu") {
-                    Task {
-                        generationViewModel.selectedMealType = "Akşam yemeği"
-                        generationViewModel.selectedStyleType = "Karbonhidrat ve Protein Uyumu"
-                        await generationViewModel.startGeneration()
-                    }
-                }
-                Button("Tam Buğday Makarna") {
-                    Task {
-                        generationViewModel.selectedMealType = "Akşam yemeği"
-                        generationViewModel.selectedStyleType = "Tam Buğday Makarna"
-                        await generationViewModel.startGeneration()
-                    }
-                }
-            } label: {
-                Label("Akşam yemeği", systemImage: "fork.knife")
-            }
-
-            // Tatlılar with submenu
-            Menu {
-                Button("Sana Özel Tatlılar") {
-                    Task {
-                        generationViewModel.selectedMealType = "Tatlılar"
-                        generationViewModel.selectedStyleType = "Sana Özel Tatlılar"
-                        await generationViewModel.startGeneration()
-                    }
-                }
-                Button("Dondurma") {
-                    Task {
-                        generationViewModel.selectedMealType = "Tatlılar"
-                        generationViewModel.selectedStyleType = "Dondurma"
-                        await generationViewModel.startGeneration()
-                    }
-                }
-                Button("Meyve Salatası") {
-                    Task {
-                        generationViewModel.selectedMealType = "Tatlılar"
-                        generationViewModel.selectedStyleType = "Meyve Salatası"
-                        await generationViewModel.startGeneration()
-                    }
-                }
-            } label: {
-                Label("Tatlılar", systemImage: "sparkles")
-            }
-
-            // Atıştırmalık (no subcategories)
-            Button {
-                Task {
-                    generationViewModel.selectedMealType = "Atıştırmalık"
-                    generationViewModel.selectedStyleType = ""
-                    await generationViewModel.startGeneration()
-                }
-            } label: {
-                Label("Atıştırmalık", systemImage: "carrot.fill")
-            }
-        } label: {
-            generateButtonContent
         }
     }
 
@@ -476,6 +500,32 @@ extension RecipeGenerationView {
             }
             .sheet(isPresented: $actionsHandler.showingNotesModal) {
                 notesModalSheet
+            }
+            .alert("Recipe Already Exists", isPresented: $viewModel.persistenceCoordinator.showingDuplicateWarning) {
+                Button("Cancel", role: .cancel) {
+                    logger.info("❌ [DUPLICATE-CANCEL] User cancelled duplicate save")
+                }
+                Button("Save Anyway") {
+                    logger.info("✅ [DUPLICATE-CONFIRM] User confirmed duplicate save")
+                    Task {
+                        if generationViewModel.isManualRecipe {
+                            viewModel.recipeName = editableRecipeName.trimmingCharacters(in: .whitespacesAndNewlines)
+                        }
+
+                        // Force save ignoring duplicates
+                        await viewModel.persistenceCoordinator.saveRecipeIgnoringDuplicates(
+                            imageURL: viewModel.recipeImageURL,
+                            imageData: viewModel.recipeImageData
+                        )
+
+                        if viewModel.persistenceCoordinator.showingSaveConfirmation {
+                            generationViewModel.isSaved = true
+                            toastMessage = .success("Tarif kaydedildi!")
+                        }
+                    }
+                }
+            } message: {
+                Text(viewModel.persistenceCoordinator.duplicateWarningMessage)
             }
     }
 

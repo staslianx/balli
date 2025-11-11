@@ -206,24 +206,11 @@ actor ResearchStreamParser {
 
         switch event {
         case .token(let content):
-            // 🔍 WORD ORDER VALIDATION: Check for suspicious patterns
-            let previousTail = accumulatedAnswer.suffix(50)
-            let combinedText = String(previousTail) + content
-
-            // Check for common Turkish word patterns that might indicate reordering
-            let suspiciousPatterns = [
-                ("bu ", " bu"),      // "bu şekilde" vs "şekilde bu"
-                ("bir ", " bir"),    // Similar pattern
-                ("ve ", " ve"),      // "ve sonra" vs "sonra ve"
-                ("için ", " için"),  // Word order check
-            ]
-
-            for (correct, suspicious) in suspiciousPatterns {
-                if combinedText.contains(suspicious) && !combinedText.contains(correct + content.prefix(10)) {
-                    logger.error("⚠️ [WORD-ORDER] Potential reordering detected! Pattern '\(suspicious)' found near token boundary")
-                    logger.error("⚠️ [WORD-ORDER] Context: '...\(previousTail)\(content.prefix(30))...'")
-                }
-            }
+            // STREAMING FIX: Removed word order detection spam (72 false positives per query)
+            // Turkish words like " bir", " için", " ve", " bu" naturally appear at token boundaries
+            // and do NOT indicate reordering issues. The detection was overzealous for Turkish grammar.
+            // If word reordering actually occurs, it will be visible in user-reported bugs with
+            // actual garbled text examples, not log spam about normal Turkish grammar.
 
             accumulatedAnswer += content
             tokenCount += 1

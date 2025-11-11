@@ -172,23 +172,18 @@ extension String {
     /// Converts string to Double, accepting both comma and period as decimal separator
     /// This handles Turkish locale (4,5) and US locale (4.5) input
     var toDouble: Double? {
-        extensionsLogger.debug("🔍 toDouble parsing: '\(self)'")
-
         // First try with the current locale
         let currentLocaleFormatter = NumberFormatter()
         currentLocaleFormatter.locale = Locale.current
         currentLocaleFormatter.numberStyle = .decimal
 
         if let number = currentLocaleFormatter.number(from: self) {
-            let result = number.doubleValue
-            extensionsLogger.debug("✅ toDouble SUCCESS (current locale): '\(self)' -> \(result, privacy: .public)")
-            return result
+            return number.doubleValue
         }
 
         // Try replacing comma with period and parse again
         let normalized = self.replacingOccurrences(of: ",", with: ".")
         if let number = Double(normalized) {
-            extensionsLogger.debug("✅ toDouble SUCCESS (normalized): '\(self)' -> '\(normalized)' -> \(number, privacy: .public)")
             return number
         }
 
@@ -198,12 +193,36 @@ extension String {
         turkishFormatter.numberStyle = .decimal
 
         if let number = turkishFormatter.number(from: self) {
-            let result = number.doubleValue
-            extensionsLogger.debug("✅ toDouble SUCCESS (Turkish locale): '\(self)' -> \(result, privacy: .public)")
-            return result
+            return number.doubleValue
         }
 
-        extensionsLogger.error("❌ toDouble FAILED: '\(self)' - all parsing methods failed")
+        // Only log failure for non-empty strings (empty strings are expected when no value entered)
+        if !self.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            extensionsLogger.debug("⚠️ toDouble: Could not parse '\(self)'")
+        }
+        return nil
+    }
+
+    /// Converts string to Int16 for time values (prep time, cook time)
+    /// Handles empty strings and invalid formats gracefully
+    var toInt16: Int16? {
+        // Handle empty or whitespace strings
+        let trimmed = self.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return nil
+        }
+
+        // Try direct Int16 conversion
+        if let value = Int16(trimmed) {
+            return value
+        }
+
+        // Try converting through Int first (handles larger numbers)
+        if let intValue = Int(trimmed), intValue >= Int(Int16.min), intValue <= Int(Int16.max) {
+            return Int16(intValue)
+        }
+
+        extensionsLogger.warning("⚠️ toInt16 FAILED: '\(self)' - invalid format")
         return nil
     }
 }
@@ -287,7 +306,6 @@ extension Double {
 
         // Attempt to format with locale-aware formatter
         if let formatted = formatter.string(from: NSNumber(value: self)) {
-            extensionsLogger.debug("✅ asLocalizedDecimal SUCCESS: \(self, privacy: .public) (decimalPlaces: \(decimalPlaces)) -> '\(formatted)'")
             return formatted
         }
 

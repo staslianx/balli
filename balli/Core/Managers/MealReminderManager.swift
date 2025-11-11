@@ -45,6 +45,12 @@ final class MealReminderManager: MealReminderManagerProtocol {
         ("✨ İyi akşamlar canım!", "Akşam yemeğini kaydettin mi? Etmediysen söyle not alayım 🎤")
     ]
 
+    /// Night Lantus reminder variations (rotates daily for variety)
+    private let lantusMessages: [(title: String, body: String)] = [
+        ("🌙 Lantus zamanı canım!", "Günlük bazal insülin dozunu almayı unutma, iyi geceler! 💜"),
+        ("✨ İyi geceler Dilara!", "Lantus'unu aldın mı canım? Unutmadan kaydetmek ister misin? 🎤")
+    ]
+
     // MARK: - Initialization
 
     private init() {
@@ -80,13 +86,14 @@ final class MealReminderManager: MealReminderManagerProtocol {
 
     // MARK: - Schedule Reminders
 
-    /// Schedule daily reminders: 09:00 (morning), 15:00 (check-in), 18:00 (evening) with rotating messages
+    /// Schedule daily reminders: 09:00 (morning), 15:00 (check-in), 18:00 (evening), 21:00 (Lantus) with rotating messages
     func scheduleDailyReminders() async {
         // Remove any existing reminders first (all variations)
         let morningIds = (0..<morningMessages.count).map { "meal-reminder-morning-\($0)" }
         let afternoonIds = (0..<afternoonMessages.count).map { "daily-checkin-afternoon-\($0)" }
         let eveningIds = (0..<eveningMessages.count).map { "meal-reminder-evening-\($0)" }
-        notificationCenter.removePendingNotificationRequests(withIdentifiers: morningIds + afternoonIds + eveningIds)
+        let lantusIds = (0..<lantusMessages.count).map { "insulin-reminder-lantus-\($0)" }
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: morningIds + afternoonIds + eveningIds + lantusIds)
 
         logger.info("📅 Scheduling daily reminders with \(self.morningMessages.count) variations...")
 
@@ -127,7 +134,18 @@ final class MealReminderManager: MealReminderManagerProtocol {
             minute: 0
         )
 
-        logger.info("✅ Daily reminders scheduled: morning (\(morningIndex + 1)/\(self.morningMessages.count)), afternoon (\(afternoonIndex + 1)/\(self.afternoonMessages.count)), evening (\(eveningIndex + 1)/\(self.eveningMessages.count))")
+        // Schedule Lantus reminder (21:00 / 9 PM) with today's variation
+        let lantusIndex = dayOfYear % lantusMessages.count
+        let lantusMessage = lantusMessages[lantusIndex]
+        await scheduleReminder(
+            identifier: "insulin-reminder-lantus-\(lantusIndex)",
+            title: lantusMessage.title,
+            body: lantusMessage.body,
+            hour: 21,
+            minute: 0
+        )
+
+        logger.info("✅ Daily reminders scheduled: morning (\(morningIndex + 1)/\(self.morningMessages.count)), afternoon (\(afternoonIndex + 1)/\(self.afternoonMessages.count)), evening (\(eveningIndex + 1)/\(self.eveningMessages.count)), lantus (\(lantusIndex + 1)/\(self.lantusMessages.count))")
     }
 
     /// Schedule a single reminder
@@ -173,12 +191,13 @@ final class MealReminderManager: MealReminderManagerProtocol {
 
     // MARK: - Cancel Reminders
 
-    /// Cancel all meal reminders and check-ins
+    /// Cancel all meal reminders, check-ins, and Lantus reminders
     func cancelAllReminders() {
         let morningIds = (0..<morningMessages.count).map { "meal-reminder-morning-\($0)" }
         let afternoonIds = (0..<afternoonMessages.count).map { "daily-checkin-afternoon-\($0)" }
         let eveningIds = (0..<eveningMessages.count).map { "meal-reminder-evening-\($0)" }
-        notificationCenter.removePendingNotificationRequests(withIdentifiers: morningIds + afternoonIds + eveningIds)
+        let lantusIds = (0..<lantusMessages.count).map { "insulin-reminder-lantus-\($0)" }
+        notificationCenter.removePendingNotificationRequests(withIdentifiers: morningIds + afternoonIds + eveningIds + lantusIds)
         logger.info("🛑 All reminders and check-ins cancelled")
     }
 

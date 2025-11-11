@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import OSLog
 
 /// Action type for recipe detail buttons
 enum RecipeAction {
@@ -67,6 +68,8 @@ struct RecipeActionButton: View {
     @State private var isPressed = false
     @State private var pulseOpacity: Double = 1.0
 
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeActionButton")
+
     // Button background with purple tint
     private var buttonBackground: Color {
         AppTheme.primaryPurple.opacity(0.2)
@@ -89,7 +92,11 @@ struct RecipeActionButton: View {
     }
 
     var body: some View {
-        Button(action: onTap) {
+        Button(action: {
+            logger.info("🔘 [BUTTON] Button tapped - action: \(String(describing: self.action)), isActive: \(self.isActive), isLoading: \(self.isLoading)")
+            onTap()
+            logger.info("🔘 [BUTTON] onTap() callback executed")
+        }) {
             VStack(spacing: 6) {
                 Image(systemName: iconName)
                     .font(.system(size: 20, weight: .medium, design: .rounded))

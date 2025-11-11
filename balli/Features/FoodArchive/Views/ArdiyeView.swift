@@ -339,7 +339,7 @@ struct ArdiyeView: View {
                                 brand: foodItem.brand ?? "Marka Yok",
                                 name: foodItem.name,
                                 portion: "\(Int(foodItem.servingSize))\(foodItem.servingUnit)'da",
-                                carbs: String(format: "%.1f gr Karb.", foodItem.totalCarbs),
+                                carbs: "\(foodItem.totalCarbs.asLocalizedDecimal(decimalPlaces: 1)) gr Karb.",
                                 width: nil, // Let ProductCardView use default size
                                 isFavorite: foodItem.isFavorite,
                                 impactLevel: foodItem.impactLevelDetailed,

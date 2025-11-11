@@ -27,6 +27,11 @@ public struct RecipeGenerationResponse: Codable, Sendable {
     public let sugar: String
     public let glycemicLoad: String
     public let extractedIngredients: [String]?  // NEW: Main ingredients extracted by Cloud Functions for memory system
+
+    // Computed property for consistent naming with RecipeFormState
+    public var waitTime: String? {
+        waitingTime
+    }
 }
 
 /// Simple recent recipe for diversity tracking

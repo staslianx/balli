@@ -99,12 +99,12 @@ struct ResearchStageStatusCard: View {
             }
             .frame(height: 8)
         }
-        .padding(18)
+        .padding(30)
         .background {
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
+            RoundedRectangle(cornerRadius: 36, style: .continuous)
                 .fill(Color(.systemBackground).opacity(0.95))
         }
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 36, style: .continuous))
         .onChange(of: progress) { oldValue, newValue in
             // Animate progress bar smoothly
             withAnimation(.easeInOut(duration: 0.5)) {

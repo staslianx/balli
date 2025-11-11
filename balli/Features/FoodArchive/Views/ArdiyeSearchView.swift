@@ -321,7 +321,7 @@ struct ArdiyeSearchView: View {
                                 brand: foodItem.brand ?? "Marka Yok",
                                 name: foodItem.name,
                                 portion: "\(Int(foodItem.servingSize))\(foodItem.servingUnit)'da",
-                                carbs: "\(Int(foodItem.totalCarbs)) gr Karb.",
+                                carbs: "\(foodItem.totalCarbs.asLocalizedDecimal(decimalPlaces: 1)) gr Karb.",
                                 width: nil,
                                 isFavorite: foodItem.isFavorite,
                                 impactLevel: foodItem.impactLevelDetailed,

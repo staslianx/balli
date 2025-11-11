@@ -9,6 +9,12 @@ import SwiftUI
 import CoreData
 import os.log
 
+// View mode filter for switching between meals and insulin history
+enum HistoryViewMode {
+    case meals
+    case insulin
+}
+
 @MainActor
 struct LoggedMealsView: View {
     @Environment(\.dismiss) private var dismiss
@@ -21,10 +27,42 @@ struct LoggedMealsView: View {
     @State private var showMealDetail = false
     @State private var errorMessage: String?
     @State private var showErrorAlert = false
+    @State private var selectedView: HistoryViewMode = .meals
 
     // Access sync coordinator via dependency injection
     private var syncCoordinator: any MealSyncCoordinatorProtocol {
         dependencies.mealSyncCoordinator
+    }
+
+    // Dark mode dissolved purple gradient (matching RecipeCardView and ProductCardView)
+    private var dissolvedPurpleDark: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: AppTheme.primaryPurple.opacity(0.12), location: 0.0),
+                .init(color: AppTheme.primaryPurple.opacity(0.08), location: 0.15),
+                .init(color: AppTheme.primaryPurple.opacity(0.05), location: 0.25),
+                .init(color: AppTheme.primaryPurple.opacity(0.03), location: 0.5),
+                .init(color: AppTheme.primaryPurple.opacity(0.05), location: 0.75),
+                .init(color: AppTheme.primaryPurple.opacity(0.08), location: 0.85),
+                .init(color: AppTheme.primaryPurple.opacity(0.12), location: 1.0)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    // Card background - LIGHT MODE: clear, DARK MODE: dissolved purple
+    private var cardBackground: some ShapeStyle {
+        if colorScheme == .dark {
+            return AnyShapeStyle(dissolvedPurpleDark)
+        } else {
+            return AnyShapeStyle(Color.clear)
+        }
+    }
+
+    // Glass effect - LIGHT MODE: interactive, DARK MODE: interactive
+    private var glassEffectStyle: Glass {
+        return .regular.interactive()
     }
 
     // Fetch all meal entries sorted by timestamp (newest first)
@@ -100,44 +138,63 @@ struct LoggedMealsView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if groupedEntries.isEmpty {
-                    ContentUnavailableView(
-                        "Henüz kayıtlı öğün yok",
-                        systemImage: "calendar.day.timeline.left",
-                        description: Text("Sesle kaydettiğin öğünler burada görünecek.")
-                    )
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(AppTheme.primaryPurple)
-                    .frame(maxHeight: .infinity)
-                } else {
-                    List {
-                        ForEach(groupedEntries, id: \.date) { dateGroup in
-                            dayCard(for: dateGroup)
-                                .listRowInsets(EdgeInsets(
-                                    top: ResponsiveDesign.Spacing.small,
-                                    leading: ResponsiveDesign.Spacing.medium,
-                                    bottom: ResponsiveDesign.Spacing.small,
-                                    trailing: ResponsiveDesign.Spacing.medium
-                                ))
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
+                if selectedView == .meals {
+                    // Meals view
+                    if groupedEntries.isEmpty {
+                        ContentUnavailableView(
+                            "Henüz kayıtlı öğün yok",
+                            systemImage: "calendar.day.timeline.left",
+                            description: Text("Sesle kaydettiğin öğünler burada görünecek.")
+                        )
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(AppTheme.primaryPurple)
+                        .frame(maxHeight: .infinity)
+                    } else {
+                        List {
+                            ForEach(groupedEntries, id: \.date) { dateGroup in
+                                dayCard(for: dateGroup)
+                                    .listRowInsets(EdgeInsets(
+                                        top: ResponsiveDesign.Spacing.small,
+                                        leading: ResponsiveDesign.Spacing.medium,
+                                        bottom: ResponsiveDesign.Spacing.small,
+                                        trailing: ResponsiveDesign.Spacing.medium
+                                    ))
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.clear)
+                            }
                         }
+                        .listStyle(.plain)
+                        .scrollContentBackground(.hidden)
                     }
-                    .listStyle(.plain)
-                    .scrollContentBackground(.hidden)
+                } else {
+                    // Insulin history view
+                    InsulinHistoryContentView()
+                        .environment(\.managedObjectContext, viewContext)
                 }
             }
             .background(Color(.systemBackground))
-            .navigationTitle("Günlük Kayıtlar")
+            .navigationTitle(selectedView == .meals ? "Günlük Kayıtlar" : "İnsülin Geçmişi")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundStyle(.secondary)
+                    }
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        withAnimation {
+                            selectedView = selectedView == .meals ? .insulin : .meals
+                        }
+                    }) {
+                        Image(systemName: selectedView == .meals ? "carrot.fill" : "microbe.fill")
+                            .font(.system(size: 14, weight: .medium, design: .rounded))
+                            .foregroundColor(AppTheme.primaryPurple)
                     }
                 }
             }
@@ -255,9 +312,15 @@ struct LoggedMealsView: View {
             }
             .padding(.vertical, ResponsiveDesign.Spacing.small)
         }
-        .background(Color.white.opacity(0.05))
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous)
+                .fill(cardBackground)
+        )
         .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .glassEffect(
+            glassEffectStyle,
+            in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous)
+        )
         .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
     }
 
@@ -293,14 +356,21 @@ struct LoggedMealsView: View {
                 // Insulin info inline with carbs
                 if hasInsulin, let firstMedication = medications.first {
                     HStack(spacing: 4) {
-                        Image(systemName: "microbe.fill.fill")
-                            .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .medium))
+                        Image(systemName: "microbe.fill")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .medium))
                             .foregroundStyle(AppTheme.primaryPurple)
 
-                        Text("\(firstMedication.dosage, specifier: "%.1f")ü")
-                            .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
+                        Text("\(Int(firstMedication.dosage))")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .bold, design: .rounded))
                             .monospacedDigit()
                             .foregroundStyle(AppTheme.primaryPurple)
+                    }
+
+                    // Divider between insulin and carbs (only shown when both exist)
+                    if mealGroup.totalCarbs > 0 {
+                        Text("|")
+                            .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .medium))
+                            .foregroundStyle(.secondary.opacity(0.5))
                     }
                 }
 
@@ -376,6 +446,207 @@ struct MealGroup: Identifiable {
         } catch {
             return []
         }
+    }
+}
+
+// MARK: - Insulin History Content View
+
+/// Content view for insulin history (without NavigationStack wrapper)
+/// Extracted from InsulinHistoryView for embedding in LoggedMealsView
+struct InsulinHistoryContentView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.managedObjectContext) private var viewContext
+
+    @State private var selectedEntry: MedicationEntry?
+    @State private var showDetailSheet = false
+
+    // Fetch all medication entries (insulin) sorted by timestamp (newest first)
+    @FetchRequest(
+        sortDescriptors: [
+            NSSortDescriptor(keyPath: \MedicationEntry.timestamp, ascending: false)
+        ],
+        animation: .default
+    )
+    private var medicationEntries: FetchedResults<MedicationEntry>
+
+    // Group entries by date (calendar day)
+    private var groupedEntries: [(date: Date, entries: [MedicationEntry])] {
+        let byDay = Dictionary(grouping: medicationEntries) { entry in
+            Calendar.current.startOfDay(for: entry.timestamp)
+        }
+
+        return byDay
+            .map { (date: $0.key, entries: $0.value.sorted { $0.timestamp > $1.timestamp }) }
+            .sorted { $0.date > $1.date }
+    }
+
+    // Dark mode dissolved purple gradient
+    private var dissolvedPurpleDark: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: AppTheme.primaryPurple.opacity(0.12), location: 0.0),
+                .init(color: AppTheme.primaryPurple.opacity(0.08), location: 0.15),
+                .init(color: AppTheme.primaryPurple.opacity(0.05), location: 0.25),
+                .init(color: AppTheme.primaryPurple.opacity(0.03), location: 0.5),
+                .init(color: AppTheme.primaryPurple.opacity(0.05), location: 0.75),
+                .init(color: AppTheme.primaryPurple.opacity(0.08), location: 0.85),
+                .init(color: AppTheme.primaryPurple.opacity(0.12), location: 1.0)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    // Card background
+    private var cardBackground: some ShapeStyle {
+        if colorScheme == .dark {
+            return AnyShapeStyle(dissolvedPurpleDark)
+        } else {
+            return AnyShapeStyle(Color.clear)
+        }
+    }
+
+    var body: some View {
+        Group {
+            if groupedEntries.isEmpty {
+                ContentUnavailableView(
+                    "Henüz insülin kaydı yok",
+                    systemImage: "syringe",
+                    description: Text("Sesle kaydettiğin insülin dozları burada görünecek.")
+                )
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(AppTheme.primaryPurple)
+                .frame(maxHeight: .infinity)
+            } else {
+                List {
+                    ForEach(groupedEntries, id: \.date) { dateGroup in
+                        dayCard(for: dateGroup)
+                            .listRowInsets(EdgeInsets(
+                                top: ResponsiveDesign.Spacing.small,
+                                leading: ResponsiveDesign.Spacing.medium,
+                                bottom: ResponsiveDesign.Spacing.small,
+                                trailing: ResponsiveDesign.Spacing.medium
+                            ))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                    }
+                }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+            }
+        }
+        .sheet(isPresented: $showDetailSheet) {
+            if let entry = selectedEntry {
+                InsulinEditSheet(medication: entry)
+                    .environment(\.managedObjectContext, viewContext)
+            }
+        }
+    }
+
+    // MARK: - Day Card View
+
+    @ViewBuilder
+    private func dayCard(for dateGroup: (date: Date, entries: [MedicationEntry])) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Date header
+            Text(formatDateForHeader(dateGroup.date))
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary)
+                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                .padding(.top, ResponsiveDesign.Spacing.medium)
+                .padding(.bottom, ResponsiveDesign.Spacing.small)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            // Divider below date
+            Rectangle()
+                .fill(Color.secondary.opacity(0.2))
+                .frame(height: 0.5)
+                .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+
+            // All insulin entries for this day
+            VStack(spacing: ResponsiveDesign.Spacing.xSmall) {
+                ForEach(dateGroup.entries) { entry in
+                    insulinEntryRow(entry)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            selectedEntry = entry
+                            showDetailSheet = true
+                        }
+
+                    // Divider between entries (except last one)
+                    if entry.id != dateGroup.entries.last?.id {
+                        Rectangle()
+                            .fill(Color.secondary.opacity(0.1))
+                            .frame(height: 0.5)
+                            .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+                    }
+                }
+            }
+            .padding(.vertical, ResponsiveDesign.Spacing.small)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous)
+                .fill(cardBackground)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous))
+        .glassEffect(
+            .regular.interactive(),
+            in: RoundedRectangle(cornerRadius: ResponsiveDesign.CornerRadius.card, style: .continuous)
+        )
+        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
+    }
+
+    // MARK: - Insulin Entry Row
+
+    private func insulinEntryRow(_ entry: MedicationEntry) -> some View {
+        let insulinTypeIcon = entry.isBasalInsulin ? "slowmo" : "chevron.forward.dotted.chevron.forward"
+        let insulinTypeColor = AppTheme.primaryPurple
+
+        return HStack(spacing: ResponsiveDesign.Spacing.small) {
+            // Insulin type icon
+            Image(systemName: insulinTypeIcon)
+                .font(.system(size: ResponsiveDesign.Font.scaledSize(20), weight: .semibold))
+                .foregroundStyle(insulinTypeColor)
+                .frame(width: ResponsiveDesign.Font.scaledSize(32), alignment: .center)
+
+            // Insulin details
+            VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xxSmall) {
+                Text(entry.medicationName)
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
+                    .foregroundStyle(.primary)
+
+                // Time only (date is shown in card header)
+                Text(entry.timestamp, format: .dateTime.hour().minute())
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(13), weight: .regular, design: .rounded))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            // Right-aligned metrics (insulin dosage only)
+            HStack(spacing: 4) {
+                Image(systemName: "microbe.fill")
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .medium))
+                    .foregroundStyle(AppTheme.primaryPurple)
+
+                Text("\(Int(entry.dosage))")
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .bold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(AppTheme.primaryPurple)
+            }
+        }
+        .padding(.horizontal, ResponsiveDesign.Spacing.medium)
+        .padding(.vertical, ResponsiveDesign.Spacing.small)
+    }
+
+    // MARK: - Helper Functions
+
+    /// Formats date header in Turkish format
+    private func formatDateForHeader(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "tr_TR")
+        formatter.dateFormat = "d MMMM EEEE yyyy"
+        return formatter.string(from: date)
     }
 }
 

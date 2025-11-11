@@ -973,7 +973,7 @@ exports.calculateRecipeNutrition = (0, https_1.onRequest)({
     cors: true,
     maxInstances: 10,
     memory: '512MiB',
-    timeoutSeconds: 90 // Gemini 2.5 Pro needs 35-45s for medical-grade calculations
+    timeoutSeconds: 120 // Gemini 2.5 Pro needs 60-70s typically, 120s allows complex recipes with 15+ ingredients
 }, async (req, res) => {
     // Handle CORS preflight
     if (req.method === 'OPTIONS') {

@@ -99,13 +99,43 @@ actor AppLifecycleCoordinator {
             }
 
             // 🔐 DEXCOM TOKEN REFRESH: Proactively refresh token on foreground
-            // This prevents auto-logout by refreshing tokens before they expire
-            await refreshDexcomTokenIfNeeded()
+            // P0 PERFORMANCE FIX: Only check if enough time has passed since last check
+            // This prevents excessive expensive checks that cause device heating
+            await refreshDexcomTokenIfNeededThrottled()
 
             // 🔄 START CONTINUOUS SYNC: Ensure glucose data updates continue
             // This survives view navigation and keeps real-time data flowing
             DexcomSyncCoordinator.shared.startContinuousSync()
         }
+    }
+
+    // MARK: - Dexcom Token Management
+
+    // P0 PERFORMANCE FIX: Track last foreground check to prevent excessive calls
+    private var lastDexcomForegroundCheck: Date?
+    private let dexcomForegroundCheckInterval: TimeInterval = 5 * 60 // 5 minutes
+
+    /// Throttled version that only checks every 5 minutes
+    /// This prevents excessive expensive checks on rapid foreground transitions
+    @MainActor
+    private func refreshDexcomTokenIfNeededThrottled() async {
+        // Check if we've checked recently
+        let lastCheck = await lastDexcomForegroundCheck
+        if let lastCheck = lastCheck {
+            let timeSinceLastCheck = Date().timeIntervalSince(lastCheck)
+            let checkInterval = await dexcomForegroundCheckInterval
+            if timeSinceLastCheck < checkInterval {
+                logger.info("⚡️ [PERFORMANCE] Skipping Dexcom check - last check was \(String(format: "%.1f", timeSinceLastCheck))s ago (throttle: \(checkInterval)s)")
+                return
+            }
+        }
+
+        await setLastDexcomForegroundCheck(Date())
+        await refreshDexcomTokenIfNeeded()
+    }
+
+    private func setLastDexcomForegroundCheck(_ date: Date) {
+        lastDexcomForegroundCheck = date
     }
 
     /// Proactively refresh Dexcom OAuth token when app comes to foreground

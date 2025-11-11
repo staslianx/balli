@@ -25,6 +25,7 @@ extension Recipe: Identifiable {
     @NSManaged public var instructions: NSObject?
     @NSManaged public var prepTime: Int16
     @NSManaged public var cookTime: Int16
+    @NSManaged public var waitingTime: Int16
     @NSManaged public var servings: Int16
 
     // MARK: - Nutrition Information (per 100g)
@@ -46,6 +47,18 @@ extension Recipe: Identifiable {
     @NSManaged public var glycemicLoadPerServing: Double
     @NSManaged public var totalRecipeWeight: Double
     @NSManaged public var portionMultiplier: Double
+
+    // MARK: - IMMUTABLE: Total Recipe Nutrition (Original Values)
+    /// These store the ORIGINAL total recipe nutrition values
+    /// CRITICAL: These should NEVER be modified after initial calculation
+    /// All portion calculations derive from these immutable values
+    @NSManaged public var totalRecipeCalories: Double
+    @NSManaged public var totalRecipeCarbs: Double
+    @NSManaged public var totalRecipeFiber: Double
+    @NSManaged public var totalRecipeSugar: Double
+    @NSManaged public var totalRecipeProtein: Double
+    @NSManaged public var totalRecipeFat: Double
+    @NSManaged public var totalRecipeGlycemicLoad: Double
 
     // MARK: - Portion Definition System (for diabetes management)
     @NSManaged public var portionSize: Double  // User-defined portion in grams (0 = not defined)

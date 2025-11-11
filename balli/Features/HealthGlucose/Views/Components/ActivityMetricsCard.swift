@@ -80,12 +80,13 @@ struct ActivityMetricsCard: View {
                     Text("adım")
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
+                        .offset(y:1.5)
 
                     Image(systemName: "figure.walk")
                         .font(.system(size: 28))
                         .foregroundStyle(AppTheme.primaryPurple)
                         .alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
-                        .offset(y: 2)
+                        .offset(y: 5.5)
                 }
                 .layoutPriority(1)
 
@@ -118,18 +119,19 @@ struct ActivityMetricsCard: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(String(format: "%.0f", viewModel.todayCalories))
                         .font(.system(size: 32, weight: .bold, design: .rounded))
-                        .offset(y: 1)
+                        .offset(y: 0)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
 
                     Text("kcal")
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(.secondary)
+                        .offset(y: 0)
 
                     Image(systemName: "flame.fill")
                         .font(.system(size: 28))
                         .foregroundStyle(AppTheme.primaryPurple)
-                        .offset(y: 3)
+                        .offset(y: 4)
                         .alignmentGuide(.firstTextBaseline) { d in d[.bottom] }
                 }
                 .layoutPriority(1)
@@ -140,12 +142,14 @@ struct ActivityMetricsCard: View {
                     Text("Düne kıyasla")
                         .font(.system(size: 12, weight: .medium, design: .rounded))
                         .foregroundStyle(AppTheme.primaryPurple)
+                        .offset(y:-1.4)
                         .lineLimit(1)
                         .minimumScaleFactor(0.9)
 
                     Text("\(viewModel.caloriesChangePercent >= 0 ? "+" : "")\(viewModel.caloriesChangePercent)%")
                         .font(.system(size: 24, weight: .bold, design: .rounded))
                         .foregroundStyle(AppTheme.primaryPurple)
+                        .offset(y:-1.4)
                 }
                 .frame(minWidth: 90)
             }

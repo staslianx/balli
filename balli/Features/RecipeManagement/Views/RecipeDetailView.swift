@@ -160,13 +160,16 @@ struct RecipeDetailView: View {
 
             // Center item - time pills
             ToolbarItem(placement: .principal) {
-                if recipeData.recipe.prepTime > 0 || recipeData.recipe.cookTime > 0 {
+                if recipeData.recipe.prepTime > 0 || recipeData.recipe.cookTime > 0 || recipeData.recipe.waitTime > 0 {
                     HStack(spacing: 8) {
                         if recipeData.recipe.prepTime > 0 {
-                            RecipeTimePill(icon: "timer", time: Int(recipeData.recipe.prepTime), label: "Hazırlık")
+                            RecipeTimePill(icon: "rectangle.3.group", time: Int(recipeData.recipe.prepTime), label: "Hazırlık")
                         }
                         if recipeData.recipe.cookTime > 0 {
-                            RecipeTimePill(icon: "flame", time: Int(recipeData.recipe.cookTime), label: "Pişirme")
+                            RecipeTimePill(icon: "frying.pan", time: Int(recipeData.recipe.cookTime), label: "Pişirme")
+                        }
+                        if recipeData.recipe.waitTime > 0 {
+                            RecipeTimePill(icon: "hourglass", time: Int(recipeData.recipe.waitTime), label: "Bekleme")
                         }
                     }
                     .fixedSize()
@@ -181,24 +184,33 @@ struct RecipeDetailView: View {
                     .foregroundColor(ThemeColors.primaryPurple)
                 } else {
                     Menu {
-                        Button {
+                        // Only show share if recipe has an image
+                        if recipeData.imageData != nil || recipeData.recipe.imageData != nil || viewModel.generatedImageData != nil {
+                            Button(action: {
+                                viewModel.shareRecipePhoto()
+                            }) {
+                                Label("Fotoğrafı Paylaş", systemImage: "square.and.arrow.up")
+                            }
+                        }
+
+                        Button(action: {
                             viewModel.startEditing()
-                        } label: {
+                        }) {
                             Label("Düzenle", systemImage: "pencil")
                         }
 
-                        Button {
+                        Button(action: {
                             viewModel.toggleFavorite()
-                        } label: {
+                        }) {
                             Label(
                                 recipeData.recipe.isFavorite ? "Favorilerden Çıkar" : "Favorilere Ekle",
                                 systemImage: recipeData.recipe.isFavorite ? "star.fill" : "star"
                             )
                         }
 
-                        Button(role: .destructive) {
+                        Button(role: .destructive, action: {
                             viewModel.deleteRecipe(dismiss: dismiss)
-                        } label: {
+                        }) {
                             Label("Sil", systemImage: "trash")
                         }
                     } label: {
@@ -206,6 +218,7 @@ struct RecipeDetailView: View {
                             .font(.system(size: 17, weight: .semibold))
                             .foregroundColor(ThemeColors.primaryPurple)
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -245,6 +258,11 @@ struct RecipeDetailView: View {
             UserNotesModalView(notes: $viewModel.userNotes) { newNotes in
                 logger.info("💬 [NOTES] User saved notes: '\(newNotes.prefix(50))...'")
                 viewModel.saveUserNotes(newNotes)
+            }
+        }
+        .sheet(isPresented: $viewModel.showingShareSheet) {
+            if let imageToShare = viewModel.imageToShare {
+                ActivityViewController(activityItems: [imageToShare])
             }
         }
         .onAppear {

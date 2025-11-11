@@ -80,7 +80,7 @@ struct AppSettingsView: View {
                 // MARK: - Veri (Data)
                 Section("Veri") {
                     NavigationLink(destination: DexcomConnectionView()) {
-                        Label("Dexcom", systemImage: "sensor.tag.radiowaves.forward.fill")
+                        Label("Dexcom", systemImage: "sensor.radiowaves.left.and.right.fill")
                             .imageScale(.medium)
                     }
                     // Removed .tint() - using global tint from balliApp.swift

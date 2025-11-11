@@ -30,6 +30,7 @@ struct TypewriterAnswerView: View {
     @State private var fullContentReceived = ""  // Track complete content separately from animation
     @State private var animator = TypewriterAnimator()
     @State private var isAnimationComplete = false  // Track animation completion
+    @State private var lastAnswerId = ""  // Track which answer we're displaying
 
     var body: some View {
         StreamingAnswerView(
@@ -39,36 +40,54 @@ struct TypewriterAnswerView: View {
             sources: sources,
             fontSize: fontSize
         )
-        .onChange(of: content) { oldValue, newValue in
-            // FIX: Track new characters based on fullContentReceived, not displayedContent
-            // displayedContent is animated progressively, fullContentReceived is complete
-            if newValue.count > fullContentReceived.count {
-                let newChars = String(newValue.dropFirst(fullContentReceived.count))
-                fullContentReceived = newValue  // Update full content tracker
+        .onChange(of: answerId) { _, newAnswerId in
+            // LIFECYCLE FIX: Reset animation state only when answerId changes (new answer)
+            // This prevents content from disappearing on tab switch or lock/unlock
+            if newAnswerId != lastAnswerId {
+                logger.debug("🔄 [TYPEWRITER] New answer detected, resetting state")
+                isAnimationComplete = false
+                displayedContent = ""
+                fullContentReceived = ""
+                lastAnswerId = newAnswerId
+            }
+        }
+        .task(id: content) {
+            // STREAMING FIX: Replace .onChange with .task(id:) to prevent
+            // "multiple updates per frame" warnings during fast token streaming.
+            // .task automatically cancels and restarts when content changes,
+            // coalescing rapid updates into single executions.
 
-                logger.debug("📝 [TYPEWRITER] New chars: '\(newChars.prefix(30))...' (total: \(newValue.count))")
+            guard content.count > fullContentReceived.count else { return }
 
-                // Mark animation as active when first characters arrive
-                if fullContentReceived == newChars {  // First content
-                    isAnimationComplete = false
-                    onAnimationStateChange?(true)  // Animation started
+            let newChars = String(content.dropFirst(fullContentReceived.count))
+
+            logger.debug("📝 [TYPEWRITER] New chars: '\(newChars.prefix(30))...' (total: \(content.count))")
+
+            // Mark animation as active when first characters arrive
+            if fullContentReceived.isEmpty {  // First content - check against empty, not equality
+                isAnimationComplete = false
+                onAnimationStateChange?(true)  // Animation started
+            }
+
+            // P0 FIX: Update fullContentReceived ONLY after animation starts
+            // This prevents race condition where view re-renders and guard check fails
+            // because fullContentReceived was updated before animation could start
+            await animator.enqueueText(newChars, for: answerId) { displayedText in
+                await MainActor.run {
+                    self.displayedContent = displayedText
                 }
-
-                Task {
-                    await animator.enqueueText(newChars, for: answerId) { displayedText in
-                        await MainActor.run {
-                            self.displayedContent = displayedText
-                        }
-                    } onComplete: {
-                        // Animation completed naturally - mark as complete
-                        await MainActor.run {
-                            self.isAnimationComplete = true
-                            self.onAnimationStateChange?(false)
-                            logger.debug("✅ [TYPEWRITER] Animation naturally completed")
-                        }
-                    }
+            } onComplete: {
+                // Animation completed naturally - mark as complete
+                await MainActor.run {
+                    self.isAnimationComplete = true
+                    self.onAnimationStateChange?(false)
+                    logger.debug("✅ [TYPEWRITER] Animation naturally completed")
                 }
             }
+
+            // ✅ CRITICAL FIX: Update tracker AFTER enqueuing text for animation
+            // This ensures guard check passes on next render if animation is still running
+            fullContentReceived = content
         }
         .onChange(of: isStreaming) { _, newValue in
             // When streaming completes, let animation finish naturally
@@ -80,10 +99,22 @@ struct TypewriterAnswerView: View {
             }
         }
         .onAppear {
-            // Reset animation state for new content
-            isAnimationComplete = false
-            displayedContent = ""
-            fullContentReceived = ""
+            // LIFECYCLE FIX: On view appear, restore content if it's already complete
+            // This handles tab switching and lock/unlock scenarios
+            if answerId != lastAnswerId {
+                // New answer - reset state
+                logger.debug("🔄 [TYPEWRITER] New answer on appear, resetting state")
+                isAnimationComplete = false
+                displayedContent = ""
+                fullContentReceived = ""
+                lastAnswerId = answerId
+            } else if !content.isEmpty && displayedContent.isEmpty {
+                // Same answer, but content was cleared (view recreation) - restore it
+                logger.debug("🔄 [TYPEWRITER] Restoring content after view recreation: \(content.count) chars")
+                displayedContent = content
+                fullContentReceived = content
+                isAnimationComplete = true  // Content is complete, no need to animate
+            }
         }
         .onDisappear {
             // Cleanup on view disappear

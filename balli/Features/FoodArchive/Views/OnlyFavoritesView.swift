@@ -49,7 +49,7 @@ struct OnlyFavoritesView: View {
                                         brand: item.brand ?? "Marka Yok",
                                         name: item.name,
                                         portion: "\(Int(item.servingSize))\(item.servingUnit)'da",
-                                        carbs: "\(Int(item.totalCarbs)) gr Karb.",
+                                        carbs: "\(item.totalCarbs.asLocalizedDecimal(decimalPlaces: 1)) gr Karb.",
                                         width: nil,
                                         isFavorite: true,
                                         impactLevel: item.impactLevelDetailed,

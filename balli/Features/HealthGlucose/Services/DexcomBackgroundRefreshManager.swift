@@ -82,18 +82,43 @@ final class DexcomBackgroundRefreshManager: DexcomBackgroundRefreshManagerProtoc
 
         let request = BGAppRefreshTaskRequest(identifier: taskIdentifier)
 
-        // Schedule for 4 hours from now (well before 24h Share session expiry)
-        // This ensures we catch expired sessions before user notices
-        request.earliestBeginDate = Date(timeIntervalSinceNow: 4 * 60 * 60)
+        // P0 FIX: Adaptive scheduling based on system state
+        // PREVIOUS: Fixed 4-hour interval (too aggressive, iOS may throttle)
+        // NEW: 6-8 hour interval respecting Low Power Mode
+        // RATIONALE:
+        // - Dexcom Share session expires after 24 hours (not 4 hours)
+        // - iOS throttles apps that request frequent background refresh
+        // - User gets fresh data when app foregrounds anyway
+        // - Low Power Mode users explicitly want less background activity
+        // Audit Issue: P0.5 - Background refresh interval optimization
+        let interval = calculateNextRefreshInterval()
+        request.earliestBeginDate = Date(timeIntervalSinceNow: interval)
 
         do {
             try BGTaskScheduler.shared.submit(request)
-            logger.info("✅ Background refresh scheduled for 4 hours from now")
+            let hours = interval / 3600
+            logger.info("✅ Background refresh scheduled for \(String(format: "%.1f", hours)) hours from now")
         } catch {
             logger.error("❌ Failed to schedule background refresh: \(error.localizedDescription)")
         }
 
         #endif
+    }
+
+    // MARK: - Private Helpers
+
+    /// Calculate next refresh interval based on system state
+    /// - Returns: Time interval in seconds (6 or 8 hours)
+    private func calculateNextRefreshInterval() -> TimeInterval {
+        // Check if Low Power Mode is enabled
+        if ProcessInfo.processInfo.isLowPowerModeEnabled {
+            logger.info("📱 Low Power Mode enabled - using 8-hour interval")
+            return 8 * 60 * 60 // 8 hours
+        }
+
+        // Default: 6 hours (well within 24-hour Dexcom Share session lifetime)
+        logger.info("📱 Normal power mode - using 6-hour interval")
+        return 6 * 60 * 60 // 6 hours
     }
 
     // MARK: - Background Refresh Handler

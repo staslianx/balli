@@ -58,7 +58,8 @@ final class ResearchPersistenceManager {
     /// - If app was KILLED/CRASHED/CLOSED → Show empty state (fresh conversation)
     /// - If app was BACKGROUNDED → Restore last state exactly as user left it
     /// - If user switches tabs within app → Show last state exactly as user left it
-    func loadSessionHistory() async -> [SearchAnswer] {
+    /// - forceLoad parameter bypasses timeout check (used for tab switching within active app)
+    func loadSessionHistory(forceLoad: Bool = false) async -> [SearchAnswer] {
         let appStateManager = AppLifecycleCoordinator.shared
 
         // Check if app gracefully went to background (vs being terminated)
@@ -70,13 +71,20 @@ final class ResearchPersistenceManager {
             Date().timeIntervalSince($0)
         } ?? Double.infinity  // If nil, treat as infinite time (fresh install)
 
+        // Format time for logging (handle infinity case)
+        let timeString = timeInBackground.isInfinite ? "∞" : "\(Int(timeInBackground))s"
+
+        // LIFECYCLE FIX: If forceLoad is true (tab switch scenario), ALWAYS load history
+        // This handles cases where the view is recreated during tab switching
+        if forceLoad {
+            logger.info("🔄 [PERSISTENCE] Force loading history (tab switch or view recreation)")
+            return await loadPersistedHistory()
+        }
+
         // Load history ONLY if:
         // 1. App was gracefully backgrounded (not killed/crashed)
         // 2. Time in background < 15 minutes (active conversation window)
         let shouldLoadHistory = wasGracefullyBackgrounded && (timeInBackground < 900)
-
-        // Format time for logging (handle infinity case)
-        let timeString = timeInBackground.isInfinite ? "∞" : "\(Int(timeInBackground))s"
 
         logger.info("🔍 [PERSISTENCE] Session check: gracefulBackground=\(wasGracefullyBackgrounded), timeInBackground=\(timeString), shouldLoad=\(shouldLoadHistory)")
 

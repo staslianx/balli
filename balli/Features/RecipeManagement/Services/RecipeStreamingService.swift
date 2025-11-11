@@ -184,6 +184,11 @@ class RecipeStreamingService {
             var lastChunkData: RecipeSSEEvent?
 
             for try await line in asyncBytes.lines {
+                // P0.7 FIX: Check for Task cancellation on every iteration
+                // This allows SwiftUI .task(id:) to stop streaming when view disappears
+                // Prevents wasted token generation when user navigates away
+                try Task.checkCancellation()
+
                 if line.hasPrefix("event:") {
                     eventType = String(line.dropFirst(6).trimmingCharacters(in: .whitespaces))
                     logger.debug("📨 [SSE-LINE] Event type: \(eventType)")
@@ -268,6 +273,11 @@ class RecipeStreamingService {
                 }
             }
 
+        } catch is CancellationError {
+            // P0.7 FIX: Task was cancelled (user navigated away)
+            // This is EXPECTED behavior, not an error - log as info
+            logger.info("⏹️ [STREAMING] Stream cancelled - user navigated away")
+            // Don't call onError - cancellation is intentional and graceful
         } catch {
             logger.error("❌ [STREAMING] Connection error: \(error.localizedDescription)")
             await MainActor.run { onError(error) }

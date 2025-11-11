@@ -130,28 +130,20 @@ final class ResearchSearchCoordinator {
         }
 
         // Handle sources without URLs (like knowledge_base type)
-        // Provide fallback URL if URL parsing fails (shouldn't happen in practice)
+        // STREAMING FIX: Check for empty string BEFORE attempting URL creation
+        // Backend sends empty strings for knowledge_base sources (internal knowledge)
         let sourceURL: URL
-        if let parsedURL = URL(string: response.url) {
+
+        if response.url.isEmpty {
+            // Knowledge base sources don't have URLs - use app fallback silently
+            sourceURL = URL(string: "https://balli.app")!
+            logger.debug("Knowledge base source detected (empty URL), using app fallback")
+        } else if let parsedURL = URL(string: response.url) {
             sourceURL = parsedURL
-        } else if let fallbackURL = URL(string: "https://balli.app") {
-            sourceURL = fallbackURL
-            logger.warning("Failed to create URL from: \(response.url, privacy: .public), using fallback")
         } else {
-            // Last resort: create a safe placeholder URL
-            // This should never happen as "https://balli.app" is a valid URL
-            logger.error("Critical: Failed to create any valid URL for source: \(response.url, privacy: .public)")
-            return ResearchSource(
-                id: response.id,
-                url: URL(fileURLWithPath: "/"), // Safe system URL
-                domain: response.domain,
-                title: response.title,
-                snippet: response.snippet,
-                publishDate: parseDate(response.publishDate),
-                author: response.author,
-                credibilityBadge: badge,
-                faviconURL: nil
-            )
+            // Invalid URL format (shouldn't happen with non-empty strings)
+            sourceURL = URL(string: "https://balli.app")!
+            logger.warning("Failed to create URL from: '\(response.url, privacy: .public)', using fallback")
         }
 
         return ResearchSource(

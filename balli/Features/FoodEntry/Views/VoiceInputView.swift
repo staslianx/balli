@@ -51,6 +51,10 @@ struct VoiceInputView: View {
     // Success confirmation
     @State private var showingSaveConfirmation = false
 
+    // Insulin-only entry routing
+    @State private var showingStandaloneMedicationEntry = false
+    @State private var standaloneInsulinData: (name: String?, dosage: Double, type: String?, timestamp: Date)?
+
     // Haptic feedback
     private let hapticManager = HapticManager()
 
@@ -88,7 +92,7 @@ struct VoiceInputView: View {
                     .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingSaveConfirmation)
                 }
             }
-            .navigationTitle("Öğününü Kaydet")
+            .navigationTitle("Sesle kaydet")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -104,6 +108,17 @@ struct VoiceInputView: View {
                         .buttonStyle(.balliBordered)
                     }
                 }
+            }
+        }
+        .sheet(isPresented: $showingStandaloneMedicationEntry) {
+            if let insulinData = standaloneInsulinData {
+                StandaloneMedicationEntryView(
+                    medicationName: insulinData.name,
+                    dosage: insulinData.dosage,
+                    medicationType: insulinData.type,
+                    timestamp: insulinData.timestamp
+                )
+                .environment(\.managedObjectContext, viewContext)
             }
         }
         .task {
@@ -306,6 +321,43 @@ struct VoiceInputView: View {
                 isParsing = false
 
                 if response.success, let mealData = response.data {
+                    // SPECIAL CASE: Insulin-only entry (no meal/food data)
+                    // Route to standalone entry for BOTH basal (Lantus) AND bolus (NovoRapid) insulin
+                    // when user only talks about insulin without mentioning food
+                    let hasInsulinData = (mealData.insulinDosage ?? 0) > 0
+                    let hasFoods = !mealData.foods.isEmpty
+                    let hasCarbs = mealData.totalCarbs > 0
+
+                    if hasInsulinData && !hasFoods && !hasCarbs {
+                        logger.info("💉 Detected insulin-only entry - routing to StandaloneMedicationEntryView")
+                        logger.info("   - Insulin: \(mealData.insulinName ?? "Unknown") \(mealData.insulinDosage ?? 0) units")
+                        logger.info("   - Type: \(mealData.insulinType ?? "unknown")")
+
+                        // Parse timestamp - prioritize time mentioned in voice over recording time
+                        let timestamp: Date
+                        if let timeString = mealData.mealTime, let parsedTime = parseTimeString(timeString) {
+                            timestamp = parsedTime
+                            logger.info("   - Using mentioned time: \(timeString)")
+                        } else {
+                            timestamp = Date()
+                            logger.info("   - Using current time (no time mentioned)")
+                        }
+
+                        // Prepare insulin data for standalone entry
+                        standaloneInsulinData = (
+                            name: mealData.insulinName,
+                            dosage: mealData.insulinDosage ?? 0,
+                            type: mealData.insulinType,
+                            timestamp: timestamp
+                        )
+
+                        // Show medication entry view
+                        showingStandaloneMedicationEntry = true
+                        hapticManager.notification(.success)
+
+                        return // Skip meal preview flow
+                    }
+
                     // Convert to ParsedMealData
                     parsedMealData = ParsedMealData(from: mealData)
 
@@ -347,10 +399,13 @@ struct VoiceInputView: View {
                     editableMealTime = mealData.mealTime ?? ""
 
                     // Initialize timestamp - parse from mealTime if provided, otherwise use current time
+                    // PRIORITY: Use time mentioned in voice recording, not the time when recording started
                     if let timeString = mealData.mealTime, let parsedTime = parseTimeString(timeString) {
                         editableTimestamp = parsedTime
+                        logger.info("   - Using mentioned time for meal+insulin: \(timeString)")
                     } else {
                         editableTimestamp = Date()
+                        logger.info("   - Using current time for meal+insulin (no time mentioned)")
                     }
 
                     // Initialize insulin data if present

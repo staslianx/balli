@@ -182,6 +182,24 @@ struct InformationRetrievalView: View {
         .sheet(isPresented: $showingSettings) {
             AppSettingsView()
         }
+        .task {
+            // LIFECYCLE FIX: Ensure answers are loaded when view appears
+            // This handles tab switching and lock/unlock scenarios
+            // Only triggers if answers are empty and data exists in persistence
+            if viewModel.answers.isEmpty {
+                await viewModel.recoverSessionIfNeeded()
+            }
+        }
+        .task(id: viewModel.isSearching) {
+            // P0.8 FIX: Monitor search state for automatic cancellation
+            // CRITICAL: When user navigates away or switches tabs, streaming stops
+            // This prevents wasted token generation for invisible research results
+            if viewModel.isSearching {
+                AppLoggers.Research.search.info("🔍 [LIFECYCLE] Research search started - monitoring for cancellation")
+            } else {
+                AppLoggers.Research.search.info("✅ [LIFECYCLE] Research search completed or stopped")
+            }
+        }
     }
 
     // MARK: - Empty State

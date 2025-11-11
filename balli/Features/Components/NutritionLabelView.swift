@@ -8,6 +8,7 @@
 import SwiftUI
 import OSLog
 
+// Logger accessible to extensions (private to this file)
 private let logger = Logger(
     subsystem: Bundle.main.bundleIdentifier ?? "com.anaxonic.balli",
     category: "NutritionLabel"
@@ -17,7 +18,7 @@ struct NutritionLabelView: View {
     // Product information
     @Binding var productBrand: String
     @Binding var productName: String
-    
+
     // Nutritional values (base per serving size)
     @Binding var calories: String
     @Binding var servingSize: String
@@ -26,10 +27,10 @@ struct NutritionLabelView: View {
     @Binding var sugars: String
     @Binding var protein: String
     @Binding var fat: String
-    
+
     // Portion control
     @Binding var portionGrams: Double
-    
+
     // UI state
     let isEditing: Bool
     let showIcon: Bool
@@ -95,151 +96,6 @@ struct NutritionLabelView: View {
         self.valuesAnimationProgress = valuesAnimationProgress
         self.showSlider = showSlider
     }
-    
-    // Computed properties for proportional values
-    private var adjustmentRatio: Double {
-        let baseServing = servingSize.toDouble ?? 100.0
-        let ratio = portionGrams / baseServing
-
-        logger.debug("🔢 adjustmentRatio - servingSize: '\(self.servingSize)' -> parsed: \(baseServing, privacy: .public), portionGrams: \(self.portionGrams, privacy: .public), ratio: \(ratio, privacy: .public)")
-
-        return ratio
-    }
-
-    private var adjustedCalories: String {
-        guard let baseValue = calories.toDouble else {
-            logger.error("❌ adjustedCalories - failed to parse calories: '\(self.calories)'")
-            return calories
-        }
-        let adjusted = baseValue * adjustmentRatio
-        let result = adjusted.asLocalizedDecimal(decimalPlaces: 0)
-
-        logger.debug("✅ adjustedCalories - base: '\(self.calories)' -> \(baseValue, privacy: .public), ratio: \(self.adjustmentRatio, privacy: .public), adjusted: \(adjusted, privacy: .public), formatted: '\(result)'")
-
-        return result
-    }
-
-    private var adjustedCarbohydrates: String {
-        guard let baseValue = carbohydrates.toDouble else {
-            logger.error("❌ adjustedCarbohydrates - failed to parse carbohydrates: '\(self.carbohydrates)'")
-            return carbohydrates
-        }
-        let adjusted = baseValue * adjustmentRatio
-        let result = formatNutritionValue(adjusted)
-
-        logger.debug("✅ adjustedCarbohydrates - base: '\(self.carbohydrates)' -> \(baseValue, privacy: .public), ratio: \(self.adjustmentRatio, privacy: .public), adjusted: \(adjusted, privacy: .public), formatted: '\(result)'")
-
-        return result
-    }
-
-    private var adjustedFiber: String {
-        guard let baseValue = fiber.toDouble else {
-            logger.error("❌ adjustedFiber - failed to parse fiber: '\(self.fiber)'")
-            return fiber
-        }
-        let adjusted = baseValue * adjustmentRatio
-        let result = formatNutritionValue(adjusted)
-
-        logger.debug("✅ adjustedFiber - base: '\(self.fiber)' -> \(baseValue, privacy: .public), ratio: \(self.adjustmentRatio, privacy: .public), adjusted: \(adjusted, privacy: .public), formatted: '\(result)'")
-
-        return result
-    }
-
-    private var adjustedSugars: String {
-        guard let baseValue = sugars.toDouble else {
-            logger.error("❌ adjustedSugars - failed to parse sugars: '\(self.sugars)'")
-            return sugars
-        }
-        let adjusted = baseValue * adjustmentRatio
-        let result = formatNutritionValue(adjusted)
-
-        logger.debug("✅ adjustedSugars - base: '\(self.sugars)' -> \(baseValue, privacy: .public), ratio: \(self.adjustmentRatio, privacy: .public), adjusted: \(adjusted, privacy: .public), formatted: '\(result)'")
-
-        return result
-    }
-
-    private var adjustedProtein: String {
-        guard let baseValue = protein.toDouble else {
-            logger.error("❌ adjustedProtein - failed to parse protein: '\(self.protein)'")
-            return protein
-        }
-        let adjusted = baseValue * adjustmentRatio
-        let result = formatNutritionValue(adjusted)
-
-        logger.debug("✅ adjustedProtein - base: '\(self.protein)' -> \(baseValue, privacy: .public), ratio: \(self.adjustmentRatio, privacy: .public), adjusted: \(adjusted, privacy: .public), formatted: '\(result)'")
-
-        return result
-    }
-
-    private var adjustedFat: String {
-        guard let baseValue = fat.toDouble else {
-            logger.error("❌ adjustedFat - failed to parse fat: '\(self.fat)'")
-            return fat
-        }
-        let adjusted = baseValue * adjustmentRatio
-        let result = formatNutritionValue(adjusted)
-
-        logger.debug("✅ adjustedFat - base: '\(self.fat)' -> \(baseValue, privacy: .public), ratio: \(self.adjustmentRatio, privacy: .public), adjusted: \(adjusted, privacy: .public), formatted: '\(result)'")
-
-        return result
-    }
-
-    /// Format nutrition value with locale-aware decimal separator
-    /// Show decimal only if there's a meaningful value (51.0 -> "51", 51.5 -> "51,5" in Turkish)
-    private func formatNutritionValue(_ value: Double) -> String {
-        let rounded = round(value * 10) / 10  // Round to 1 decimal place
-        if rounded.truncatingRemainder(dividingBy: 1) == 0 {
-            // No decimal part, show as integer
-            return rounded.asLocalizedDecimal(decimalPlaces: 0)
-        } else {
-            // Has decimal part, show 1 decimal with locale-aware separator
-            return rounded.asLocalizedDecimal(decimalPlaces: 1)
-        }
-    }
-
-    /// Calculate real-time impact score for current portion using Nestlé formula
-    /// Treats empty or invalid nutritional values as 0.0 to handle products with missing data
-    private var currentImpactResult: ImpactScoreResult? {
-        // Require only carbs and serving size - other nutrients can be zero
-        guard let baseCarbs = carbohydrates.toDouble,
-              let baseServing = servingSize.toDouble,
-              baseServing > 0 else {
-            return nil
-        }
-
-        // Parse optional nutrients - default to 0.0 if missing/empty/invalid
-        let baseFiber = fiber.toDouble ?? 0.0
-        let baseSugars = sugars.toDouble ?? 0.0
-        let baseProtein = protein.toDouble ?? 0.0
-        let baseFat = fat.toDouble ?? 0.0
-
-        return ImpactScoreCalculator.calculate(
-            totalCarbs: baseCarbs,
-            fiber: baseFiber,
-            sugar: baseSugars,
-            protein: baseProtein,
-            fat: baseFat,
-            servingSize: baseServing,
-            portionGrams: portionGrams
-        )
-    }
-
-    // Helper method to determine if a value should be visible based on animation state
-    private func shouldShowValue(_ fieldName: String) -> Bool {
-        // Always show in editing mode
-        if isEditing {
-            return true
-        }
-
-        // For animation mode: only show if both general flag is true AND individual field is animated
-        if !showingValues {
-            // During animation sequence: only show individual fields when their animation is triggered
-            return valuesAnimationProgress[fieldName] ?? false
-        }
-
-        // For immediate display mode (showingValues = true): show everything
-        return true
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -296,35 +152,23 @@ struct NutritionLabelView: View {
             }
         }
     }
-    
+
     private var headerSection: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xxSmall) {
-                if isEditing {
-                    TextField("Marka", text: $productBrand)
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(30), weight: .semibold, design: .rounded))
-                        .foregroundColor(.primary)
-                        .textFieldStyle(.plain)
-                        .frame(height: ResponsiveDesign.height(36))
-                } else {
-                    Text(productBrand.isEmpty ? "Marka" : productBrand)
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(30), weight: .semibold, design: .rounded))
-                        .foregroundColor(productBrand.isEmpty ? .secondary : .primary)
-                        .frame(height: ResponsiveDesign.height(36), alignment: .leading)
-                }
+                // ALWAYS EDITABLE: Brand name - no pencil required
+                TextField("Marka", text: $productBrand)
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(30), weight: .semibold, design: .rounded))
+                    .foregroundColor(.primary)
+                    .textFieldStyle(.plain)
+                    .frame(height: ResponsiveDesign.height(36))
 
-                if isEditing {
-                    TextField("Ürün", text: $productName)
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(26), weight: .medium, design: .rounded))
-                        .foregroundColor(.primary)
-                        .textFieldStyle(.plain)
-                        .frame(height: ResponsiveDesign.height(32))
-                } else {
-                    Text(productName.isEmpty ? "Ürün Adı" : productName)
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(26), weight: .medium, design: .rounded))
-                        .foregroundColor(productName.isEmpty ? .secondary : .primary)
-                        .frame(height: ResponsiveDesign.height(32), alignment: .leading)
-                }
+                // ALWAYS EDITABLE: Product name - no pencil required
+                TextField("Ürün", text: $productName)
+                    .font(.system(size: ResponsiveDesign.Font.scaledSize(26), weight: .medium, design: .rounded))
+                    .foregroundColor(.primary)
+                    .textFieldStyle(.plain)
+                    .frame(height: ResponsiveDesign.height(32))
             }
 
             Spacer()
@@ -356,7 +200,7 @@ struct NutritionLabelView: View {
         .padding(.horizontal, ResponsiveDesign.Spacing.large)
         .padding(.top, ResponsiveDesign.height(50))
     }
-    
+
     private var caloriesSection: some View {
         CaloriesSectionView(
             calories: $calories,
@@ -374,7 +218,7 @@ struct NutritionLabelView: View {
             .padding(.horizontal, ResponsiveDesign.Spacing.xSmall)
             .padding(.vertical, ResponsiveDesign.Spacing.large)
     }
-    
+
     private var nutritionSection: some View {
         VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.medium) {
             NutritionLabelRowProportional(
@@ -425,7 +269,7 @@ struct NutritionLabelView: View {
         }
         .padding(.horizontal, ResponsiveDesign.Spacing.large)
     }
-    
+
     private var sliderSection: some View {
         // Logarithmic slider (keep original purple color - don't change)
         // Extra top padding to align with progress bar position in AnalysisNutritionLabelView
@@ -433,49 +277,8 @@ struct NutritionLabelView: View {
         Slider(value: sliderPosition, in: 0...1, step: 0.01)
             .accentColor(AppTheme.primaryPurple)
             .padding(.horizontal, ResponsiveDesign.Spacing.large)
-            .padding(.top, ResponsiveDesign.Spacing.large + ResponsiveDesign.Spacing.medium + ResponsiveDesign.height(24))
+            .padding(.top, ResponsiveDesign.Spacing.xxSmall + ResponsiveDesign.Spacing.medium + ResponsiveDesign.height(24))
             .animation(.easeInOut(duration: 0.15), value: portionGrams)
-    }
-
-    // MARK: - Logarithmic Slider Helpers
-
-    /// Computed binding that converts between grams and slider position (0-1)
-    nonisolated private var sliderPosition: Binding<Double> {
-        Binding<Double>(
-            get: {
-                self.sliderPositionFromGrams(self.portionGrams)
-            },
-            set: { newPosition in
-                // Update the binding value directly
-                // This should trigger SwiftUI to re-render the view
-                self.portionGrams = self.gramsFromSliderPosition(newPosition)
-            }
-        )
-    }
-
-    private enum SliderConfig {
-        static let minGrams = 5.0
-        static let maxGrams = 300.0
-        static let logGamma = 0.55
-    }
-
-    /// Convert grams to slider position using a tunable logarithmic curve
-    nonisolated private func sliderPositionFromGrams(_ grams: Double) -> Double {
-        let clamped = max(SliderConfig.minGrams, min(SliderConfig.maxGrams, grams))
-        let normalized = (clamped - SliderConfig.minGrams) / (SliderConfig.maxGrams - SliderConfig.minGrams)
-        return pow(normalized, SliderConfig.logGamma)
-    }
-
-    /// Convert slider position back to grams using the inverse curve
-    nonisolated private func gramsFromSliderPosition(_ position: Double) -> Double {
-        let clamped = max(0, min(1, position))
-        let normalized = pow(clamped, 1 / SliderConfig.logGamma)
-        let grams = SliderConfig.minGrams + normalized * (SliderConfig.maxGrams - SliderConfig.minGrams)
-
-        if grams < 80 {
-            return round(grams)
-        }
-        return round(grams / 5) * 5
     }
 
     private func impactBannerSection(impactLevel: ImpactLevel, impactScore: Double) -> some View {
@@ -490,235 +293,5 @@ struct NutritionLabelView: View {
                 removal: .opacity
             ))
         }
-    }
-
-}
-
-// MARK: - Calories Section Component
-
-/// Separate view for calories section to manage focus state independently
-struct CaloriesSectionView: View {
-    @Binding var calories: String
-    let adjustedCalories: String
-    @Binding var servingSize: String
-    let portionGrams: Double
-    let shouldShowValue: Bool
-
-    @FocusState private var caloriesFocused: Bool
-    @FocusState private var servingSizeFocused: Bool
-
-    // Computed bindings to reduce duplication
-    // KNOWN ISSUE: Swift 6 strict concurrency generates warnings for @Binding mutations in closures
-    // This is a SwiftUI limitation - Binding(get:set:) doesn't support @Sendable closures
-    // These mutations are safe in practice as @Binding provides thread-safe access
-    private var caloriesBinding: Binding<String> {
-        Binding(
-            get: { caloriesFocused ? calories : adjustedCalories },
-            set: { calories = $0 }
-        )
-    }
-
-    private var servingSizeBinding: Binding<String> {
-        Binding(
-            get: { servingSizeFocused ? servingSize : String(format: "%.0f", portionGrams) },
-            set: { servingSize = $0 }
-        )
-    }
-
-    var body: some View {
-        HStack(alignment: .lastTextBaseline, spacing: ResponsiveDesign.Spacing.medium) {
-            HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
-                // Always show TextField, but switch between adjusted/base value based on focus
-                TextField("0", text: caloriesBinding)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .semibold, design: .rounded))
-                .frame(width: ResponsiveDesign.width(45), height: ResponsiveDesign.height(28))
-                .foregroundColor(.primary)
-                .textFieldStyle(.plain)
-                .focused($caloriesFocused)
-                .opacity(shouldShowValue ? 1.0 : 0.0)
-
-                Text("kcal")
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .regular, design: .rounded))
-                    .foregroundColor(.primary)
-                    .opacity(shouldShowValue ? 1.0 : 0.0)
-            }
-            .layoutPriority(1)
-
-            Spacer()
-
-            HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
-                // Serving size field - tap to edit base, otherwise shows portion grams
-                TextField("0", text: servingSizeBinding)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
-                .frame(width: ResponsiveDesign.width(45), height: ResponsiveDesign.height(28))
-                .foregroundColor(.primary)
-                .textFieldStyle(.plain)
-                .focused($servingSizeFocused)
-
-                Text("g'da")
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .regular, design: .rounded))
-                    .foregroundColor(.primary)
-            }
-        }
-        .frame(height: ResponsiveDesign.height(28))
-        .padding(.horizontal, ResponsiveDesign.Spacing.large)
-        .padding(.top, ResponsiveDesign.Spacing.medium)
-    }
-}
-
-// MARK: - Nutrition Row Component
-// MARK: - Preview
-
-#Preview {
-    struct PreviewWrapper: View {
-        @State private var productBrand = "Ülker"
-        @State private var productName = "Çikolatalı Gofret"
-        @State private var calories = "240"
-        @State private var servingSize = "100"
-        @State private var carbohydrates = "20"
-        @State private var fiber = "6"
-        @State private var sugars = "8"
-        @State private var protein = "12"
-        @State private var fat = "8"
-        @State private var portionGrams: Double = 100
-        @State private var isEditing = false
-        
-        var body: some View {
-            ZStack {
-                Color(.systemGray6)
-                    .ignoresSafeArea()
-                
-                VStack {
-                    NutritionLabelView(
-                        productBrand: $productBrand,
-                        productName: $productName,
-                        calories: $calories,
-                        servingSize: $servingSize,
-                        carbohydrates: $carbohydrates,
-                        fiber: $fiber,
-                        sugars: $sugars,
-                        protein: $protein,
-                        fat: $fat,
-                        portionGrams: $portionGrams,
-                        isEditing: isEditing,
-                        showIcon: true,
-                        iconName: "laser.burst",
-                        iconColor: AppTheme.primaryPurple,
-                        showingValues: true,
-                        valuesAnimationProgress: [:]
-                    )
-                    
-                    Button(action: { isEditing.toggle() }) {
-                        Text(isEditing ? "Kaydet" : "Düzenle")
-                            .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold, design: .rounded))
-                            .foregroundColor(.white)
-                            .frame(width: ResponsiveDesign.width(180))
-                            .frame(height: ResponsiveDesign.height(56))
-                            .background(AppTheme.primaryPurple)
-                            .clipShape(Capsule())
-                    }
-                    .padding(.top, ResponsiveDesign.height(30))
-                }
-            }
-        }
-    }
-    
-    return PreviewWrapper()
-}
-
-struct NutritionLabelRowProportional: View {
-    let label: String
-    @Binding var baseValue: String  // Base value at serving size
-    let adjustedValue: String  // Adjusted value based on portion
-    let unit: String
-    let isEditing: Bool
-    let portionGrams: Double
-    let shouldShow: Bool
-
-    @FocusState private var isFocused: Bool
-
-    // Computed binding to reduce duplication
-    // KNOWN ISSUE: Swift 6 strict concurrency generates warning for @Binding mutation in closure
-    // This is a SwiftUI limitation - Binding(get:set:) doesn't support @Sendable closures
-    // This mutation is safe in practice as @Binding provides thread-safe access
-    private var valueBinding: Binding<String> {
-        Binding(
-            get: { isFocused ? baseValue : adjustedValue },
-            set: { baseValue = $0 }
-        )
-    }
-
-    var body: some View {
-        HStack {
-            Text(label)
-                .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .semibold, design: .rounded))
-                .foregroundColor(.primary)
-
-            Spacer()
-
-            HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
-                // Always show TextField, but populate it with adjusted value when not focused
-                // This allows: (1) slider updates values in real-time, (2) tap to edit
-                TextField("0", text: valueBinding)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
-                .frame(width: ResponsiveDesign.width(55), height: ResponsiveDesign.height(28))
-                .foregroundColor(.primary)
-                .textFieldStyle(.plain)
-                .focused($isFocused)
-                .opacity(shouldShow ? 1.0 : 0.0)
-
-                Text(unit)
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .regular, design: .rounded))
-                    .foregroundColor(.primary)
-                    .opacity(shouldShow ? 1.0 : 0.0)
-            }
-        }
-        .frame(height: ResponsiveDesign.height(28))
-    }
-}
-
-// Keep old component for backwards compatibility if needed
-struct NutritionLabelRow: View {
-    let label: String
-    @Binding var value: String
-    let unit: String
-    let isEditing: Bool
-    
-    var body: some View {
-        HStack {
-            Text(label)
-                .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .semibold, design: .rounded))
-                .foregroundColor(.primary)
-            
-            Spacer()
-            
-            HStack(spacing: ResponsiveDesign.Spacing.xxSmall) {
-                if isEditing {
-                    TextField("0", text: $value)
-                        .keyboardType(.decimalPad)
-                        .multilineTextAlignment(.trailing)
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
-                        .frame(width: ResponsiveDesign.width(50), height: ResponsiveDesign.height(28))
-                        .foregroundColor(.primary)
-                        .textFieldStyle(.plain)
-                } else {
-                    Text(value.isEmpty ? "0" : value)
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .medium, design: .rounded))
-                        .foregroundColor(.primary)
-                        .frame(width: ResponsiveDesign.width(50), height: ResponsiveDesign.height(28), alignment: .trailing)
-                }
-                
-                Text(unit)
-                    .font(.system(size: ResponsiveDesign.Font.scaledSize(22), weight: .regular, design: .rounded))
-                    .foregroundColor(.primary)
-            }
-        }
-        .frame(height: ResponsiveDesign.height(28))
     }
 }

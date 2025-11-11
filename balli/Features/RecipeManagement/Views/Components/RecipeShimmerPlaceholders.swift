@@ -32,24 +32,23 @@ struct IngredientsShimmerPlaceholder: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header
+            // Header with shimmer
             Text("Malzemeler")
                 .font(.custom("Playfair Display", size: 33.32))
                 .fontWeight(.bold)
                 .foregroundColor(.primary.opacity(0.3))
+                .shimmer(duration: 2.5, bounceBack: false)
 
-            // 3 ingredient placeholders
-            ForEach(0..<3, id: \.self) { _ in
-                HStack(spacing: 8) {
-                    Text("•")
-                        .font(.custom("Manrope-Medium", size: 20))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
+            // 1 ingredient placeholder (matches manual state)
+            HStack(spacing: 8) {
+                Text("•")
+                    .font(.custom("Manrope-Medium", size: 20))
+                    .foregroundColor(.primary.opacity(0.3))
 
-                    Text("Malzeme")
-                        .font(.custom("Manrope-Medium", size: 20))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
-                        .shimmer(duration: 2.5, bounceBack: false)
-                }
+                Text("Malzeme Ekle")
+                    .font(.custom("Manrope-Medium", size: 20))
+                    .foregroundColor(.primary.opacity(0.3))
+                    .shimmer(duration: 2.5, bounceBack: false)
             }
         }
     }
@@ -63,24 +62,23 @@ struct StepsShimmerPlaceholder: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header
+            // Header with shimmer
             Text("Yapılışı")
                 .font(.custom("Playfair Display", size: 33.32))
                 .fontWeight(.bold)
                 .foregroundColor(.primary.opacity(0.3))
+                .shimmer(duration: 2.5, bounceBack: false)
 
-            // 3 step placeholders
-            ForEach(1...3, id: \.self) { index in
-                HStack(spacing: 8) {
-                    Text("\(index).")
-                        .font(.custom("Manrope-Medium", size: 20))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
+            // 1 step placeholder (matches manual state)
+            HStack(spacing: 8) {
+                Text("1.")
+                    .font(.custom("Manrope-Medium", size: 20))
+                    .foregroundColor(.primary.opacity(0.3))
 
-                    Text("Adım")
-                        .font(.custom("Manrope-Medium", size: 20))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color.black.opacity(0.7))
-                        .shimmer(duration: 2.5, bounceBack: false)
-                }
+                Text("Adım Ekle")
+                    .font(.custom("Manrope-Medium", size: 20))
+                    .foregroundColor(.primary.opacity(0.3))
+                    .shimmer(duration: 2.5, bounceBack: false)
             }
         }
     }

@@ -219,7 +219,7 @@ struct FavoritesSection: View {
                                 brand: wrapper.item.brand ?? "Marka Yok",
                                 name: wrapper.item.name,
                                 portion: "\(Int(wrapper.item.servingSize))\(wrapper.item.servingUnit)'da",
-                                carbs: "\(Int(wrapper.item.totalCarbs)) gr Karb.",
+                                carbs: "\(wrapper.item.totalCarbs.asLocalizedDecimal(decimalPlaces: 1)) gr Karb.",
                                 width: cardWidth,
                                 isFavorite: true,
                                 impactLevel: wrapper.item.impactLevelDetailed,

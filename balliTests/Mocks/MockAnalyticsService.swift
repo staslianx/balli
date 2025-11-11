@@ -49,7 +49,7 @@ actor MockAnalyticsService: AnalyticsServiceProtocol {
 
         return { [weak self] in
             let duration = Date().timeIntervalSince(startTime)
-            self?.track(event, properties: [
+            await self?.track(event, properties: [
                 "duration_ms": String(format: "%.0f", duration * 1000)
             ])
         }

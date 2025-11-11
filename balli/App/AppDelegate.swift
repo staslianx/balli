@@ -17,9 +17,9 @@ import FirebaseCrashlytics
 /// - Orientation lock (UIKit-only API)
 /// - Background task registration (BGTaskScheduler requires UIApplicationDelegate)
 /// - Push notification registration (cleaner here than in SwiftUI)
+/// - Notification response handling (deep linking for meal reminders)
 /// - Offline queue monitoring and sync
-@MainActor
-final class AppDelegate: NSObject, UIApplicationDelegate {
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     private let logger = AppLoggers.App.lifecycle
 
     // MARK: - Orientation Lock
@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     // MARK: - App Lifecycle
 
+    @MainActor
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         logger.info("🚀 AppDelegate initialized - UIKit features configured")
 
@@ -52,6 +53,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
         // Configure background task registration
         configureBackgroundRefresh()
+
+        // Set up notification center delegate for handling notification taps
+        UNUserNotificationCenter.current().delegate = self
 
         // Request notification permissions
         Task {
@@ -101,6 +105,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     /// Schedules a background health sync task
     /// Called from balliApp.swift when app becomes active
+    @MainActor
     func scheduleHealthSyncTask() {
         #if targetEnvironment(simulator)
         // Background tasks don't work in simulator - this is expected behavior
@@ -146,5 +151,37 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         } catch {
             logger.error("❌ Failed to request notification permissions: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - UNUserNotificationCenterDelegate
+
+    /// Handle notification presentation when app is in foreground
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        // Show notification banner even when app is active
+        completionHandler([.banner, .sound])
+    }
+
+    /// Handle notification tap (opens app and routes to appropriate screen)
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        // Extract data before crossing actor boundaries (Swift 6 concurrency safety)
+        let identifier = response.notification.request.identifier
+
+        Task { @MainActor in
+            self.logger.info("🔔 User tapped notification: \(identifier)")
+
+            // Create response copy with just the identifier we need
+            // This avoids sending the entire UNNotificationResponse across actor boundaries
+            NotificationRouter.shared.handleNotificationIdentifier(identifier)
+        }
+
+        completionHandler()
     }
 }

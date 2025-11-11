@@ -66,11 +66,25 @@ final class RecipeGenerationViewModel: ObservableObject {
     /// Determines if save button should be visible
     /// Shows for AI-generated recipes OR manual recipes with content
     /// Only shows after character-by-character animation completes
+    /// P0 UX FIX (Issue #9): Hide during async operations to prevent race conditions
     var shouldShowSaveButton: Bool {
         if isSaved { return false }
 
         // Wait for animation to complete before showing save button
         if !recipeViewModel.isAnimationComplete {
+            return false
+        }
+
+        // P0 UX FIX: Hide save button during nutrition calculation (60-70s operation)
+        // Prevents user from tapping save before nutrition data is ready
+        // This eliminates the need for busy-waiting in saveRecipe()
+        if recipeViewModel.isCalculatingNutrition {
+            return false
+        }
+
+        // P0 UX FIX: Hide save button during photo generation (5-30s operation)
+        // Prevents photo URL from being lost if user saves before generation completes
+        if recipeViewModel.isGeneratingPhoto {
             return false
         }
 
@@ -198,11 +212,15 @@ final class RecipeGenerationViewModel: ObservableObject {
             return
         }
 
-        if recipeViewModel.isCalculatingNutrition {
-            while recipeViewModel.isCalculatingNutrition {
-                try? await Task.sleep(for: .milliseconds(100))
-            }
-        }
+        // P0 UX FIX (Issue #9): REMOVED busy-waiting loops
+        // The save button is now hidden during nutrition/photo operations (see shouldShowSaveButton)
+        // This prevents race conditions AND eliminates the need to poll with Task.sleep
+        //
+        // RATIONALE:
+        // - Save button only appears when operations are complete
+        // - No risk of saving before nutrition/photo data is ready
+        // - Eliminates 60-70 seconds of busy-waiting (80+ Task.sleep cycles per save)
+        // - Better UX: button presence communicates ready state
 
         let hasAIGeneratedContent = !recipeViewModel.recipeName.isEmpty || !recipeViewModel.recipeContent.isEmpty
         if (!manualIngredients.isEmpty || !manualSteps.isEmpty) && !hasAIGeneratedContent {

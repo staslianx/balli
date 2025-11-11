@@ -15,6 +15,23 @@ struct DashboardActionButtons: View {
     @Binding var showingRecipeEntry: Bool
     @Binding var isLongPressing: Bool
 
+    // Dark mode dissolved purple gradient (matching ProductCardView and RecipeCardView)
+    private var dissolvedPurpleDark: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: AppTheme.primaryPurple.opacity(0.12), location: 0.0),
+                .init(color: AppTheme.primaryPurple.opacity(0.08), location: 0.15),
+                .init(color: AppTheme.primaryPurple.opacity(0.05), location: 0.25),
+                .init(color: AppTheme.primaryPurple.opacity(0.03), location: 0.5),
+                .init(color: AppTheme.primaryPurple.opacity(0.05), location: 0.75),
+                .init(color: AppTheme.primaryPurple.opacity(0.08), location: 0.85),
+                .init(color: AppTheme.primaryPurple.opacity(0.12), location: 1.0)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
     var body: some View {
         GlassEffectContainer {
             HStack(spacing: ResponsiveDesign.Spacing.small) {
@@ -31,7 +48,9 @@ struct DashboardActionButtons: View {
                     .foregroundColor(colorScheme == .dark ? .primary : .white)
                     .frame(maxWidth: .infinity, minHeight: ResponsiveDesign.Components.actionButtonHeight+10)
                     .background(
-                        colorScheme == .light ? AppTheme.adaptiveBalliGradient(for: colorScheme) : nil
+                        colorScheme == .light
+                            ? AppTheme.adaptiveBalliGradient(for: colorScheme)
+                            : dissolvedPurpleDark  // Dark mode: dissolved purple gradient
                     )
                     .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.Components.actionButtonHeight / 2, style: .continuous))
                     .glassEffect(
@@ -51,7 +70,9 @@ struct DashboardActionButtons: View {
                 .foregroundColor(colorScheme == .dark ? .primary : .white)
                 .frame(maxWidth: .infinity, minHeight: ResponsiveDesign.Components.actionButtonHeight+10)
                 .background(
-                    colorScheme == .light ? AppTheme.adaptiveBalliGradient(for: colorScheme) : nil
+                    colorScheme == .light
+                        ? AppTheme.adaptiveBalliGradient(for: colorScheme)
+                        : dissolvedPurpleDark  // Dark mode: dissolved purple gradient
                 )
                 .clipShape(RoundedRectangle(cornerRadius: ResponsiveDesign.Components.actionButtonHeight / 2, style: .continuous))
                 .glassEffect(

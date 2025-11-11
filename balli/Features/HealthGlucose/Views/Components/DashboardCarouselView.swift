@@ -20,6 +20,9 @@ struct DashboardCarouselView: View {
     // Scroll state
     @Binding var currentCardIndex: Int?
 
+    // Sheet state for insulin history
+    @Binding var showingInsulinHistory: Bool
+
     // Environment
     @Environment(\.colorScheme) private var colorScheme
 

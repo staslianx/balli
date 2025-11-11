@@ -134,7 +134,8 @@ struct AnswerCardView: View {
                         let rating = feedback == .positive ? "up" : "down"
                         onFeedback?(rating, answer)
                     }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(.opacity)
+                    .animation(.easeInOut(duration: 0.3), value: isStreamingComplete && !isTypewriterAnimating)
                 }
             }
 

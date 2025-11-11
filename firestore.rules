@@ -62,11 +62,26 @@ service cloud.firestore {
         allow delete: if isAuthorizedUser() &&
                         request.auth.token.email == userId;
       }
+
+      // Recipes subcollection - user-specific recipes
+      match /recipes/{recipeId} {
+        // Users can only read/write their own recipes
+        allow read, write: if isAuthorizedUser() &&
+                             request.auth.token.email == userId;
+      }
+
+      // Medications subcollection - user-specific medication data
+      match /medications/{medicationId} {
+        // Users can only read/write their own medications
+        allow read, write: if isAuthorizedUser() &&
+                             request.auth.token.email == userId;
+      }
     }
 
-    // Default rules for other collections - require authentication
+    // Default rules - DENY ALL by default
+    // All collections must have explicit rules above
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }
