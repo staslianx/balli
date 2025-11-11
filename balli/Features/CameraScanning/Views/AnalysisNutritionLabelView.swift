@@ -210,6 +210,7 @@ struct AnalysisNutritionLabelView: View {
                             bounceBack: false
                         )
                     )
+                    .id(currentStage) // Force text recreation on stage change
 
                 Spacer()
             }

@@ -72,6 +72,7 @@ struct AIResultView: View {
                                 nutritionResult: viewModel.nutritionResult
                             )
                             .id(viewModel.analysisStage)
+                            .animation(.default, value: viewModel.analysisStage)
                         } else {
                             // Food label container with integrated impact banner
                             NutritionLabelView(
