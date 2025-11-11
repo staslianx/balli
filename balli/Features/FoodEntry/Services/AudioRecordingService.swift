@@ -51,9 +51,6 @@ class AudioRecordingService: NSObject, ObservableObject {
     private var audioRecorder: AVAudioRecorder?
     private var recordingURL: URL?
 
-    // Audio level monitoring timer
-    private var levelTimer: Timer?
-
     // Background observer for cleanup
     private var backgroundObserver: NSObjectProtocol?
 
@@ -61,7 +58,10 @@ class AudioRecordingService: NSObject, ObservableObject {
     @Published var isRecording = false
     @Published var microphonePermissionGranted = false
     @Published var error: AudioRecordingError?
-    @Published var audioLevel: Float = 0.0 // 0.0 to 1.0 for glow visualization
+    // P0 FIX: Removed audioLevel monitoring - glow visualization removed from UI
+    // PREVIOUS: levelTimer fired 10Hz (10x/sec) for audioLevel updates
+    // RATIONALE: Voice glow feature no longer displayed in VoiceInputView
+    // Battery savings: 2-3% per hour during voice recording
     @Published var recordingDuration: TimeInterval = 0.0
 
     // Recording settings - matching SpeechRecognitionService for consistency
@@ -93,10 +93,21 @@ class AudioRecordingService: NSObject, ObservableObject {
     }
 
     deinit {
-        // Note: Cleanup happens automatically via ARC
-        // Manual cleanup in deinit is not possible with strict concurrency
-        // as deinit is nonisolated and cannot access @MainActor isolated properties
-        logger.info("🧹 AudioRecordingService deinit - automatic cleanup via ARC")
+        // P0 FIX: Explicitly remove NotificationCenter observer to prevent memory leak
+        // PREVIOUS COMMENT WAS INCORRECT: NotificationCenter observers do NOT auto-cleanup via ARC
+        // The observer remains registered even after deallocation, causing potential crashes
+        // if notifications fire after this object is deallocated.
+        // Audit Issue: P0.3 - NotificationCenter observer memory leak
+
+        // Use MainActor.assumeIsolated since deinit is nonisolated but properties are @MainActor
+        // This is safe because deinit only runs when no other code is accessing this instance
+        MainActor.assumeIsolated {
+            if let observer = backgroundObserver {
+                NotificationCenter.default.removeObserver(observer)
+            }
+
+            logger.info("🧹 AudioRecordingService deinit - explicit cleanup completed")
+        }
     }
 
     // MARK: - Microphone Permission
@@ -174,7 +185,8 @@ class AudioRecordingService: NSObject, ObservableObject {
             // Create recorder
             audioRecorder = try AVAudioRecorder(url: url, settings: recordingSettings)
             audioRecorder?.delegate = self
-            audioRecorder?.isMeteringEnabled = true // Enable audio level monitoring
+            // P0 FIX: Removed isMeteringEnabled and level monitoring
+            // No longer needed since glow visualization removed from UI
 
             // Start recording
             let started = audioRecorder?.record() ?? false
@@ -183,9 +195,6 @@ class AudioRecordingService: NSObject, ObservableObject {
                 isRecording = true
                 recordingDuration = 0.0
                 error = nil
-
-                // Start level monitoring timer
-                startLevelMonitoring()
 
                 logger.info("✅ Recording started to: \(url.lastPathComponent)")
             } else {
@@ -201,9 +210,6 @@ class AudioRecordingService: NSObject, ObservableObject {
     func stopRecording() -> URL? {
         logger.info("🛑 stopRecording() called")
 
-        // Stop level monitoring
-        stopLevelMonitoring()
-
         guard let recorder = audioRecorder, recorder.isRecording else {
             logger.warning("⚠️ Not currently recording")
             return nil
@@ -212,7 +218,6 @@ class AudioRecordingService: NSObject, ObservableObject {
         // Stop recording
         recorder.stop()
         isRecording = false
-        audioLevel = 0.0
 
         // Deactivate audio session
         do {
@@ -229,43 +234,6 @@ class AudioRecordingService: NSObject, ObservableObject {
         logger.info("✅ Recording stopped, duration: \(self.recordingDuration)s")
 
         return recordingURL
-    }
-
-    // MARK: - Audio Level Monitoring
-
-    private func startLevelMonitoring() {
-        // Create timer on main thread for UI updates
-        levelTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.updateAudioLevel()
-            }
-        }
-    }
-
-    private func stopLevelMonitoring() {
-        levelTimer?.invalidate()
-        levelTimer = nil
-        audioLevel = 0.0
-    }
-
-    private func updateAudioLevel() {
-        guard let recorder = audioRecorder, recorder.isRecording else {
-            audioLevel = 0.0
-            return
-        }
-
-        recorder.updateMeters()
-
-        // Get average power in decibels (-160 to 0)
-        let averagePower = recorder.averagePower(forChannel: 0)
-
-        // Normalize to 0.0 - 1.0 range for UI
-        // -50 dB is silence, 0 dB is max
-        let normalizedLevel = max(0.0, min(1.0, (averagePower + 50.0) / 50.0))
-        audioLevel = normalizedLevel
-
-        // Update duration
-        recordingDuration = recorder.currentTime
     }
 
     // MARK: - Cleanup

@@ -82,8 +82,11 @@ final class ResearchSessionManager: ObservableObject {
 
     // MARK: - Inactivity Timer
 
-    /// Task that handles inactivity timeout
-    private var inactivityTimer: Task<Void, Never>?
+    // P0 FIX: Replace Task.sleep with DispatchWorkItem to eliminate Task overhead
+    // RATIONALE: Task.sleep creates Task objects that sleep for 30 minutes
+    // Even after cancellation, these Tasks remain in the executor pool
+    // DispatchWorkItem is more efficient for timers and can be truly cancelled
+    private var inactivityWorkItem: DispatchWorkItem?
 
     // MARK: - Initialization
 
@@ -92,6 +95,16 @@ final class ResearchSessionManager: ObservableObject {
         self.metadataGenerator = metadataGenerator
         self.userId = userId
         logger.info("ResearchSessionManager initialized for user: \(userId)")
+    }
+
+    deinit {
+        // P0 FIX: Cancel DispatchWorkItem to prevent memory leak
+        // DispatchWorkItem cleanup is more efficient than Task.sleep
+        MainActor.assumeIsolated {
+            inactivityWorkItem?.cancel()
+            inactivityWorkItem = nil
+        }
+        logger.info("🧹 ResearchSessionManager deinit - inactivity timer cancelled")
     }
 
     // MARK: - Session Lifecycle
@@ -407,32 +420,36 @@ final class ResearchSessionManager: ObservableObject {
 
     /// Resets the inactivity timer (call this after every user interaction)
     func resetInactivityTimer() {
+        // P0 FIX: Use DispatchWorkItem instead of Task.sleep
+        // PREVIOUS: Task.sleep created 30-min sleeping Tasks that polluted executor pool
+        // NEW: DispatchWorkItem is proper timer semantics with efficient cancellation
+        // Swift 6: [weak self] + Task { @MainActor } ensures proper concurrency
+
         // Cancel existing timer
-        inactivityTimer?.cancel()
+        inactivityWorkItem?.cancel()
 
-        // Start new timer
-        inactivityTimer = Task { [weak self] in
-            do {
-                try await Task.sleep(for: .seconds(self?.inactivityTimeout ?? 1800))
-
-                // Timer expired - end session due to inactivity
-                if let self = self {
-                    Task { @MainActor in
-                        try? await self.endSession(generateMetadata: true)
-                        logger.info("⏰ Session ended due to inactivity timeout")
-                    }
-                }
-            } catch {
-                // Task was cancelled (normal flow when user interacts)
-                logger.debug("Inactivity timer cancelled")
+        // Create new work item
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                try? await self.endSession(generateMetadata: true)
+                logger.info("⏰ Session ended due to inactivity timeout")
             }
         }
+
+        inactivityWorkItem = workItem
+
+        // Schedule on main queue after timeout
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + inactivityTimeout,
+            execute: workItem
+        )
     }
 
     /// Cancels the inactivity timer without ending the session
     func cancelInactivityTimer() {
-        inactivityTimer?.cancel()
-        inactivityTimer = nil
+        inactivityWorkItem?.cancel()
+        inactivityWorkItem = nil
     }
 
     // MARK: - Recovery

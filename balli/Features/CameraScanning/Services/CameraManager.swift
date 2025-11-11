@@ -30,7 +30,11 @@ public class CameraManager: ObservableObject {
     private let cameraActor = CameraActor()
     private var stateObserverID: UUID?
     private var errorObserverID: UUID?
-    private var lifecycleObserver: Any?
+
+    // P0 FIX: Store observer tokens for explicit cleanup to prevent memory leak
+    // NotificationCenter observers must be explicitly removed to prevent crashes
+    // if notifications fire after object deallocation
+    private var sceneObservers: [NSObjectProtocol] = []
     
     // MARK: - Performance Tracking
     @Published public var performanceMetrics: CameraPerformanceMetrics?
@@ -46,7 +50,16 @@ public class CameraManager: ObservableObject {
     }
     
     deinit {
-        // Lifecycle observer cleanup handled by NotificationCenter
+        // P0 FIX: Explicitly remove all NotificationCenter observers to prevent memory leak
+        // CRITICAL: NotificationCenter observers do NOT auto-cleanup - must be manually removed
+        // to prevent crashes if notifications fire after this object deallocates
+        MainActor.assumeIsolated {
+            for observer in sceneObservers {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            sceneObservers.removeAll()
+            logger.info("🧹 CameraManager deinit - NotificationCenter observers cleaned up")
+        }
     }
     
     // MARK: - Setup
@@ -70,28 +83,55 @@ public class CameraManager: ObservableObject {
     }
     
     private func setupLifecycleObservation() {
-        // Scene phase changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleScenePhaseChange),
-            name: UIScene.didEnterBackgroundNotification,
-            object: nil
-        )
-        
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleScenePhaseChange),
-            name: UIScene.willEnterForegroundNotification,
-            object: nil
-        )
-        
-        // Permission changes
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handlePermissionChange),
-            name: UIApplication.didBecomeActiveNotification,
-            object: nil
-        )
+        // P0 FIX: Use closure-based observers with stored tokens for explicit cleanup
+        // PREVIOUS: selector-based observers (self as target) relied on incorrect auto-cleanup assumption
+        // Swift 6 Concurrency: Task { @MainActor } ensures UI property access on main actor
+
+        // Scene phase: background
+        let backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIScene.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                await self.cameraActor.handleEnterBackground()
+                self.isSessionRunning = false
+            }
+        }
+        sceneObservers.append(backgroundObserver)
+
+        // Scene phase: foreground
+        let foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIScene.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            Task { @MainActor [weak self] in
+                guard let self = self else { return }
+                do {
+                    try await self.cameraActor.handleEnterForeground()
+                    if self.state == .ready {
+                        self.isSessionRunning = true
+                    }
+                } catch {
+                    self.logger.error("Failed to restore camera: \(error)")
+                }
+            }
+        }
+        sceneObservers.append(foregroundObserver)
+
+        // Permission changes - check on app activation
+        let activeObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.checkPermissionStatus()
+            }
+        }
+        sceneObservers.append(activeObserver)
     }
     
     // MARK: - Public Methods
@@ -281,34 +321,6 @@ public class CameraManager: ObservableObject {
         }
         
         logger.error("Camera error: \(error.localizedDescription)")
-    }
-    
-    @objc private func handleScenePhaseChange(_ notification: Notification) {
-        Task {
-            switch notification.name {
-            case UIScene.didEnterBackgroundNotification:
-                await cameraActor.handleEnterBackground()
-                isSessionRunning = false
-                
-            case UIScene.willEnterForegroundNotification:
-                do {
-                    try await cameraActor.handleEnterForeground()
-                    if state == .ready {
-                        isSessionRunning = true
-                    }
-                } catch {
-                    logger.error("Failed to restore camera: \(error)")
-                }
-                
-            default:
-                break
-            }
-        }
-    }
-    
-    @objc private func handlePermissionChange() {
-        // Recheck permissions when app becomes active
-        checkPermissionStatus()
     }
     
     private func updateAvailableZoomLevels() async {

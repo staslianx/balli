@@ -31,6 +31,14 @@ final class DexcomSyncCoordinator: ObservableObject {
     private let syncInterval: TimeInterval = 300 // 5 minutes (matches Dexcom CGM update frequency)
     private var syncTask: Task<Void, Never>?
 
+    // P0 FIX: Optimization properties for smart syncing
+    // RATIONALE: Keep 5-min interval (Dexcom refresh rate) but skip unnecessary syncs
+    // 1. Network check: Skip if offline (no point trying)
+    // 2. Race protection: Skip if synced < 5 min ago (prevents rapid foreground/background cycles)
+    // 3. Exponential backoff: Don't hammer API on errors (5→10→15→20 min intervals)
+    private var lastSuccessfulSync: Date?
+    private var consecutiveErrors: Int = 0
+
     // Dependencies - Use protocol types for proper dependency injection
     private let dexcomService: any DexcomServiceProtocol
     private let dexcomShareService: any DexcomShareServiceProtocol
@@ -62,22 +70,23 @@ final class DexcomSyncCoordinator: ObservableObject {
         // Cancel any existing task
         syncTask?.cancel()
 
-        // Create new continuous sync task
+        // Create new continuous sync task with smart optimizations
         syncTask = Task { @MainActor in
-            // Immediate sync on start
-            await performSync()
+            // Immediate sync on start (but with smart checks)
+            await performSyncIfNeeded()
 
             // Then continue with periodic sync
             while !Task.isCancelled && isActive {
                 do {
-                    // Wait for interval
-                    try await Task.sleep(for: .seconds(syncInterval))
+                    // Wait for interval (with exponential backoff on errors)
+                    let waitInterval = calculateWaitInterval()
+                    try await Task.sleep(for: .seconds(waitInterval))
 
                     // Check if still active (might have stopped while sleeping)
                     guard !Task.isCancelled && isActive else { break }
 
-                    // Perform sync
-                    await performSync()
+                    // Perform sync with optimizations
+                    await performSyncIfNeeded()
 
                 } catch is CancellationError {
                     logger.info("🛑 Sync task cancelled")
@@ -116,6 +125,48 @@ final class DexcomSyncCoordinator: ObservableObject {
 
     // MARK: - Private Methods
 
+    /// Smart sync with optimizations: network check, race protection, and skip if recently synced
+    private func performSyncIfNeeded() async {
+        // OPTIMIZATION 1: Skip if no network connection
+        guard NetworkMonitor.shared.isConnected else {
+            logger.debug("⏭️ [OPTIMIZATION] Skipping sync - no network connection")
+            return
+        }
+
+        // OPTIMIZATION 2: Skip if synced < 5 min ago (race condition protection)
+        // This prevents rapid foreground/background/foreground cycles from causing multiple syncs
+        if let lastSync = lastSuccessfulSync,
+           Date().timeIntervalSince(lastSync) < self.syncInterval {
+            let elapsed = Int(Date().timeIntervalSince(lastSync))
+            logger.debug("⏭️ [OPTIMIZATION] Skipping sync - last successful sync was \(elapsed)s ago (< \(Int(self.syncInterval))s)")
+            return
+        }
+
+        // OPTIMIZATION 3: Skip if neither service is connected (no point trying)
+        guard dexcomService.isConnected || dexcomShareService.isConnected else {
+            logger.debug("⏭️ [OPTIMIZATION] Skipping sync - no Dexcom services connected")
+            return
+        }
+
+        // Perform actual sync
+        await performSync()
+    }
+
+    /// Calculate wait interval with exponential backoff on errors
+    private func calculateWaitInterval() -> TimeInterval {
+        // OPTIMIZATION 4: Exponential backoff on errors
+        // Normal: 5 min | 1 error: 10 min | 2 errors: 15 min | 3+ errors: 20 min
+        // This prevents hammering the API when it's failing
+        if self.consecutiveErrors == 0 {
+            return syncInterval
+        } else {
+            let backoffMultiplier = min(Double(self.consecutiveErrors + 1), 4.0)
+            let interval = syncInterval * backoffMultiplier
+            logger.debug("⏱️ [BACKOFF] Using \(Int(interval))s interval due to \(self.consecutiveErrors) consecutive errors")
+            return interval
+        }
+    }
+
     /// Perform actual data synchronization from both services
     private func performSync() async {
         logger.debug("🔄 Performing sync cycle...")
@@ -147,19 +198,26 @@ final class DexcomSyncCoordinator: ObservableObject {
             }
         }
 
-        // Update state
+        // Update state and track success/failure for exponential backoff
         if !successfulSources.isEmpty {
+            // SUCCESS: Reset error counter and update timestamps
             lastSyncTime = Date()
+            lastSuccessfulSync = Date()
             syncError = nil
+            consecutiveErrors = 0  // Reset on success
+
             let duration = Date().timeIntervalSince(startTime)
             logger.info("✅ Sync complete (\(successfulSources.joined(separator: ", "))) in \(String(format: "%.2f", duration))s")
 
             // Notify observers that new data is available
             NotificationCenter.default.post(name: .glucoseDataDidUpdate, object: nil)
         } else if !dexcomService.isConnected && !dexcomShareService.isConnected {
+            // NOT AN ERROR: No services connected (expected state)
             logger.debug("⏭️ No Dexcom services connected, skipping sync")
         } else {
-            logger.warning("⚠️ Sync attempted but all sources failed (possibly offline)")
+            // ERROR: Services connected but sync failed (network issue, API down, etc.)
+            consecutiveErrors += 1  // Increment for exponential backoff
+            logger.warning("⚠️ Sync attempted but all sources failed (possibly offline) - consecutive errors: \(self.consecutiveErrors)")
         }
     }
 }
