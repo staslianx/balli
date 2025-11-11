@@ -56,17 +56,17 @@ final class NutritionLabelViewTests: XCTestCase {
     }
 
     /// Test bindings wrapper to allow mutation
-    class TestNutritionBindings {
-        @Published nonisolated(unsafe) var _productBrand: String
-        @Published nonisolated(unsafe) var _productName: String
-        @Published nonisolated(unsafe) var _calories: String
-        @Published nonisolated(unsafe) var _servingSize: String
-        @Published nonisolated(unsafe) var _carbohydrates: String
-        @Published nonisolated(unsafe) var _fiber: String
-        @Published nonisolated(unsafe) var _sugars: String
-        @Published nonisolated(unsafe) var _protein: String
-        @Published nonisolated(unsafe) var _fat: String
-        @Published nonisolated(unsafe) var _portionGrams: Double
+    class TestNutritionBindings: @unchecked Sendable {
+        private var _productBrand: String
+        private var _productName: String
+        private var _calories: String
+        private var _servingSize: String
+        private var _carbohydrates: String
+        private var _fiber: String
+        private var _sugars: String
+        private var _protein: String
+        private var _fat: String
+        private var _portionGrams: Double
 
         init(data: TestNutritionData) {
             self._productBrand = data.productBrand
@@ -158,23 +158,23 @@ final class NutritionLabelViewTests: XCTestCase {
 extension NutritionLabelViewTests {
 
     func testStringToDouble_ValidInteger() {
-        XCTAssertEqual("100".toDouble, 100.0, accuracy: 0.01)
-        XCTAssertEqual("50".toDouble, 50.0, accuracy: 0.01)
-        XCTAssertEqual("25".toDouble, 25.0, accuracy: 0.01)
-        XCTAssertEqual("0".toDouble, 0.0, accuracy: 0.01)
+        XCTAssertEqual("100".toDouble!, 100.0, accuracy: 0.01)
+        XCTAssertEqual("50".toDouble!, 50.0, accuracy: 0.01)
+        XCTAssertEqual("25".toDouble!, 25.0, accuracy: 0.01)
+        XCTAssertEqual("0".toDouble!, 0.0, accuracy: 0.01)
     }
 
     func testStringToDouble_ValidDecimalWithPeriod() {
-        XCTAssertEqual("12.5".toDouble, 12.5, accuracy: 0.01)
-        XCTAssertEqual("3.14".toDouble, 3.14, accuracy: 0.01)
-        XCTAssertEqual("0.5".toDouble, 0.5, accuracy: 0.01)
+        XCTAssertEqual("12.5".toDouble!, 12.5, accuracy: 0.01)
+        XCTAssertEqual("3.14".toDouble!, 3.14, accuracy: 0.01)
+        XCTAssertEqual("0.5".toDouble!, 0.5, accuracy: 0.01)
     }
 
     func testStringToDouble_ValidDecimalWithComma() {
         // Turkish locale format
-        XCTAssertEqual("12,5".toDouble, 12.5, accuracy: 0.01)
-        XCTAssertEqual("3,14".toDouble, 3.14, accuracy: 0.01)
-        XCTAssertEqual("0,5".toDouble, 0.5, accuracy: 0.01)
+        XCTAssertEqual("12,5".toDouble!, 12.5, accuracy: 0.01)
+        XCTAssertEqual("3,14".toDouble!, 3.14, accuracy: 0.01)
+        XCTAssertEqual("0,5".toDouble!, 0.5, accuracy: 0.01)
     }
 
     func testStringToDouble_EmptyString() {

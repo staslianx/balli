@@ -94,15 +94,16 @@ extension Recipe {
 
     /// Total nutrition for entire recipe
     /// This represents the TOTAL values before portioning
+    /// CRITICAL: Reads from immutable totalRecipe* fields set at recipe creation
     var totalNutrition: NutritionValues {
         return NutritionValues(
-            calories: caloriesPerServing,
-            carbohydrates: carbsPerServing,
-            fiber: fiberPerServing,
-            sugar: sugarsPerServing,
-            protein: proteinPerServing,
-            fat: fatPerServing,
-            glycemicLoad: glycemicLoadPerServing
+            calories: totalRecipeCalories,
+            carbohydrates: totalRecipeCarbs,
+            fiber: totalRecipeFiber,
+            sugar: totalRecipeSugar,
+            protein: totalRecipeProtein,
+            fat: totalRecipeFat,
+            glycemicLoad: totalRecipeGlycemicLoad
         )
     }
 
@@ -207,5 +208,14 @@ extension Recipe {
         }
 
         return errors
+    }
+
+    // MARK: - Backward Compatibility
+
+    /// Computed property for backward compatibility
+    /// Maps `waitingTime` (Core Data) to `waitTime` (legacy code)
+    var waitTime: Int16 {
+        get { waitingTime }
+        set { waitingTime = newValue }
     }
 }

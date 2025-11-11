@@ -19,6 +19,8 @@ public final class RecipePersistenceCoordinator: ObservableObject {
     @Published public var showingSaveConfirmation = false
     @Published public var showingValidationError = false
     @Published public var validationErrorMessage = ""
+    @Published public var showingDuplicateWarning = false  // P0.11: Duplicate detection
+    @Published public var duplicateWarningMessage = ""  // P0.11: Duplicate message
 
     // Dependencies
     private let viewContext: NSManagedObjectContext
@@ -83,6 +85,38 @@ public final class RecipePersistenceCoordinator: ObservableObject {
         }
     }
 
+    // MARK: - Duplicate Detection
+
+    /// P0.11 FIX: Checks if a recipe with the same name already exists
+    /// - Parameter name: Recipe name to check
+    /// - Returns: Existing recipe if found, nil otherwise
+    private func checkForDuplicateRecipe(name: String) -> Recipe? {
+        let fetchRequest: NSFetchRequest<Recipe> = Recipe.fetchRequest()
+
+        // Case-insensitive comparison for better UX
+        // Matches: "Scrambled Eggs" == "scrambled eggs" == "SCRAMBLED EGGS"
+        fetchRequest.predicate = NSPredicate(
+            format: "name ==[cd] %@",  // [cd] = case and diacritic insensitive
+            name.trimmingCharacters(in: .whitespacesAndNewlines)
+        )
+        fetchRequest.fetchLimit = 1  // Performance optimization
+
+        do {
+            let existingRecipes = try viewContext.fetch(fetchRequest)
+            if let existing = existingRecipes.first {
+                logger.info("🔍 [DUPLICATE-CHECK] Found existing recipe: '\(existing.name)' (ID: \(existing.id.uuidString))")
+                logger.info("  - Source: \(existing.source)")
+                logger.info("  - Created: \(existing.dateCreated)")
+                return existing
+            }
+            logger.info("✅ [DUPLICATE-CHECK] No duplicate found for '\(name)'")
+            return nil
+        } catch {
+            logger.error("❌ [DUPLICATE-CHECK] Failed to query recipes: \(error.localizedDescription)")
+            return nil  // Fail open - allow save if query fails
+        }
+    }
+
     // MARK: - Private Methods
 
     private func updateExistingRecipe(_ recipe: Recipe, imageURL: String?, imageData: Data?) {
@@ -112,8 +146,32 @@ public final class RecipePersistenceCoordinator: ObservableObject {
         recipe.fatPerServing = formState.fatPerServing.toDouble ?? recipe.fatPerServing
         recipe.sugarsPerServing = formState.sugarPerServing.toDouble ?? recipe.sugarsPerServing
         recipe.glycemicLoadPerServing = formState.glycemicLoadPerServing.toDouble ?? recipe.glycemicLoadPerServing
-        recipe.totalRecipeWeight = formState.totalRecipeWeight.toDouble ?? recipe.totalRecipeWeight
+
+        // DEBUG: Track totalRecipeWeight changes
+        let oldTotalWeight = recipe.totalRecipeWeight
+        let formTotalWeightString = formState.totalRecipeWeight
+        let formTotalWeight = formTotalWeightString.toDouble ?? recipe.totalRecipeWeight
+        recipe.totalRecipeWeight = formTotalWeight
+        logger.info("📏 [TOTAL WEIGHT UPDATE]")
+        logger.info("   Old value: \(oldTotalWeight)g")
+        logger.info("   FormState value: \(formTotalWeightString) -> \(formTotalWeight)g")
+        logger.info("   New value: \(recipe.totalRecipeWeight)g")
+        logger.info("   PortionSize: \(recipe.portionSize)g")
+
         recipe.portionMultiplier = formState.portionMultiplier
+
+        // CRITICAL: Initialize IMMUTABLE total recipe nutrition fields if not already set
+        // These preserve the original full recipe nutrition and NEVER change
+        // Used as the source of truth for all portion calculations
+        if recipe.totalRecipeCalories == 0 {
+            recipe.totalRecipeCalories = formState.caloriesPerServing.toDouble ?? recipe.caloriesPerServing
+            recipe.totalRecipeCarbs = formState.carbohydratesPerServing.toDouble ?? recipe.carbsPerServing
+            recipe.totalRecipeFiber = formState.fiberPerServing.toDouble ?? recipe.fiberPerServing
+            recipe.totalRecipeSugar = formState.sugarPerServing.toDouble ?? recipe.sugarsPerServing
+            recipe.totalRecipeProtein = formState.proteinPerServing.toDouble ?? recipe.proteinPerServing
+            recipe.totalRecipeFat = formState.fatPerServing.toDouble ?? recipe.fatPerServing
+            recipe.totalRecipeGlycemicLoad = formState.glycemicLoadPerServing.toDouble ?? recipe.glycemicLoadPerServing
+        }
 
         recipe.lastModified = Date()
 
@@ -132,12 +190,8 @@ public final class RecipePersistenceCoordinator: ObservableObject {
             // PERFORMANCE FIX: Sync shopping list items with real recipe ID
             syncShoppingListWithRecipeId(recipeName: recipe.name, recipeId: recipe.id)
 
-            // Upload image in background if needed
-            if let imageData = imageData, imageURL == nil {
-                Task {
-                    await imageService.uploadImageToStorageInBackground(imageData: imageData, recipe: recipe)
-                }
-            }
+            // NOTE: Photos are now stored only in CoreData (imageData)
+            // Firebase Storage upload removed per user request
         } catch {
             ErrorHandler.shared.handle(error)
             validationErrorMessage = "Save failed: \(error.localizedDescription)"
@@ -145,14 +199,57 @@ public final class RecipePersistenceCoordinator: ObservableObject {
         }
     }
 
-    private func createNewRecipe(imageURL: String?, imageData: Data?) {
+    private func createNewRecipe(imageURL: String?, imageData: Data?, forceCreate: Bool = false) {
         logger.info("📝 [PERSIST] Building RecipeSaveData...")
         logger.debug("  - Recipe name: '\(self.formState.recipeName)'")
+        logger.debug("  - Force create: \(forceCreate)")
         if let data = imageData {
             logger.debug("  - imageData: \(data.count) bytes")
         } else {
             logger.debug("  - imageData: nil")
         }
+
+        // P0.11 FIX: Check for duplicates BEFORE building save data
+        // This prevents wasted work and provides better UX
+        if !forceCreate, let existingRecipe = checkForDuplicateRecipe(name: formState.recipeName) {
+            // Found duplicate - show warning dialog
+            let source = existingRecipe.source
+            let created = existingRecipe.dateCreated.formatted(date: .abbreviated, time: .omitted)
+
+            duplicateWarningMessage = """
+            A recipe named "\(self.formState.recipeName)" already exists.
+
+            Source: \(source == "ai" ? "AI Generated" : source == "manual" ? "Manual" : source)
+            Created: \(created)
+
+            Do you want to save this as a separate recipe?
+            """
+
+            logger.warning("⚠️ [DUPLICATE-WARNING] Showing duplicate warning for '\(self.formState.recipeName)'")
+            showingDuplicateWarning = true
+            return  // Stop here - user must confirm
+        }
+
+        // No duplicate OR user confirmed - proceed with save
+        logger.info("✅ [DUPLICATE-CHECK] Proceeding with save (forceCreate: \(forceCreate))")
+
+        // CRITICAL DEBUG: Log formState values BEFORE creating saveData
+        logger.info("🔍 [PERSIST-DEBUG] FormState values:")
+        logger.info("  - prepTime: '\(self.formState.prepTime)'")
+        logger.info("  - cookTime: '\(self.formState.cookTime)'")
+        logger.info("  - ingredients count: \(self.formState.ingredients.count)")
+        logger.info("  - ingredients: \(self.formState.ingredients)")
+        logger.info("  - directions count: \(self.formState.directions.count)")
+        logger.info("  - recipeContent length: \(self.formState.recipeContent.count) chars")
+        logger.info("  - calories: '\(self.formState.calories)'")
+        logger.info("  - carbohydrates: '\(self.formState.carbohydrates)'")
+        logger.info("  - fiber: '\(self.formState.fiber)'")
+        logger.info("  - protein: '\(self.formState.protein)'")
+        logger.info("  - fat: '\(self.formState.fat)'")
+        logger.info("  - sugar: '\(self.formState.sugar)'")
+        logger.info("  - glycemicLoad: '\(self.formState.glycemicLoad)'")
+        logger.info("  - totalRecipeWeight: '\(self.formState.totalRecipeWeight)'")
+        logger.info("  - caloriesPerServing: '\(self.formState.caloriesPerServing)'")
 
         let saveData = RecipeSaveData(
             recipeName: formState.recipeName,
@@ -194,28 +291,39 @@ public final class RecipePersistenceCoordinator: ObservableObject {
             // PERFORMANCE FIX: Sync shopping list items with real recipe ID
             if let savedRecipe = try? viewContext.fetch(Recipe.fetchRequest()).first(where: { $0.name == formState.recipeName }) {
                 syncShoppingListWithRecipeId(recipeName: savedRecipe.name, recipeId: savedRecipe.id)
+
+                // CRITICAL DEBUG: Verify what was actually saved to Core Data
+                logger.info("🔍 [PERSIST-VERIFY] Core Data values after save:")
+                logger.info("  - prepTime: \(savedRecipe.prepTime)")
+                logger.info("  - cookTime: \(savedRecipe.cookTime)")
+                logger.info("  - calories: \(savedRecipe.calories)")
+                logger.info("  - totalCarbs: \(savedRecipe.totalCarbs)")
+                logger.info("  - fiber: \(savedRecipe.fiber)")
+                logger.info("  - protein: \(savedRecipe.protein)")
+                logger.info("  - totalFat: \(savedRecipe.totalFat)")
+                logger.info("  - sugars: \(savedRecipe.sugars)")
+                logger.info("  - glycemicLoad: \(savedRecipe.glycemicLoad)")
+                logger.info("  - totalRecipeWeight: \(savedRecipe.totalRecipeWeight)")
+                logger.info("  - caloriesPerServing: \(savedRecipe.caloriesPerServing)")
             }
 
-            // Upload image in background if needed
-            if let imageData = imageData, imageURL == nil {
-                logger.info("📤 [PERSIST] Starting background image upload to Firebase Storage")
-                Task {
-                    if let savedRecipe = try? viewContext.fetch(Recipe.fetchRequest()).first(where: { $0.name == formState.recipeName }) {
-                        logger.info("✅ [PERSIST] Found saved recipe in Core Data - uploading image")
-                        await imageService.uploadImageToStorageInBackground(imageData: imageData, recipe: savedRecipe)
-                    } else {
-                        logger.error("❌ [PERSIST] Could not find saved recipe for image upload")
-                    }
-                }
-            } else {
-                logger.debug("ℹ️ [PERSIST] Skipping background upload (imageData: \(imageData != nil), imageURL: \(imageURL != nil))")
-            }
+            // NOTE: Photos are now stored only in CoreData (imageData)
+            // Firebase Storage upload removed per user request
+            logger.info("✅ [PERSIST] Recipe photo saved to CoreData (imageData: \(imageData != nil ? "\(imageData!.count) bytes" : "nil"))")
         } catch {
             logger.error("❌ [PERSIST] Save failed: \(error.localizedDescription)")
             ErrorHandler.shared.handle(error)
             validationErrorMessage = "Save failed: \(error.localizedDescription)"
             showingValidationError = true
         }
+    }
+
+    // MARK: - Duplicate Handling
+
+    /// P0.11 FIX: Saves recipe even if duplicate exists (user confirmed)
+    public func saveRecipeIgnoringDuplicates(imageURL: String?, imageData: Data?) async {
+        logger.info("✅ [DUPLICATE-OVERRIDE] User confirmed duplicate save")
+        createNewRecipe(imageURL: imageURL, imageData: imageData, forceCreate: true)
     }
 
     // MARK: - Recipe Loading
