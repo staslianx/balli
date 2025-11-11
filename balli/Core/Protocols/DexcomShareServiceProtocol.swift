@@ -21,6 +21,9 @@ protocol DexcomShareServiceProtocol: ObservableObject {
     // MARK: - Connection Management
     func connect(username: String, password: String) async throws
     func disconnect() async throws
+    func checkConnectionStatus(trustCache: Bool) async
+
+    // P1 FIX (Issue #6): Extension provides default parameter for backward compatibility
     func checkConnectionStatus() async
 
     // MARK: - Data Fetching
@@ -33,4 +36,11 @@ protocol DexcomShareServiceProtocol: ObservableObject {
     func testConnection() async throws
     nonisolated func getServer() -> DexcomShareServer
     func convertToHealthReadings(_ shareReadings: [DexcomShareGlucoseReading]) -> [HealthGlucoseReading]
+}
+
+// P1 FIX (Issue #6): Default implementation for backward compatibility
+extension DexcomShareServiceProtocol {
+    func checkConnectionStatus() async {
+        await checkConnectionStatus(trustCache: false)
+    }
 }

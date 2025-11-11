@@ -64,7 +64,7 @@ final class DexcomShareService: DexcomShareServiceProtocol {
 
     // ANTI-SPAM: Prevent excessive connection checks
     private var lastConnectionCheck: Date?
-    private let connectionCheckDebounceInterval: TimeInterval = 2.0 // 2 seconds
+    private let connectionCheckDebounceInterval: TimeInterval = 5.0 // P0 FIX: Increased from 2s to 5s to reduce CPU/heat
 
     // RACE CONDITION FIX: Ensure only one connection check runs at a time
     private var connectionCheckTask: Task<Void, Never>?
@@ -141,13 +141,27 @@ final class DexcomShareService: DexcomShareServiceProtocol {
     /// BUT always returns current cached state immediately
     /// This ensures users stay connected without re-entering credentials
     /// RACE CONDITION FIX: Cancels previous check and runs only one at a time
-    func checkConnectionStatus() async {
+    /// P1 FIX (Issue #6): Added trustCache parameter to skip checks on passive view navigation
+    /// - trustCache: If true AND cache is recent, skip expensive check entirely
+    ///   Use trustCache=true for passive .onAppear(), false for explicit .refreshable()
+    func checkConnectionStatus(trustCache: Bool = false) async {
         // Cancel any existing connection check task to prevent race conditions
         connectionCheckTask?.cancel()
 
         // Create new task for this connection check
         connectionCheckTask = Task { @MainActor in
-            logger.info("🔍 [DexcomShareService]: checkConnectionStatus() called - current cached state: \(self.isConnected)")
+            logger.info("🔍 [DexcomShareService]: checkConnectionStatus(trustCache=\(trustCache)) called - current cached state: \(self.isConnected)")
+
+            // P1 FIX (Issue #6): Trust cache optimization
+            // If caller trusts cache AND cache is recent, skip expensive check entirely
+            // This prevents UI lag from keychain reads on passive view navigation
+            if trustCache {
+                if let lastCheck = lastConnectionCheck,
+                   Date().timeIntervalSince(lastCheck) < connectionCheckDebounceInterval {
+                    logger.debug("⚡️ [OPTIMIZATION] Trust cache enabled - returning cached state (isConnected=\(self.isConnected))")
+                    return
+                }
+            }
 
             // ANTI-SPAM: Debounce EXPENSIVE checks (keychain, session validation, recovery)
             // But still allow caller to read current cached state immediately
@@ -162,8 +176,9 @@ final class DexcomShareService: DexcomShareServiceProtocol {
             }
 
             if !shouldPerformExpensiveCheck {
-                // Debounced - but isConnected is already set to current state
-                // Caller can read it immediately
+                // P0 FIX: Debounced check skipped - return cached state to prevent device heating
+                // Caller can read isConnected immediately without expensive keychain/network operations
+                logger.debug("⚡️ [PERFORMANCE] Returning cached state without expensive check - isConnected=\(self.isConnected)")
                 return
             }
 
