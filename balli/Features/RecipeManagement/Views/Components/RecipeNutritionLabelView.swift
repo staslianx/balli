@@ -193,6 +193,7 @@ struct RecipeNutritionLabelView: View {
         )
         .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 4)
         .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 1)
+        .id(portionGrams)  // Force view refresh when portion changes
     }
 
     private var headerSection: some View {

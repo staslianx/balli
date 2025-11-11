@@ -137,16 +137,17 @@ struct RecipeImagePreview: View {
     @State private var offset: CGSize = .zero
     @State private var lastOffset: CGSize = .zero
     @State private var imageSize: CGSize = .zero
+    @State private var showingShareSheet = false
+    @State private var imageToShare: UIImage?
 
     var body: some View {
-        NavigationStack {
+        GeometryReader { geometry in
             ZStack {
                 // Black background
                 Color.black
                     .ignoresSafeArea()
 
-                // Image content
-                GeometryReader { geometry in
+                // Image content - centered with proper constraints
                 Group {
                     if let imageData = imageData,
                        let uiImage = UIImage(data: imageData) {
@@ -174,14 +175,7 @@ struct RecipeImagePreview: View {
                         placeholderView
                     }
                 }
-                .frame(width: geometry.size.width, height: geometry.size.height)
-                .background(
-                    GeometryReader { imageGeometry in
-                        Color.clear.onAppear {
-                            imageSize = imageGeometry.size
-                        }
-                    }
-                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .scaleEffect(scale)
                 .offset(offset)
                 .gesture(
@@ -190,43 +184,60 @@ struct RecipeImagePreview: View {
                             let delta = value / lastScale
                             lastScale = value
                             let newScale = scale * delta
-                            scale = min(max(newScale, 1.0), 4.0)
+
+                            // Allow temporary zoom beyond limits (rubber band effect)
+                            scale = newScale
                         }
                         .onEnded { _ in
                             lastScale = 1.0
-                            if scale <= 1.0 {
-                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+
+                            // Bounce back to limits with spring animation
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                // Clamp to 1.0 - 4.0 range
+                                if scale < 1.0 {
                                     scale = 1.0
                                     offset = .zero
                                     lastOffset = .zero
+                                } else if scale > 4.0 {
+                                    scale = 4.0
                                 }
                             }
                         }
-                        .simultaneously(with: scale > 1.0 ? DragGesture(minimumDistance: 0)
+                        .simultaneously(with: DragGesture(minimumDistance: 0)
                             .onChanged { value in
+                                // Only allow panning when zoomed in
+                                guard scale > 1.0 else { return }
+
                                 let newOffset = CGSize(
                                     width: lastOffset.width + value.translation.width,
                                     height: lastOffset.height + value.translation.height
                                 )
 
-                                // Calculate maximum allowed offset based on zoom level
-                                let scaledWidth = geometry.size.width * scale
-                                let scaledHeight = geometry.size.height * scale
-                                let maxOffsetX = max(0, (scaledWidth - geometry.size.width) / 2)
-                                let maxOffsetY = max(0, (scaledHeight - geometry.size.height) / 2)
-
-                                // Clamp offset to prevent showing black background
-                                offset = CGSize(
-                                    width: min(max(newOffset.width, -maxOffsetX), maxOffsetX),
-                                    height: min(max(newOffset.height, -maxOffsetY), maxOffsetY)
-                                )
+                                // Apply offset without hard clamping (allows rubber band)
+                                offset = newOffset
                             }
                             .onEnded { _ in
-                                lastOffset = offset
-                            } : nil)
+                                // Bounce back if dragged beyond bounds
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                    // Calculate proper bounds based on geometry (not deprecated UIScreen.main)
+                                    let screenWidth = geometry.size.width
+                                    let screenHeight = geometry.size.height
+                                    let scaledWidth = screenWidth * scale
+                                    let scaledHeight = screenHeight * scale
+                                    let maxOffsetX = max(0, (scaledWidth - screenWidth) / 2)
+                                    let maxOffsetY = max(0, (scaledHeight - screenHeight) / 2)
+
+                                    // Clamp to bounds
+                                    offset = CGSize(
+                                        width: min(max(offset.width, -maxOffsetX), maxOffsetX),
+                                        height: min(max(offset.height, -maxOffsetY), maxOffsetY)
+                                    )
+                                    lastOffset = offset
+                                }
+                            })
                 )
                 .onTapGesture(count: 2) {
-                    withAnimation(.spring(response: 0.3)) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
                         if scale > 1.0 {
                             scale = 1.0
                             offset = .zero
@@ -236,20 +247,52 @@ struct RecipeImagePreview: View {
                         }
                     }
                 }
-            }
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button(action: {
-                        dismiss()
-                    }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 17, weight: .medium))
-                            .foregroundStyle(.white)
+
+                // Overlay buttons (not in toolbar to avoid pushing content down)
+                VStack {
+                    HStack {
+                        // Share button
+                        Button(action: {
+                            // Capture image before showing sheet
+                            imageToShare = getShareableUIImage()
+                            if imageToShare != nil {
+                                showingShareSheet = true
+                            }
+                        }) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 22, weight: .medium))
+                                .foregroundStyle(.white)
+                                .padding(12)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        Spacer()
+
+                        // Close button
+                        Button(action: {
+                            dismiss()
+                        }) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 22, weight: .medium))
+                                .foregroundStyle(.white)
+                                .padding(12)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 60)  // Safe area top
+
+                    Spacer()
                 }
             }
-            .toolbarBackground(.hidden, for: .navigationBar)
         }
+        .ignoresSafeArea()
+        .sheet(isPresented: $showingShareSheet) {
+            if let image = imageToShare {
+                ActivityViewController(activityItems: [image])
+            }
         }
     }
 
@@ -263,6 +306,36 @@ struct RecipeImagePreview: View {
                 .foregroundStyle(.white.opacity(0.7))
                 .padding(.top, 8)
         }
+    }
+
+    /// Get shareable UIImage for ActivityViewController
+    private func getShareableUIImage() -> UIImage? {
+        if let imageData = imageData, let uiImage = UIImage(data: imageData) {
+            return uiImage
+        }
+        // Note: Remote imageURL sharing would require downloading the image first
+        // For now, only support local imageData sharing
+        return nil
+    }
+}
+
+// MARK: - Activity View Controller (Share Sheet)
+
+/// SwiftUI wrapper for UIActivityViewController
+struct ActivityViewController: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    let applicationActivities: [UIActivity]? = nil
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(
+            activityItems: activityItems,
+            applicationActivities: applicationActivities
+        )
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {
+        // No updates needed
     }
 }
 
