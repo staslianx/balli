@@ -188,6 +188,12 @@ final class ResearchEventHandler {
         setSearchState: @escaping (ViewState<Void>) -> Void,
         setCurrentTier: @escaping (ResponseTier?) -> Void
     ) async {
+        // 🔍 FORENSIC: Log handleComplete entry
+        logger.critical("🔍 [HANDLE-COMPLETE] ===== HANDLE COMPLETE CALLED =====")
+        logger.critical("🔍 [HANDLE-COMPLETE] Response answer length: \(response.answer.count) chars")
+        logger.critical("🔍 [HANDLE-COMPLETE] Answer preview (last 100 chars): '\(String(response.answer.suffix(100)))'")
+        logger.critical("🔍 [HANDLE-COMPLETE] AnswerId: \(answerId)")
+
         // Capture closures for @Sendable context
         _ = getAnswers
         _ = updateAnswer
@@ -195,7 +201,12 @@ final class ResearchEventHandler {
         // No animation layers to flush - content already complete from direct streaming
 
         let answers = getAnswers()
-        guard let index = answers.firstIndex(where: { $0.id == answerId }) else { return }
+        guard let index = answers.firstIndex(where: { $0.id == answerId }) else {
+            logger.critical("🔍 [HANDLE-COMPLETE] ❌ Answer not found in array!")
+            return
+        }
+
+        logger.critical("🔍 [HANDLE-COMPLETE] Found answer at index \(index)")
 
         setCurrentTier(ResponseTier(tier: response.tier, processingTier: response.processingTier))
 
@@ -209,7 +220,14 @@ final class ResearchEventHandler {
         }
 
         let currentAnswer = answers[index]
+
+        // 🔍 FORENSIC: Log current answer state
+        logger.critical("🔍 [HANDLE-COMPLETE] Current answer content: \(currentAnswer.content.count) chars")
+        logger.critical("🔍 [HANDLE-COMPLETE] Current answer preview (last 100): '\(String(currentAnswer.content.suffix(100)))'")
+
         let finalContent = currentAnswer.content.trimmingCharacters(in: .whitespacesAndNewlines)
+        logger.critical("🔍 [HANDLE-COMPLETE] Final content after trim: \(finalContent.count) chars")
+
         let resolvedTier = ResponseTier(tier: response.tier, processingTier: response.processingTier) ?? currentAnswer.tier
 
         // FIX: Preserve sources from sourcesReady event if complete response has no sources
@@ -234,7 +252,14 @@ final class ResearchEventHandler {
             imageAttachment: currentAnswer.imageAttachment
         )
 
+        // 🔍 FORENSIC: Log final answer before update
+        logger.critical("🔍 [HANDLE-COMPLETE] Final answer content: \(finalAnswer.content.count) chars")
+        logger.critical("🔍 [HANDLE-COMPLETE] Final answer preview (last 100): '\(String(finalAnswer.content.suffix(100)))'")
+        logger.critical("🔍 [HANDLE-COMPLETE] About to call updateAnswer at index \(index)")
+
         updateAnswer(index, finalAnswer)
+
+        logger.critical("🔍 [HANDLE-COMPLETE] updateAnswer completed")
 
         // Save to persistence
         Task {

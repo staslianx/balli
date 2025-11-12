@@ -43,6 +43,12 @@ actor TypewriterAnimator {
     /// Track if animation was cancelled (for instant flush)
     private var isCancelled: [String: Bool] = [:]
 
+    /// Track total characters enqueued for verification
+    private var totalEnqueued: [String: Int] = [:]
+
+    /// Track total characters delivered for verification
+    private var totalDelivered: [String: Int] = [:]
+
     // MARK: - Public API
 
     /// Enqueue text for character-by-character animation
@@ -63,10 +69,17 @@ actor TypewriterAnimator {
         if characterQueues[answerId] == nil {
             characterQueues[answerId] = []
             isCancelled[answerId] = false
+            totalEnqueued[answerId] = 0
+            totalDelivered[answerId] = 0
         }
 
         // Add characters to queue
         characterQueues[answerId]?.append(contentsOf: Array(text))
+
+        // Track total enqueued characters
+        totalEnqueued[answerId, default: 0] += text.count
+        let currentTotal = totalEnqueued[answerId, default: 0]
+        logger.debug("📊 [TYPEWRITER] Total enqueued: \(currentTotal) chars")
 
         // Start animation if not already running
         if animationTasks[answerId] == nil {
@@ -158,7 +171,23 @@ actor TypewriterAnimator {
                     // Double-check queue is still empty
                     let isEmpty = await self.characterQueues[answerId]?.isEmpty ?? true
                     if isEmpty {
-                        logger.info("✅ [TYPEWRITER] Animation complete for: \(answerId)")
+                        // 🔍 CRITICAL FIX: Verify ALL enqueued chars were delivered before completion
+                        let enqueued = await self.totalEnqueued[answerId, default: 0]
+                        let delivered = await self.totalDelivered[answerId, default: 0]
+
+                        logger.critical("🔍 [TYPEWRITER-COMPLETE] Queue empty check:")
+                        logger.critical("🔍   Total enqueued: \(enqueued) chars")
+                        logger.critical("🔍   Total delivered: \(delivered) chars")
+                        logger.critical("🔍   Difference: \(enqueued - delivered) chars")
+
+                        if delivered < enqueued {
+                            logger.warning("⚠️ [TYPEWRITER] NOT all content delivered yet (\(delivered)/\(enqueued)) - waiting...")
+                            // Wait a bit more for delivery to catch up
+                            try? await Task.sleep(for: .milliseconds(100))
+                            continue
+                        }
+
+                        logger.info("✅ [TYPEWRITER] Animation complete for: \(answerId) - All \(delivered) chars delivered")
                         await self.cleanupAnimation(for: answerId)
 
                         // Notify completion
@@ -188,6 +217,9 @@ actor TypewriterAnimator {
 
                 // Add to displayed text
                 displayedText.append(character)
+
+                // Track delivery
+                await self.incrementDelivered(answerId)
 
                 // Deliver updated text
                 await deliver(displayedText)
@@ -224,5 +256,13 @@ actor TypewriterAnimator {
         animationTasks[answerId] = nil
         characterQueues[answerId] = nil
         isCancelled[answerId] = nil
+        totalEnqueued[answerId] = nil
+        totalDelivered[answerId] = nil
+    }
+
+    /// Increment delivered character count
+    /// - Parameter answerId: Answer identifier
+    private func incrementDelivered(_ answerId: String) {
+        totalDelivered[answerId, default: 0] += 1
     }
 }

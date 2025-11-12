@@ -40,11 +40,19 @@ struct TypewriterAnswerView: View {
             sources: sources,
             fontSize: fontSize
         )
-        .onChange(of: answerId) { _, newAnswerId in
+        .onChange(of: answerId) { oldAnswerId, newAnswerId in
             // LIFECYCLE FIX: Reset animation state only when answerId changes (new answer)
             // This prevents content from disappearing on tab switch or lock/unlock
             if newAnswerId != lastAnswerId {
                 logger.debug("🔄 [TYPEWRITER] New answer detected, resetting state")
+
+                // Cancel old animation if it exists
+                if !oldAnswerId.isEmpty && oldAnswerId != newAnswerId {
+                    Task { @MainActor in
+                        await animator.cancel(oldAnswerId)
+                    }
+                }
+
                 isAnimationComplete = false
                 displayedContent = ""
                 fullContentReceived = ""
@@ -58,14 +66,20 @@ struct TypewriterAnswerView: View {
             // coalescing rapid updates into single executions.
 
             guard content.count > fullContentReceived.count else { return }
+            guard !content.isEmpty else { return }  // Don't process empty content
 
             let newChars = String(content.dropFirst(fullContentReceived.count))
 
+            // 🔍 FORENSIC: Log typewriter input
+            logger.critical("🔍 [TYPEWRITER] New content arrived: \(newChars.count) new chars, total: \(content.count)")
+            logger.critical("🔍 [TYPEWRITER] Content preview (last 100): '\(String(content.suffix(100)))'")
             logger.debug("📝 [TYPEWRITER] New chars: '\(newChars.prefix(30))...' (total: \(content.count))")
 
             // Mark animation as active when first characters arrive
             if fullContentReceived.isEmpty {  // First content - check against empty, not equality
                 logger.info("🎬 [RESEARCH-TYPEWRITER] Animation STARTED - first chunk (\(newChars.count) chars, answerId: \(answerId))")
+                // CRITICAL: Cancel any stale animation before starting fresh to prevent accumulated state
+                await animator.cancel(answerId)
                 isAnimationComplete = false
                 onAnimationStateChange?(true)  // Animation started
             }
@@ -82,7 +96,24 @@ struct TypewriterAnswerView: View {
                 // Animation queue empty - always mark complete when queue is truly empty
                 // The .onChange(of: isStreaming) will handle early backend completion
                 await MainActor.run {
-                    logger.info("✅ [RESEARCH-TYPEWRITER] Animation COMPLETED (all \(self.fullContentReceived.count) chars, answerId: \(answerId))")
+                    // 🔍 CRITICAL VALIDATION: Ensure displayed content matches received content
+                    let displayedCount = self.displayedContent.count
+                    let receivedCount = self.fullContentReceived.count
+
+                    logger.critical("🔍 [TYPEWRITER-VALIDATION] Animation completion check:")
+                    logger.critical("🔍   displayedContent: \(displayedCount) chars")
+                    logger.critical("🔍   fullContentReceived: \(receivedCount) chars")
+                    logger.critical("🔍   Difference: \(receivedCount - displayedCount) chars")
+
+                    if displayedCount < receivedCount {
+                        logger.error("❌ [TYPEWRITER] VALIDATION FAILED: Missing \(receivedCount - displayedCount) chars!")
+                        logger.error("❌   Last displayed: '\(String(self.displayedContent.suffix(100)))'")
+                        logger.error("❌   Should end with: '\(String(self.fullContentReceived.suffix(100)))'")
+                        // Don't mark as complete - wait for more content
+                        return
+                    }
+
+                    logger.info("✅ [RESEARCH-TYPEWRITER] Animation COMPLETED (all \(receivedCount) chars, answerId: \(answerId))")
                     self.isAnimationComplete = true
                     logger.info("🔔 [RESEARCH-TYPEWRITER] Calling onAnimationStateChange(false) for answerId: \(answerId)")
                     self.onAnimationStateChange?(false)

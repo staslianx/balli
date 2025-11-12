@@ -241,9 +241,23 @@ class ResearchStreamingAPIClient {
             let finalStats = await streamParser.getStreamStats(totalBytesRead: totalBytesRead)
             streamingLogger.critical("🔴 Stream loop ended - Total bytes: \(totalBytesRead), Tokens: \(finalStats.tokenCount), Answer: \(finalStats.accumulatedAnswerLength) chars, Sources: \(finalStats.sourcesCount), Complete: \(finalStats.streamComplete)")
 
+            // 🔍 FORENSIC: Log accumulated answer preview before completion
+            let hasCompleteEvent = await streamParser.hasCompleteEvent()
+            let shouldFireComplete = await streamParser.shouldFireCompleteEvent()
+
+            streamingLogger.critical("🔍 [STREAM-END] ===== STREAM ENDED =====")
+            streamingLogger.critical("🔍 [STREAM-END] Total bytes read from network: \(totalBytesRead)")
+            streamingLogger.critical("🔍 [STREAM-END] Token count received: \(finalStats.tokenCount)")
+            streamingLogger.critical("🔍 [STREAM-END] Accumulated answer length: \(finalStats.accumulatedAnswerLength) chars")
+            streamingLogger.critical("🔍 [STREAM-END] Has complete event: \(hasCompleteEvent)")
+            streamingLogger.critical("🔍 [STREAM-END] Should fire complete: \(shouldFireComplete)")
+
             // Fire complete event if pending
             if await streamParser.shouldFireCompleteEvent() {
+                streamingLogger.critical("🔍 [COMPLETION] Firing DEFERRED complete event with \(finalStats.accumulatedAnswerLength) chars")
                 await streamParser.finalizeCompleteEvent(onComplete: onComplete)
+            } else {
+                streamingLogger.critical("🔍 [COMPLETION] NO complete event pending - will synthesize")
             }
 
             // Process remaining text buffer

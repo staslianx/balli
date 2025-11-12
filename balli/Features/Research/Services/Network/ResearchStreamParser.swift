@@ -149,9 +149,11 @@ actor ResearchStreamParser {
 
     func processCompleteEvents() -> [String] {
         var processedEvents: [String] = []
+        var iterations = 0
 
         // Process complete SSE events (ending with \n\n)
-        while let eventEndRange = textBuffer.range(of: "\n\n") {
+        while let eventEndRange = textBuffer.range(of: "\n\n"), iterations < 1000 {
+            iterations += 1
             // Extract the complete event
             let eventData = String(textBuffer[..<eventEndRange.lowerBound])
 
@@ -224,6 +226,12 @@ actor ResearchStreamParser {
 
             logger.debug("🟡 [TOKEN-EMIT] #\(self.tokenCount) chars=\(charCount), bytes=[\(bytes)], accumulated=\(self.accumulatedAnswer.count), raw='\(escapedContent)'")
             onToken(content)
+
+        case .flushTokens:
+            // Backend signal: all tokens sent, transitioning to metadata delivery
+            // No action needed - tokens are already delivered immediately without buffering
+            // The typewriter animation will naturally complete when its queue empties
+            logger.info("🚿 [FLUSH-TOKENS] Backend token flush signal received - \(self.tokenCount) tokens, \(self.accumulatedAnswer.count) chars accumulated")
 
         case .tierSelected(let tier, let reasoning, let confidence):
             detectedTier = tier
@@ -320,6 +328,13 @@ actor ResearchStreamParser {
 
         logger.warning("✅ Firing delayed complete event - SSE chunks: \(self.tokenCount), Answer: \(self.accumulatedAnswer.count) chars")
 
+        // 🔍 FORENSIC: Log complete event details
+        logger.critical("🔍 [FINALIZE-COMPLETE] ===== FINALIZING COMPLETE EVENT =====")
+        logger.critical("🔍 [FINALIZE-COMPLETE] Accumulated answer: \(self.accumulatedAnswer.count) chars")
+        logger.critical("🔍 [FINALIZE-COMPLETE] Answer preview (last 100 chars): '\(String(self.accumulatedAnswer.suffix(100)))'")
+        logger.critical("🔍 [FINALIZE-COMPLETE] Sources count: \(completeData.sources.count)")
+        logger.critical("🔍 [FINALIZE-COMPLETE] About to call onComplete callback with full response")
+
         // Log Gemini token usage
         if let tokenUsage = completeData.metadata.tokenUsage {
             logger.critical("📊 [GEMINI-TOKENS] Input: \(tokenUsage.input), Output: \(tokenUsage.output), Total: \(tokenUsage.total)")
@@ -342,7 +357,11 @@ actor ResearchStreamParser {
         )
 
         completeEventFired = true
+
+        // 🔍 FORENSIC: Log just before calling onComplete
+        logger.critical("🔍 [FINALIZE-COMPLETE] Calling onComplete with response.answer length: \(response.answer.count)")
         onComplete(response)
+        logger.critical("🔍 [FINALIZE-COMPLETE] onComplete callback returned")
     }
 
     func synthesizeCompleteEvent(onComplete: @escaping @Sendable (ResearchSearchResponse) -> Void) {
