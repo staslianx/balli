@@ -124,19 +124,19 @@ struct AnswerCardView: View {
                 .padding(.vertical, 8)
                 .transition(.opacity.animation(.easeIn(duration: 0.15)))
 
-                // Action row - only show when BOTH backend AND animation are complete
-                if isStreamingComplete && !isTypewriterAnimating {
-                    ResearchResponseActionRow(
-                        content: answer.content,
-                        shareSubject: answer.query
-                    ) { feedback in
-                        guard let feedback else { return }
-                        let rating = feedback == .positive ? "up" : "down"
-                        onFeedback?(rating, answer)
-                    }
-                    .transition(.opacity)
-                    .animation(.easeInOut(duration: 0.3), value: isStreamingComplete && !isTypewriterAnimating)
+                // Action row - ALWAYS rendered to reserve space, prevents layout shift on completion
+                ResearchResponseActionRow(
+                    content: answer.content,
+                    shareSubject: answer.query
+                ) { feedback in
+                    guard let feedback else { return }
+                    let rating = feedback == .positive ? "up" : "down"
+                    onFeedback?(rating, answer)
                 }
+                .opacity(isStreamingComplete && !isTypewriterAnimating ? 1.0 : 0.0)
+                .disabled(!isStreamingComplete || isTypewriterAnimating)
+                .allowsHitTesting(isStreamingComplete && !isTypewriterAnimating)
+                .animation(.easeInOut(duration: 0.3), value: isStreamingComplete && !isTypewriterAnimating)
             }
 
             // Follow-up questions removed per user request
