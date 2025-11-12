@@ -264,7 +264,7 @@ async function streamTier1(
 
   // ===== STEP 3: Call ai.generate() with full conversation context =====
   // Build generate request with optional image
-  // FIX: Genkit requires multimodal prompts as array with media + text objects
+  // FIX: Genkit messages API requires content as array format
   let promptContent;
   if (imageBase64) {
     // Multimodal: array format with media object first, then text
@@ -274,7 +274,7 @@ async function streamTier1(
     ];
     console.log(`🖼️ [TIER1-IMAGE] Including image in multimodal array format`);
   } else {
-    // Text-only: simple string
+    // Text-only: use string format for simplicity
     promptContent = prompt;
   }
 
@@ -282,37 +282,78 @@ async function streamTier1(
     model: getTier1Model(),
     system: systemPrompt,
     prompt: promptContent,
+    // CRITICAL: Safety settings at top level for Vertex AI
+    safetySettings: [
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' }
+    ],
     config: {
       temperature: 0.1,
       maxOutputTokens: 2500,
       thinkingConfig: {
         thinkingBudget: 0
-      },
-      // CRITICAL: Allow medical content for diabetes health assistant
-      safetySettings: [
-        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' }
-      ]
+      }
     }
   };
 
-  const { stream, response } = await ai.generateStream(generateRequest);
+  // Log request details for debugging
+  console.log(`🔍 [TIER1-DEBUG] Prompt length: ${prompt.length} chars`);
+  console.log(`🔍 [TIER1-DEBUG] System prompt length: ${systemPrompt.length} chars`);
+  console.log(`🔍 [TIER1-DEBUG] Has image: ${!!imageBase64}`);
+  console.log(`🔍 [TIER1-DEBUG] Model: ${getTier1Model()}`);
+  console.log(`🔍 [TIER1-DEBUG] Question: "${question}"`);
+
+  let stream, response;
+  try {
+    console.log(`🚀 [TIER1-DEBUG] Calling ai.generateStream...`);
+    const result = await ai.generateStream(generateRequest);
+    console.log(`✅ [TIER1-DEBUG] generateStream returned successfully`);
+    stream = result.stream;
+    response = result.response;
+  } catch (genError: any) {
+    console.error('❌ [TIER1] Gemini generation error:', genError);
+    console.error('❌ [TIER1] Error message:', genError.message);
+    console.error('❌ [TIER1] Error code:', genError.code);
+    console.error('❌ [TIER1] Error details:', JSON.stringify(genError, null, 2));
+
+    // Check if it's a safety/content filter issue
+    if (genError.message?.includes('SAFETY') || genError.message?.includes('BLOCK') || genError.message?.includes('candidate')) {
+      console.error('🚨 [TIER1] Content blocked by Gemini safety filters');
+      console.error('🚨 [TIER1] Question that was blocked:', question);
+      writeSSE(res, {
+        type: 'error',
+        message: 'Üzgünüm, bu soruyu yanıtlayamıyorum. Lütfen soruyu farklı bir şekilde sormayı deneyin.'
+      });
+      return;
+    }
+
+    // Re-throw to be handled by outer catch
+    throw genError;
+  }
 
   // ===== STEP 3: Stream chunks directly - NO batching, NO delays, NO word-splitting =====
   // The irregular chunking was caused by race conditions between batching layers
+  console.log(`🌊 [TIER1-DEBUG] Starting to iterate over stream...`);
   let fullText = '';
   let chunkCount = 0;
   for await (const chunk of stream) {
     if (chunk.text) {
       chunkCount++;
-      console.log(`📤 [T1-CHUNK-${chunkCount}] Streaming: length=${chunk.text.length}`);
+      console.log(`📤 [T1-CHUNK-${chunkCount}] Streaming: length=${chunk.text.length}, content="${chunk.text.substring(0, 50)}..."`);
 
       // Stream chunk directly - no word-splitting, no delays
       writeSSE(res, { type: 'token', content: chunk.text });
       fullText += chunk.text;
+    } else {
+      console.log(`⚠️ [T1-CHUNK] Received chunk without text:`, chunk);
     }
+  }
+  console.log(`🏁 [TIER1-DEBUG] Stream iteration complete. Total chunks: ${chunkCount}, Total text: ${fullText.length} chars`);
+
+  if (chunkCount === 0) {
+    console.error(`🚨 [TIER1-CRITICAL] No chunks received from stream!`);
   }
 
   // AFTER stream completes - CHECK FINISH REASON
@@ -618,7 +659,6 @@ async function streamTier2Hybrid(
   let stream, response;
   try {
     // Build generate request with optional image
-    // FIX: Genkit requires multimodal prompts as array with media + text objects
     let promptContent;
     if (imageBase64) {
       // Multimodal: array format with media object first, then text
@@ -628,7 +668,7 @@ async function streamTier2Hybrid(
       ];
       console.log(`🖼️ [T2-IMAGE] Including image in multimodal array format`);
     } else {
-      // Text-only: simple string
+      // Text-only: use string format for simplicity
       promptContent = userPrompt;
     }
 
@@ -636,19 +676,18 @@ async function streamTier2Hybrid(
       model: getTier2Model(),
       system: systemPrompt,
       prompt: promptContent,
+      // CRITICAL: Safety settings at top level for Vertex AI
+      safetySettings: [
+        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' }
+      ],
       config: {
         temperature: 0.2,
-        maxOutputTokens: 3000,
+        maxOutputTokens: 3000
         // FIX: Don't specify thinkingConfig at all if thinking is disabled
         // Setting thinkingBudget: 0 with includeThoughts: true causes 400 error
-        // CRITICAL: Allow medical content for diabetes health assistant
-        // This is a medical app providing health information (not medical advice)
-        safetySettings: [
-          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-          { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' }
-        ]
       }
     };
 
@@ -930,7 +969,6 @@ async function streamDeepResearch(
 
   // ===== STEP 5: Call ai.generate() with full conversation context =====
   // Build generate request with optional image
-  // FIX: Genkit requires multimodal prompts as array with media + text objects
   let promptContent;
   if (imageBase64) {
     // Multimodal: array format with media object first, then text
@@ -940,7 +978,7 @@ async function streamDeepResearch(
     ];
     console.log(`🖼️ [T3-IMAGE] Including image in multimodal array format`);
   } else {
-    // Text-only: simple string
+    // Text-only: use string format for simplicity
     promptContent = userPrompt;
   }
 
@@ -948,6 +986,13 @@ async function streamDeepResearch(
     model: getTier3Model(),
     system: systemPrompt,
     prompt: promptContent,
+    // CRITICAL: Safety settings at top level for Vertex AI
+    safetySettings: [
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' }
+    ],
     config: {
       temperature: 0.15,
       maxOutputTokens: 12000,
@@ -956,14 +1001,7 @@ async function streamDeepResearch(
       // This increases latency but significantly improves quality for complex medical research
       thinkingConfig: {
         thinkingBudget: -1 // Dynamic thinking: model decides thinking token budget
-      },
-      // CRITICAL: Allow medical content for diabetes health assistant
-      safetySettings: [
-        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
-        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
-        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
-        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' }
-      ]
+      }
     }
   };
 

@@ -65,10 +65,12 @@ struct TypewriterRecipeContentView: View {
 
             // Mark animation as active when first characters arrive
             if fullContentReceived == newChars {  // First content
+                logger.info("🎬 [TYPEWRITER] Animation STARTED - first chunk received (\(newChars.count) chars)")
                 isAnimationComplete = false
                 onAnimationStateChange?(true)  // Animation started
             }
 
+            logger.info("📝 [TYPEWRITER] Enqueuing \(newChars.count) new chars (total: \(fullContentReceived.count))")
             let fullContentCount = fullContentReceived.count
             await animator.enqueueText(newChars, for: recipeId) { displayedText in
                 // PERFORMANCE: Only update UI every 3 characters to reduce rendering overhead
@@ -81,8 +83,10 @@ struct TypewriterRecipeContentView: View {
             } onComplete: {
                 // Animation completed naturally - mark as complete and show final content
                 await MainActor.run {
+                    logger.info("✅ [TYPEWRITER] Animation COMPLETED - all \(self.fullContentReceived.count) chars displayed")
                     self.displayedContent = self.fullContentReceived  // Ensure all content is shown
                     self.isAnimationComplete = true
+                    logger.info("🔔 [TYPEWRITER] Calling onAnimationStateChange(false)")
                     self.onAnimationStateChange?(false)
                 }
             }

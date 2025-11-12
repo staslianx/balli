@@ -82,22 +82,44 @@ final class RecipeFirestoreService: ObservableObject {
         }
     }
 
-    /// Upload multiple recipes in batch
+    /// Upload multiple recipes in batch with chunking to prevent OOM
     /// - Parameter recipeDataArray: Array of (RecipeData, NSManagedObjectID) tuples
     /// - Returns: Count of successfully uploaded recipes
     func uploadRecipes(_ recipeDataArray: [(data: RecipeData, objectID: NSManagedObjectID)]) async throws -> Int {
         logger.info("Batch uploading \(recipeDataArray.count) recipes")
 
+        // MEMORY FIX: Process in chunks of 20 to limit memory footprint
+        let chunkSize = 20
         var successCount = 0
+        var totalProcessed = 0
 
-        for (recipeData, _) in recipeDataArray {
-            do {
-                try await uploadRecipe(recipeData, recipeObjectID: recipeData.objectID)
-                successCount += 1
-            } catch {
-                logger.error("Failed to upload recipe \(recipeData.id): \(error.localizedDescription)")
-                // Continue with remaining recipes
+        // Split into chunks based on objectIDs (lightweight)
+        let objectIDs = recipeDataArray.map { $0.objectID }
+        let chunks = stride(from: 0, to: objectIDs.count, by: chunkSize).map {
+            Array(objectIDs[$0..<min($0 + chunkSize, objectIDs.count)])
+        }
+
+        for (chunkIndex, chunkObjectIDs) in chunks.enumerated() {
+            // MEMORY FIX: Fetch data for THIS chunk only
+            let chunkData = try await fetchRecipeDataForObjectIDs(chunkObjectIDs)
+
+            logger.info("Processing chunk \(chunkIndex + 1)/\(chunks.count): \(chunkData.count) recipes")
+
+            for recipeData in chunkData {
+                do {
+                    try await uploadRecipe(recipeData, recipeObjectID: recipeData.objectID)
+                    successCount += 1
+                } catch {
+                    logger.error("Failed to upload recipe \(recipeData.id): \(error.localizedDescription)")
+                    // Continue with remaining recipes
+                }
             }
+
+            totalProcessed += chunkData.count
+
+            // MEMORY FIX: Release chunk data before next iteration
+            // Swift will automatically deallocate chunkData here
+            logger.debug("Completed chunk \(chunkIndex + 1): \(successCount)/\(totalProcessed) successful")
         }
 
         logger.info("✅ Batch upload complete: \(successCount)/\(recipeDataArray.count) successful")
@@ -135,21 +157,32 @@ final class RecipeFirestoreService: ObservableObject {
         }
     }
 
-    /// Sync downloaded recipes to CoreData
+    /// Sync downloaded recipes to CoreData with chunking to prevent OOM
     /// - Parameter firestoreRecipes: Array of FirestoreRecipe objects from Firestore
     /// - Returns: Count of recipes synced to CoreData
     func syncToCoreData(_ firestoreRecipes: [FirestoreRecipe]) async throws -> Int {
         logger.info("Syncing \(firestoreRecipes.count) recipes to CoreData")
 
+        // MEMORY FIX: Process in chunks
+        let chunkSize = 50  // Larger chunks OK since no imageData in FirestoreRecipe
         var syncedCount = 0
 
-        for firestoreRecipe in firestoreRecipes {
-            do {
-                try await upsertRecipeToCoreData(firestoreRecipe)
-                syncedCount += 1
-            } catch {
-                logger.error("Failed to sync recipe \(firestoreRecipe.id): \(error.localizedDescription)")
+        for startIndex in stride(from: 0, to: firestoreRecipes.count, by: chunkSize) {
+            let endIndex = min(startIndex + chunkSize, firestoreRecipes.count)
+            let chunk = Array(firestoreRecipes[startIndex..<endIndex])
+
+            logger.info("Syncing chunk: recipes \(startIndex + 1) to \(endIndex) of \(firestoreRecipes.count)")
+
+            for firestoreRecipe in chunk {
+                do {
+                    try await upsertRecipeToCoreData(firestoreRecipe)
+                    syncedCount += 1
+                } catch {
+                    logger.error("Failed to sync recipe \(firestoreRecipe.id): \(error.localizedDescription)")
+                }
             }
+
+            logger.debug("Synced chunk: \(syncedCount)/\(firestoreRecipes.count)")
         }
 
         logger.info("✅ Synced \(syncedCount)/\(firestoreRecipes.count) recipes to CoreData")
@@ -421,6 +454,20 @@ final class RecipeFirestoreService: ObservableObject {
             // Extract data within the correct context
             return recipes.map { recipe in
                 (data: RecipeData(from: recipe), objectID: recipe.objectID)
+            }
+        }
+    }
+
+    /// Fetch RecipeData for specific object IDs without holding all in memory
+    /// - Parameter objectIDs: Array of NSManagedObjectID to fetch
+    /// - Returns: Array of RecipeData for the specified objects
+    private func fetchRecipeDataForObjectIDs(_ objectIDs: [NSManagedObjectID]) async throws -> [RecipeData] {
+        try await persistenceController.performBackgroundTask { context in
+            return objectIDs.compactMap { objectID in
+                guard let recipe = try? context.existingObject(with: objectID) as? Recipe else {
+                    return nil
+                }
+                return RecipeData(from: recipe)
             }
         }
     }

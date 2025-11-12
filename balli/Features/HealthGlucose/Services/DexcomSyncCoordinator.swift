@@ -39,6 +39,11 @@ final class DexcomSyncCoordinator: ObservableObject {
     private var lastSuccessfulSync: Date?
     private var consecutiveErrors: Int = 0
 
+    // THERMAL FIX: Auto-stop continuous sync after max duration to prevent sustained CPU load
+    private let maxSyncDuration: TimeInterval = 30 * 60 // 30 minutes maximum
+    private let maxConsecutiveErrors = 3 // Stop after 3 consecutive errors
+    private var syncStartTime: Date?
+
     // Dependencies - Use protocol types for proper dependency injection
     private let dexcomService: any DexcomServiceProtocol
     private let dexcomShareService: any DexcomShareServiceProtocol
@@ -65,7 +70,8 @@ final class DexcomSyncCoordinator: ObservableObject {
         }
 
         isActive = true
-        logger.info("✅ Starting continuous Dexcom sync (interval: \(self.syncInterval)s)")
+        syncStartTime = Date()
+        logger.info("✅ Starting continuous Dexcom sync (interval: \(self.syncInterval)s, max duration: \(Int(self.maxSyncDuration/60))min)")
 
         // Cancel any existing task
         syncTask?.cancel()
@@ -77,6 +83,16 @@ final class DexcomSyncCoordinator: ObservableObject {
 
             // Then continue with periodic sync
             while !Task.isCancelled && isActive {
+                // THERMAL FIX: Check if max duration exceeded
+                if let startTime = self.syncStartTime {
+                    let elapsed = Date().timeIntervalSince(startTime)
+                    if elapsed > self.maxSyncDuration {
+                        self.logger.info("⏱️ [THERMAL] Max sync duration (\(Int(self.maxSyncDuration/60))min) reached - auto-stopping to prevent sustained CPU load")
+                        self.stopContinuousSync()
+                        break
+                    }
+                }
+
                 do {
                     // Wait for interval (with exponential backoff on errors)
                     let waitInterval = calculateWaitInterval()
@@ -84,6 +100,13 @@ final class DexcomSyncCoordinator: ObservableObject {
 
                     // Check if still active (might have stopped while sleeping)
                     guard !Task.isCancelled && isActive else { break }
+
+                    // THERMAL FIX: Stop after too many consecutive errors
+                    if self.consecutiveErrors >= self.maxConsecutiveErrors {
+                        self.logger.error("🛑 [THERMAL] Too many consecutive errors (\(self.consecutiveErrors)) - stopping to prevent wasted CPU cycles")
+                        self.stopContinuousSync()
+                        break
+                    }
 
                     // Perform sync with optimizations
                     await performSyncIfNeeded()
@@ -94,7 +117,7 @@ final class DexcomSyncCoordinator: ObservableObject {
                 } catch {
                     logger.error("❌ Sync task error: \(error.localizedDescription)")
                     syncError = error
-                    // Continue syncing despite error
+                    // Continue syncing despite error (unless consecutive error limit reached)
                 }
             }
 
@@ -114,6 +137,7 @@ final class DexcomSyncCoordinator: ObservableObject {
         isActive = false
         syncTask?.cancel()
         syncTask = nil
+        syncStartTime = nil
     }
 
     /// Perform an immediate sync (outside the periodic schedule)

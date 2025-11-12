@@ -163,10 +163,10 @@ struct RecipeDetailView: View {
                 if recipeData.recipe.prepTime > 0 || recipeData.recipe.cookTime > 0 || recipeData.recipe.waitTime > 0 {
                     HStack(spacing: 8) {
                         if recipeData.recipe.prepTime > 0 {
-                            RecipeTimePill(icon: "rectangle.3.group", time: Int(recipeData.recipe.prepTime), label: "Hazırlık")
+                            RecipeTimePill(icon: "circle.dotted", time: Int(recipeData.recipe.prepTime), label: "Hazırlık")
                         }
                         if recipeData.recipe.cookTime > 0 {
-                            RecipeTimePill(icon: "frying.pan", time: Int(recipeData.recipe.cookTime), label: "Pişirme")
+                            RecipeTimePill(icon: "flame", time: Int(recipeData.recipe.cookTime), label: "Pişirme")
                         }
                         if recipeData.recipe.waitTime > 0 {
                             RecipeTimePill(icon: "hourglass", time: Int(recipeData.recipe.waitTime), label: "Bekleme")

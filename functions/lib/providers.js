@@ -44,43 +44,23 @@ function getProviderConfig() {
 function getProviderName() {
     return process.env.USE_VERTEX_AI === 'true' ? 'vertexai' : 'googleai';
 }
-/**
- * Get and validate embedding dimensions for gemini-embedding-001
- * Supports 768, 1536, or 3072 dimensions via Matryoshka Representation Learning
- * Using 768D for optimal balance of quality and performance
- */
-function getEmbeddingDimensions() {
-    const dimStr = process.env.EMBEDDING_DIMENSIONS;
-    const dim = dimStr ? parseInt(dimStr) : 768; // Default to 768 for Vertex AI
-    // Validate dimension range for gemini-embedding-001
-    // Supports 768, 1536, or 3072 via Matryoshka Representation Learning
-    const validDimensions = [768, 1536, 3072];
-    if (!validDimensions.includes(dim)) {
-        console.error(`❌ [EMBEDDING] Invalid dimension ${dim}. ` +
-            `gemini-embedding-001 supports 768, 1536, or 3072. Using 768.`);
-        return 768;
-    }
-    console.log(`✅ [EMBEDDING] Configured for ${dim} dimensions`);
-    return dim;
-}
 // Unified model reference getter
 function getModelReferences() {
     const useVertexAI = process.env.USE_VERTEX_AI === 'true';
-    const embeddingDimensions = getEmbeddingDimensions(); // Use validated dimensions
     if (useVertexAI) {
-        // Vertex AI - use Gemini 2.5 models (1.5 versions deprecated)
+        // Vertex AI - use Gemini 2.5 models (stable GA versions, no version suffix needed)
         return {
             chat: 'vertexai/gemini-2.5-flash',
             summary: 'vertexai/gemini-2.5-flash',
             embedder: vertexai_1.vertexAI.embedder('gemini-embedding-001', {
-                outputDimensionality: embeddingDimensions
+                outputDimensionality: 768 // Default 768 dimensions (not actively used)
             }),
             classifier: 'vertexai/gemini-2.5-flash',
             router: 'vertexai/gemini-2.5-flash-lite', // Fast, cheap for classification
-            tier1: 'vertexai/gemini-2.5-flash', // Direct knowledge
-            tier2: 'vertexai/gemini-2.5-flash', // Web search
-            tier3: 'vertexai/gemini-2.5-flash', // Medical research with thinking mode
-            nutritionCalculator: 'vertexai/gemini-2.5-pro' // Nutrition calculation (stays Pro)
+            tier1: 'vertexai/gemini-2.5-flash', // Direct knowledge with context caching support
+            tier2: 'vertexai/gemini-2.5-flash', // Web search with context caching support
+            tier3: 'vertexai/gemini-2.5-flash', // Medical research with thinking mode + context caching
+            nutritionCalculator: 'vertexai/gemini-2.5-pro' // Nutrition calculation with context caching
         };
     }
     else {
@@ -91,7 +71,7 @@ function getModelReferences() {
             chat: 'googleai/gemini-2.5-flash',
             summary: 'googleai/gemini-2.5-flash',
             embedder: google_genai_1.googleAI.embedder('gemini-embedding-001', {
-                outputDimensionality: embeddingDimensions
+                outputDimensionality: 768 // Default 768 dimensions (not actively used)
             }),
             classifier: 'googleai/gemini-2.5-flash',
             router: 'googleai/gemini-2.5-flash-lite', // Fast, cheap for classification

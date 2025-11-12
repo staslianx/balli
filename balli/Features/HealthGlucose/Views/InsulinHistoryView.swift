@@ -18,6 +18,8 @@ struct InsulinHistoryView: View {
 
     @State private var selectedEntry: MedicationEntry?
     @State private var showEditSheet = false
+    @State private var entryToDelete: MedicationEntry?
+    @State private var showDeleteConfirmation = false
 
     // Fetch all medication entries (insulin) sorted by timestamp (newest first)
     @FetchRequest(
@@ -94,7 +96,38 @@ struct InsulinHistoryView: View {
                         .environment(\.managedObjectContext, viewContext)
                 }
             }
+            .alert("İnsülin Kaydını Sil", isPresented: $showDeleteConfirmation) {
+                Button("İptal", role: .cancel) {
+                    entryToDelete = nil
+                }
+                Button("Sil", role: .destructive) {
+                    deleteEntry()
+                }
+            } message: {
+                if let entry = entryToDelete {
+                    Text("\(entry.medicationName) kaydını silmek istediğinden emin misin? Bu işlem geri alınamaz.")
+                }
+            }
         }
+    }
+
+    // MARK: - Delete Entry
+
+    private func deleteEntry() {
+        guard let entry = entryToDelete else { return }
+
+        logger.info("🗑️ Deleting insulin entry: \(entry.medicationName) - \(Int(entry.dosage)) units")
+
+        viewContext.delete(entry)
+
+        do {
+            try viewContext.save()
+            logger.info("✅ Insulin entry deleted successfully")
+        } catch {
+            logger.error("❌ Failed to delete insulin entry: \(error.localizedDescription)")
+        }
+
+        entryToDelete = nil
     }
 
     // MARK: - Day Card View (Matches LoggedMealsView)
@@ -125,6 +158,10 @@ struct InsulinHistoryView: View {
                         .onTapGesture {
                             selectedEntry = entry
                             showEditSheet = true
+                        }
+                        .onLongPressGesture {
+                            entryToDelete = entry
+                            showDeleteConfirmation = true
                         }
 
                     // Divider between entries (except last one)

@@ -102,10 +102,9 @@ const CORE_INGREDIENTS: TestIngredient[] = [
   { turkish: '200g kinoa, pişmiş', english: 'Quinoa, cooked', category: 'carb' },
   { turkish: '200g tam buğday makarna, pişmiş', english: 'Pasta, whole grain, 51% to 99% whole wheat, cooked', category: 'carb' },
 
-  // Protein Sources
+  // Protein Sources (NOTE: turkey, shrimp, lobster excluded per user preference)
   { turkish: '200g tavuk göğsü, ızgara', english: 'Chicken, broilers or fryers, breast, skinless, boneless, meat only, cooked, grilled', category: 'protein' },
   { turkish: '200g somon balığı, pişmiş', english: 'Fish, salmon, Atlantic, wild, cooked, dry heat', category: 'protein' },
-  { turkish: '200g hindi göğsü, ızgara', english: 'Turkey, broilers or fryers, breast, meat only, cooked, roasted', category: 'protein' },
   { turkish: '200g yağsız dana eti, ızgara', english: 'Beef, loin, top sirloin cap steak, boneless, separable lean only, trimmed to 1/8" fat, all grades, cooked, grilled', category: 'protein' },
   { turkish: '200g tofu', english: 'Tofu, raw, regular, prepared with calcium sulfate', category: 'protein' },
 

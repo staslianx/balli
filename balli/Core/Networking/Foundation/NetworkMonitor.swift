@@ -24,6 +24,10 @@ final class NetworkMonitor: ObservableObject {
     private let queue = DispatchQueue(label: "com.balli.networkmonitor")
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "NetworkMonitor")
 
+    // LIFECYCLE FIX: Track monitoring state and active subscribers
+    private var isMonitoring = false
+    private var activeSubscribers: Set<String> = []
+
     // MARK: - Singleton
 
     static let shared = NetworkMonitor()
@@ -58,8 +62,16 @@ final class NetworkMonitor: ObservableObject {
 
     // MARK: - Public Methods
 
-    /// Start monitoring network changes
-    func startMonitoring() {
+    /// Start monitoring network changes with subscriber tracking
+    func startMonitoring(subscriber: String = "app") {
+        activeSubscribers.insert(subscriber)
+
+        guard !isMonitoring else {
+            logger.debug("Already monitoring - added subscriber: \(subscriber, privacy: .public)")
+            return
+        }
+
+        isMonitoring = true
         monitor.pathUpdateHandler = { [weak self] path in
             Task { @MainActor [weak self] in
                 guard let self else { return }
@@ -97,13 +109,27 @@ final class NetworkMonitor: ObservableObject {
         }
 
         monitor.start(queue: queue)
-        logger.info("Network monitoring started")
+        logger.info("Network monitoring started with subscriber: \(subscriber, privacy: .public)")
     }
 
-    /// Stop monitoring network changes
-    func stopMonitoring() {
+    /// Stop monitoring network changes with subscriber tracking
+    func stopMonitoring(subscriber: String = "app") {
+        activeSubscribers.remove(subscriber)
+
+        guard activeSubscribers.isEmpty else {
+            let subscribers = self.activeSubscribers
+            logger.debug("Still have active subscribers - not stopping: \(subscribers, privacy: .public)")
+            return
+        }
+
+        guard isMonitoring else {
+            logger.debug("Already stopped")
+            return
+        }
+
+        isMonitoring = false
         monitor.cancel()
-        logger.info("Network monitoring stopped")
+        logger.info("Network monitoring stopped - no active subscribers")
     }
 }
 

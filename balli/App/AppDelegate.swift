@@ -47,8 +47,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             logger.warning("⚠️ GoogleService-Info.plist not found - Firebase features disabled")
         }
 
-        // Start network monitoring for offline support
-        NetworkMonitor.shared.startMonitoring()
+        // Start network monitoring for offline support (app-level subscriber)
+        NetworkMonitor.shared.startMonitoring(subscriber: "AppDelegate")
         logger.info("📡 Network monitoring started for offline queue management")
 
         // Configure background task registration

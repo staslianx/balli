@@ -54,7 +54,7 @@ struct RecipeMemoryEntry: Codable, Sendable, Equatable {
         // Apply consistent naming conventions for common variations
         let replacements: [String: String] = [
             "piliç": "tavuk",
-            "hindi": "tavuk",  // Unless specifically turkey
+            // NOTE: "hindi" (turkey) removed from replacements - it's a forbidden ingredient
             "peynir": "beyaz peynir",  // Be specific
             "domates": "domates",  // Ensure singular
             "domatesler": "domates",

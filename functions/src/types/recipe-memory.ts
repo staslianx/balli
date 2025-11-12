@@ -110,7 +110,12 @@ export interface RecipeGenerationResponse {
   // NEW: Extracted main ingredients for memory system
   extractedIngredients?: string[];
 
-  // NEW: Similarity flag (was this a regeneration?)
+  // NEW: Similarity detection (was this recipe similar to a recent one?)
+  wasSimilar?: boolean;
+  similarToRecipe?: string;  // Name of the similar recipe found
+  matchingIngredients?: string[];  // Which ingredients overlapped
+
+  // NEW: Regeneration flag (future: if we implement retry logic)
   wasRegenerated?: boolean;
 }
 

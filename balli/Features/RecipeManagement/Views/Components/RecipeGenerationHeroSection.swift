@@ -205,15 +205,28 @@ struct RecipeGenerationMetadata: View {
 
                 // Recipe title - editable for manual recipes, display-only for AI-generated
                 if isManualRecipe {
-                    TextField("Tarif ismi (zorunlu)", text: $editableRecipeName, axis: .vertical)
-                        .font(.custom("Playfair Display", size: 36))
-                        .fontWeight(.bold)
-                        .lineSpacing(0)
-                        .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
-                        .textFieldStyle(.plain)
-                        .focused($isNameFieldFocused)
-                        .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
-                        .submitLabel(.done)
+                    ZStack(alignment: .topLeading) {
+                        // Custom placeholder with lighter color
+                        if editableRecipeName.isEmpty {
+                            Text("Tarif ismi (gerekli)")
+                                .font(.custom("Playfair Display", size: 36))
+                                .fontWeight(.bold)
+                                .lineSpacing(0)
+                                .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme).opacity(0.3))
+                                .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
+                                .allowsHitTesting(false)
+                        }
+
+                        TextField("", text: $editableRecipeName, axis: .vertical)
+                            .font(.custom("Playfair Display", size: 36))
+                            .fontWeight(.bold)
+                            .lineSpacing(0)
+                            .foregroundColor(AppTheme.foregroundOnColor(for: colorScheme))
+                            .textFieldStyle(.plain)
+                            .focused($isNameFieldFocused)
+                            .shadow(color: Color.primary.opacity(0.2), radius: 4, x: 0, y: 2)
+                            .submitLabel(.done)
+                    }
                 } else if !recipeName.isEmpty {
                     TypewriterText(
                         content: recipeName,

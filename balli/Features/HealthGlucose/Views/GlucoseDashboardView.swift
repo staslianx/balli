@@ -245,7 +245,7 @@ struct GlucoseDashboardView: View {
 
                 // Calories Card
                 HStack {
-                    Image(systemName: "flame.fill")
+                    Image(systemName: "app.background.dotted")
                         .font(.system(size: 32))
                         .foregroundStyle(.orange.gradient)
                         .frame(width: 50)

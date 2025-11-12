@@ -21,7 +21,7 @@ struct ActivityMetricsCard: View {
                 metricsView
             }
         }
-        .frame(height: ResponsiveDesign.Components.chartHeight + ResponsiveDesign.Spacing.xSmall + 40)
+        .frame(height: ResponsiveDesign.Components.chartHeight + 40)  // Match GlucoseChartCard height
         .padding(.horizontal)
         .onChange(of: scenePhase) { _, newPhase in
             // When app becomes active (user returning from Settings), refresh permissions
@@ -128,7 +128,7 @@ struct ActivityMetricsCard: View {
                         .foregroundStyle(.secondary)
                         .offset(y: 0)
 
-                    Image(systemName: "flame.fill")
+                    Image(systemName: "app.background.dotted")
                         .font(.system(size: 28))
                         .foregroundStyle(AppTheme.primaryPurple)
                         .offset(y: 4)

@@ -46,9 +46,10 @@ final class RecipeMemoryService {
     // MARK: - Ingredient Classification
 
     /// Common Turkish protein ingredients for classification
+    /// NOTE: Excluded forbidden ingredients: hindi (turkey), karides (shrimp), istakoz (lobster)
     private static let proteinIngredients: Set<String> = [
-        "tavuk", "tavuk göğsü", "tavuk but", "hindi",
-        "somon", "ton balığı", "levrek", "çipura", "hamsi", "sardalya", "karides",
+        "tavuk", "tavuk göğsü", "tavuk but",
+        "somon", "ton balığı", "levrek", "çipura", "hamsi", "sardalya",
         "dana eti", "kuzu eti", "kıyma", "köfte",
         "yumurta", "beyaz peynir", "lor peyniri", "süzme yoğurt", "kefir",
         "tofu", "tempeh", "edamame",
@@ -272,9 +273,10 @@ final class RecipeMemoryService {
             }
 
             // All available proteins for suggestions
+            // NOTE: Excluded forbidden ingredients: hindi (turkey), karides (shrimp), istakoz (lobster)
             let allProteins = [
-                "tavuk göğsü", "tavuk but", "hindi",
-                "somon", "levrek", "çipura", "ton balığı", "hamsi", "sardalya", "karides",
+                "tavuk göğsü", "tavuk but",
+                "somon", "levrek", "çipura", "ton balığı", "hamsi", "sardalya",
                 "dana eti", "kuzu eti", "kıyma", "köfte",
                 "tofu", "tempeh", "edamame",
                 "kırmızı mercimek", "yeşil mercimek", "nohut"

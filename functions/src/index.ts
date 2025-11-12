@@ -22,6 +22,10 @@ import {
   extractTokenCounts
 } from './cost-tracking/cost-tracker';
 import { FeatureName } from './cost-tracking/model-pricing';
+import {
+  checkSimilarityAgainstRecent,
+  RecipeMemoryEntry
+} from './services/recipe-memory';
 
 // Initialize Firebase Admin (guard against duplicate initialization in tests)
 if (!admin.apps.length) {
@@ -128,8 +132,8 @@ const generateRecipeFromIngredientsFlow = ai.defineFlow(
     name: 'generateRecipeFromIngredients',
     inputSchema: z.object({
       ingredients: z.array(z.string()).describe('List of available ingredients'),
-      mealType: z.string().describe('Type of meal (Kahvaltı, Akşam Yemeği, Salatalar, Tatlılar, Atıştırmalıklar)'),
-      styleType: z.string().describe('Style subcategory for the meal type'),
+      mealType: z.string().optional().describe('Type of meal (Kahvaltı, Akşam Yemeği, Salatalar, Tatlılar, Atıştırmalıklar). Can be empty when userContext is provided.'),
+      styleType: z.string().optional().describe('Style subcategory for the meal type. Can be empty when userContext is provided.'),
       userId: z.string().optional().describe('User ID for personalization'),
       userContext: z.string().optional().describe('Optional user context or notes for recipe generation (e.g., "diabetes-friendly tiramisu")')
     }),
@@ -147,12 +151,14 @@ const generateRecipeFromIngredientsFlow = ai.defineFlow(
   async (input) => {
     try {
       console.log(`🍳 [RECIPE] Generating recipe from ingredients: ${input.ingredients.join(', ')}`);
+      console.log(`📊 [PARAMS] mealType="${input.mealType || ''}", styleType="${input.styleType || ''}"`);
+      console.log(`📝 [USER_CONTEXT] ${input.userContext ? `User provided: "${input.userContext}"` : 'No user context'}`);
 
       const recipePrompt = ai.prompt('recipe_chef_assistant');
 
       const response = await recipePrompt({
-        mealType: input.mealType,
-        styleType: input.styleType,
+        mealType: input.mealType || '',
+        styleType: input.styleType || '',
         ingredients: input.ingredients,
         spontaneous: false,
         userContext: input.userContext
@@ -567,13 +573,21 @@ export const generateSpontaneousRecipe = onRequest({
       const { mealType, memoryEntries, diversityConstraints, userContext } = req.body;
       let { styleType, recentRecipes } = req.body;
 
-      if (!mealType) {
-        res.status(400).json({ error: 'mealType is required' });
+      // CRITICAL LOGGING: Track all parameters for debugging
+      console.log(`🍳 [SPONTANEOUS] Generating spontaneous recipe`);
+      console.log(`📊 [PARAMS] mealType="${mealType || ''}", styleType="${styleType || ''}"`);
+      console.log(`📝 [USER_CONTEXT] ${userContext ? `User provided: "${userContext}"` : 'No user context'}`);
+
+      // CRITICAL FIX: Allow empty mealType when userContext exists
+      // When user provides notes, they're telling us exactly what to make
+      if (!mealType && !userContext) {
+        res.status(400).json({ error: 'mealType is required (unless userContext is provided)' });
         return;
       }
 
       // For categories without subcategories (Kahvaltı, Atıştırmalık), use mealType as styleType
-      if (!styleType || styleType.trim() === '') {
+      // ONLY if mealType is not empty (when userContext exists, both can be empty)
+      if ((!styleType || styleType.trim() === '') && mealType && mealType.trim() !== '') {
         styleType = mealType;
         console.log(`📝 [ENDPOINT] No styleType provided, using mealType as styleType: "${styleType}"`);
       }
@@ -696,6 +710,44 @@ export const generateSpontaneousRecipe = onRequest({
         // Extract ingredients from markdown
         const extractedIngredients = extractIngredientsFromMarkdown(fullContent);
 
+        // SIMILARITY CHECK: Check if this recipe is too similar to recent ones
+        let wasSimilar = false;
+        let similarToRecipe: string | undefined;
+        let matchingIngredients: string[] = [];
+
+        if (memoryEntries && Array.isArray(memoryEntries) && memoryEntries.length > 0) {
+          console.log(`🔍 [SIMILARITY-CHECK] Checking similarity against ${memoryEntries.length} recent recipes`);
+
+          // Convert memoryEntries to RecipeMemoryEntry format
+          const recentMemory: RecipeMemoryEntry[] = memoryEntries.map((entry: any) => ({
+            mainIngredients: entry.mainIngredients || [],
+            dateGenerated: entry.dateGenerated || new Date().toISOString(),
+            subcategory: entry.subcategory || '',
+            recipeName: entry.recipeName
+          }));
+
+          // Check similarity (3+ ingredient overlap)
+          const similarityResult = checkSimilarityAgainstRecent(
+            extractedIngredients,
+            recentMemory,
+            10  // Check last 10 recipes
+          );
+
+          if (similarityResult.isSimilar) {
+            wasSimilar = true;
+            matchingIngredients = similarityResult.matchingIngredients;
+            similarToRecipe = similarityResult.matchedRecipeIndex !== undefined
+              ? recentMemory[similarityResult.matchedRecipeIndex]?.recipeName
+              : undefined;
+
+            console.warn(`⚠️ [SIMILARITY-CHECK] Recipe is similar to recent recipe #${similarityResult.matchedRecipeIndex}: "${similarToRecipe}"`);
+            console.warn(`   Matching ${similarityResult.matchCount} ingredients: ${matchingIngredients.join(', ')}`);
+            console.warn(`   Generated ingredients: ${extractedIngredients.join(', ')}`);
+          } else {
+            console.log(`✅ [SIMILARITY-CHECK] Recipe is unique (no 3+ ingredient overlap with recent recipes)`);
+          }
+        }
+
         // Send completion event with markdown content
         const recipeData = {
           recipeName: recipeName,
@@ -707,6 +759,10 @@ export const generateSpontaneousRecipe = onRequest({
           servings: 1,
           tokenCount: tokenCount,
           extractedIngredients,  // For iOS memory system
+          // NEW: Similarity metadata
+          wasSimilar,
+          similarToRecipe,
+          matchingIngredients: wasSimilar ? matchingIngredients : undefined,
           // Empty nutrition fields - will be calculated on-demand by iOS
           calories: "",
           carbohydrates: "",

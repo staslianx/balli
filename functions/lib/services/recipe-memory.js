@@ -19,10 +19,11 @@ const providers_1 = require("../providers");
 const zod_1 = require("zod");
 /**
  * Common Turkish protein ingredients for classification
+ * NOTE: Excluded forbidden ingredients: hindi (turkey), karides (shrimp), istakoz (lobster)
  */
 const PROTEIN_INGREDIENTS = new Set([
-    "tavuk", "tavuk göğsü", "tavuk but", "hindi",
-    "somon", "ton balığı", "levrek", "çipura", "hamsi", "sardalya", "karides",
+    "tavuk", "tavuk göğsü", "tavuk but",
+    "somon", "ton balığı", "levrek", "çipura", "hamsi", "sardalya",
     "dana eti", "kuzu eti", "kıyma", "köfte",
     "yumurta", "beyaz peynir", "lor peyniri", "süzme yoğurt", "kefir",
     "tofu", "tempeh", "edamame",
@@ -54,7 +55,7 @@ function normalizeIngredient(ingredient) {
     // Apply consistent naming conventions for common variations
     const replacements = {
         "piliç": "tavuk",
-        "hindi": "tavuk", // Unless specifically turkey
+        // NOTE: "hindi" (turkey) removed from replacements - it's a forbidden ingredient
         "peynir": "beyaz peynir", // Be specific
         "domatesler": "domates", // Singular
         "brokoliler": "brokoli"

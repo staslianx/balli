@@ -17,6 +17,14 @@ class RecipeStreamingService {
 
     private let logger = AppLoggers.Recipe.generation
 
+    // THERMAL FIX: Track active streaming task for explicit cancellation
+    // Prevents streaming from continuing after user navigates away
+    private var activeStreamingTask: Task<Void, Never>?
+
+    // THERMAL FIX: Throttle chunk logging to reduce CPU overhead
+    private var chunkLogThrottle = 0
+    private let chunkLogInterval = 10  // Log every 10th chunk
+
     // Cloud Function URLs
     private let generateFromIngredientsURL = "https://us-central1-balli-project.cloudfunctions.net/generateRecipeFromIngredients"
     private let generateSpontaneousURL = "https://us-central1-balli-project.cloudfunctions.net/generateSpontaneousRecipe"
@@ -46,14 +54,18 @@ class RecipeStreamingService {
             requestBody["userContext"] = userContext
         }
 
-        await performStreaming(
-            url: generateFromIngredientsURL,
-            requestBody: requestBody,
-            onConnected: onConnected,
-            onChunk: onChunk,
-            onComplete: onComplete,
-            onError: onError
-        )
+        // THERMAL FIX: Store task for explicit cancellation
+        activeStreamingTask = Task {
+            await performStreaming(
+                url: generateFromIngredientsURL,
+                requestBody: requestBody,
+                onConnected: onConnected,
+                onChunk: onChunk,
+                onComplete: onComplete,
+                onError: onError
+            )
+            activeStreamingTask = nil
+        }
     }
 
     /// Generate spontaneous recipe with streaming
@@ -114,14 +126,28 @@ class RecipeStreamingService {
             }
         }
 
-        await performStreaming(
-            url: generateSpontaneousURL,
-            requestBody: requestBody,
-            onConnected: onConnected,
-            onChunk: onChunk,
-            onComplete: onComplete,
-            onError: onError
-        )
+        // THERMAL FIX: Store task for explicit cancellation
+        activeStreamingTask = Task {
+            await performStreaming(
+                url: generateSpontaneousURL,
+                requestBody: requestBody,
+                onConnected: onConnected,
+                onChunk: onChunk,
+                onComplete: onComplete,
+                onError: onError
+            )
+            activeStreamingTask = nil
+        }
+    }
+
+    // THERMAL FIX: Public cancellation method
+    /// Explicitly cancels active streaming to prevent wasted CPU/network after navigation
+    func cancelActiveStream() {
+        if activeStreamingTask != nil {
+            logger.info("🛑 [THERMAL] Explicitly cancelling active streaming task")
+            activeStreamingTask?.cancel()
+            activeStreamingTask = nil
+        }
     }
 
     // MARK: - Private Methods
@@ -191,17 +217,27 @@ class RecipeStreamingService {
 
                 if line.hasPrefix("event:") {
                     eventType = String(line.dropFirst(6).trimmingCharacters(in: .whitespaces))
-                    logger.debug("📨 [SSE-LINE] Event type: \(eventType)")
+                    // THERMAL FIX: Only log non-chunk events to reduce overhead
+                    #if DEBUG
+                    if eventType != "chunk" {
+                        logger.debug("📨 [SSE-LINE] Event type: \(eventType)")
+                    }
+                    #endif
                 } else if line.hasPrefix("data:") {
                     eventData = String(line.dropFirst(5).trimmingCharacters(in: .whitespaces))
-                    logger.debug("📨 [SSE-DATA] Data length: \(eventData.count) chars, first 50: '\(eventData.prefix(50))'")
 
                     // Parse event data
                     if let jsonData = eventData.data(using: .utf8),
                        let event = try? JSONDecoder().decode(RecipeSSEEvent.self, from: jsonData) {
 
                         chunkCount += 1
-                        logger.debug("📦 [SSE-EVENT] Event #\(chunkCount) type: \(event.type)")
+
+                        // THERMAL FIX: Throttled chunk logging (every 10th chunk)
+                        chunkLogThrottle += 1
+                        if chunkLogThrottle >= chunkLogInterval {
+                            logger.debug("📦 [SSE-EVENT] Event #\(chunkCount) type: \(event.type)")
+                            chunkLogThrottle = 0
+                        }
 
                         // Track if we received a completed event
                         if event.type == "completed" {

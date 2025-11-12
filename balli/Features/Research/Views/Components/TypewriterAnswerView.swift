@@ -65,10 +65,12 @@ struct TypewriterAnswerView: View {
 
             // Mark animation as active when first characters arrive
             if fullContentReceived.isEmpty {  // First content - check against empty, not equality
+                logger.info("🎬 [RESEARCH-TYPEWRITER] Animation STARTED - first chunk (\(newChars.count) chars, answerId: \(answerId))")
                 isAnimationComplete = false
                 onAnimationStateChange?(true)  // Animation started
             }
 
+            logger.info("📝 [RESEARCH-TYPEWRITER] Enqueuing \(newChars.count) new chars (total: \(content.count), answerId: \(answerId))")
             // P0 FIX: Update fullContentReceived ONLY after animation starts
             // This prevents race condition where view re-renders and guard check fails
             // because fullContentReceived was updated before animation could start
@@ -79,9 +81,10 @@ struct TypewriterAnswerView: View {
             } onComplete: {
                 // Animation completed naturally - mark as complete
                 await MainActor.run {
+                    logger.info("✅ [RESEARCH-TYPEWRITER] Animation COMPLETED (all \(self.fullContentReceived.count) chars, answerId: \(answerId))")
                     self.isAnimationComplete = true
+                    logger.info("🔔 [RESEARCH-TYPEWRITER] Calling onAnimationStateChange(false) for answerId: \(answerId)")
                     self.onAnimationStateChange?(false)
-                    logger.debug("✅ [TYPEWRITER] Animation naturally completed")
                 }
             }
 
@@ -92,7 +95,10 @@ struct TypewriterAnswerView: View {
         .onChange(of: isStreaming) { _, newValue in
             // When streaming completes, let animation finish naturally
             if !newValue {
-                logger.debug("🏁 [TYPEWRITER] Backend streaming complete, animation will continue naturally")
+                logger.info("🏁 [RESEARCH-TYPEWRITER] Backend streaming COMPLETED (answerId: \(answerId), animation may still be running)")
+                logger.info("   isAnimationComplete: \(isAnimationComplete)")
+                logger.info("   displayedContent length: \(displayedContent.count)")
+                logger.info("   fullContentReceived length: \(fullContentReceived.count)")
                 // Don't flush - let the typewriter animator finish at its own pace (30ms per char)
                 // The animation will complete when the character queue is empty
                 // This creates smooth, natural text appearance instead of instant dump

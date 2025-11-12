@@ -72,6 +72,9 @@ export interface RecipeGenerationResponse {
     sugar: string;
     glycemicLoad: string;
     extractedIngredients?: string[];
+    wasSimilar?: boolean;
+    similarToRecipe?: string;
+    matchingIngredients?: string[];
     wasRegenerated?: boolean;
 }
 /**

@@ -53,7 +53,6 @@ const admin = __importStar(require("firebase-admin"));
 // Verify critical environment variables are loaded
 console.log('🔧 [ENV] Loading environment configuration...');
 console.log(`🔧 [ENV] USE_VERTEX_AI: ${process.env.USE_VERTEX_AI}`);
-console.log(`🔧 [ENV] EMBEDDING_DIMENSIONS: ${process.env.EMBEDDING_DIMENSIONS || '768 (default)'}`);
 console.log(`🔧 [ENV] GOOGLE_CLOUD_PROJECT_ID: ${process.env.GOOGLE_CLOUD_PROJECT_ID || 'balli-project (default)'}`);
 // Initialize Firebase Admin first (guard against duplicate initialization)
 if (!admin.apps.length) {

@@ -7,6 +7,12 @@
 //
 
 import SwiftUI
+import OSLog
+
+private let logger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "com.balli",
+    category: "InformationRetrievalView"
+)
 
 struct InformationRetrievalView: View {
     @StateObject private var viewModel = MedicalResearchViewModel()
@@ -64,11 +70,15 @@ struct InformationRetrievalView: View {
                                             }
                                         },
                                         onAnimationStateChange: { answerId, isAnimating in
+                                            logger.info("🎭 [RESEARCH-ANIMATION-CALLBACK] Answer \(answerId): \(isAnimating ? "START" : "STOP")")
+                                            logger.info("   Before: animatingAnswerIds = \(animatingAnswerIds)")
                                             if isAnimating {
                                                 animatingAnswerIds.insert(answerId)
                                             } else {
                                                 animatingAnswerIds.remove(answerId)
                                             }
+                                            logger.info("   After: animatingAnswerIds = \(animatingAnswerIds)")
+                                            logger.info("   isEffectivelySearching: \(isEffectivelySearching) (backend: \(viewModel.isSearching), animating: \(!animatingAnswerIds.isEmpty))")
                                         }
                                     )
                                     .id(answer.id)
@@ -158,6 +168,17 @@ struct InformationRetrievalView: View {
                         .foregroundColor(ThemeColors.primaryPurple)
                 }
             }
+        }
+        .onChange(of: viewModel.isSearching) { oldValue, newValue in
+            logger.info("🔄 [RESEARCH-BACKEND] isSearching changed: \(oldValue) → \(newValue)")
+            logger.info("   animatingAnswerIds: \(animatingAnswerIds)")
+            logger.info("   isEffectivelySearching: \(isEffectivelySearching)")
+        }
+        .onChange(of: animatingAnswerIds) { oldValue, newValue in
+            logger.info("🔄 [RESEARCH-ANIMATING-SET] animatingAnswerIds changed")
+            logger.info("   Before: \(oldValue)")
+            logger.info("   After: \(newValue)")
+            logger.info("   isEffectivelySearching: \(isEffectivelySearching) (backend: \(viewModel.isSearching), animating: \(!newValue.isEmpty))")
         }
         .safeAreaInset(edge: .bottom) {
             // Fixed search bar at bottom

@@ -31,9 +31,13 @@ public final class RecipeGenerationCoordinator: ObservableObject {
     private let animationController: RecipeAnimationController
     private let formState: RecipeFormState
     private let generationService: RecipeGenerationServiceProtocol
-    private let streamingService: RecipeStreamingService
+    internal let streamingService: RecipeStreamingService  // THERMAL FIX: Made internal for cancellation access
     private let memoryService: RecipeMemoryService
     private var cancellables = Set<AnyCancellable>()
+
+    // THERMAL FIX: Throttle markdown parsing to reduce CPU overhead
+    private var lastParseChunkCount = 0
+    private let parseInterval = 10  // Parse every 10 chunks (vs every chunk)
 
     init(
         animationController: RecipeAnimationController,
@@ -239,16 +243,20 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                         }
                     }
 
-                    // CRITICAL FIX: Parse ingredients and directions from markdown during streaming
-                    // This ensures formState has ingredients even if stream ends without "completed" event
-                    let parsed = self.formState.parseMarkdownContent(fullContent)
-                    if !parsed.ingredients.isEmpty {
-                        self.formState.ingredients = parsed.ingredients
-                        self.logger.debug("🔧 [STREAMING] Parsed \(parsed.ingredients.count) ingredients from markdown during streaming")
-                    }
-                    if !parsed.directions.isEmpty {
-                        self.formState.directions = parsed.directions
-                        self.logger.debug("🔧 [STREAMING] Parsed \(parsed.directions.count) directions from markdown during streaming")
+                    // THERMAL FIX: Throttled markdown parsing (every 10 chunks vs every chunk)
+                    // Reduces CPU overhead by 90% while still extracting ingredients in real-time
+                    if count - self.lastParseChunkCount >= self.parseInterval {
+                        self.lastParseChunkCount = count
+
+                        let parsed = self.formState.parseMarkdownContent(fullContent)
+                        if !parsed.ingredients.isEmpty {
+                            self.formState.ingredients = parsed.ingredients
+                            self.logger.debug("🔧 [STREAMING] Parsed \(parsed.ingredients.count) ingredients at chunk \(count)")
+                        }
+                        if !parsed.directions.isEmpty {
+                            self.formState.directions = parsed.directions
+                            self.logger.debug("🔧 [STREAMING] Parsed \(parsed.directions.count) directions at chunk \(count)")
+                        }
                     }
 
                     // Remove header and metadata from displayed content
@@ -401,21 +409,27 @@ public final class RecipeGenerationCoordinator: ObservableObject {
     /// Generate recipe using ONLY user context (no meal type hints)
     /// This is used for Flow 3 (Notes only) and Flow 4 (Ingredients + Notes)
     /// When the user writes notes, they're telling us exactly what to make
+    /// CRITICAL: We pass EMPTY strings instead of "Genel" to avoid confusing the LLM
     public func generateRecipeWithUserContextOnly(
         ingredients: [String]?,
         userContext: String?
     ) async {
+        logger.info("🎯 [USER_CONTEXT] Generating with user context ONLY - no meal type hints")
+        logger.info("📝 [USER_CONTEXT] User's request: '\(userContext ?? "nil")'")
+
         if let ingredients = ingredients {
+            logger.info("🥕 [USER_CONTEXT] Flow 4: Ingredients + Notes")
             await generateRecipeFromIngredients(
-                mealType: "Genel",
-                styleType: "Genel",
+                mealType: "",  // ✅ Empty string - don't confuse LLM with "Genel"
+                styleType: "", // ✅ Empty string - don't confuse LLM with "Genel"
                 ingredients: ingredients,
                 userContext: userContext
             )
         } else {
+            logger.info("📝 [USER_CONTEXT] Flow 3: Notes only")
             await generateRecipeWithStreaming(
-                mealType: "Genel",
-                styleType: "Genel",
+                mealType: "",  // ✅ Empty string - don't confuse LLM with "Genel"
+                styleType: "", // ✅ Empty string - don't confuse LLM with "Genel"
                 userContext: userContext
             )
         }
@@ -490,16 +504,20 @@ public final class RecipeGenerationCoordinator: ObservableObject {
                         }
                     }
 
-                    // CRITICAL FIX: Parse ingredients and directions from markdown during streaming
-                    // This ensures formState has ingredients even if stream ends without "completed" event
-                    let parsed = self.formState.parseMarkdownContent(fullContent)
-                    if !parsed.ingredients.isEmpty {
-                        self.formState.ingredients = parsed.ingredients
-                        self.logger.debug("🔧 [STREAMING] Parsed \(parsed.ingredients.count) ingredients from markdown during streaming")
-                    }
-                    if !parsed.directions.isEmpty {
-                        self.formState.directions = parsed.directions
-                        self.logger.debug("🔧 [STREAMING] Parsed \(parsed.directions.count) directions from markdown during streaming")
+                    // THERMAL FIX: Throttled markdown parsing (every 10 chunks vs every chunk)
+                    // Reduces CPU overhead by 90% while still extracting ingredients in real-time
+                    if count - self.lastParseChunkCount >= self.parseInterval {
+                        self.lastParseChunkCount = count
+
+                        let parsed = self.formState.parseMarkdownContent(fullContent)
+                        if !parsed.ingredients.isEmpty {
+                            self.formState.ingredients = parsed.ingredients
+                            self.logger.debug("🔧 [STREAMING] Parsed \(parsed.ingredients.count) ingredients at chunk \(count)")
+                        }
+                        if !parsed.directions.isEmpty {
+                            self.formState.directions = parsed.directions
+                            self.logger.debug("🔧 [STREAMING] Parsed \(parsed.directions.count) directions at chunk \(count)")
+                        }
                     }
 
                     let cleanedContent = self.removeHeaderAndMetadata(from: fullContent)

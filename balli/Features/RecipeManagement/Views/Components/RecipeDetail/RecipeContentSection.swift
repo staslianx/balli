@@ -75,6 +75,7 @@ struct RecipeContentSection: View {
                             .font(.custom("Manrope-Medium", size: 20))
                             .foregroundColor(.primary)
                             .textFieldStyle(.plain)
+                            .lineLimit(nil)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(.leading, 20)
@@ -103,6 +104,7 @@ struct RecipeContentSection: View {
                             .font(.custom("Manrope-Medium", size: 20))
                             .foregroundColor(.primary)
                             .textFieldStyle(.plain)
+                            .lineLimit(nil)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .padding(.leading, 30)

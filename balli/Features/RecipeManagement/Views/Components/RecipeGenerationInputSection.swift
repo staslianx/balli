@@ -43,7 +43,7 @@ struct ManualIngredientsSection: View {
                         .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
 
-                    TextField("Örn: 250g tavuk göğsü", text: $item.text)
+                    TextField("Örn: 250g tavuk göğsü", text: $item.text, axis: .vertical)
                         .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
                         .focused($focusedIngredientId, equals: item.id)
@@ -148,7 +148,7 @@ struct ManualStepsSection: View {
                         .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
 
-                    TextField("Örn: Tavukları zeytinyağında sotele", text: $item.text)
+                    TextField("Örn: Tavukları zeytinyağında sotele", text: $item.text, axis: .vertical)
                         .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
                         .focused($focusedStepId, equals: item.id)

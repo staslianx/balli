@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import OSLog
 
 // MARK: - Image Cache Manager
 @MainActor
@@ -18,17 +19,31 @@ final class ImageCacheManager: ObservableObject {
     // Pending decode operations to prevent duplicate work
     private var pendingDecodes: [String: Task<UIImage?, Never>] = [:]
 
+    // Task for memory warning observation
+    private var memoryWarningTask: Task<Void, Never>?
+
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "com.balli",
+        category: "ImageCache"
+    )
+
     init() {
         cache.countLimit = 100  // Maximum number of images
         cache.totalCostLimit = 50 * 1024 * 1024  // 50MB
 
-        // Clear cache on memory warning
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(clearCache),
-            name: UIApplication.didReceiveMemoryWarningNotification,
-            object: nil
-        )
+        // MODERN FIX: Use Task-based observation instead of @objc
+        memoryWarningTask = Task { @MainActor in
+            for await _ in NotificationCenter.default.notifications(
+                named: UIApplication.didReceiveMemoryWarningNotification
+            ) {
+                logger.warning("⚠️ [MEMORY] Memory warning received - clearing cache")
+                clearCache()
+            }
+        }
+    }
+
+    deinit {
+        memoryWarningTask?.cancel()
     }
 
     // Async image decoding from Data using modern Swift 6 concurrency
@@ -45,28 +60,56 @@ final class ImageCacheManager: ObservableObject {
 
         // Create new decode task using Task.detached for background work
         let task = Task<UIImage?, Never> { @MainActor in
-            // Decode off main thread using Task.detached with high priority
+            // CRITICAL FIX: Use defer to ensure cleanup happens even on error/cancellation
+            defer {
+                self.pendingDecodes.removeValue(forKey: key)
+            }
+
+            // PERFORMANCE FIX: Use CGContext-based decompression (truly thread-safe, off main thread)
             let decodedImage = await Task.detached(priority: .userInitiated) { () -> UIImage? in
                 guard let image = UIImage(data: data) else {
                     return nil
                 }
 
-                // Force decompression by drawing (improves scroll performance)
-                UIGraphicsBeginImageContextWithOptions(image.size, false, image.scale)
-                defer { UIGraphicsEndImageContext() }
-                image.draw(at: .zero)
-                let decompressedImage = UIGraphicsGetImageFromCurrentImageContext()
+                // Use CGImage-based decompression instead of UIGraphics (thread-safe)
+                guard let cgImage = image.cgImage else {
+                    return image
+                }
 
-                return decompressedImage ?? image
+                let colorSpace = CGColorSpaceCreateDeviceRGB()
+                let bitmapInfo = CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedFirst.rawValue)
+
+                guard let context = CGContext(
+                    data: nil,
+                    width: cgImage.width,
+                    height: cgImage.height,
+                    bitsPerComponent: 8,
+                    bytesPerRow: cgImage.width * 4,
+                    space: colorSpace,
+                    bitmapInfo: bitmapInfo.rawValue
+                ) else {
+                    return image
+                }
+
+                let rect = CGRect(x: 0, y: 0, width: cgImage.width, height: cgImage.height)
+                context.draw(cgImage, in: rect)
+
+                guard let decompressedCGImage = context.makeImage() else {
+                    return image
+                }
+
+                // Return UIImage with same scale and orientation
+                return UIImage(
+                    cgImage: decompressedCGImage,
+                    scale: image.scale,
+                    orientation: image.imageOrientation
+                )
             }.value
 
             // Cache the result on main actor
             if let image = decodedImage {
                 self.cache.setObject(image, forKey: key as NSString, cost: data.count)
             }
-
-            // Remove from pending
-            self.pendingDecodes.removeValue(forKey: key)
 
             return decodedImage
         }
@@ -80,9 +123,10 @@ final class ImageCacheManager: ObservableObject {
         return cache.object(forKey: key as NSString)
     }
 
-    @objc private func clearCache() {
+    private func clearCache() {
         cache.removeAllObjects()
         pendingDecodes.removeAll()
+        logger.info("🧹 [MEMORY] Cache cleared - freed ~50MB")
     }
 }
 

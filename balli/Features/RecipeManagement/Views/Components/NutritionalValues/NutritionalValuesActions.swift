@@ -111,25 +111,23 @@ struct NutritionalValuesActions {
         // Now portionMultiplier=1.0 means "1 serving = new portion size" with correct nutrition
         portionMultiplier = 1.0
 
-        // Save to Core Data
-        do {
-            try viewContext.save()
-            logger.info("✅ Saved portion size: \(self.adjustingPortionWeight)g with updated nutrition values")
+        // Collapse menu immediately
+        withAnimation(.easeInOut(duration: 0.3)) {
+            isPortionAdjustmentExpanded = false
+        }
 
-            // Show success toast
-            toastMessage = .success("Porsiyon kaydedildi!")
+        // Show success toast (independent of menu collapse)
+        toastMessage = .success("Porsiyon kaydedildi!")
 
-            // Collapse section after brief delay (Swift 6 concurrency compliance)
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(1.8))
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isPortionAdjustmentExpanded = false
-                }
+        // Save to Core Data asynchronously to avoid blocking UI
+        Task { @MainActor in
+            do {
+                try viewContext.save()
+                logger.info("✅ Saved portion size: \(self.adjustingPortionWeight)g with updated nutrition values")
+            } catch {
+                logger.error("❌ Failed to save portion size: \(error.localizedDescription)")
+                toastMessage = .error("Kaydetme başarısız oldu")
             }
-
-        } catch {
-            logger.error("❌ Failed to save portion size: \(error.localizedDescription)")
-            toastMessage = .error("Kaydetme başarısız oldu")
         }
     }
 
@@ -157,15 +155,12 @@ struct NutritionalValuesActions {
         portionMultiplier = newMultiplier
         logger.info("✅ [PORTION] Updated multiplier to \(newMultiplier)")
 
-        // Show success toast
-        toastMessage = .success("Porsiyon kaydedildi!")
-
-        // Collapse section after delay
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.8))
-            withAnimation(.easeInOut(duration: 0.3)) {
-                isPortionAdjustmentExpanded = false
-            }
+        // Collapse menu immediately
+        withAnimation(.easeInOut(duration: 0.3)) {
+            isPortionAdjustmentExpanded = false
         }
+
+        // Show success toast (independent of menu collapse)
+        toastMessage = .success("Porsiyon kaydedildi!")
     }
 }
