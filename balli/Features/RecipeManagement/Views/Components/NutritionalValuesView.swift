@@ -207,7 +207,7 @@ struct NutritionalValuesView: View {
         VStack(alignment: .leading, spacing: 0) {
             // Info Text Header (only shown in 100g tab)
             if selectedTab == 1 {
-                Text("100 gram porsiyon başına besin değerleri")
+                Text("100gr")
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold, design: .rounded))
                     .foregroundStyle(.primary)
                     .padding(.horizontal, ResponsiveDesign.Spacing.large)

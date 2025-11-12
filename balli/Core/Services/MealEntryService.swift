@@ -10,31 +10,23 @@ import CoreData
 import Foundation
 import OSLog
 
-/// Service responsible for creating and persisting meal entries and associated medication
+/// Service responsible for creating and persisting meal entries
 @MainActor
 final class MealEntryService {
     private let logger = Logger(subsystem: "com.balli.diabetes", category: "MealEntryService")
 
-    /// Save a meal entry with optional insulin to CoreData
+    /// Save a meal entry to CoreData
     /// - Parameters:
     ///   - totalCarbs: Total carbohydrates in grams
     ///   - mealType: Type of meal (kahvaltı, ara öğün, akşam yemeği)
     ///   - timestamp: When the meal was consumed
     ///   - foods: Array of food items with names, amounts, and optional per-item carbs
-    ///   - hasInsulin: Whether insulin was administered
-    ///   - insulinDosage: Insulin dosage in units
-    ///   - insulinType: Type of insulin (bolus/basal)
-    ///   - insulinName: Name of insulin medication
     ///   - viewContext: Main CoreData context (for merging changes)
     func saveMealEntry(
         totalCarbs: Int,
         mealType: String,
         timestamp: Date,
         foods: [EditableFoodItem],
-        hasInsulin: Bool,
-        insulinDosage: Double,
-        insulinType: String?,
-        insulinName: String?,
         viewContext: NSManagedObjectContext
     ) async throws {
         // Create a background context for async CoreData operations
@@ -88,17 +80,6 @@ final class MealEntryService {
                         try self.createLegacyFormatEntry(
                             totalCarbs: totalCarbs,
                             mealType: mealType,
-                            timestamp: timestamp,
-                            context: context
-                        )
-                    }
-
-                    // CREATE INSULIN MEDICATION ENTRY (if insulin was specified)
-                    if hasInsulin && insulinDosage > 0 {
-                        try self.createInsulinEntry(
-                            dosage: insulinDosage,
-                            insulinType: insulinType,
-                            insulinName: insulinName,
                             timestamp: timestamp,
                             context: context
                         )
@@ -339,61 +320,6 @@ final class MealEntryService {
 
         mealEntry.calculateNutrition()
         mealEntry.consumedCarbs = Double(totalCarbs)
-    }
-
-    /// Create insulin medication entry
-    nonisolated private func createInsulinEntry(
-        dosage: Double,
-        insulinType: String?,
-        insulinName: String?,
-        timestamp: Date,
-        context: NSManagedObjectContext
-    ) throws {
-        // Get the first meal entry for relationship (bolus insulin is linked to meals)
-        let fetchRequest: NSFetchRequest<MealEntry> = MealEntry.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "timestamp == %@", timestamp as NSDate)
-        fetchRequest.fetchLimit = 1
-
-        let mealEntries = try context.fetch(fetchRequest)
-        let firstMealEntry = mealEntries.first
-
-        // Create MedicationEntry
-        let medication = MedicationEntry(context: context)
-        medication.id = UUID()
-        medication.timestamp = timestamp
-        medication.dosage = dosage
-        medication.dosageUnit = "ünite"
-
-        // Set medication name and type
-        if let name = insulinName {
-            medication.medicationName = name
-        } else {
-            // Default names based on type
-            medication.medicationName = insulinType == "basal" ? "Bazal İnsülin" : "Bolus İnsülin"
-        }
-
-        // Determine medication type
-        if let type = insulinType {
-            medication.medicationType = type == "basal" ? "basal_insulin" : "bolus_insulin"
-        } else {
-            // If type not specified, assume bolus if connected to meal, basal otherwise
-            medication.medicationType = firstMealEntry != nil ? "bolus_insulin" : "basal_insulin"
-        }
-
-        medication.administrationRoute = "subcutaneous"
-        medication.timingRelation = firstMealEntry != nil ? "with_meal" : "standalone"
-        medication.isScheduled = false
-        medication.dateAdded = Date()
-        medication.lastModified = Date()
-        medication.source = "voice-gemini"
-        medication.glucoseAtTime = 0 // Could be set if we have current glucose
-
-        // Link to meal entry if this is bolus insulin
-        if medication.medicationType == "bolus_insulin", let mealEntry = firstMealEntry {
-            medication.mealEntry = mealEntry
-        }
-
-        logger.info("💉 Created insulin medication: \(medication.medicationName) \(dosage) units")
     }
 }
 

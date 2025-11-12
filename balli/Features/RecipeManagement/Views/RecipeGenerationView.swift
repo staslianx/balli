@@ -227,6 +227,10 @@ struct RecipeGenerationView: View {
                 let shouldShowModal = generationViewModel.handleStoryCardTap()
                 if shouldShowModal {
                     showingNutritionModal = true
+                } else {
+                    loadingHandler.startLoadingAnimation {
+                        viewModel.nutritionHandler.isCalculatingNutrition
+                    }
                 }
             }
         )
@@ -256,6 +260,7 @@ struct RecipeGenerationView: View {
                 showSaveButton: $showSaveButton,
                 editableRecipeName: editableRecipeName,
                 isEffectivelyGenerating: isEffectivelyGenerating,
+                isContentAnimating: isContentAnimating,
                 canSaveRecipe: canSaveRecipe,
                 logger: logger
             )
@@ -626,6 +631,7 @@ private struct LifecycleModifiers: ViewModifier {
     @Binding var showSaveButton: Bool
     let editableRecipeName: String
     let isEffectivelyGenerating: Bool
+    let isContentAnimating: Bool
     let canSaveRecipe: Bool
     let logger: Logger
 
@@ -691,19 +697,10 @@ private struct LifecycleModifiers: ViewModifier {
                     showSaveButton = canSaveRecipe
                 }
             }
-            .onChange(of: viewModel.isCalculatingNutrition) { oldValue, newValue in
+            .onChange(of: viewModel.nutritionHandler.isCalculatingNutrition) { oldValue, newValue in
                 if oldValue && !newValue {
                     logger.info("✅ [NUTRITION] Calculation completed")
-                    logger.info("📊 [NUTRITION] Values at modal show:")
-                    logger.info("  Per-100g: cal=\(viewModel.calories), carbs=\(viewModel.carbohydrates), protein=\(viewModel.protein)")
-                    logger.info("  Per-serving: cal=\(viewModel.caloriesPerServing), carbs=\(viewModel.carbohydratesPerServing), protein=\(viewModel.proteinPerServing)")
                     loadingHandler.clearLoadingStep()
-                    logger.info("📌 [NUTRITION] Modal ready - user can tap story card to view")
-                } else if !oldValue && newValue {
-                    logger.info("🔄 [NUTRITION] Calculation started, beginning loading animation")
-                    loadingHandler.startLoadingAnimation {
-                        viewModel.isCalculatingNutrition
-                    }
                 }
             }
     }
@@ -719,6 +716,7 @@ private extension View {
         showSaveButton: Binding<Bool>,
         editableRecipeName: String,
         isEffectivelyGenerating: Bool,
+        isContentAnimating: Bool,
         canSaveRecipe: Bool,
         logger: Logger
     ) -> some View {
@@ -731,6 +729,7 @@ private extension View {
             showSaveButton: showSaveButton,
             editableRecipeName: editableRecipeName,
             isEffectivelyGenerating: isEffectivelyGenerating,
+            isContentAnimating: isContentAnimating,
             canSaveRecipe: canSaveRecipe,
             logger: logger
         ))

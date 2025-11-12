@@ -99,9 +99,9 @@ struct ResearchStageStatusCard: View {
             }
             .frame(height: 8)
         }
-        .padding(30)
+        .padding(25)
         .background {
-            RoundedRectangle(cornerRadius: 36, style: .continuous)
+            RoundedRectangle(cornerRadius: 38, style: .continuous)
                 .fill(Color(.systemBackground).opacity(0.95))
         }
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 36, style: .continuous))

@@ -112,64 +112,24 @@ struct CredibilityBadgeView: View {
     let type: ResearchSource.CredibilityType
 
     var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: icon)
-                .font(.system(size: 9, weight: .semibold))
-
-            Text(label)
-                .font(.system(size: 10, weight: .medium))
-        }
-        .foregroundStyle(color)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
-        .background {
-            Capsule()
-                .fill(color.opacity(0.15))
-        }
+        // Minimal badge - just icon, no text
+        Image(systemName: icon)
+            .font(.system(size: 12, weight: .medium))
+            .foregroundStyle(.secondary)
     }
 
     private var icon: String {
         switch type {
         case .peerReviewed:
-            return "checkmark.seal.fill"
+            return "checkmark.seal"
         case .medicalSource:
-            return "cross.case.fill"
+            return "cross.case"
         case .majorNews:
-            return "newspaper.fill"
+            return "newspaper"
         case .government:
-            return "building.columns.fill"
+            return "building.columns"
         case .academic:
-            return "book.fill"
-        }
-    }
-
-    private var label: String {
-        switch type {
-        case .peerReviewed:
-            return "Hakemli"
-        case .medicalSource:
-            return "Tıbbi"
-        case .majorNews:
-            return "Haber"
-        case .government:
-            return "Resmi"
-        case .academic:
-            return "Akademik"
-        }
-    }
-
-    private var color: Color {
-        switch type {
-        case .peerReviewed:
-            return .blue
-        case .medicalSource:
-            return .green
-        case .majorNews:
-            return .orange
-        case .government:
-            return .purple
-        case .academic:
-            return .indigo
+            return "graduationcap"
         }
     }
 }

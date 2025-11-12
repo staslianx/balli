@@ -50,7 +50,7 @@ actor TypewriterAnimator {
     ///   - text: Text chunk to animate
     ///   - answerId: Answer identifier
     ///   - deliver: Callback to deliver displayed text progressively
-    ///   - onComplete: Optional callback when animation completes naturally (queue empty)
+    ///   - onComplete: Optional callback when animation completes naturally (queue empty for 200ms)
     func enqueueText(
         _ text: String,
         for answerId: String,
@@ -137,6 +137,7 @@ actor TypewriterAnimator {
         let task = Task { @Sendable [weak self] in
             guard let self = self else { return }
             var displayedText = ""
+            var isFirstCharacter = true
 
             while true {
                 // Check if cancelled
@@ -149,13 +150,15 @@ actor TypewriterAnimator {
                 // Get next character from queue
                 let queue = await self.characterQueues[answerId]
                 guard var queue = queue, !queue.isEmpty else {
-                    // Queue empty - wait a bit and check again
-                    try? await Task.sleep(for: .milliseconds(50))
+                    // Queue empty - wait longer to ensure backend is truly done
+                    // RACE CONDITION FIX: Extended wait prevents premature completion
+                    // while backend is still streaming new content
+                    try? await Task.sleep(for: .milliseconds(200))
 
                     // Double-check queue is still empty
                     let isEmpty = await self.characterQueues[answerId]?.isEmpty ?? true
                     if isEmpty {
-                        logger.debug("✅ Animation complete for: \(answerId)")
+                        logger.info("✅ [TYPEWRITER] Animation complete for: \(answerId)")
                         await self.cleanupAnimation(for: answerId)
 
                         // Notify completion
@@ -171,20 +174,23 @@ actor TypewriterAnimator {
                 let character = queue.removeFirst()
                 await self.updateQueue(answerId, queue: queue)
 
+                // Calculate delay based on character type
+                let delay = self.calculateDelay(for: character)
+
+                // Apply delay BEFORE displaying character (creates smooth typewriter effect)
+                // Skip delay for first character to show immediate response
+                let stillActive = await self.isCancelled[answerId, default: false]
+                if !stillActive && !isFirstCharacter {
+                    try? await Task.sleep(for: .milliseconds(delay))
+                }
+
+                isFirstCharacter = false
+
                 // Add to displayed text
                 displayedText.append(character)
 
                 // Deliver updated text
                 await deliver(displayedText)
-
-                // Calculate delay based on character type
-                let delay = self.calculateDelay(for: character)
-
-                // Apply delay (unless cancelled)
-                let stillActive = await self.isCancelled[answerId, default: false]
-                if !stillActive {
-                    try? await Task.sleep(for: .milliseconds(delay))
-                }
             }
         }
 

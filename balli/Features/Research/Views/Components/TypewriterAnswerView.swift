@@ -79,7 +79,8 @@ struct TypewriterAnswerView: View {
                     self.displayedContent = displayedText
                 }
             } onComplete: {
-                // Animation completed naturally - mark as complete
+                // Animation queue empty - always mark complete when queue is truly empty
+                // The .onChange(of: isStreaming) will handle early backend completion
                 await MainActor.run {
                     logger.info("✅ [RESEARCH-TYPEWRITER] Animation COMPLETED (all \(self.fullContentReceived.count) chars, answerId: \(answerId))")
                     self.isAnimationComplete = true
@@ -93,15 +94,13 @@ struct TypewriterAnswerView: View {
             fullContentReceived = content
         }
         .onChange(of: isStreaming) { _, newValue in
-            // When streaming completes, let animation finish naturally
+            // When streaming completes, just log it
+            // The typewriter animation will continue and trigger completion when queue empties
             if !newValue {
-                logger.info("🏁 [RESEARCH-TYPEWRITER] Backend streaming COMPLETED (answerId: \(answerId), animation may still be running)")
-                logger.info("   isAnimationComplete: \(isAnimationComplete)")
+                logger.info("🏁 [RESEARCH-TYPEWRITER] Backend streaming COMPLETED (answerId: \(answerId))")
                 logger.info("   displayedContent length: \(displayedContent.count)")
                 logger.info("   fullContentReceived length: \(fullContentReceived.count)")
-                // Don't flush - let the typewriter animator finish at its own pace (30ms per char)
-                // The animation will complete when the character queue is empty
-                // This creates smooth, natural text appearance instead of instant dump
+                logger.info("   Animation will continue and complete naturally when queue empties")
             }
         }
         .onAppear {

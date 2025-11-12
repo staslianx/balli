@@ -176,14 +176,7 @@ class ResearchSSEParser {
                 guard let content = json["content"] as? String else { return nil }
 
                 // 🔍 FORENSIC: Detailed token analysis
-                let charCount = content.count
-                let bytes = content.utf8.map { String(format: "%02X", $0) }.joined(separator: " ")
-                let unicodeScalars = content.unicodeScalars.map { "U+\(String($0.value, radix: 16, uppercase: true))" }.joined(separator: " ")
-                let escapedContent = content.replacingOccurrences(of: "\n", with: "\\n")
-                    .replacingOccurrences(of: "\t", with: "\\t")
-                    .replacingOccurrences(of: "\r", with: "\\r")
-
-                logger.debug("🔍 [TOKEN-PARSED] chars=\(charCount), bytes=[\(bytes)], unicode=[\(unicodeScalars)], raw='\(escapedContent)'")
+                // Token parsed - content ready for display
 
                 return .token(content: content)
 

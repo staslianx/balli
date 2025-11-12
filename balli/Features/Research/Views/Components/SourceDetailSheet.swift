@@ -38,11 +38,6 @@ struct SourceDetailSheet: View {
                             Text(source.domain)
                                 .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold, design: .rounded))
                                 .foregroundStyle(.primary)
-
-                            // Credibility badge
-                            if let badge = source.credibilityBadge {
-                                CredibilityBadgeView(type: badge)
-                            }
                         }
 
                         Spacer()
@@ -208,7 +203,7 @@ struct MetadataRow: View {
 
 // MARK: - Preview
 
-#Preview("Light Mode") {
+#Preview("Peer Reviewed Source") {
     if let url = URL(string: "https://pubmed.ncbi.nlm.nih.gov/123456") {
         SourceDetailSheet(
             source: ResearchSource(
@@ -227,7 +222,7 @@ struct MetadataRow: View {
     }
 }
 
-#Preview("Dark Mode") {
+#Preview("Medical Source") {
     if let url = URL(string: "https://diabetes.org/research/article") {
         SourceDetailSheet(
             source: ResearchSource(
@@ -243,6 +238,43 @@ struct MetadataRow: View {
             ),
             index: 1
         )
-        .preferredColorScheme(.dark)
+    }
+}
+
+#Preview("Academic Source") {
+    if let url = URL(string: "https://science.org/article") {
+        SourceDetailSheet(
+            source: ResearchSource(
+                id: "3",
+                url: url,
+                domain: "science.org",
+                title: "Academic Research on Diabetes Pathophysiology",
+                snippet: "Comprehensive academic review of current diabetes research and treatment methodologies.",
+                publishDate: Date(),
+                author: "University Research Team",
+                credibilityBadge: .academic,
+                faviconURL: URL(string: "https://science.org/favicon.ico")
+            ),
+            index: 2
+        )
+    }
+}
+
+#Preview("Government Source") {
+    if let url = URL(string: "https://cdc.gov/diabetes") {
+        SourceDetailSheet(
+            source: ResearchSource(
+                id: "4",
+                url: url,
+                domain: "cdc.gov",
+                title: "Official CDC Diabetes Guidelines",
+                snippet: "Government health authority recommendations for diabetes management.",
+                publishDate: Date(),
+                author: "Centers for Disease Control",
+                credibilityBadge: .government,
+                faviconURL: URL(string: "https://cdc.gov/favicon.ico")
+            ),
+            index: 4
+        )
     }
 }

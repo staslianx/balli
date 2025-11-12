@@ -19,14 +19,8 @@ struct MealPreviewEditor: View {
     @Binding var editableMealType: String
     @Binding var editableMealTime: String
     @Binding var editableTimestamp: Date
-    @Binding var hasInsulin: Bool
-    @Binding var editableInsulinDosage: Double
-    @Binding var editableInsulinType: String?
-    @Binding var editableInsulinName: String?
 
     let onAdjustCarbs: (Int) -> Void
-
-    @State private var isInsulinFinalized = false
 
     var body: some View {
         ScrollView {
@@ -62,59 +56,13 @@ struct MealPreviewEditor: View {
                         .padding(.horizontal)
                     }
 
-                    // Add food and insulin buttons
+                    // Add food button
                     AddItemButtonsView(
-                        editableFoods: $editableFoods,
-                        hasInsulin: $hasInsulin,
-                        insulinDosage: $editableInsulinDosage,
-                        insulinName: $editableInsulinName,
-                        isInsulinFinalized: $isInsulinFinalized
+                        editableFoods: $editableFoods
                     )
                     .padding(.horizontal)
                 }
                 .animation(nil, value: editableFoods)
-
-                // INSULIN SECTION (if insulin was detected or user wants to add)
-                if hasInsulin {
-                    Divider()
-                        .padding(.horizontal)
-
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("İnsülin")
-                            .font(.system(size: 18, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .padding(.horizontal)
-
-                        EditableInsulinRow(
-                            dosage: $editableInsulinDosage,
-                            insulinName: $editableInsulinName,
-                            isFinalized: $isInsulinFinalized
-                        )
-                        .padding(.horizontal)
-
-                        // Tamam button (only visible when editing)
-                        if !isInsulinFinalized {
-                            HStack {
-                                Spacer()
-                                Button {
-                                    isInsulinFinalized = true
-                                } label: {
-                                    Text("Tamam")
-                                        .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                        .foregroundColor(.white)
-                                        .frame(width: 120)
-                                        .padding(.vertical, 12)
-                                        .background(
-                                            Capsule()
-                                                .fill(AppTheme.primaryPurple)
-                                        )
-                                }
-                                .buttonStyle(.plain)
-                                Spacer()
-                            }
-                        }
-                    }
-                }
 
                 // EDITABLE Timestamp
                 VStack(alignment: .leading, spacing: 8) {

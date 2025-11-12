@@ -28,12 +28,6 @@ struct MealDetailView: View {
                     // Nutrition summary card
                     nutritionSummaryCard
 
-                    // Insulin card if present
-                    let medications = mealGroup.fetchAssociatedMedications(from: viewContext)
-                    if !medications.isEmpty {
-                        insulinSection(medications: medications)
-                    }
-
                     // Ingredients list - ALWAYS show ingredients
                     ingredientsSection
                 }
@@ -130,72 +124,6 @@ struct MealDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, ResponsiveDesign.Spacing.small)
-        }
-        .padding(ResponsiveDesign.Spacing.medium)
-        .background(Color.white.opacity(0.05))
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 36, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
-        .shadow(color: .black.opacity(0.06), radius: ResponsiveDesign.height(8), x: 0, y: ResponsiveDesign.height(4))
-    }
-
-    // MARK: - Insulin Section
-
-    @ViewBuilder
-    private func insulinSection(medications: [MedicationEntry]) -> some View {
-        VStack(spacing: ResponsiveDesign.Spacing.medium) {
-            Text("İnsülin")
-                .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold, design: .rounded))
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            ForEach(medications) { medication in
-                HStack(spacing: ResponsiveDesign.Spacing.medium) {
-                    // microbe.fill icon
-                    Image(systemName: "microbe.fill")
-                        .font(.system(size: ResponsiveDesign.Font.scaledSize(18), weight: .semibold))
-                        .foregroundStyle(AppTheme.primaryPurple)
-                        .frame(width: ResponsiveDesign.Font.scaledSize(40), alignment: .center)
-
-                    // Medication details
-                    VStack(alignment: .leading, spacing: ResponsiveDesign.Spacing.xxSmall) {
-                        Text(medication.medicationName)
-                            .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold, design: .rounded))
-                            .foregroundStyle(.primary)
-
-                        HStack(spacing: 4) {
-                            Text("\(medication.dosage, specifier: "%.1f") ünite")
-                                .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .medium, design: .rounded))
-                                .foregroundStyle(.secondary)
-
-                            // Insulin type badge
-                            if medication.medicationType == "bolus_insulin" {
-                                Text("Hızlı Etkili")
-                                    .font(.system(size: ResponsiveDesign.Font.scaledSize(11), weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(AppTheme.primaryPurple)
-                                    .cornerRadius(4)
-                            } else if medication.medicationType == "basal_insulin" {
-                                Text("Uzun Etkili")
-                                    .font(.system(size: ResponsiveDesign.Font.scaledSize(11), weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(.blue)
-                                    .cornerRadius(4)
-                            }
-                        }
-                    }
-
-                    Spacer()
-                }
-                .padding(ResponsiveDesign.Spacing.medium)
-                .background(.clear)
-                .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .shadow(color: .black.opacity(0.04), radius: ResponsiveDesign.height(4), x: 0, y: ResponsiveDesign.height(2))
-            }
         }
         .padding(ResponsiveDesign.Spacing.medium)
         .background(Color.white.opacity(0.05))

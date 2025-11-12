@@ -75,7 +75,12 @@ struct TypewriterRecipeContentView: View {
             await animator.enqueueText(newChars, for: recipeId) { displayedText in
                 // PERFORMANCE: Only update UI every 3 characters to reduce rendering overhead
                 // This prevents stutter when markdown re-renders become expensive
-                if displayedText.count % 3 == 0 || displayedText.count == fullContentCount {
+                let remainingChars = fullContentCount - displayedText.count
+
+                // Update UI if:
+                // 1. Every 3 characters (normal case)
+                // 2. Last 5 characters (smooth ending, no stuttering)
+                if displayedText.count % 3 == 0 || remainingChars <= 5 {
                     await MainActor.run {
                         self.displayedContent = displayedText
                     }

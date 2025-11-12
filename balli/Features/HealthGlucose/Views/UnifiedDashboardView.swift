@@ -36,7 +36,6 @@ struct UnifiedDashboardView: View {
 
     // Sheet state
     @State private var showingMealHistory = false
-    @State private var showingInsulinHistory = false
     @State private var showingSettings = false  // Only used for .today variant
 
     // MARK: - Initialization
@@ -148,9 +147,6 @@ struct UnifiedDashboardView: View {
                 .sheet(isPresented: $showingMealHistory) {
                     LoggedMealsView()
                 }
-                .sheet(isPresented: $showingInsulinHistory) {
-                    InsulinHistoryView()
-                }
                 .if(variant == .today) { view in
                     view.sheet(isPresented: $showingSettings) {
                         AppSettingsView()
@@ -231,8 +227,7 @@ struct UnifiedDashboardView: View {
                 activityMetricsViewModel: viewModel.activityMetricsViewModel,
                 glucoseChartViewModel: viewModel.glucoseChartViewModel,
                 healthKitPermissions: healthKitPermissions,
-                currentCardIndex: $viewModel.currentCardIndex,
-                showingInsulinHistory: $showingInsulinHistory
+                currentCardIndex: $viewModel.currentCardIndex
             )
         }
     }

@@ -85,50 +85,25 @@ struct CarbStepperView: View {
 
 struct AddItemButtonsView: View {
     @Binding var editableFoods: [EditableFoodItem]
-    @Binding var hasInsulin: Bool
-    @Binding var insulinDosage: Double
-    @Binding var insulinName: String?
-    @Binding var isInsulinFinalized: Bool
 
     var body: some View {
-        VStack(spacing: 12) {
-            Button {
-                var transaction = Transaction()
-                transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                    editableFoods.append(EditableFoodItem(name: "", amount: nil, carbs: nil))
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "carrot.fill")
-                        .font(.system(size: 16, weight: .medium))
-                        .frame(width: 20, height: 20)
-                    Text("Yiyecek Ekle")
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                }
-                .frame(width: 140, height: 44)
+        Button {
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                editableFoods.append(EditableFoodItem(name: "", amount: nil, carbs: nil))
             }
-            .buttonStyle(.bordered)
-
-            if !hasInsulin {
-                Button {
-                    hasInsulin = true
-                    insulinDosage = 0 // Start at 0
-                    insulinName = "NovoRapid" // Default insulin type
-                    isInsulinFinalized = false // Start in stepper mode
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "microbe.fill")
-                            .font(.system(size: 18, weight: .medium))
-                            .frame(width: 20, height: 20)
-                        Text("İnsülin Ekle")
-                            .font(.system(size: 16, weight: .medium, design: .rounded))
-                    }
-                    .frame(width: 140, height: 44)
-                }
-                .buttonStyle(.bordered)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "carrot.fill")
+                    .font(.system(size: 16, weight: .medium))
+                    .frame(width: 20, height: 20)
+                Text("Yiyecek Ekle")
+                    .font(.system(size: 16, weight: .medium, design: .rounded))
             }
+            .frame(width: 140, height: 44)
         }
+        .buttonStyle(.bordered)
         .frame(maxWidth: .infinity)
     }
 }

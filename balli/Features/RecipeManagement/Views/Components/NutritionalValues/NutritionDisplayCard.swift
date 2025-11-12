@@ -146,7 +146,7 @@ struct NutritionDisplayCard: View {
     // MARK: - Info Text
 
     private var infoText: some View {
-        Text("100 gram porsiyon başına besin değerleri")
+        Text("100gr")
     }
 
     // MARK: - Divider

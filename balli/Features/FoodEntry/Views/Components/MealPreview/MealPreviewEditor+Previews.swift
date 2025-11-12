@@ -11,7 +11,7 @@ import SwiftUI
 
 // MARK: - Previews
 
-#Preview("Simple Meal - No Insulin") {
+#Preview("Simple Meal") {
     @Previewable @State var editableFoods = [
         EditableFoodItem(name: "Ekmek", amount: "2 adet", carbs: 30),
         EditableFoodItem(name: "Peynir", amount: "1 dilim", carbs: 2)
@@ -20,10 +20,6 @@ import SwiftUI
     @Previewable @State var editableMealType = "kahvaltı"
     @Previewable @State var editableMealTime = "08:30"
     @Previewable @State var editableTimestamp = Date()
-    @Previewable @State var hasInsulin = false
-    @Previewable @State var editableInsulinDosage = 0.0
-    @Previewable @State var editableInsulinType: String? = nil
-    @Previewable @State var editableInsulinName: String? = nil
 
     let parsedData = ParsedMealData(
         transcription: "İki adet ekmek ve bir dilim peynir yedim",
@@ -39,16 +35,12 @@ import SwiftUI
 
     MealPreviewEditor(
         parsedData: parsedData,
-        isDetailedFormat: false, // Simple format - no per-item carbs
+        isDetailedFormat: false,
         editableFoods: $editableFoods,
         editableTotalCarbs: $editableTotalCarbs,
         editableMealType: $editableMealType,
         editableMealTime: $editableMealTime,
         editableTimestamp: $editableTimestamp,
-        hasInsulin: $hasInsulin,
-        editableInsulinDosage: $editableInsulinDosage,
-        editableInsulinType: $editableInsulinType,
-        editableInsulinName: $editableInsulinName,
         onAdjustCarbs: { delta in
             if let current = Int(editableTotalCarbs) {
                 editableTotalCarbs = "\(max(0, current + delta))"
@@ -57,7 +49,7 @@ import SwiftUI
     )
 }
 
-#Preview("Detailed Meal with Insulin") {
+#Preview("Detailed Meal") {
     @Previewable @State var editableFoods = [
         EditableFoodItem(name: "Ekmek", amount: "2 adet", carbs: 30),
         EditableFoodItem(name: "Peynir", amount: "50 gram", carbs: 2),
@@ -67,13 +59,9 @@ import SwiftUI
     @Previewable @State var editableMealType = "akşam yemeği"
     @Previewable @State var editableMealTime = "19:45"
     @Previewable @State var editableTimestamp = Date()
-    @Previewable @State var hasInsulin = true
-    @Previewable @State var editableInsulinDosage = 5.0
-    @Previewable @State var editableInsulinType: String? = "bolus"
-    @Previewable @State var editableInsulinName: String? = "NovoRapid"
 
     let parsedData = ParsedMealData(
-        transcription: "Akşam yemeğinde iki adet ekmek, elli gram peynir, bir adet domates yedim. Beş ünite NovoRapid vurdum.",
+        transcription: "Akşam yemeğinde iki adet ekmek, elli gram peynir, bir adet domates yedim.",
         foods: [
             ParsedFoodItem(name: "Ekmek", amount: "2 adet", carbs: 30),
             ParsedFoodItem(name: "Peynir", amount: "50 gram", carbs: 2),
@@ -82,24 +70,17 @@ import SwiftUI
         totalCarbs: 35,
         mealType: "akşam yemeği",
         mealTime: "19:45",
-        confidence: "high",
-        insulinDosage: 5.0,
-        insulinType: "bolus",
-        insulinName: "NovoRapid"
+        confidence: "high"
     )
 
     MealPreviewEditor(
         parsedData: parsedData,
-        isDetailedFormat: true, // Detailed format - show per-item carbs
+        isDetailedFormat: true,
         editableFoods: $editableFoods,
         editableTotalCarbs: $editableTotalCarbs,
         editableMealType: $editableMealType,
         editableMealTime: $editableMealTime,
         editableTimestamp: $editableTimestamp,
-        hasInsulin: $hasInsulin,
-        editableInsulinDosage: $editableInsulinDosage,
-        editableInsulinType: $editableInsulinType,
-        editableInsulinName: $editableInsulinName,
         onAdjustCarbs: { delta in
             if let current = Int(editableTotalCarbs) {
                 editableTotalCarbs = "\(max(0, current + delta))"
@@ -116,10 +97,6 @@ import SwiftUI
     @Previewable @State var editableMealType = "ara öğün"
     @Previewable @State var editableMealTime = "15:30"
     @Previewable @State var editableTimestamp = Date()
-    @Previewable @State var hasInsulin = false
-    @Previewable @State var editableInsulinDosage = 0.0
-    @Previewable @State var editableInsulinType: String? = nil
-    @Previewable @State var editableInsulinName: String? = nil
 
     let parsedData = ParsedMealData(
         transcription: "Bir şeyler yedim ama tam hatırlamıyorum",
@@ -134,16 +111,12 @@ import SwiftUI
 
     MealPreviewEditor(
         parsedData: parsedData,
-        isDetailedFormat: false, // Simple format with warning
+        isDetailedFormat: false,
         editableFoods: $editableFoods,
         editableTotalCarbs: $editableTotalCarbs,
         editableMealType: $editableMealType,
         editableMealTime: $editableMealTime,
         editableTimestamp: $editableTimestamp,
-        hasInsulin: $hasInsulin,
-        editableInsulinDosage: $editableInsulinDosage,
-        editableInsulinType: $editableInsulinType,
-        editableInsulinName: $editableInsulinName,
         onAdjustCarbs: { delta in
             if let current = Int(editableTotalCarbs) {
                 editableTotalCarbs = "\(max(0, current + delta))"

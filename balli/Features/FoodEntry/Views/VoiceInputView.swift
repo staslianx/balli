@@ -42,18 +42,8 @@ struct VoiceInputView: View {
     @State private var editableTimestamp: Date = Date()
     @State private var isDetailedFormat: Bool = false // Tracks if ANY ingredient has per-item carbs
 
-    // Editable insulin data
-    @State private var editableInsulinDosage: Double = 0
-    @State private var editableInsulinType: String? = nil
-    @State private var editableInsulinName: String? = nil
-    @State private var hasInsulin: Bool = false
-
     // Success confirmation
     @State private var showingSaveConfirmation = false
-
-    // Insulin-only entry routing
-    @State private var showingStandaloneMedicationEntry = false
-    @State private var standaloneInsulinData: (name: String?, dosage: Double, type: String?, timestamp: Date)?
 
     // Haptic feedback
     private let hapticManager = HapticManager()
@@ -110,17 +100,7 @@ struct VoiceInputView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingStandaloneMedicationEntry) {
-            if let insulinData = standaloneInsulinData {
-                StandaloneMedicationEntryView(
-                    medicationName: insulinData.name,
-                    dosage: insulinData.dosage,
-                    medicationType: insulinData.type,
-                    timestamp: insulinData.timestamp
-                )
-                .environment(\.managedObjectContext, viewContext)
-            }
-        }
+        // Standalone medication entry removed - insulin logging feature disabled
         .task {
             // Check microphone permission
             audioRecorder.checkMicrophonePermission()
@@ -190,10 +170,6 @@ struct VoiceInputView: View {
             editableMealType: $editableMealType,
             editableMealTime: $editableMealTime,
             editableTimestamp: $editableTimestamp,
-            hasInsulin: $hasInsulin,
-            editableInsulinDosage: $editableInsulinDosage,
-            editableInsulinType: $editableInsulinType,
-            editableInsulinName: $editableInsulinName,
             onAdjustCarbs: adjustCarbs(by:)
         )
     }
@@ -321,43 +297,6 @@ struct VoiceInputView: View {
                 isParsing = false
 
                 if response.success, let mealData = response.data {
-                    // SPECIAL CASE: Insulin-only entry (no meal/food data)
-                    // Route to standalone entry for BOTH basal (Lantus) AND bolus (NovoRapid) insulin
-                    // when user only talks about insulin without mentioning food
-                    let hasInsulinData = (mealData.insulinDosage ?? 0) > 0
-                    let hasFoods = !mealData.foods.isEmpty
-                    let hasCarbs = mealData.totalCarbs > 0
-
-                    if hasInsulinData && !hasFoods && !hasCarbs {
-                        logger.info("💉 Detected insulin-only entry - routing to StandaloneMedicationEntryView")
-                        logger.info("   - Insulin: \(mealData.insulinName ?? "Unknown") \(mealData.insulinDosage ?? 0) units")
-                        logger.info("   - Type: \(mealData.insulinType ?? "unknown")")
-
-                        // Parse timestamp - prioritize time mentioned in voice over recording time
-                        let timestamp: Date
-                        if let timeString = mealData.mealTime, let parsedTime = parseTimeString(timeString) {
-                            timestamp = parsedTime
-                            logger.info("   - Using mentioned time: \(timeString)")
-                        } else {
-                            timestamp = Date()
-                            logger.info("   - Using current time (no time mentioned)")
-                        }
-
-                        // Prepare insulin data for standalone entry
-                        standaloneInsulinData = (
-                            name: mealData.insulinName,
-                            dosage: mealData.insulinDosage ?? 0,
-                            type: mealData.insulinType,
-                            timestamp: timestamp
-                        )
-
-                        // Show medication entry view
-                        showingStandaloneMedicationEntry = true
-                        hapticManager.notification(.success)
-
-                        return // Skip meal preview flow
-                    }
-
                     // Convert to ParsedMealData
                     parsedMealData = ParsedMealData(from: mealData)
 
@@ -402,23 +341,10 @@ struct VoiceInputView: View {
                     // PRIORITY: Use time mentioned in voice recording, not the time when recording started
                     if let timeString = mealData.mealTime, let parsedTime = parseTimeString(timeString) {
                         editableTimestamp = parsedTime
-                        logger.info("   - Using mentioned time for meal+insulin: \(timeString)")
+                        logger.info("   - Using mentioned time for meal: \(timeString)")
                     } else {
                         editableTimestamp = Date()
-                        logger.info("   - Using current time for meal+insulin (no time mentioned)")
-                    }
-
-                    // Initialize insulin data if present
-                    if let insulinDosage = mealData.insulinDosage, insulinDosage > 0 {
-                        editableInsulinDosage = insulinDosage.rounded() // Round to nearest integer
-                        editableInsulinType = mealData.insulinType
-                        editableInsulinName = mealData.insulinName
-                        hasInsulin = true
-                    } else {
-                        editableInsulinDosage = 0
-                        editableInsulinType = nil
-                        editableInsulinName = nil
-                        hasInsulin = false
+                        logger.info("   - Using current time for meal (no time mentioned)")
                     }
 
                     showingPreview = true
@@ -491,10 +417,6 @@ struct VoiceInputView: View {
                 mealType: editableMealType,
                 timestamp: editableTimestamp,
                 foods: validFoods,  // Use filtered valid foods
-                hasInsulin: hasInsulin,
-                insulinDosage: editableInsulinDosage,
-                insulinType: editableInsulinType,
-                insulinName: editableInsulinName,
                 viewContext: viewContext
             )
 
