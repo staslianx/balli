@@ -107,10 +107,11 @@ struct MarkdownText: View {
             // Cancel previous debounce to reset the timer
             debounceTask?.cancel()
 
-            // Wait 5ms before parsing - minimal debounce since TokenSmoother handles rate limiting
-            // Reduced from 50ms because TokenSmoother already delivers at steady 50ms rate
+            // PERFORMANCE FIX: Increased debounce from 5ms to 50ms to prevent stutter
+            // TypewriterAnimator now delivers at 20ms/char (50 FPS) so we can batch more aggressively
+            // This reduces parse/render frequency from ~100/sec to ~20/sec for smooth animation
             debounceTask = Task {
-                try? await Task.sleep(for: .milliseconds(5))
+                try? await Task.sleep(for: .milliseconds(50))
 
                 // If not cancelled during debounce, trigger parse
                 guard !Task.isCancelled else { return }
