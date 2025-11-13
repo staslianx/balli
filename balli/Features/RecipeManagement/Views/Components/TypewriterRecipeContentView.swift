@@ -29,29 +29,21 @@ struct TypewriterRecipeContentView: View {
     @State private var isAnimationComplete = false  // Track animation completion
 
     var body: some View {
-        Group {
-            if !displayedContent.isEmpty {
-                MarkdownText(
-                    content: displayedContent,
-                    fontSize: 20,
-                    enableSelection: true,
-                    sourceCount: 0,
-                    sources: [],
-                    headerFontSize: 20 * 2.0,
-                    fontName: "Manrope",
-                    skipFirstHeading: true  // Recipe name shown in hero section
-                )
-                .foregroundStyle(.primary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } else {
-                // Empty placeholder - show while waiting for animation to start
-                Text("")
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .onAppear {
-            // View initialization - no logging needed
-        }
+        // PERFORMANCE FIX: Always render MarkdownText (like research view)
+        // Conditional rendering causes SwiftUI to rebuild view hierarchy on every character
+        // Empty content renders as empty markdown (instant), avoiding expensive view switches
+        MarkdownText(
+            content: displayedContent,
+            fontSize: 20,
+            enableSelection: true,
+            sourceCount: 0,
+            sources: [],
+            headerFontSize: 20 * 2.0,
+            fontName: "Manrope",
+            skipFirstHeading: true  // Recipe name shown in hero section
+        )
+        .foregroundStyle(.primary)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .task(id: content) {
             // STREAMING FIX: Replace .onChange with .task(id:) to prevent
             // "multiple updates per frame" warnings during fast token streaming.
@@ -95,12 +87,6 @@ struct TypewriterRecipeContentView: View {
                 // The animation will complete when the character queue is empty
                 // This creates smooth, natural text appearance instead of instant dump
             }
-        }
-        .onAppear {
-            // Reset animation state for new content
-            isAnimationComplete = false
-            displayedContent = ""
-            fullContentReceived = ""
         }
         .onDisappear {
             // Cleanup on view disappear
