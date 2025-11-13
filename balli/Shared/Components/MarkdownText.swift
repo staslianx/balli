@@ -50,8 +50,10 @@ struct MarkdownText: View {
     @State private var lastParseTime: Date = Date()
 
     // PERFORMANCE: Batch render every N characters or T milliseconds
-    private let batchSize: Int = 15  // Re-render every 15 characters
-    private let maxThrottleInterval: TimeInterval = 0.1  // Or at least every 100ms
+    // TUNED: Reduced batch size from 15 to 5 for smoother visual updates
+    // Research view feels smoother with smaller batches (more frequent updates)
+    private let batchSize: Int = 5  // Re-render every 5 characters
+    private let maxThrottleInterval: TimeInterval = 0.05  // Or at least every 50ms
 
     init(
         content: String,
@@ -133,7 +135,7 @@ struct MarkdownText: View {
                 // Schedule throttled parse (ensures we catch final characters)
                 throttleTask?.cancel()
                 throttleTask = Task {
-                    try? await Task.sleep(for: .milliseconds(100))
+                    try? await Task.sleep(for: .milliseconds(50))
                     guard !Task.isCancelled else { return }
 
                     parseTask?.cancel()

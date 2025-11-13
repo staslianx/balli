@@ -28,12 +28,13 @@ struct UserSelectionView: View {
                     Image(colorScheme == .dark ? "balli-text-logo-dark" : "balli-text-logo")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(height: 44)
+                        .frame(height: 70)
 
                     // Welcome Text
-                    Text("Sonunda tanışabildik")
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                    Text("Merhaba Dilara!Sonunda tanışabildik")
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
+                        .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 20)
 
@@ -48,10 +49,10 @@ struct UserSelectionView: View {
                         .frame(height: 52)
                         .background(
                             AppTheme.primaryPurple
-                                .cornerRadius(20)
+                                .cornerRadius(38)
                         )
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 150)
                 .padding(.bottom, 40)
             }
 

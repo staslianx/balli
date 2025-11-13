@@ -273,6 +273,33 @@ struct RecipeGenerationContentSection: View {
                     onAnimationStateChange: onAnimationStateChange  // Pass through callback
                 )
             } else {
+                // FEATURE DISABLED: Manual recipe entry not ready yet
+                // TODO: Re-enable manual recipe entry by uncommenting the section below
+
+                // Empty state placeholder - manual entry disabled
+                VStack(spacing: 24) {
+                    Spacer()
+
+                    Image(systemName: "book.closed")
+                        .font(.system(size: 60))
+                        .foregroundColor(.secondary.opacity(0.3))
+
+                    Text("Tarif Oluştur")
+                        .font(.custom("Playfair Display", size: 28))
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+
+                    Text("Üstteki menüden tarif türünü seçerek AI ile tarif oluşturabilirsiniz")
+                        .font(.custom("Manrope-Medium", size: 17))
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 40)
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                /* DISABLED: Manual recipe entry (keep code for future use)
                 // Interactive placeholder - let user add their own recipe
                 // Only show when NOT streaming and content is empty
                 VStack(alignment: .leading, spacing: 32) {
@@ -291,6 +318,7 @@ struct RecipeGenerationContentSection: View {
                     )
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                */
             }
         }
     }
