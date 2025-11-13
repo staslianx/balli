@@ -26,6 +26,8 @@ struct ArdiyeView: View {
     @State private var showingShoppingList = false
     @State private var selectedFilter: ArdiyeFilter = .recipes
     @State private var showingSettings = false
+    @State private var showingRecipeGeneration = false
+    @State private var showingCamera = false
 
     // Cache for items to prevent recreation
     @State private var cachedItems: [ArdiyeItem] = []
@@ -235,15 +237,7 @@ struct ArdiyeView: View {
 
             // Filter button — top-right
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    withAnimation {
-                        selectedFilter = selectedFilter == .recipes ? .products : .recipes
-                    }
-                }) {
-                    Image(systemName: selectedFilter == .recipes ? "book.closed" : "laser.burst")
-                        .font(.system(size: 18, weight: .medium, design: .rounded))
-                        .foregroundColor(AppTheme.primaryPurple)
-                }
+                filterButton
             }
         }
         .onAppear {
@@ -281,8 +275,43 @@ struct ArdiyeView: View {
             }
         }
         .toast($toastMessage)
+        .fullScreenCover(isPresented: $showingRecipeGeneration) {
+            NavigationStack {
+                RecipeGenerationView(viewContext: viewContext)
+            }
+        }
+        .fullScreenCover(isPresented: $showingCamera) {
+            CameraView()
+        }
     }
 
+    // MARK: - Filter Button
+
+    /// Custom filter button with tap (switch filter) and long-press (navigate) gestures
+    private var filterButton: some View {
+        Image(systemName: selectedFilter == .recipes ? "book.closed" : "laser.burst")
+            .font(.system(size: 18, weight: .medium, design: .rounded))
+            .foregroundColor(AppTheme.primaryPurple)
+            .contentShape(Rectangle()) // Improve tap target
+            .onTapGesture {
+                // Short tap: Switch filter
+                withAnimation {
+                    selectedFilter = selectedFilter == .recipes ? .products : .recipes
+                }
+            }
+            .onLongPressGesture(minimumDuration: 0.5) {
+                // Long press: Navigate based on current filter
+                if selectedFilter == .recipes {
+                    // When showing recipes (book icon), long-press opens recipe generation
+                    showingRecipeGeneration = true
+                    logger.info("Long-press on recipe filter - opening RecipeGenerationView")
+                } else {
+                    // When showing products (laser icon), long-press opens camera for label scanning
+                    showingCamera = true
+                    logger.info("Long-press on product filter - opening CameraView")
+                }
+            }
+    }
 
     // MARK: - Layout Views
 
