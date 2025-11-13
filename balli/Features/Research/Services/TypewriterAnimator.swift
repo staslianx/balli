@@ -20,17 +20,14 @@ private let logger = Logger(
 actor TypewriterAnimator {
     // MARK: - Configuration
 
-    /// Base delay between characters (milliseconds) - optimized for markdown rendering
-    /// PERFORMANCE FIX: Increased from 8ms to 20ms to reduce re-render frequency
-    /// This prevents stuttering by allowing markdown parser/renderer time between updates
-    /// 20ms = 50 FPS which is still smooth while being render-friendly
-    private let baseDelay: UInt64 = 20
+    /// Base delay between characters (milliseconds) - fast reading speed
+    private let baseDelay: UInt64 = 8
 
     /// Delay for space characters (faster for natural flow)
-    private let spaceDelay: UInt64 = 15
+    private let spaceDelay: UInt64 = 5
 
     /// Delay after punctuation (pause for emphasis)
-    private let punctuationDelay: UInt64 = 80
+    private let punctuationDelay: UInt64 = 50
 
     /// Punctuation characters that trigger longer pauses
     private let punctuationChars: Set<Character> = [".", "!", "?", ":", ";"]

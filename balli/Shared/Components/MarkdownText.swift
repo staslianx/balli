@@ -46,7 +46,12 @@ struct MarkdownText: View {
     @State private var lastContentLength: Int = 0
     @State private var isInitialParse = true
     @State private var parseTask: Task<Void, Never>?
-    @State private var debounceTask: Task<Void, Never>?
+    @State private var throttleTask: Task<Void, Never>?
+    @State private var lastParseTime: Date = Date()
+
+    // PERFORMANCE: Batch render every N characters or T milliseconds
+    private let batchSize: Int = 15  // Re-render every 15 characters
+    private let maxThrottleInterval: TimeInterval = 0.1  // Or at least every 100ms
 
     init(
         content: String,
@@ -103,20 +108,38 @@ struct MarkdownText: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onChange(of: content) { _, newContent in
-            // SSE STREAMING OPTIMIZATION: Debounce rapid token arrivals to batch parse operations
-            // Cancel previous debounce to reset the timer
-            debounceTask?.cancel()
+            // PERFORMANCE FIX: Throttled batch rendering to reduce stutter
+            // Only re-parse when EITHER:
+            // 1. Character count increases by batchSize (15 chars), OR
+            // 2. maxThrottleInterval (100ms) has elapsed since last parse
 
-            // PERFORMANCE FIX: Increased debounce from 5ms to 50ms to prevent stutter
-            // TypewriterAnimator now delivers at 20ms/char (50 FPS) so we can batch more aggressively
-            // This reduces parse/render frequency from ~100/sec to ~20/sec for smooth animation
-            debounceTask = Task {
-                try? await Task.sleep(for: .milliseconds(50))
+            let charsSinceLastParse = newContent.count - lastContentLength
+            let timeSinceLastParse = Date().timeIntervalSince(lastParseTime)
 
-                // If not cancelled during debounce, trigger parse
-                guard !Task.isCancelled else { return }
+            let shouldParse = charsSinceLastParse >= batchSize ||
+                            timeSinceLastParse >= maxThrottleInterval ||
+                            newContent.isEmpty  // Always parse on clear
+
+            if shouldParse {
+                // Cancel any pending throttle task
+                throttleTask?.cancel()
+
+                // Parse immediately
+                parseTask?.cancel()
                 parseTask = Task {
                     await parseContentAsync()
+                }
+            } else {
+                // Schedule throttled parse (ensures we catch final characters)
+                throttleTask?.cancel()
+                throttleTask = Task {
+                    try? await Task.sleep(for: .milliseconds(100))
+                    guard !Task.isCancelled else { return }
+
+                    parseTask?.cancel()
+                    parseTask = Task {
+                        await parseContentAsync()
+                    }
                 }
             }
         }
@@ -154,6 +177,7 @@ struct MarkdownText: View {
         parsedBlocks = blocks
         lastParsedContent = contentToParse
         lastContentLength = contentToParse.count
+        lastParseTime = Date()  // Track when we last parsed
         isInitialParse = false
     }
 }
