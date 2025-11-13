@@ -89,10 +89,11 @@ struct MealDetailView: View {
                     Image(systemName: "pencil")
                         .font(.system(size: ResponsiveDesign.Font.scaledSize(16), weight: .semibold))
                         .foregroundStyle(AppTheme.primaryPurple)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 44, height: 44)
                         .background(Color(.systemGray6))
                         .clipShape(Circle())
                 }
+                .contentShape(Circle())
             }
         }
         .padding(ResponsiveDesign.Spacing.medium)
@@ -193,10 +194,11 @@ struct MealDetailView: View {
                 Image(systemName: "pencil")
                     .font(.system(size: ResponsiveDesign.Font.scaledSize(14), weight: .semibold))
                     .foregroundStyle(AppTheme.primaryPurple)
-                    .frame(width: 32, height: 32)
+                    .frame(width: 44, height: 44)
                     .background(Color(.systemGray6))
                     .clipShape(Circle())
             }
+            .contentShape(Circle())
         }
         .padding(ResponsiveDesign.Spacing.medium)
     }

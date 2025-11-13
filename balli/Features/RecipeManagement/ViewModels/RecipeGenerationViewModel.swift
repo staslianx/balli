@@ -227,12 +227,16 @@ final class RecipeGenerationViewModel: ObservableObject {
             buildManualRecipeContent()
         }
 
+        // CRITICAL FIX: Ensure photo is fully loaded before saving
+        // loadImageFromGeneratedURL() is async and must complete before saveRecipe()
         if recipeViewModel.generatedPhotoURL != nil {
+            logger.info("📸 [SAVE] Loading generated photo before save...")
             await recipeViewModel.loadImageFromGeneratedURL()
+            logger.info("✅ [SAVE] Photo loaded, imageData: \(self.recipeViewModel.recipeImageData != nil ? "\(self.recipeViewModel.recipeImageData!.count) bytes" : "nil")")
         }
 
-        recipeViewModel.saveRecipe()
-        try? await Task.sleep(for: .milliseconds(100))
+        // Now save recipe with the loaded image data
+        await recipeViewModel.saveRecipe()
 
         if recipeViewModel.persistenceCoordinator.showingSaveConfirmation {
             isSaved = true

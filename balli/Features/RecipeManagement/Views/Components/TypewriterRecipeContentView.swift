@@ -71,19 +71,11 @@ struct TypewriterRecipeContentView: View {
             }
 
             logger.info("📝 [TYPEWRITER] Enqueuing \(newChars.count) new chars (total: \(fullContentReceived.count))")
-            let fullContentCount = fullContentReceived.count
             await animator.enqueueText(newChars, for: recipeId) { displayedText in
-                // PERFORMANCE: Only update UI every 3 characters to reduce rendering overhead
-                // This prevents stutter when markdown re-renders become expensive
-                let remainingChars = fullContentCount - displayedText.count
-
-                // Update UI if:
-                // 1. Every 3 characters (normal case)
-                // 2. Last 5 characters (smooth ending, no stuttering)
-                if displayedText.count % 3 == 0 || remainingChars <= 5 {
-                    await MainActor.run {
-                        self.displayedContent = displayedText
-                    }
+                // Update UI on every character for smooth typewriter effect
+                // Modern SwiftUI handles markdown re-renders efficiently
+                await MainActor.run {
+                    self.displayedContent = displayedText
                 }
             } onComplete: {
                 // Animation completed naturally - mark as complete and show final content

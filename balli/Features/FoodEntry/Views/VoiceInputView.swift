@@ -94,8 +94,9 @@ struct VoiceInputView: View {
                             }
                         } label: {
                             Image(systemName: "checkmark")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(ThemeColors.primaryPurple)
                         }
-                        .buttonStyle(.balliBordered)
                     }
                 }
             }

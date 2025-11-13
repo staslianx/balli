@@ -125,13 +125,22 @@ struct GlucoseChartCard: View {
                     .interpolationMethod(.catmullRom)
                 }
 
-                // Meal log markers - vertical lines in international orange
+                // FEATURE DEACTIVATED: Meal log markers - vertical lines in international orange with glow
+                // Code kept intact for future re-activation
                 // Tap on lines to see carb values (with safety check for deleted objects)
+                /*
                 ForEach(viewModel.mealLogs.filter { !$0.isFault && !$0.isDeleted && $0.managedObjectContext != nil }, id: \.id) { meal in
+                    // Glow layer (wider, more transparent)
+                    RuleMark(x: .value("Öğün", meal.timestamp))
+                        .foregroundStyle(Color(red: 1.0, green: 0.31, blue: 0.0).opacity(0.3))
+                        .lineStyle(StrokeStyle(lineWidth: 6, lineCap: .round))
+
+                    // Main line (solid, on top)
                     RuleMark(x: .value("Öğün", meal.timestamp))
                         .foregroundStyle(Color(red: 1.0, green: 0.31, blue: 0.0)) // International Orange
-                        .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round))
+                        .lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round))
                 }
+                */
 
                 // Average line - simple horizontal line without badge
                 RuleMark(y: .value("Ortalama", average))
@@ -167,6 +176,8 @@ struct GlucoseChartCard: View {
                         handleChartTap(at: value.location, chartProxy: chartProxy)
                     }
             }
+            // FEATURE DEACTIVATED: Tooltip disabled since meal marker lines are hidden
+            /*
             .overlay(alignment: .top) {
                 // Show carb tooltip when meal is selected (with safety check)
                 if let selectedMeal = selectedMeal,
@@ -180,6 +191,7 @@ struct GlucoseChartCard: View {
                     }
                 }
             }
+            */
             .frame(height: ResponsiveDesign.Components.chartHeight)
             .padding(.vertical, 8)
         } else {
@@ -259,8 +271,8 @@ struct GlucoseChartCard: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 12))
+        .shadow(color: Color(red: 1.0, green: 0.31, blue: 0.0).opacity(0.2), radius: 12, x: 0, y: 4)
         .padding(.top, 8)
     }
 

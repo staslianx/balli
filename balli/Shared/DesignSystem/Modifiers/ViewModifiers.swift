@@ -310,6 +310,54 @@ extension View {
     }
 }
 
+// MARK: - Touch Target Modifier
+
+/// Ensures a view meets the minimum touch target size recommended by Apple HIG
+/// Minimum 44×44pt for all interactive elements
+struct MinimumTouchTarget: ViewModifier {
+    let minWidth: CGFloat
+    let minHeight: CGFloat
+    let alignment: Alignment
+
+    init(
+        minWidth: CGFloat = 44,
+        minHeight: CGFloat = 44,
+        alignment: Alignment = .center
+    ) {
+        self.minWidth = minWidth
+        self.minHeight = minHeight
+        self.alignment = alignment
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .frame(minWidth: minWidth, minHeight: minHeight)
+            .contentShape(Rectangle())
+    }
+}
+
+extension View {
+    /// Ensures this view has a minimum touch target size (default: 44×44pt per Apple HIG)
+    /// Also adds `.contentShape(Rectangle())` to make the entire frame tappable
+    ///
+    /// Note: Do NOT use this on toolbar buttons - iOS handles toolbar button touch targets automatically.
+    ///
+    /// Usage:
+    /// ```swift
+    /// Button { action() } label: {
+    ///     Image(systemName: "chevron.left")
+    /// }
+    /// .minTouchTarget()
+    /// ```
+    func minTouchTarget(
+        minWidth: CGFloat = 44,
+        minHeight: CGFloat = 44,
+        alignment: Alignment = .center
+    ) -> some View {
+        modifier(MinimumTouchTarget(minWidth: minWidth, minHeight: minHeight, alignment: alignment))
+    }
+}
+
 // MARK: - Device Specific Modifiers
 extension View {
     @ViewBuilder

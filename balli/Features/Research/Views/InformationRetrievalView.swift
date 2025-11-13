@@ -51,7 +51,7 @@ struct InformationRetrievalView: View {
                                     AnswerCardView(
                                         answer: answer,
                                         enableStreaming: !displayedAnswerIds.contains(answer.id),
-                                        isStreamingComplete: !viewModel.isSearching,
+                                        isStreamingComplete: !isEffectivelySearching,  // Wait for BOTH backend AND typewriter animation
                                         isSearchingSources: viewModel.searchingSourcesForAnswer[answer.id] ?? false,
                                         currentStage: viewModel.currentStages[answer.id],
                                         shouldHoldStream: viewModel.shouldHoldStream[answer.id] ?? false,

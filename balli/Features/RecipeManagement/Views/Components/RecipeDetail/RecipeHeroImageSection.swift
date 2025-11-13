@@ -21,6 +21,14 @@ struct RecipeHeroImageSection: View {
 
     @State private var showingImagePreview = false
 
+    // PERFORMANCE FIX: Cache decoded images to prevent flash during view refreshes
+    // When Core Data saves (nutrition calculation), SwiftUI rebuilds the view
+    // Without caching, UIImage(data:) blocks main thread causing visible flash
+    @State private var cachedImage: UIImage?
+    @State private var cachedGeneratedImage: UIImage?
+    @State private var lastImageDataHash: Int?
+    @State private var lastGeneratedDataHash: Int?
+
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeHeroImageSection")
 
     var body: some View {
@@ -31,9 +39,9 @@ struct RecipeHeroImageSection: View {
 
         ZStack(alignment: .top) {
             // Show generated image if available, otherwise show existing or placeholder
-            if let generatedData = generatedImageData,
-               let uiImage = UIImage(data: generatedData) {
-                Image(uiImage: uiImage)
+            // PERFORMANCE FIX: Use cached decoded images to prevent flash on view refresh
+            if let cachedGeneratedImage = cachedGeneratedImage {
+                Image(uiImage: cachedGeneratedImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: geometry.size.width, height: imageHeight)
@@ -42,9 +50,8 @@ struct RecipeHeroImageSection: View {
                     .onTapGesture {
                         showingImagePreview = true
                     }
-            } else if let imageData = imageData,
-               let uiImage = UIImage(data: imageData) {
-                Image(uiImage: uiImage)
+            } else if let cachedImage = cachedImage {
+                Image(uiImage: cachedImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: geometry.size.width, height: imageHeight)
@@ -107,6 +114,34 @@ struct RecipeHeroImageSection: View {
                 imageData: generatedImageData ?? imageData,
                 imageURL: imageURL
             )
+        }
+        // PERFORMANCE FIX: Decode images asynchronously on background thread
+        // Only decode when data actually changes (using hash comparison)
+        .task(id: generatedImageData?.hashValue) {
+            guard let data = generatedImageData,
+                  data.hashValue != lastGeneratedDataHash else { return }
+
+            lastGeneratedDataHash = data.hashValue
+
+            // Decode on background thread to avoid main thread blocking
+            let image = await Task.detached(priority: .userInitiated) {
+                UIImage(data: data)
+            }.value
+
+            cachedGeneratedImage = image
+        }
+        .task(id: imageData?.hashValue) {
+            guard let data = imageData,
+                  data.hashValue != lastImageDataHash else { return }
+
+            lastImageDataHash = data.hashValue
+
+            // Decode on background thread to avoid main thread blocking
+            let image = await Task.detached(priority: .userInitiated) {
+                UIImage(data: data)
+            }.value
+
+            cachedImage = image
         }
     }
 

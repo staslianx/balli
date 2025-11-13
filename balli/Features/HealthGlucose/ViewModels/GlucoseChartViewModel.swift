@@ -128,14 +128,38 @@ final class GlucoseChartViewModel: ObservableObject {
                     let updated = (notification.userInfo?[NSUpdatedObjectsKey] as? Set<NSManagedObject>) ?? []
                     let deleted = (notification.userInfo?[NSDeletedObjectsKey] as? Set<NSManagedObject>) ?? []
 
-                    let hasMealChanges = inserted.contains { $0 is MealEntry } ||
-                                        updated.contains { $0 is MealEntry } ||
-                                        deleted.contains { $0 is MealEntry }
+                    // Extract MealEntry objects for inspection
+                    let insertedMeals = inserted.compactMap { $0 as? MealEntry }
+                    let updatedMeals = updated.compactMap { $0 as? MealEntry }
+                    let deletedMeals = deleted.compactMap { $0 as? MealEntry }
+
+                    // CRITICAL FIX: Filter out sync-only changes to prevent excessive refreshes
+                    // BUT: Always process inserts and deletes regardless of fields changed
+                    let updatedMealsWithRealChanges = updatedMeals.filter { meal in
+                        let changedKeys = Set(meal.changedValues().keys)
+
+                        // Sync-only fields that don't affect display
+                        let syncOnlyFields: Set<String> = ["firestoreSyncStatus", "lastModified", "deviceId", "lastSyncAttempt"]
+
+                        // If ONLY sync fields changed, skip refresh
+                        let nonSyncChanges = changedKeys.subtracting(syncOnlyFields)
+                        return !nonSyncChanges.isEmpty
+                    }
+
+                    // Always refresh on insert/delete, only filter updates
+                    let hasMealChanges = !insertedMeals.isEmpty ||
+                                        !updatedMealsWithRealChanges.isEmpty ||
+                                        !deletedMeals.isEmpty
 
                     // Handle meal changes asynchronously
                     if hasMealChanges {
                         Task { @MainActor in
-                            self.logger.info("Meal entry changed (inserted/updated/deleted) - refreshing meal logs")
+                            if !insertedMeals.isEmpty || !deletedMeals.isEmpty {
+                                self.logger.info("Meal entry changed (\(insertedMeals.count) inserted, \(updatedMealsWithRealChanges.count) updated, \(deletedMeals.count) deleted) - refreshing meal logs")
+                            } else {
+                                self.logger.debug("Meal entry updated with real changes - refreshing meal logs")
+                            }
+
                             // CRITICAL FIX: Always reload meal logs immediately when changes occur
                             // Don't wait for time range calculation - use cached or recalculate
                             guard let timeRange = self.calculateTimeRange() else {
@@ -149,6 +173,8 @@ final class GlucoseChartViewModel: ObservableObject {
                             // FORCE REFRESH: Trigger view update by resetting objectWillChange
                             self.objectWillChange.send()
                         }
+                    } else {
+                        self.logger.debug("⏭️ Ignoring save notification - only sync metadata changed")
                     }
                 }
                 .store(in: &cancellables)

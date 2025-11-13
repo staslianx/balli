@@ -448,7 +448,7 @@ public class RecipeViewModel: ObservableObject {
 
     // MARK: - Save Recipe
 
-    public func saveRecipe() {
+    public func saveRecipe() async {
         logger.info("💾 [SAVE] saveRecipe() called")
         logger.debug("📋 [SAVE] Image state:")
         logger.debug("  - recipeImageURL: \(self.recipeImageURL != nil ? "present" : "nil")")
@@ -459,10 +459,8 @@ public class RecipeViewModel: ObservableObject {
         }
         logger.debug("  - preparedImage: \(self.preparedImage != nil ? "present" : "nil")")
 
-        Task {
-            await persistenceCoordinator.saveRecipe(imageURL: recipeImageURL, imageData: recipeImageData)
-            logger.info("✅ [SAVE] persistenceCoordinator.saveRecipe() completed")
-        }
+        await persistenceCoordinator.saveRecipe(imageURL: recipeImageURL, imageData: recipeImageData)
+        logger.info("✅ [SAVE] persistenceCoordinator.saveRecipe() completed")
     }
 
     // MARK: - Content Management

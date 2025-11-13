@@ -91,8 +91,30 @@ final class MealSyncCoordinator: MealSyncCoordinatorProtocol {
 
         logger.info("Detected \(mealChanges.count) meal changes")
 
+        // CRITICAL FIX: Filter out changes that are ONLY sync metadata updates
+        // This prevents infinite loops when markAsPendingSync() triggers another notification
+        let mealsNeedingSync = mealChanges.filter { meal in
+            // Check if this is a real content change or just sync metadata
+            let changedKeys = Set(meal.changedValues().keys)
+
+            // Sync-only fields that shouldn't retrigger the sync coordinator
+            let syncOnlyFields: Set<String> = ["firestoreSyncStatus", "lastModified", "deviceId", "lastSyncAttempt"]
+
+            // If ONLY sync fields changed, skip this meal
+            let nonSyncChanges = changedKeys.subtracting(syncOnlyFields)
+            return !nonSyncChanges.isEmpty
+        }
+
+        // If no real changes (only sync metadata changed), ignore to prevent loop
+        guard !mealsNeedingSync.isEmpty else {
+            logger.debug("⏭️ Ignoring save notification - only sync metadata changed")
+            return
+        }
+
+        logger.info("Processing \(mealsNeedingSync.count) meals with real content changes")
+
         // Mark meals as pending sync
-        for meal in mealChanges {
+        for meal in mealsNeedingSync {
             meal.markAsPendingSync()
         }
 

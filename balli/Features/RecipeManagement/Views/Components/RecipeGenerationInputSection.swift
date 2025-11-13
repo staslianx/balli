@@ -43,11 +43,12 @@ struct ManualIngredientsSection: View {
                         .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
 
-                    TextField("Örn: 250g tavuk göğsü", text: $item.text, axis: .vertical)
+                    TextField("Örn: 250g tavuk göğsü", text: $item.text)
                         .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
+                        .lineLimit(1...5)
                         .focused($focusedIngredientId, equals: item.id)
-                        .submitLabel(.next)
+                        .submitLabel(.return)
                         .onSubmit {
                             moveToNextIngredient(currentId: item.id)
                         }
@@ -111,8 +112,10 @@ struct ManualIngredientsSection: View {
         // Current field has content - create next field
         let newItem = RecipeItem(text: "")
         ingredients.append(newItem)
-        // Move focus to new field
-        focusedIngredientId = newItem.id
+        // Defer focus to next run loop to prevent keyboard flicker
+        Task { @MainActor in
+            focusedIngredientId = newItem.id
+        }
     }
 
     private func deleteIngredient(id: UUID) {
@@ -148,11 +151,12 @@ struct ManualStepsSection: View {
                         .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
 
-                    TextField("Örn: Tavukları zeytinyağında sotele", text: $item.text, axis: .vertical)
+                    TextField("Örn: Tavukları zeytinyağında sotele", text: $item.text)
                         .font(.custom("Manrope-Medium", size: 20))
                         .foregroundColor(.primary)
+                        .lineLimit(1...5)
                         .focused($focusedStepId, equals: item.id)
-                        .submitLabel(.next)
+                        .submitLabel(.return)
                         .onSubmit {
                             moveToNextStep(currentId: item.id)
                         }
@@ -216,8 +220,10 @@ struct ManualStepsSection: View {
         // Current field has content - create next field
         let newItem = RecipeItem(text: "")
         steps.append(newItem)
-        // Move focus to new field
-        focusedStepId = newItem.id
+        // Defer focus to next run loop to prevent keyboard flicker
+        Task { @MainActor in
+            focusedStepId = newItem.id
+        }
     }
 
     private func deleteStep(id: UUID) {

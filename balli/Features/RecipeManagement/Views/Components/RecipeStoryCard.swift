@@ -154,6 +154,7 @@ struct RecipeStoryCard: View {
             )
         }
         .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
         .simultaneousGesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { _ in

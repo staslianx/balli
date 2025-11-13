@@ -77,29 +77,46 @@ struct MealEditSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                // Basic Information Section
-                basicInfoSection
+            ZStack {
+                // Gradient background for depth
+                LinearGradient(
+                    colors: [
+                        Color(.systemBackground),
+                        Color(.systemBackground).opacity(0.95)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
 
-                // Nutrition Section
-                nutritionSection
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // Basic Information Section
+                        basicInfoSection
 
-                // Notes Section
-                notesSection
+                        // Nutrition Section
+                        nutritionSection
+
+                        // Notes Section
+                        notesSection
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 20)
+                }
+                .scrollDismissesKeyboard(.interactively)
             }
-            .formStyle(.grouped)
-            .scrollDismissesKeyboard(.interactively)
-            .scrollContentBackground(.hidden)
-            .background(Color(.systemBackground))
             .tint(AppTheme.primaryPurple)
             .navigationTitle("Öğünü Düzenle")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("İptal") {
+                    Button {
                         dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(AppTheme.primaryPurple)
                     }
-                    .fontWeight(.regular)
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
@@ -107,10 +124,13 @@ struct MealEditSheet: View {
                         ProgressView()
                             .controlSize(.small)
                     } else {
-                        Button("Kaydet") {
+                        Button {
                             Task { await saveChanges() }
+                        } label: {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 17, weight: .semibold))
+                                .foregroundColor(canSave && hasChanges ? AppTheme.primaryPurple : Color.secondary)
                         }
-                        .fontWeight(.semibold)
                         .disabled(!canSave || !hasChanges)
                     }
                 }
@@ -126,50 +146,98 @@ struct MealEditSheet: View {
     // MARK: - Section Views
 
     private var basicInfoSection: some View {
-        Section {
-            // Meal Type Picker
-            HStack(spacing: 12) {
-                Image(systemName: "fork.knife")
-                    .foregroundStyle(AppTheme.primaryPurple)
-                    .frame(width: 24)
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Öğün Bilgileri")
+                .font(.footnote)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 4)
 
-                Picker("Öğün Türü", selection: $mealType) {
-                    ForEach(mealTypeOptions, id: \.self) { type in
-                        Text(type).tag(type)
+            VStack(spacing: 12) {
+                // Meal Type Picker
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "fork.knife")
+                            .foregroundStyle(AppTheme.primaryPurple)
+                            .font(.system(size: 18))
+                            .frame(width: 24, height: 24)
+
+                        Text("Öğün Türü")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                    }
+
+                    Menu {
+                        ForEach(mealTypeOptions, id: \.self) { type in
+                            Button(type) {
+                                mealType = type
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            Text(mealType.isEmpty ? "Seçiniz" : mealType)
+                                .font(.body)
+                                .foregroundStyle(mealType.isEmpty ? .secondary : .primary)
+
+                            Spacer()
+
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.regularMaterial)
+                        )
                     }
                 }
-                .pickerStyle(.menu)
-                .labelsHidden()
-            }
-            .padding(.vertical, 8)
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 28))
 
-            // Timestamp
-            HStack(spacing: 12) {
-                Image(systemName: "clock.fill")
-                    .foregroundStyle(AppTheme.primaryPurple)
-                    .frame(width: 24)
+                // Timestamp
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "clock.fill")
+                            .foregroundStyle(AppTheme.primaryPurple)
+                            .font(.system(size: 18))
+                            .frame(width: 24, height: 24)
 
-                DatePicker(
-                    "Tarih ve Saat",
-                    selection: $timestamp,
-                    displayedComponents: [.date, .hourAndMinute]
-                )
-                .datePickerStyle(.compact)
-                .labelsHidden()
+                        Text("Tarih ve Saat")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundStyle(.primary)
+                    }
+
+                    DatePicker(
+                        "Tarih ve Saat",
+                        selection: $timestamp,
+                        displayedComponents: [.date, .hourAndMinute]
+                    )
+                    .datePickerStyle(.compact)
+                    .labelsHidden()
+                    .tint(AppTheme.primaryPurple)
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 28))
             }
-            .padding(.vertical, 8)
-        } header: {
-            Text("Öğün Bilgileri")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
         }
-        .listRowSeparator(.hidden)
-        .listSectionSpacing(20)
     }
 
     private var nutritionSection: some View {
-        Section {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Besin Değerleri")
+                .font(.footnote)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 4)
+
             // Carbohydrates only
             NutritionFieldRow(
                 icon: "leaf.fill",
@@ -177,38 +245,57 @@ struct MealEditSheet: View {
                 value: $consumedCarbs,
                 unit: "gr"
             )
-        } header: {
-            Text("Besin Değerleri")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundStyle(.secondary)
         }
-        .listRowSeparator(.hidden)
-        .listSectionSpacing(20)
     }
 
     private var notesSection: some View {
-        Section {
-            HStack(alignment: .top, spacing: 12) {
-                Image(systemName: "note.text")
-                    .foregroundStyle(AppTheme.primaryPurple)
-                    .frame(width: 24)
-                    .padding(.top, 4)
-
-                TextEditor(text: $notes)
-                    .frame(minHeight: 80, maxHeight: 120)
-                    .scrollContentBackground(.hidden)
-                    .font(.body)
-            }
-            .padding(.vertical, 4)
-        } header: {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Notlar")
-                .font(.subheadline)
-                .fontWeight(.medium)
+                .font(.footnote)
+                .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 4)
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(systemName: "note.text")
+                        .foregroundStyle(AppTheme.primaryPurple)
+                        .font(.system(size: 18))
+                        .frame(width: 24, height: 24)
+
+                    Text("Notlar")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.primary)
+                }
+
+                ZStack(alignment: .topLeading) {
+                    if notes.isEmpty {
+                        Text("Notlarınızı buraya yazın...")
+                            .foregroundStyle(.tertiary)
+                            .font(.body)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .allowsHitTesting(false)
+                    }
+
+                    TextEditor(text: $notes)
+                        .frame(minHeight: 120)
+                        .scrollContentBackground(.hidden)
+                        .font(.body)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(.regularMaterial)
+                        )
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 28))
         }
-        .listRowSeparator(.hidden)
-        .listSectionSpacing(20)
     }
 
     // MARK: - Actions
@@ -318,27 +405,41 @@ private struct NutritionFieldRow: View {
     let unit: String
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .foregroundStyle(AppTheme.primaryPurple)
-                .frame(width: 24)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .foregroundStyle(AppTheme.primaryPurple)
+                    .font(.system(size: 18))
+                    .frame(width: 24, height: 24)
 
-            Text(label)
-                .foregroundStyle(.primary)
+                Text(label)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.primary)
+            }
 
-            Spacer()
+            HStack(spacing: 12) {
+                TextField("0", text: $value)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.leading)
+                    .font(.body)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(.regularMaterial)
+                    )
 
-            TextField("0", text: $value)
-                .textFieldStyle(.plain)
-                .keyboardType(.decimalPad)
-                .multilineTextAlignment(.trailing)
-                .frame(width: 60)
-
-            Text(unit)
-                .foregroundStyle(.secondary)
-                .frame(width: 36, alignment: .leading)
+                Text(unit)
+                    .font(.body)
+                    .fontWeight(.medium)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, alignment: .leading)
+            }
         }
-        .padding(.vertical, 8)
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(.regular, in: RoundedRectangle(cornerRadius: 28))
     }
 }
 

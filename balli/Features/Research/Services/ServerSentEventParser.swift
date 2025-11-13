@@ -25,6 +25,7 @@ enum ResearchSSEEvent: Sendable {
     case researchProgress(fetched: Int, total: Int, message: String)
     case generating(message: String)
     case token(content: String)
+    case flushTokens  // Backend signal: all tokens sent, ensure display complete before metadata
     case complete(sources: [SourceResponse], metadata: MetadataInfo, researchSummary: ResearchSummary?, processingTier: String?, thinkingSummary: String?)
     case error(message: String)
 
@@ -96,6 +97,16 @@ class ResearchSSEParser {
     /// Parse SSE event from data line
     /// Thread-safe: Returns Sendable types, no mutable state, safe to call from any context
     static func parseEvent(from data: String) -> ResearchSSEEvent? {
+        // Handle SSE comment events (e.g., ": flush-tokens", ": keepalive")
+        if data.hasPrefix(": ") {
+            let comment = String(data.dropFirst(2)).trimmingCharacters(in: .whitespacesAndNewlines)
+            if comment == "flush-tokens" {
+                return .flushTokens
+            }
+            // Ignore other comments (keepalive, etc.)
+            return nil
+        }
+
         // SSE format: "data: {json}\n\n"
         guard data.hasPrefix("data: ") else { return nil }
 

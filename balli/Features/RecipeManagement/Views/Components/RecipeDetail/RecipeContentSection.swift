@@ -16,6 +16,9 @@ struct RecipeContentSection: View {
     @Binding var editedIngredients: [String]
     @Binding var editedInstructions: [String]
 
+    @FocusState private var focusedIngredientIndex: Int?
+    @FocusState private var focusedInstructionIndex: Int?
+
     private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "com.balli", category: "RecipeContentSection")
 
     var body: some View {
@@ -71,12 +74,17 @@ struct RecipeContentSection: View {
                             .frame(width: 14, alignment: .trailing)
                             .offset(x: -20)
 
-                        TextField("", text: $editedIngredients[index], axis: .vertical)
+                        TextField("", text: $editedIngredients[index])
                             .font(.custom("Manrope-Medium", size: 20))
                             .foregroundColor(.primary)
                             .textFieldStyle(.plain)
-                            .lineLimit(nil)
+                            .lineLimit(1...5)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .focused($focusedIngredientIndex, equals: index)
+                            .submitLabel(.return)
+                            .onSubmit {
+                                moveToNextIngredient(currentIndex: index)
+                            }
                     }
                     .padding(.leading, 20)
                 }
@@ -100,12 +108,17 @@ struct RecipeContentSection: View {
                             .frame(width: 24, alignment: .trailing)
                             .offset(x: -30)
 
-                        TextField("", text: $editedInstructions[index], axis: .vertical)
+                        TextField("", text: $editedInstructions[index])
                             .font(.custom("Manrope-Medium", size: 20))
                             .foregroundColor(.primary)
                             .textFieldStyle(.plain)
-                            .lineLimit(nil)
+                            .lineLimit(1...5)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .focused($focusedInstructionIndex, equals: index)
+                            .submitLabel(.return)
+                            .onSubmit {
+                                moveToNextInstruction(currentIndex: index)
+                            }
                     }
                     .padding(.leading, 30)
                 }
@@ -115,6 +128,34 @@ struct RecipeContentSection: View {
     }
 
     // MARK: - Helper Functions
+
+    private func moveToNextIngredient(currentIndex: Int) {
+        // If we're at the last ingredient, add a new one
+        if currentIndex == editedIngredients.count - 1 {
+            editedIngredients.append("")
+            // Defer focus to next run loop to prevent keyboard flicker
+            Task { @MainActor in
+                focusedIngredientIndex = currentIndex + 1
+            }
+        } else {
+            // Move to next existing ingredient
+            focusedIngredientIndex = currentIndex + 1
+        }
+    }
+
+    private func moveToNextInstruction(currentIndex: Int) {
+        // If we're at the last instruction, add a new one
+        if currentIndex == editedInstructions.count - 1 {
+            editedInstructions.append("")
+            // Defer focus to next run loop to prevent keyboard flicker
+            Task { @MainActor in
+                focusedInstructionIndex = currentIndex + 1
+            }
+        } else {
+            // Move to next existing instruction
+            focusedInstructionIndex = currentIndex + 1
+        }
+    }
 
     private func buildMarkdownContent() -> String {
         var markdown = ""

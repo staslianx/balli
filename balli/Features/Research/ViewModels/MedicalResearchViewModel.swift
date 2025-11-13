@@ -193,10 +193,20 @@ class MedicalResearchViewModel: ObservableObject {
 
     deinit {
         MainActor.assumeIsolated {
-            for observer in observers {
+            // DIAGNOSTIC: Log cleanup to verify proper deallocation on navigation
+            logger.info("🧹 [DEINIT] MedicalResearchViewModel deallocating - cleaning up resources")
+            logger.debug("🧹 [DEINIT] Removing \(self.observers.count) notification observers")
+
+            for observer in self.observers {
                 NotificationCenter.default.removeObserver(observer)
             }
-            observers.removeAll()
+            self.observers.removeAll()
+
+            // Cancel all Combine subscriptions
+            logger.debug("🧹 [DEINIT] Cancelling \(self.cancellables.count) Combine subscriptions")
+            self.cancellables.removeAll()
+
+            logger.info("✅ [DEINIT] MedicalResearchViewModel cleanup complete")
         }
     }
 

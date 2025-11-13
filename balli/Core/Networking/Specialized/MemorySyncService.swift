@@ -273,6 +273,17 @@ actor MemorySyncService {
             } catch {
                 lastError = error
 
+                // PERFORMANCE FIX: Don't retry permanent errors (403 Forbidden, 404 Not Found, etc.)
+                // These errors indicate client misconfiguration or missing resources that won't resolve with retries
+                if let syncError = error as? MemorySyncError,
+                   case .httpError(let statusCode, _) = syncError {
+                    // Permanent client errors (4xx except 408, 429) - don't retry
+                    if statusCode >= 400 && statusCode < 500 && statusCode != 408 && statusCode != 429 {
+                        logger.error("❌ Permanent HTTP error \(statusCode) - aborting retry (not retryable)")
+                        throw error
+                    }
+                }
+
                 // Don't retry on last attempt
                 if attempt < maxAttempts - 1 {
                     // Exponential backoff: 1s, 2s, 4s

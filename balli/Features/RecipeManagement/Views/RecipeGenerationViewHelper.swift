@@ -27,18 +27,27 @@ struct RecipeGenerationViewHelper {
         var ingredientList: [String] = []
         var directions: [String] = []
 
-        if !ingredients.isEmpty {
+        // Filter out empty items before processing
+        let nonEmptyIngredients = ingredients.filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        let nonEmptySteps = steps.filter { !$0.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+        print("🔍 [HELPER] Input: \(ingredients.count) ingredients, \(steps.count) steps")
+        print("✅ [HELPER] Filtered: \(nonEmptyIngredients.count) non-empty ingredients, \(nonEmptySteps.count) non-empty steps")
+        nonEmptyIngredients.forEach { print("  • \($0.text)") }
+        nonEmptySteps.forEach { print("  → \($0.text)") }
+
+        if !nonEmptyIngredients.isEmpty {
             var ingredientLines = ["## Malzemeler", "---"]
-            ingredientLines.append(contentsOf: ingredients.map { "- \($0.text)" })
+            ingredientLines.append(contentsOf: nonEmptyIngredients.map { "- \($0.text)" })
             sections.append(ingredientLines.joined(separator: "\n"))
-            ingredientList = ingredients.map { $0.text }
+            ingredientList = nonEmptyIngredients.map { $0.text }
         }
 
-        if !steps.isEmpty {
+        if !nonEmptySteps.isEmpty {
             var stepLines = ["## Yapılışı", "---"]
-            stepLines.append(contentsOf: steps.enumerated().map { "\($0.offset + 1). \($0.element.text)" })
+            stepLines.append(contentsOf: nonEmptySteps.enumerated().map { "\($0.offset + 1). \($0.element.text)" })
             sections.append(stepLines.joined(separator: "\n"))
-            directions = steps.map { $0.text }
+            directions = nonEmptySteps.map { $0.text }
         }
 
         let content = sections.joined(separator: "\n\n")
